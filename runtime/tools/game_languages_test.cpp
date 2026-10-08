@@ -11,7 +11,7 @@ namespace config { std::string game_dir, save_dir; }
 void log_msg(const char*, ...) {}
 int main(int argc, char** argv) {
     namespace fs = std::filesystem;
-    const fs::path root = argc > 1 ? fs::path(argv[1]) : fs::temp_directory_path() / "wwhd_game_languages_test";
+    const fs::path root = argc > 1 ? fs::path(argv[1]) : fs::temp_directory_path() / "nsmbu_game_languages_test";
     fs::remove_all(root);
     const fs::path pack = root / "content" / "Common" / "PACK";  // any case, as on a case-sensitive host
     fs::create_directories(pack);
@@ -34,9 +34,9 @@ int main(int argc, char** argv) {
     config::game_dir = (root / "").string();  // a trailing separator
     assert(fs::path(game_lang::sources_dir()) == root.parent_path() / "game-lang");
 #ifdef _WIN32
-    _putenv_s("WWHD_LANG_DIR", "elsewhere");
+    _putenv_s("NSMBU_LANG_DIR", "elsewhere");
 #else
-    setenv("WWHD_LANG_DIR", "elsewhere", 1);
+    setenv("NSMBU_LANG_DIR", "elsewhere", 1);
 #endif
     assert(game_lang::sources_dir() == "elsewhere");
     assert(game_lang::region_from_code("EU") == game_lang::kEurope && game_lang::region_from_code("Japan") == game_lang::kJapan);

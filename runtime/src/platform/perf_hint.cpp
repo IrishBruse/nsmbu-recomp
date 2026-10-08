@@ -45,7 +45,7 @@ void set_mode_auto(int mode) {
 }
 
 bool enabled() {
-    static const bool on = [] { const char* e = getenv("WWHD_PERF_HINT"); return !e || atoi(e) != 0; }();
+    static const bool on = [] { const char* e = getenv("NSMBU_PERF_HINT"); return !e || atoi(e) != 0; }();
     return on;
 }
 
@@ -174,7 +174,7 @@ static cpu_set_t fastest_cores(int& count) {
 }
 
 void add_current_thread() {
-    static const bool pin = [] { const char* e = getenv("WWHD_FAST_CORES"); return !e || atoi(e) != 0; }();
+    static const bool pin = [] { const char* e = getenv("NSMBU_FAST_CORES"); return !e || atoi(e) != 0; }();
     if (pin) {
         int n = 0;
         cpu_set_t set = fastest_cores(n);

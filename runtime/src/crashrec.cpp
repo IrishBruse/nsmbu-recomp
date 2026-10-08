@@ -4,13 +4,13 @@
 // rotating). Right after one is captured, <states>/auto/auto<n>.input starts: one record per pad read
 // on a logic pass (the input the game actually used), written unbuffered so a crash loses nothing.
 //
-// Replay (WWHD_REPLAY=<n>, optional WWHD_REPLAY_AT=<TV frame>, default 1500): once the game is
+// Replay (NSMBU_REPLAY=<n>, optional NSMBU_REPLAY_AT=<TV frame>, default 1500): once the game is
 // running, automatic state n is loaded and the pad reads after the load return the recorded input in
 // order; when the recording ends, live input takes over. Crash recovery saves nothing during a replay.
 //
-// On/off: Save States menu, or WWHD_CRASH_RECOVERY=0|1 for one start; the menu choice is kept in
-// <states>/crash_recovery.cfg. WWHD_CRASH_RECOVERY_INTERVAL=<seconds> (default 120).
-// Test aid: WWHD_TEST_CRASH_AT=<TV frame> crashes on purpose.
+// On/off: Save States menu, or NSMBU_CRASH_RECOVERY=0|1 for one start; the menu choice is kept in
+// <states>/crash_recovery.cfg. NSMBU_CRASH_RECOVERY_INTERVAL=<seconds> (default 120).
+// Test aid: NSMBU_TEST_CRASH_AT=<TV frame> crashes on purpose.
 #include "crashrec.h"
 
 #include <atomic>
@@ -76,12 +76,12 @@ void update_note(int latest, const char* when) {
     }
     snprintf(g_note, sizeof g_note,
              "crash recovery: latest automatic state %s (saved %s), input since then in %s\n"
-             "  reproduce with: WWHD_REPLAY=%d ./build/cmake/wwhd   (loads it and replays the input)\n",
+             "  reproduce with: NSMBU_REPLAY=%d ./build/cmake/nsmbu   (loads it and replays the input)\n",
              state_path(latest).c_str(), when, input_path(latest).c_str(), latest);
 }
 
 bool read_cfg() {
-    if (const char* e = getenv("WWHD_CRASH_RECOVERY")) return atoi(e) != 0;
+    if (const char* e = getenv("NSMBU_CRASH_RECOVERY")) return atoi(e) != 0;
     if (FILE* f = fopen(cfg_path().c_str(), "r")) {
         int v = 0;
         bool ok = fscanf(f, "%d", &v) == 1;
@@ -107,8 +107,8 @@ bool enabled() {
     if (v < 0) {
         v = read_cfg() ? 1 : 0;
         g_enabled = v;
-        if (const char* r = getenv("WWHD_REPLAY")) g_replay = atoi(r);
-        if (const char* a = getenv("WWHD_REPLAY_AT")) g_replay_at = strtoull(a, nullptr, 10);
+        if (const char* r = getenv("NSMBU_REPLAY")) g_replay = atoi(r);
+        if (const char* a = getenv("NSMBU_REPLAY_AT")) g_replay_at = strtoull(a, nullptr, 10);
         if (g_replay < 1 || g_replay > kAutoSlots) g_replay = 0;
         if (g_replay) LOG("[crashrec] replay of automatic state %d from frame %llu", g_replay, (unsigned long long)g_replay_at);
         if (v && !g_replay) LOG("[crashrec] on: automatic state every %d s", interval_seconds());
@@ -130,7 +130,7 @@ void set_enabled(bool on) {
 
 int interval_seconds() {
     static const int s = [] {
-        const char* e = getenv("WWHD_CRASH_RECOVERY_INTERVAL");
+        const char* e = getenv("NSMBU_CRASH_RECOVERY_INTERVAL");
         int v = e ? atoi(e) : 120;
         return v < 10 ? 10 : v;
     }();
@@ -139,10 +139,10 @@ int interval_seconds() {
 
 void service() {
     bool on = enabled();
-    // test aid: WWHD_TEST_CRASH_AT=<TV frame> crashes on purpose (checks the crash log and replay hints)
-    static const uint64_t crash_at = getenv("WWHD_TEST_CRASH_AT") ? strtoull(getenv("WWHD_TEST_CRASH_AT"), nullptr, 10) : 0;
+    // test aid: NSMBU_TEST_CRASH_AT=<TV frame> crashes on purpose (checks the crash log and replay hints)
+    static const uint64_t crash_at = getenv("NSMBU_TEST_CRASH_AT") ? strtoull(getenv("NSMBU_TEST_CRASH_AT"), nullptr, 10) : 0;
     if (crash_at && render::frame_count() >= crash_at) {
-        LOG("[crashrec] WWHD_TEST_CRASH_AT: crashing on purpose");
+        LOG("[crashrec] NSMBU_TEST_CRASH_AT: crashing on purpose");
         *(volatile uint32_t*)(uintptr_t)0x10 = 0;
     }
     std::lock_guard<std::mutex> lk(g_mu);

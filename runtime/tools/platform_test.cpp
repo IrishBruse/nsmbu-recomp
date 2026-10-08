@@ -7,7 +7,7 @@
 #include <cstring>
 #include <thread>
 int main(){
- auto root=std::filesystem::temp_directory_path()/("wwhd-platform-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ auto root=std::filesystem::temp_directory_path()/("nsmbu-platform-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
  std::filesystem::create_directories(root/"sub");
  auto path=(root/"sub"/"sparse.bin").string();FILE* f=fopen(path.c_str(),"w+b");assert(f);
  uint64_t offset=(1ull<<32)+123;assert(host::file_seek(f,offset,SEEK_SET)==0);assert(fputc(42,f)==42);assert(host::file_tell(f)==(int64_t)offset+1);assert(host::file_seek(f,offset,SEEK_SET)==0);assert(fgetc(f)==42);fclose(f);

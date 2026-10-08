@@ -90,7 +90,7 @@ int main() {
 #endif
     assert(memory == address);
     const fs::path root = fs::temp_directory_path() /
-                          ("wwhd-langsrc-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+                          ("nsmbu-langsrc-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     // the installed (USA) game: three packs; a European source with five, one of them also named like a
     // USA pack (ignored), one without the SARC tag (ignored); a Japanese source in another folder name case
     const fs::path game = root / "data" / "game", lang = root / "data" / "game-lang";
@@ -111,9 +111,9 @@ int main() {
     config::save_dir = (root / "save").string();
     fs::create_directories(root / "save");
 #ifdef _WIN32
-    _putenv_s("WWHD_LANG_DIR", "");
+    _putenv_s("NSMBU_LANG_DIR", "");
 #else
-    unsetenv("WWHD_LANG_DIR");
+    unsetenv("NSMBU_LANG_DIR");
 #endif
 
     assert(fs::path(game_lang::sources_dir()) == lang);

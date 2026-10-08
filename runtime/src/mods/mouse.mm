@@ -52,7 +52,7 @@ static bool g_gyro_capture = false;
 namespace { bool gyro_capture_active() { return g_gyro_capture; } }
 void update_gyro_mouse() {
     const bool want = g_tv && motion::mouse_drives_gyro() && !overlay::captures() && g_tv.isKeyWindow && NSApp.isActive &&
-                      !getenv("WWHD_NO_HOST_INPUT");
+                      !getenv("NSMBU_NO_HOST_INPUT");
     if (want && !g_gyro_capture) {
         g_gyro_capture = true;
         if (!g_captured.load()) {
@@ -84,7 +84,7 @@ bool host_key_down(uint16_t code) {
 
 void mouse_init(void* tv_window) {
     g_tv = (__bridge NSWindow*)tv_window;
-    if (getenv("WWHD_NO_HOST_INPUT")) return;
+    if (getenv("NSMBU_NO_HOST_INPUT")) return;
     g_tv.acceptsMouseMovedEvents = YES;
     NSEventMask mask = NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged |
                        NSEventMaskOtherMouseDragged | NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp |

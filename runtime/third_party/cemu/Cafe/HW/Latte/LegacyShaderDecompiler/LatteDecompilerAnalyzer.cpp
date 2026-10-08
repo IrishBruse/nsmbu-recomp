@@ -1165,7 +1165,7 @@ void LatteDecompiler_analyze(LatteDecompilerShaderContext* shaderContext, LatteD
 	{
 		shaderContext->analyzer.useSSBOForStreamout = true;
 	}
-	// WWHD: units the host reads area-sampled need their resolution factor (uf_texNScale)
+	// NSMBU: units the host reads area-sampled need their resolution factor (uf_texNScale)
 	if (shaderContext->shaderType == LatteConst::ShaderType::Pixel)
 	{
 		for (sint32 t = 0; t < LATTE_NUM_MAX_TEX_UNITS && t < 32; t++)

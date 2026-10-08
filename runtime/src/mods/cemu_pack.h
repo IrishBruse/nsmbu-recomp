@@ -27,7 +27,7 @@ void set_vulkan(bool available); // requested at startup, then actual backend af
 bool vulkan();
 bool has_shaders();
 bool legacy_pixel_uniforms(uint64_t base);
-float aspect_ratio(); // known WWHD resolution data patches use the native projection adapter
+float aspect_ratio(); // known NSMBU resolution data patches use the native projection adapter
 // Absolute physical render-target sizes; guest sizes/formats are preserved.
 bool texture_extent(uint32_t width,uint32_t height,uint32_t format,uint32_t depth,uint32_t tile,uint32_t& out_width,uint32_t& out_height);
 std::string shader_source(uint64_t base,uint64_t aux,bool vertex);

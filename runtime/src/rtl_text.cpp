@@ -202,7 +202,7 @@ uint32_t mirror(uint32_t cp) {
     case 0xFF09: return 0xFF08;
     case 0xFF3B: return 0xFF3D;
     case 0xFF3D: return 0xFF3B;
-    // the Wind Waker HD fonts' decorative brackets (private use area) around place names and credits
+    // the NSMBU fonts' decorative brackets (private use area) around place names and credits
     case 0xE0A0: return 0xE0A1;
     case 0xE0A1: return 0xE0A0;
     }

@@ -1,4 +1,4 @@
-// Aspect ratio of the TV picture (Graphics menu, WWHD_ASPECT): see aspect.cpp.
+// Aspect ratio of the TV picture (Graphics menu, NSMBU_ASPECT): see aspect.cpp.
 #pragma once
 #include <cstdint>
 

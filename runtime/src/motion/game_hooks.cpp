@@ -1,6 +1,6 @@
 // Gyro aiming in Pro Controller mode (issue #71): the game's own hook (tools/recomp/hooks_gyro.txt).
 //
-// WWHD's controller manager (singleton 101F5088, decompiled in wwhd_src/d/hd_input_ctrl.cpp) keeps a
+// NSMBU's controller manager (singleton 101F5088, decompiled in nsmbu_src/d/hd_input_ctrl.cpp) keeps a
 // controller mode: 0 when the game plays with a Pro Controller, 1/2 with the GamePad, 3 with both. Every
 // frame it copies the GamePad's direction matrix (026173B0) whatever the mode, and the first-person camera
 // (dCamera_c::CalcSubjectAngle) asks 02618604 for the calibrated GamePad orientation. 02618604 returns the

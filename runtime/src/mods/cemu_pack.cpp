@@ -116,7 +116,7 @@ Pack parse(const fs::path& folder){
     Pack pack;auto sections=ini(read(folder/"rules.txt"));bool definition=false;
     for(const auto& section:sections){auto field=[&](const char* key){auto it=section.fields.find(key);return it==section.fields.end()?std::string{}:unquote(it->second);};
         if(section.name=="definition"){
-            require(!definition,"Multiple Cemu definitions");definition=true;bool usa=false;std::istringstream titles(lower(field("titleids")));std::string title;while(std::getline(titles,title,','))usa|=trim(title)=="0005000010143500";require(usa,"Cemu pack does not target WWHD USA");
+            require(!definition,"Multiple Cemu definitions");definition=true;bool usa=false;std::istringstream titles(lower(field("titleids")));std::string title;while(std::getline(titles,title,','))usa|=trim(title)=="0005000010143500";require(usa,"Cemu pack does not target NSMBU USA");
             auto version=field("version");require(version=="4"||version=="5","Only Cemu graphics pack versions 4 and 5 are supported");
             pack.name=field("name");require(!pack.name.empty(),"Cemu pack has no name");pack.description=field("description");
         }else if(section.name=="default"){
@@ -149,20 +149,20 @@ Pack parse(const fs::path& folder){
         }else require(!name.ends_with("_vs.txt")&&!name.ends_with("_ps.txt")&&!name.ends_with("_gs.txt")&&!name.ends_with(".glsl"),"Unsupported Cemu shader filename/stage");
     }
     if(fs::exists(folder/"patches.txt")) {
-        // Only the official WWHD resolution pack's aspect constants are adapted.
+        // Only the official NSMBU resolution pack's aspect constants are adapted.
         // No instruction patch, arbitrary guest address, or executable payload runs.
         const std::map<std::string,std::map<std::string,std::string>> expected={
-            {"wwhdaspecteur",{{"modulematches","0xb7e748de"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417e0",".float ($aspectratio)"},{"0x101658a8",".float ($aspectratio)"}}},
-            {"wwhdaspectjap",{{"modulematches","0x74bd3f6a"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417f8",".float ($aspectratio)"},{"0x101658c0",".float ($aspectratio)"}}},
-            {"wwhdaspectusa",{{"modulematches","0x475bd29f"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417d0",".float ($aspectratio)"},{"0x10165898",".float ($aspectratio)"}}}};
+            {"nsmbuaspecteur",{{"modulematches","0xb7e748de"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417e0",".float ($aspectratio)"},{"0x101658a8",".float ($aspectratio)"}}},
+            {"nsmbuaspectjap",{{"modulematches","0x74bd3f6a"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417f8",".float ($aspectratio)"},{"0x101658c0",".float ($aspectratio)"}}},
+            {"nsmbuaspectusa",{{"modulematches","0x475bd29f"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417d0",".float ($aspectratio)"},{"0x10165898",".float ($aspectratio)"}}}};
         bool usa=false;std::set<std::string> seen;
         for(auto section:ini(read(folder/"patches.txt"))) {
             require(expected.contains(section.name)&&seen.insert(section.name).second,"Unsupported Cemu patch section");
             for(auto& [key,value]:section.fields)value=lower(trim(value));
-            require(section.fields==expected.at(section.name),"Only official WWHD aspect data patches are supported");
-            usa|=section.name=="wwhdaspectusa";
+            require(section.fields==expected.at(section.name),"Only official NSMBU aspect data patches are supported");
+            usa|=section.name=="nsmbuaspectusa";
         }
-        require(usa,"Missing WWHD USA aspect patch");pack.aspect_expression="$aspectRatio";
+        require(usa,"Missing NSMBU USA aspect patch");pack.aspect_expression="$aspectRatio";
     }
     require(!pack.textures.empty()||!pack.shaders.empty(),"Cemu pack contains no supported graphics or shader changes");
     prepare({Selection{"validation",pack,{}}});return pack;
@@ -179,7 +179,7 @@ void import_legacy(const fs::path& stage,const std::string& source_name){
     std::vector<fs::path> rules;for(const auto& e:fs::recursive_directory_iterator(stage))if(e.is_regular_file()&&lower(e.path().filename().string())=="rules.txt")rules.push_back(e.path());
     require(rules.size()==1,"Select a single Cemu pack with one rules.txt");auto pack=parse(rules.front().parent_path());
     auto id=lower(fs::path(source_name).stem().string());for(char& c:id)if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'||c=='_'))c='-';if(id.size()>58)id.resize(58);require(!id.empty(),"Missing Cemu pack name");
-    json::Value m;m["format_version"]=1;m["id"]="cemu."+id;m["name"]=pack.name;m["version"]="1.0.0";m["game_id"]="wwhd-usa";m["minimum_manager_version"]="1.2.0";m["kind"]="cemu";auto relative=rules.front().parent_path().lexically_relative(stage).generic_string();m["cemu_dir"]=relative=="."?"":relative;m["description"]=pack.description;m["options"]=options(pack);
+    json::Value m;m["format_version"]=1;m["id"]="cemu."+id;m["name"]=pack.name;m["version"]="1.0.0";m["game_id"]="nsmbu-usa";m["minimum_manager_version"]="1.2.0";m["kind"]="cemu";auto relative=rules.front().parent_path().lexically_relative(stage).generic_string();m["cemu_dir"]=relative=="."?"":relative;m["description"]=pack.description;m["options"]=options(pack);
     std::ofstream out(stage/"manifest.json");out<<json::dump(m)<<'\n';out.close();require(bool(out),"Cannot write imported Cemu manifest");
 }
 void validate(const std::vector<Selection>& selections){prepare(selections);}
@@ -192,7 +192,7 @@ bool has_shaders(){return shader_present.load(std::memory_order_acquire)&&vulkan
 bool texture_extent(uint32_t width,uint32_t height,uint32_t format,uint32_t depth,uint32_t tile,uint32_t& ow,uint32_t& oh){
     if(!present.load(std::memory_order_acquire))return false;
     for(const auto& r:active.rules){if(r.shaders&&!vulkan())continue;if(r.width&&r.width!=width)continue;if(r.height&&r.height!=height)continue;if(r.depth&&r.depth!=depth)continue;if(!r.formats.empty()&&std::find(r.formats.begin(),r.formats.end(),format)==r.formats.end())continue;if(!r.tiles.empty()&&std::find(r.tiles.begin(),r.tiles.end(),tile)==r.tiles.end())continue;ow=r.out_width?r.out_width:width;oh=r.out_height?r.out_height:height;
-        if(std::getenv("WWHD_TEST_CEMU_TRACE")){thread_local std::set<std::tuple<std::string,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t>> seen;if(seen.emplace(r.owner,width,height,format,ow,oh).second)std::fprintf(stderr,"[cemu-pack] %s target %ux%u format %x -> %ux%u\n",r.owner.c_str(),width,height,format,ow,oh);}
+        if(std::getenv("NSMBU_TEST_CEMU_TRACE")){thread_local std::set<std::tuple<std::string,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t>> seen;if(seen.emplace(r.owner,width,height,format,ow,oh).second)std::fprintf(stderr,"[cemu-pack] %s target %ux%u format %x -> %ux%u\n",r.owner.c_str(),width,height,format,ow,oh);}
         return true;}return false;
 }
 void report_shader(uint64_t base,uint64_t aux,bool vertex,bool accepted,const std::string& reason){

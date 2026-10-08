@@ -36,33 +36,33 @@ int main() {
     // environment: a normal start asks; every test / headless variable keeps quitting at once
     g_env.clear();
     CHECK(!suppressed(fake_env));
-    for (const char* v : {"WWHD_HIDDEN_WINDOWS", "WWHD_EXIT_AT_FRAME"}) {
+    for (const char* v : {"NSMBU_HIDDEN_WINDOWS", "NSMBU_EXIT_AT_FRAME"}) {
         g_env = {{v, "1"}};
         CHECK(suppressed(fake_env));
         g_env = {{v, "0"}};  // 0: off (as the runtime reads them)
         CHECK(!suppressed(fake_env));
     }
-    g_env = {{"WWHD_EXIT_AT_FRAME", "4000"}};
+    g_env = {{"NSMBU_EXIT_AT_FRAME", "4000"}};
     CHECK(suppressed(fake_env));
-    g_env = {{"WWHD_NO_HOST_INPUT", "1"}};
+    g_env = {{"NSMBU_NO_HOST_INPUT", "1"}};
     CHECK(suppressed(fake_env));
-    g_env = {{"WWHD_CONTROLS_SELFTEST", "1"}};
+    g_env = {{"NSMBU_CONTROLS_SELFTEST", "1"}};
     CHECK(suppressed(fake_env));
-    g_env = {{"WWHD_QUIT_PROMPT", "0"}};
+    g_env = {{"NSMBU_QUIT_PROMPT", "0"}};
     CHECK(suppressed(fake_env));
-    g_env = {{"WWHD_QUIT_PROMPT", "1"}};
+    g_env = {{"NSMBU_QUIT_PROMPT", "1"}};
     CHECK(!suppressed(fake_env));
 
     // test answers
     g_env.clear();
     CHECK(test_answer(fake_env) == Answer::None);
-    g_env = {{"WWHD_TEST_QUIT_ANSWER", "quit"}};
+    g_env = {{"NSMBU_TEST_QUIT_ANSWER", "quit"}};
     CHECK(test_answer(fake_env) == Answer::Quit);
-    g_env = {{"WWHD_TEST_QUIT_ANSWER", "cancel"}};
+    g_env = {{"NSMBU_TEST_QUIT_ANSWER", "cancel"}};
     CHECK(test_answer(fake_env) == Answer::Cancel);
-    g_env = {{"WWHD_TEST_QUIT_ANSWER", "save"}};
+    g_env = {{"NSMBU_TEST_QUIT_ANSWER", "save"}};
     CHECK(test_answer(fake_env) == Answer::SaveAndQuit);
-    g_env = {{"WWHD_TEST_QUIT_ANSWER", "maybe"}};
+    g_env = {{"NSMBU_TEST_QUIT_ANSWER", "maybe"}};
     CHECK(test_answer(fake_env) == Answer::None);
 
     // decisions

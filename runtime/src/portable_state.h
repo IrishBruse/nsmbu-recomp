@@ -8,7 +8,7 @@
 // This file is the format only (no game or runtime dependencies; runtime/tools/portable_state_test.cpp).
 //
 // File (UTF-8 text, one "key = value" per line, '#' comments):
-//   # Wind Waker HD portable save state ...
+//   # NSMBU portable save state ...
 //   format = 1
 //   title_id = 0005000010143500
 //   ...
@@ -43,7 +43,7 @@ struct State {
     int format = kFormatVersion;
     std::string title_id;       // "0005000010143500" (meta.xml)
     uint32_t title_version = 0;
-    std::string game_hash;      // FNV-1a of cking.rpx, hex (which executable; not its contents)
+    std::string game_hash;      // FNV-1a of red-pro2.rpx, hex (which executable; not its contents)
     std::string runtime;        // "v0.2.6 (abc1234)"
     std::string created;        // local time, "2026-10-08 14:03:11"
     int file_slot = 0;          // Quest Log 0..2 (dSv_info_c::mDataNum)

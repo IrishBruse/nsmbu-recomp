@@ -1,6 +1,6 @@
 // Gyro input (runtime/src/motion/): how far the player turned under each axis mode (player space, yaw,
 // roll) for the SDL and Cemuhook sources and the usual holds, bias estimation, the virtual GamePad and how
-// WWHD's first-person camera reads it (frame-to-frame matrix change), sensitivity and invert, the mouse as a
+// NSMBU's first-person camera reads it (frame-to-frame matrix change), sensitivity and invert, the mouse as a
 // gyro, device switching and stuck sensor timestamps, the Cemuhook (DSU) packets and a client/server
 // exchange over loopback UDP, and the settings.
 #include "motion/dsu.h"
@@ -123,7 +123,7 @@ struct Controller {
 static const Vec3 kWorldDown{0, -1, 0};
 static const Vec3 kRollRight{0, 0, -1}, kTiltUp{1, 0, 0};
 
-// WWHD's reading (dCamera_c::CalcSubjectAngle via 02618604): R = C^T M with the dir vectors as the
+// NSMBU's reading (dCamera_c::CalcSubjectAngle via 02618604): R = C^T M with the dir vectors as the
 // matrix columns, C = the previous frame's matrix; yaw input = (R[2][0] - R[1][0]) * 30, pitch = R[2][1] * 30
 struct Game {
     Vec3 prev[3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};

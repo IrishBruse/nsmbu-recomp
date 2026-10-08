@@ -53,13 +53,13 @@ Motor g_motor;
 uint64_t now_us() {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
-// WWHD_RUMBLE=0 starts with the motors off (and the saved option is not read); any other value on
-const char* env() { return getenv("WWHD_RUMBLE"); }
+// NSMBU_RUMBLE=0 starts with the motors off (and the saved option is not read); any other value on
+const char* env() { return getenv("NSMBU_RUMBLE"); }
 std::atomic<bool> g_enabled{!env() || atoi(env()) != 0};
 }  // namespace
 
 bool log_enabled() {
-    static const bool on = getenv("WWHD_LOG_RUMBLE") || getenv("WWHD_RUMBLE_LOG");  // (the earlier name)
+    static const bool on = getenv("NSMBU_LOG_RUMBLE") || getenv("NSMBU_RUMBLE_LOG");  // (the earlier name)
     return on;
 }
 

@@ -30,7 +30,7 @@ Settings g_settings;
 bool g_aiming = false;
 int g_gyro_controllers = 0;
 float g_mouse_dx = 0, g_mouse_dy = 0;
-const bool g_log = getenv("WWHD_GYRO_LOG") != nullptr;  // raw samples and the aim, twice a second
+const bool g_log = getenv("NSMBU_GYRO_LOG") != nullptr;  // raw samples and the aim, twice a second
 
 struct Device {
     Fusion fusion;
@@ -51,7 +51,7 @@ VirtualPad g_pad;                       // the one virtual GamePad all sources t
 std::unique_ptr<dsu::Client> g_dsu;
 VpadMotion g_last;                      // the previous read's values (repeated reads)
 Clock::time_point g_last_read{}, g_read_log_at{};
-double g_last_game_time = -1;           // WWHD_TEST_GYRO: game time of the previous read
+double g_last_game_time = -1;           // NSMBU_TEST_GYRO: game time of the previous read
 Aim g_read_aim;                         // aim given to the GamePad since the last log line
 float g_recalibrate_prev[2] = {};       // pad, key: held at the previous poll
 // the right stick the game aims with: the game ignores the gyro while it is pushed (stick drift)
@@ -144,12 +144,12 @@ void apply_dsu(const Settings& s) {
     }
 }
 
-// WWHD_TEST_GYRO=from-to:yaw:pitch,... (game-time seconds, degrees per second)
+// NSMBU_TEST_GYRO=from-to:yaw:pitch,... (game-time seconds, degrees per second)
 struct TestTurn { double from, to; float yaw, pitch; };
 const std::vector<TestTurn>& test_turns() {
     static const std::vector<TestTurn> v = [] {
         std::vector<TestTurn> out;
-        const char* e = getenv("WWHD_TEST_GYRO");
+        const char* e = getenv("NSMBU_TEST_GYRO");
         double a, b; float y, p; int n;
         while (e && sscanf(e, "%lf-%lf:%f:%f%n", &a, &b, &y, &p, &n) == 4) {
             out.push_back({a, b, y, p});
@@ -157,7 +157,7 @@ const std::vector<TestTurn>& test_turns() {
             if (*e != ',') break;
             e++;
         }
-        if (!out.empty()) log_msg("[gyro] WWHD_TEST_GYRO: %zu turn(s)", out.size());
+        if (!out.empty()) log_msg("[gyro] NSMBU_TEST_GYRO: %zu turn(s)", out.size());
         return out;
     }();
     return v;
@@ -232,7 +232,7 @@ Settings settings() {
 
 bool env_override() {
     static const bool e = [] {
-        const char* v = getenv("WWHD_GYRO");
+        const char* v = getenv("NSMBU_GYRO");
         return v && source_from_id(v) >= 0;
     }();
     return e;
@@ -240,7 +240,7 @@ bool env_override() {
 
 void set_settings(const Settings& in) {
     Settings s = in;
-    if (env_override()) s.source = source_from_id(getenv("WWHD_GYRO"));
+    if (env_override()) s.source = source_from_id(getenv("NSMBU_GYRO"));
     bool restart_dsu;
     {
         std::lock_guard lk(g_mu);

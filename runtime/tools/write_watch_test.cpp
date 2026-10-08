@@ -121,7 +121,7 @@ int main() {
 
     // 5. kernel writes (fread) into protected texture pages: they fail with EFAULT instead of faulting,
     // so host code brackets them with HostWrite (fs.cpp FSReadFile); the write then counts as a change
-    auto path = std::filesystem::temp_directory_path() / ("wwhd-write-watch-" + std::to_string(rng()) + ".bin");
+    auto path = std::filesystem::temp_directory_path() / ("nsmbu-write-watch-" + std::to_string(rng()) + ".bin");
     std::vector<uint8_t> payload(0x8000);
     for (size_t i = 0; i < payload.size(); i++) payload[i] = (uint8_t)(i * 13 + 1);
     FILE* f = fopen(path.string().c_str(), "wb");

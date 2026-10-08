@@ -120,7 +120,7 @@ static uint32_t core_from_affinity(uint32_t mask, uint32_t fallback) {
     return (uint32_t)__builtin_ctz(mask);
 }
 
-bool g_trace_msg = getenv("WWHD_TRACE_MSG") != nullptr;
+bool g_trace_msg = getenv("NSMBU_TRACE_MSG") != nullptr;
 static std::mutex g_threads_mutex;
 static std::unordered_map<uint32_t, HostThread*> g_threads;  // by guest OSThread*
 static thread_local HostThread* t_self = nullptr;
@@ -136,9 +136,9 @@ uint32_t current_thread() { return t_self ? t_self->guest : 0; }
 // ---------------------------------------------------------------- per-core scheduling
 // Each emulated core runs one guest thread at a time; a ready thread with a higher priority than
 // the running one sets g_core_preempt, and the running thread yields at its next function entry.
-// WWHD_NO_SCHED=1 lets all threads run freely (the old behaviour).
+// NSMBU_NO_SCHED=1 lets all threads run freely (the old behaviour).
 volatile int g_core_preempt[3];
-static const bool g_sched_on = getenv("WWHD_NO_SCHED") == nullptr;
+static const bool g_sched_on = getenv("NSMBU_NO_SCHED") == nullptr;
 
 struct CoreSched {
     std::mutex m;
@@ -163,7 +163,7 @@ static void core_acquire(HostThread* t) {
     static std::once_flag tick;
     std::call_once(tick, [] {
         std::thread(sched_tick_thread).detach();
-        if (getenv("WWHD_WATCH_MEM")) std::thread(mem_watch_thread).detach();
+        if (getenv("NSMBU_WATCH_MEM")) std::thread(mem_watch_thread).detach();
     });
     uint32_t core = t->core;
     CoreSched& k = g_sched[core];
@@ -244,13 +244,13 @@ extern "C" void ppc_preempt(Cpu* c) {
 // scheduler tick: requests time-slice / starvation preemption on cores that need it
 namespace threads { void report_sched(); }
 
-// debug: WWHD_WATCH_MEM=addr|*ptr+off[,...] polls guest words and logs every change together with
+// debug: NSMBU_WATCH_MEM=addr|*ptr+off[,...] polls guest words and logs every change together with
 // where each guest thread is (lr), to find who writes a flag
 static void mem_watch_thread() {
     host::set_thread_name("mem watch");
     struct W { bool deref; uint32_t a, off; uint32_t last; bool init = false; };
     std::vector<W> ws;
-    const char* e = getenv("WWHD_WATCH_MEM");
+    const char* e = getenv("NSMBU_WATCH_MEM");
     while (e && *e) {
         W w{};
         if (*e == '*') { w.deref = true; e++; }
@@ -286,7 +286,7 @@ static void mem_watch_thread() {
 }
 static void sched_tick_thread() {
     host::set_thread_name("sched tick");
-    static const bool timed_stats = getenv("WWHD_SCHED_STATS") && atoi(getenv("WWHD_SCHED_STATS")) == 2;
+    static const bool timed_stats = getenv("NSMBU_SCHED_STATS") && atoi(getenv("NSMBU_SCHED_STATS")) == 2;
     auto next_report = std::chrono::steady_clock::now() + std::chrono::seconds(5);
     for (;;) {
         std::this_thread::sleep_for(std::chrono::microseconds(500));
@@ -302,8 +302,8 @@ static void sched_tick_thread() {
     }
 }
 
-// debug: WWHD_LOG_LONGWAIT=1 reports blocking calls that took longer than 2 s (who waited, from where)
-static const bool g_log_longwait = getenv("WWHD_LOG_LONGWAIT") != nullptr;
+// debug: NSMBU_LOG_LONGWAIT=1 reports blocking calls that took longer than 2 s (who waited, from where)
+static const bool g_log_longwait = getenv("NSMBU_LOG_LONGWAIT") != nullptr;
 static thread_local std::chrono::steady_clock::time_point t_block_start;
 
 namespace threads {
@@ -472,7 +472,7 @@ __attribute__((noinline)) static void try_entry_park(HostThread* t, Cpu* c) {
         if (!ra || depth > 8192) break;
         uint32_t k = classify_ra(ra);
         if (k == 0) {
-            static const bool dbg = getenv("WWHD_STATE_DEBUG") != nullptr;
+            static const bool dbg = getenv("NSMBU_STATE_DEBUG") != nullptr;
             static std::atomic<int> logged{0};
             if (dbg && logged++ < 20) {
 #ifdef _WIN32
@@ -515,9 +515,9 @@ void park_sleep_until(std::chrono::steady_clock::time_point tp, bool precise,
         // spun with the guest core released. The spin window follows the measured lateness: the
         // largest of the last 120 wakes plus a margin, 0.5..2 ms; a wake past the deadline goes
         // straight back to 2 ms. (A fixed 2 ms window spun ~1.5 ms per vsync, 15% of Vulkan's CPU.)
-        // WWHD_VSYNC_SPIN_US=n fixes the window at n microseconds.
+        // NSMBU_VSYNC_SPIN_US=n fixes the window at n microseconds.
         using us = std::chrono::microseconds;
-        static const long fixedUs = getenv("WWHD_VSYNC_SPIN_US") ? atol(getenv("WWHD_VSYNC_SPIN_US")) : -1;
+        static const long fixedUs = getenv("NSMBU_VSYNC_SPIN_US") ? atol(getenv("NSMBU_VSYNC_SPIN_US")) : -1;
         static thread_local us window{fixedUs >= 0 ? fixedUs : 2000}, peak{0};
         static thread_local int wakes = 0;
         const auto sleepDeadline = tp - window;
@@ -656,8 +656,8 @@ namespace threads {
 void init(const LoadedModule& m) {
     g_sda_base = m.sda_base;
     g_sda2_base = m.sda2_base;
-    // debug: WWHD_THREAD_DUMP=s logs every guest thread's state (running/parked, wait object, lr) every s seconds
-    if (const char* e = getenv("WWHD_THREAD_DUMP")) {
+    // debug: NSMBU_THREAD_DUMP=s logs every guest thread's state (running/parked, wait object, lr) every s seconds
+    if (const char* e = getenv("NSMBU_THREAD_DUMP")) {
         int s = atoi(e);
         std::thread([s] { thread_dump_loop(s); }).detach();
     }

@@ -45,7 +45,7 @@ int main(int argc,char** argv){
  auto memory=mmap(address,memory_size,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
 #endif
  assert(memory==address);
- auto root=fs::temp_directory_path()/("wwhd-fs-content-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ auto root=fs::temp_directory_path()/("nsmbu-fs-content-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
  config::game_dir=(root/"game").string();config::save_dir=(root/"save").string();
  auto original=root/"game"/"content"/"Common"/"model.bin",replacement=root/"mod"/"Common"/"model.bin";
  fs::create_directories(original.parent_path());fs::create_directories(replacement.parent_path());fs::create_directories(root/"game"/"code");fs::create_directories(root/"game"/"meta");fs::create_directories(root/"save"/"user");

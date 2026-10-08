@@ -63,8 +63,8 @@ struct Reader {
 //     with the recorded progress; it is not an exact snapshot.
 //   - full (debugging): slotN.bin, the whole running game (~300 MB of guest memory, contains game code
 //     and data: never share it). On when the "Full save states" setting is on, with
-//     WWHD_FULL_SAVE_STATES=1, and for the scripted test variables (WWHD_STATE_SAVE_AT /
-//     WWHD_STATE_LOAD_AT / WWHD_TEST_SAVE / WWHD_TEST_LOAD) unless WWHD_FULL_SAVE_STATES=0.
+//     NSMBU_FULL_SAVE_STATES=1, and for the scripted test variables (NSMBU_STATE_SAVE_AT /
+//     NSMBU_STATE_LOAD_AT / NSMBU_TEST_SAVE / NSMBU_TEST_LOAD) unless NSMBU_FULL_SAVE_STATES=0.
 // Loading a slot loads whichever kind it holds (the newer file if it holds both).
 constexpr int kSlots = 5;
 struct SlotInfo {
@@ -87,10 +87,10 @@ void request_save_portable(int slot);
 void request_save_full(int slot);
 bool in_gameplay();                     // a save file is being played (quit_prompt.h: gameplay_stage)
 void request_load(int slot);
-void request_load_portable_file(const std::string& path);  // a .wwstate anywhere (WWHD_PORTABLE_LOAD)
+void request_load_portable_file(const std::string& path);  // a .wwstate anywhere (NSMBU_PORTABLE_LOAD)
 bool full_states();                     // save button / shortcuts make full states
 void set_full_states(bool on);          // the setting (kept in the states folder)
-bool full_states_forced();              // the environment decides (WWHD_FULL_SAVE_STATES or test variables)
+bool full_states_forced();              // the environment decides (NSMBU_FULL_SAVE_STATES or test variables)
 std::string bug_report_text();          // paths of the newest portable state and of cking.sav, for a bug report
 std::string states_dir();               // where slots live (created on first use)
 std::string last_message();             // short status for the title bar ("" when stale)
