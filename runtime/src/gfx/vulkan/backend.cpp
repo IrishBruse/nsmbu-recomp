@@ -2091,7 +2091,7 @@ void init() {
   if (!getenv("NSMBU_NO_GAMEPAD")) {
     // made hidden: the GamePad screen mode (load_saved_options below) shows it in window mode only;
     // the other modes draw the GamePad picture into the TV window (gfx/display_modes.h)
-    R.drc.window = SDL_CreateWindow("GamePad — Vulkan", 854, 480, windowFlags | SDL_WINDOW_HIDDEN);
+    R.drc.window = SDL_CreateWindow("GamePad - Vulkan", 854, 480, windowFlags | SDL_WINDOW_HIDDEN);
     if (!R.drc.window)
       throw std::runtime_error(SDL_GetError());
     R.drc.visible = false;
@@ -2443,12 +2443,12 @@ void run_main_loop() {
       char title[160];
       int mode = interp::mode();
       std::snprintf(title, sizeof title,
-          "%s — %.0f fps%s%s · %gx%s",
+          "%s - %.0f fps%s%s | %gx%s",
           app_title::kVulkan,
           double(frames - titleFrames) / elapsed,
-          mode ? " · " : "", mode ? interp::mode_name() : "",
-          double(requested_res_scale()), fxaa_enabled() ? " · FXAA" : "");
-      if (gx2::uncapped()) std::strncat(title, " · UNCAPPED (debug)", sizeof title - std::strlen(title) - 1);
+          mode ? " | " : "", mode ? interp::mode_name() : "",
+          double(requested_res_scale()), fxaa_enabled() ? " | FXAA" : "");
+      if (gx2::uncapped()) std::strncat(title, " | UNCAPPED (debug)", sizeof title - std::strlen(title) - 1);
       SDL_SetWindowTitle(R.tv.window, title);
       titleFrames = frames;
       titleTime = now;
