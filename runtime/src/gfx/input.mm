@@ -43,7 +43,7 @@ void set_touch(bool down, float x, float y) {
     g_ty = y;
 }
 
-// keys held by WWHD_KEYS (debug), merged with the real keyboard before the mapping is applied
+// keys held by NSMBU_KEYS (debug), merged with the real keyboard before the mapping is applied
 static bool g_script_keys[256];
 
 static PadState keyboard_state(bool use_host) {
@@ -116,13 +116,13 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f) {
     }
 }
 
-// debug: WWHD_TEST_POST_KEYS=300:F1,400:Cmd+Comma,410:Down,420:Return,430:K/30 (held 30 frames) posts key presses (down, then up) at TV frames
+// debug: NSMBU_TEST_POST_KEYS=300:F1,400:Cmd+Comma,410:Down,420:Return,430:K/30 (held 30 frames) posts key presses (down, then up) at TV frames
 // into the app's event queue, so they take the real path (event monitors, menu key equivalents) even
 // in hidden test runs. Only the settings overlay and the menus react to them, not the game.
 // 500:Text=Tetra types text (one key press per character, carrying it) into the game's text prompt.
 static const NSTimeInterval kTestKeyTimestamp = 4242.0;
 static void start_test_keys() {
-    const char* e = getenv("WWHD_TEST_POST_KEYS");
+    const char* e = getenv("NSMBU_TEST_POST_KEYS");
     if (!e || !*e) return;
     struct Press { uint64_t frame; uint16_t code; NSEventModifierFlags flags; NSString* chars; uint64_t hold; };
     auto presses = std::make_shared<std::vector<Press>>();
@@ -150,7 +150,7 @@ static void start_test_keys() {
         else if (k == "Comma") { pr.code = kVK_ANSI_Comma; pr.chars = @","; }
         else if (k == "Escape") { pr.code = kVK_Escape; pr.chars = @"\x1b"; }
         else if (int c = input_map::key_from_id(k); c != input_map::kNoKey) pr.code = (uint16_t)c;  // controls.json key names
-        else { LOG("[input] WWHD_TEST_POST_KEYS: unknown key %s", k.c_str()); continue; }
+        else { LOG("[input] NSMBU_TEST_POST_KEYS: unknown key %s", k.c_str()); continue; }
         presses->push_back(pr);
     }
     // a held key: its key up as a separate entry, later
@@ -189,9 +189,9 @@ static void start_test_keys() {
 // towards the top (away from the player), z up out of the face; acceleration in g with gravity's sign
 // (at rest flat: z = -1). motion.h takes SDL's frame (x right, y up, z towards the player, m/s^2 of
 // specific force), so: sdl = (x, z, -y), acceleration negated.
-// WWHD_GYRO_LOG=1 logs a raw sample twice a second (to check the axes with a new controller).
+// NSMBU_GYRO_LOG=1 logs a raw sample twice a second (to check the axes with a new controller).
 static void update_motion_sensors() API_AVAILABLE(macos(11.0)) {
-    const bool want = motion::wants_controller_sensors() && !getenv("WWHD_NO_HOST_INPUT");
+    const bool want = motion::wants_controller_sensors() && !getenv("NSMBU_NO_HOST_INPUT");
     static NSMutableSet* active = [NSMutableSet set];  // controllers whose handler is installed
     int n = 0;
     NSArray<GCController*>* connected = [GCController controllers];
@@ -228,7 +228,7 @@ static void update_motion_sensors() API_AVAILABLE(macos(11.0)) {
                 const float g = 9.80665f;
                 float gyro[3] = {(float)r.x, (float)r.z, (float)-r.y};
                 float acc[3] = {(float)-a.x * g, (float)-a.z * g, (float)a.y * g};
-                static const bool log = getenv("WWHD_GYRO_LOG") != nullptr;
+                static const bool log = getenv("NSMBU_GYRO_LOG") != nullptr;
                 static double last_log = 0;
                 if (log && CACurrentMediaTime() - last_log > 0.5) {
                     last_log = CACurrentMediaTime();
@@ -255,8 +255,8 @@ void init() {
         if (NSApp.keyWindow.sheetParent || NSApp.modalWindow) return e;  // text prompt has focus
         if (gfx::controls_window_is_key()) return e;  // Controls window: keys go to it, not the game
         uint16_t code = e.keyCode & 0xFF;
-        const bool posted = e.timestamp == kTestKeyTimestamp;  // WWHD_TEST_POST_KEYS
-        if (getenv("WWHD_NO_HOST_INPUT") && !posted) return e;
+        const bool posted = e.timestamp == kTestKeyTimestamp;  // NSMBU_TEST_POST_KEYS
+        if (getenv("NSMBU_NO_HOST_INPUT") && !posted) return e;
         {
             // settings overlay (overlay/overlay.h): F1 opens and closes it; while open it has the keyboard
             NSEventModifierFlags f = e.modifierFlags;
@@ -298,7 +298,7 @@ void init() {
         // gyro: sensors on or off with the source, the recalibrate binding, the mouse gyro's capture
         static int tick = 0;
         if (@available(macOS 11.0, *)) if (tick++ % 60 == 0) update_motion_sensors();
-        if (!overlay::blocks_input() && !getenv("WWHD_NO_HOST_INPUT")) {
+        if (!overlay::blocks_input() && !getenv("NSMBU_NO_HOST_INPUT")) {
             bool keys[256];
             {
                 std::lock_guard<std::mutex> lk(g_mu);
@@ -310,11 +310,11 @@ void init() {
     }];
 }
 
-// debug: WWHD_PRESS=1000-1010:8000,1500-1505:0008 holds VPAD buttons (hex) during TV frame ranges
+// debug: NSMBU_PRESS=1000-1010:8000,1500-1505:0008 holds VPAD buttons (hex) during TV frame ranges
 struct Press { uint64_t from, to; uint32_t bits; };
 static std::vector<Press> scripted() {
     std::vector<Press> v;
-    if (const char* e = getenv("WWHD_PRESS")) {
+    if (const char* e = getenv("NSMBU_PRESS")) {
         unsigned long long a, b; unsigned bits; int n;
         while (sscanf(e, "%llu-%llu:%x%n", &a, &b, &bits, &n) == 3) {
             v.push_back({a, b, bits});
@@ -326,13 +326,13 @@ static std::vector<Press> scripted() {
     return v;
 }
 
-// debug: WWHD_KEYS=1200-1210:K,1300-1305:LeftShift+J holds keyboard keys (input_map key names)
-// during TV frame ranges. Unlike WWHD_PRESS they go through the controls mapping, so a test can
-// check a remapped controls file (also with WWHD_NO_HOST_INPUT=1).
+// debug: NSMBU_KEYS=1200-1210:K,1300-1305:LeftShift+J holds keyboard keys (input_map key names)
+// during TV frame ranges. Unlike NSMBU_PRESS they go through the controls mapping, so a test can
+// check a remapped controls file (also with NSMBU_NO_HOST_INPUT=1).
 struct KeyPress { uint64_t from, to; std::vector<int> codes; };
 static std::vector<KeyPress> scripted_keys() {
     std::vector<KeyPress> v;
-    if (const char* e = getenv("WWHD_KEYS")) {
+    if (const char* e = getenv("NSMBU_KEYS")) {
         unsigned long long a, b; int n;
         while (sscanf(e, "%llu-%llu:%n", &a, &b, &n) == 2) {
             e += n;
@@ -340,7 +340,7 @@ static std::vector<KeyPress> scripted_keys() {
             for (;;) {
                 size_t len = strcspn(e, "+,");
                 int code = input_map::key_from_id(std::string(e, len));
-                if (code == input_map::kNoKey) LOG("[input] WWHD_KEYS: unknown key %.*s", (int)len, e);
+                if (code == input_map::kNoKey) LOG("[input] NSMBU_KEYS: unknown key %.*s", (int)len, e);
                 else kp.codes.push_back(code);
                 e += len;
                 if (*e != '+') break;
@@ -354,10 +354,10 @@ static std::vector<KeyPress> scripted_keys() {
     return v;
 }
 
-// debug: WWHD_STICK=9400-9600:0:1,... holds the left stick at (x, y) during TV frame ranges
-// (WWHD_RSTICK: the same for the right stick)
+// debug: NSMBU_STICK=9400-9600:0:1,... holds the left stick at (x, y) during TV frame ranges
+// (NSMBU_RSTICK: the same for the right stick)
 struct Stick { uint64_t from, to; float x, y; };
-static std::vector<Stick> scripted_stick(const char* var = "WWHD_STICK") {
+static std::vector<Stick> scripted_stick(const char* var = "NSMBU_STICK") {
     std::vector<Stick> v;
     if (const char* e = getenv(var)) {
         unsigned long long a, b; float x, y; int n;
@@ -371,13 +371,13 @@ static std::vector<Stick> scripted_stick(const char* var = "WWHD_STICK") {
     return v;
 }
 
-// debug: timed test scenario, in real seconds from TV frame WWHD_TEST_ORIGIN (so a 30 fps and a 60 fps
+// debug: timed test scenario, in real seconds from TV frame NSMBU_TEST_ORIGIN (so a 30 fps and a 60 fps
 // run get the same input at the same real time):
-//   WWHD_TEST_STICK=2-5:0:1,...   left stick (x, y) from 2 s to 5 s
-//   WWHD_TEST_RSTICK=2-5:1:0,...  right stick
-//   WWHD_TEST_PRESS=3-3.1:8000    buttons (hex)
-//   WWHD_TEST_MODE=2@0.5          60 fps mode at 0.5 s (0 off, 1 interpolation, 2 true 60)
-//   WWHD_TEST_END=12              writes the file "test_done" at 12 s (the test script stops the game)
+//   NSMBU_TEST_STICK=2-5:0:1,...   left stick (x, y) from 2 s to 5 s
+//   NSMBU_TEST_RSTICK=2-5:1:0,...  right stick
+//   NSMBU_TEST_PRESS=3-3.1:8000    buttons (hex)
+//   NSMBU_TEST_MODE=2@0.5          60 fps mode at 0.5 s (0 off, 1 interpolation, 2 true 60)
+//   NSMBU_TEST_END=12              writes the file "test_done" at 12 s (the test script stops the game)
 namespace {
 struct TimedStick { double from, to; float x, y; };
 struct TimedPress { double from, to; uint32_t bits; };
@@ -388,7 +388,7 @@ struct Scenario {
     int mode = -1;
     double mode_at = 0, end = 0;
     Scenario() {
-        if (const char* e = getenv("WWHD_TEST_ORIGIN")) origin = strtoull(e, nullptr, 10);
+        if (const char* e = getenv("NSMBU_TEST_ORIGIN")) origin = strtoull(e, nullptr, 10);
         auto timed_sticks = [](const char* e, std::vector<TimedStick>& out) {
             double a, b; float x, y; int n;
             while (e && sscanf(e, "%lf-%lf:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
@@ -398,9 +398,9 @@ struct Scenario {
                 e++;
             }
         };
-        timed_sticks(getenv("WWHD_TEST_STICK"), sticks);
-        timed_sticks(getenv("WWHD_TEST_RSTICK"), rsticks);
-        if (const char* e = getenv("WWHD_TEST_PRESS")) {
+        timed_sticks(getenv("NSMBU_TEST_STICK"), sticks);
+        timed_sticks(getenv("NSMBU_TEST_RSTICK"), rsticks);
+        if (const char* e = getenv("NSMBU_TEST_PRESS")) {
             double a, b; unsigned bits; int n;
             while (sscanf(e, "%lf-%lf:%x%n", &a, &b, &bits, &n) == 3) {
                 presses.push_back({a, b, bits});
@@ -409,8 +409,8 @@ struct Scenario {
                 e++;
             }
         }
-        if (const char* e = getenv("WWHD_TEST_MODE")) sscanf(e, "%d@%lf", &mode, &mode_at);
-        if (const char* e = getenv("WWHD_TEST_END")) end = atof(e);
+        if (const char* e = getenv("NSMBU_TEST_MODE")) sscanf(e, "%d@%lf", &mode, &mode_at);
+        if (const char* e = getenv("NSMBU_TEST_END")) end = atof(e);
     }
 };
 }  // namespace
@@ -418,14 +418,14 @@ struct Scenario {
 namespace interp { void set_mode(int m); uint64_t logic_steps(); }
 namespace true60_test { void tick(double t, bool ended); void set_origin_step(uint64_t s); }
 namespace input {
-// WWHD_TEST_TOUCH=t0-t1:x:y,...: touches the GamePad screen at (x, y) (0..1) during scenario times
+// NSMBU_TEST_TOUCH=t0-t1:x:y,...: touches the GamePad screen at (x, y) (0..1) during scenario times
 static bool g_test_touch = false;
 static float g_test_tx = 0, g_test_ty = 0;
 static void apply_scenario(PadState& s) {
     static Scenario sc;
-    // WWHD_TEST_ORIGIN_LOAD=n: the scenario starts n logic steps after the last save-state load (a
+    // NSMBU_TEST_ORIGIN_LOAD=n: the scenario starts n logic steps after the last save-state load (a
     // load completes asynchronously, so a fixed frame can fall a step apart between two runs)
-    static const char* ol = getenv("WWHD_TEST_ORIGIN_LOAD");
+    static const char* ol = getenv("NSMBU_TEST_ORIGIN_LOAD");
     uint64_t ol_step = 0;
     // (the clock is the number of Link's full-pass executes since the load, true60::link_steps: the
     // pass at which a load lands differs between runs, and the steps after it are the game's)
@@ -444,7 +444,7 @@ static void apply_scenario(PadState& s) {
     // scenario time = game time: full logic steps / 30 (frame-time hitches don't shift the input)
     static const uint64_t s0 = [ol_step] {
         if (ol_step) {
-            LOG("[test] origin at logic step %llu (load + WWHD_TEST_ORIGIN_LOAD), logic step %llu", (unsigned long long)ol_step,
+            LOG("[test] origin at logic step %llu (load + NSMBU_TEST_ORIGIN_LOAD), logic step %llu", (unsigned long long)ol_step,
                 (unsigned long long)ol_step);
             true60_test::set_origin_step(ol_step);
             return ol_step;
@@ -454,19 +454,19 @@ static void apply_scenario(PadState& s) {
         true60_test::set_origin_step(interp::logic_steps());
         return interp::logic_steps();
     }();
-    // (with WWHD_TEST_ORIGIN_LOAD: the game's own step counter, which the load restores, is the clock)
+    // (with NSMBU_TEST_ORIGIN_LOAD: the game's own step counter, which the load restores, is the clock)
     double t = (double)(interp::logic_steps() - s0) / 30.0;
     static std::atomic<bool> mode_set{false}, ended{false};
     static std::atomic<int> dbg{0};
-    if (getenv("WWHD_TEST_DEBUG") && dbg++ % 30 == 0) LOG("[test] t=%.3f frame %llu", t, (unsigned long long)render::frame_count());
+    if (getenv("NSMBU_TEST_DEBUG") && dbg++ % 30 == 0) LOG("[test] t=%.3f frame %llu", t, (unsigned long long)render::frame_count());
     if (sc.mode >= 0 && t >= sc.mode_at && !mode_set.exchange(true)) {
         LOG("[test] t=%.3f s: 60 fps mode %d", t, sc.mode);
         interp::set_mode(sc.mode);
     }
-    // WWHD_TEST_MODES=m@t,m@t,...: further mode switches (0 off, 1 interpolation, 2 true 60)
+    // NSMBU_TEST_MODES=m@t,m@t,...: further mode switches (0 off, 1 interpolation, 2 true 60)
     static std::vector<std::pair<double, int>> modes = [] {
         std::vector<std::pair<double, int>> v;
-        for (const char* e = getenv("WWHD_TEST_MODES"); e && *e;) {
+        for (const char* e = getenv("NSMBU_TEST_MODES"); e && *e;) {
             int m; double at; int n;
             if (sscanf(e, "%d@%lf%n", &m, &at, &n) != 2) break;
             v.push_back({at, m});
@@ -495,7 +495,7 @@ static void apply_scenario(PadState& s) {
         if (t >= p.from && t < p.to) s.buttons |= p.bits;
     static std::vector<TimedStick> touches = [] {
         std::vector<TimedStick> v;
-        const char* e = getenv("WWHD_TEST_TOUCH");
+        const char* e = getenv("NSMBU_TEST_TOUCH");
         double a, b; float x, y; int n;
         while (e && sscanf(e, "%lf-%lf:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
             v.push_back({a, b, x, y});
@@ -510,7 +510,7 @@ static void apply_scenario(PadState& s) {
         if (t >= p.from && t < p.to) g_test_touch = true, g_test_tx = p.x, g_test_ty = p.y;
 }
 
-static std::atomic<bool> g_pro{getenv("WWHD_PRO_CONTROLLER") != nullptr};
+static std::atomic<bool> g_pro{getenv("NSMBU_PRO_CONTROLLER") != nullptr};
 bool pro_controller() { return g_pro.load(std::memory_order_relaxed); }
 void set_pro_controller(bool on) { g_pro = on; LOG("[input] keyboard/controller act as %s", on ? "Pro Controller" : "GamePad"); }
 
@@ -518,10 +518,10 @@ PadState read() {
     static const std::vector<Press> script = scripted();
     static const std::vector<Stick> sticks = scripted_stick();
     static const std::vector<KeyPress> keys = scripted_keys();
-    static const std::vector<Stick> rsticks = scripted_stick("WWHD_RSTICK");
+    static const std::vector<Stick> rsticks = scripted_stick("NSMBU_RSTICK");
     std::lock_guard<std::mutex> lk(g_mu);
-    // debug: WWHD_NO_HOST_INPUT=1 ignores keyboard and host controllers (scripted test runs)
-    static const bool no_host = getenv("WWHD_NO_HOST_INPUT") != nullptr;
+    // debug: NSMBU_NO_HOST_INPUT=1 ignores keyboard and host controllers (scripted test runs)
+    static const bool no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
     if (!keys.empty()) {
         memset(g_script_keys, 0, sizeof g_script_keys);
         for (auto& p : keys)
@@ -544,8 +544,8 @@ PadState read() {
     s.tx = g_tx;
     s.ty = g_ty;
     if (g_test_touch) s.touch = true, s.tx = g_test_tx, s.ty = g_test_ty;
-    // debug: WWHD_LOG_BUTTONS=1 logs every change of the merged button bits
-    static const bool log_buttons = getenv("WWHD_LOG_BUTTONS") != nullptr;
+    // debug: NSMBU_LOG_BUTTONS=1 logs every change of the merged button bits
+    static const bool log_buttons = getenv("NSMBU_LOG_BUTTONS") != nullptr;
     static uint32_t last_buttons = 0;
     if (log_buttons && s.buttons != last_buttons) {
         LOG("[input] frame %llu buttons %04X", (unsigned long long)render::frame_count(), s.buttons);

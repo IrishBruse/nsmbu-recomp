@@ -96,7 +96,7 @@ void install_overlay_input() {
     density();
     [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidChangeBackingPropertiesNotification object:tv queue:nil
                                                   usingBlock:^(NSNotification*) { density(); }];
-    if (getenv("WWHD_NO_HOST_INPUT")) return;
+    if (getenv("NSMBU_NO_HOST_INPUT")) return;
     tv.acceptsMouseMovedEvents = YES;
     NSEventMask mask = NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged | NSEventMaskOtherMouseDragged |
                        NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp | NSEventMaskRightMouseDown | NSEventMaskRightMouseUp |

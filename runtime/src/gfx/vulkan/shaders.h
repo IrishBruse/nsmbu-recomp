@@ -50,7 +50,7 @@ struct ShaderStats {
     uint64_t decompileNs = 0, spirvCompiles = 0, spirvCompileNs = 0, diskHits = 0, spirvReuseHits = 0;
     uint64_t diskLoads = 0, diskLoadNs = 0, diskSaves = 0, diskSaveNs = 0, diskSavedBytes = 0, diskSnapshotNs = 0;
     // Narrow keys: programs = linkage keys, shaders = distinct translations, variantKeys = full
-    // keys (several can share a shader: variantAliases). Verify mode (WWHD_VK_SHADER_KEY_VERIFY):
+    // keys (several can share a shader: variantAliases). Verify mode (NSMBU_VK_SHADER_KEY_VERIFY):
     // pre-narrowing keys checked, violations (a shared shader that would have translated
     // differently), and pre-narrowing keys that the narrow key splits.
     uint64_t programs = 0, shaders = 0, variantKeys = 0, variantAliases = 0, moduleAliases = 0;

@@ -7,12 +7,12 @@ namespace gfxvk {
 PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = nullptr;
 PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = nullptr;
 PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties = nullptr;
-#define WWHD_VK_DEFINE(name) PFN_##name name = nullptr;
-WWHD_VK_GLOBAL_FUNCTIONS(WWHD_VK_DEFINE)
-WWHD_VK_INSTANCE_FUNCTIONS(WWHD_VK_DEFINE)
-WWHD_VK_DEVICE_FUNCTIONS(WWHD_VK_DEFINE)
-WWHD_VK_RENDERING_FUNCTIONS(WWHD_VK_DEFINE)
-#undef WWHD_VK_DEFINE
+#define NSMBU_VK_DEFINE(name) PFN_##name name = nullptr;
+NSMBU_VK_GLOBAL_FUNCTIONS(NSMBU_VK_DEFINE)
+NSMBU_VK_INSTANCE_FUNCTIONS(NSMBU_VK_DEFINE)
+NSMBU_VK_DEVICE_FUNCTIONS(NSMBU_VK_DEFINE)
+NSMBU_VK_RENDERING_FUNCTIONS(NSMBU_VK_DEFINE)
+#undef NSMBU_VK_DEFINE
 
 namespace {
 [[noreturn]] void missing(const char *name) {
@@ -25,10 +25,10 @@ void load_global_functions(PFN_vkGetInstanceProcAddr gipa) {
   if (!gipa)
     throw std::runtime_error("the Vulkan loader has no vkGetInstanceProcAddr");
   vkGetInstanceProcAddr = gipa;
-#define WWHD_VK_LOAD(name) \
+#define NSMBU_VK_LOAD(name) \
   if (!(name = reinterpret_cast<PFN_##name>(gipa(nullptr, #name)))) missing(#name);
-  WWHD_VK_GLOBAL_FUNCTIONS(WWHD_VK_LOAD)
-#undef WWHD_VK_LOAD
+  NSMBU_VK_GLOBAL_FUNCTIONS(NSMBU_VK_LOAD)
+#undef NSMBU_VK_LOAD
   // Vulkan 1.1 loaders and newer; a 1.0 loader has none (the caller reports it)
   vkEnumerateInstanceVersion =
       reinterpret_cast<PFN_vkEnumerateInstanceVersion>(gipa(nullptr, "vkEnumerateInstanceVersion"));
@@ -38,24 +38,24 @@ void load_global_functions(PFN_vkGetInstanceProcAddr gipa) {
 }
 
 void load_instance_functions(VkInstance instance) {
-#define WWHD_VK_LOAD(name) \
+#define NSMBU_VK_LOAD(name) \
   if (!(name = reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name)))) missing(#name);
-  WWHD_VK_INSTANCE_FUNCTIONS(WWHD_VK_LOAD)
-#undef WWHD_VK_LOAD
+  NSMBU_VK_INSTANCE_FUNCTIONS(NSMBU_VK_LOAD)
+#undef NSMBU_VK_LOAD
 }
 
 void load_device_functions(VkDevice device, bool khrDynamicRendering) {
-#define WWHD_VK_LOAD(name) \
+#define NSMBU_VK_LOAD(name) \
   if (!(name = reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name)))) missing(#name);
-  WWHD_VK_DEVICE_FUNCTIONS(WWHD_VK_LOAD)
-#undef WWHD_VK_LOAD
+  NSMBU_VK_DEVICE_FUNCTIONS(NSMBU_VK_LOAD)
+#undef NSMBU_VK_LOAD
   // the core 1.3 function or the extension's: same parameters (VkRenderingInfoKHR = VkRenderingInfo)
-#define WWHD_VK_LOAD(name)                                                                          \
+#define NSMBU_VK_LOAD(name)                                                                          \
   {                                                                                                 \
     const char *n = khrDynamicRendering ? #name "KHR" : #name;                                     \
     if (!(name = reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, n)))) missing(n);        \
   }
-  WWHD_VK_RENDERING_FUNCTIONS(WWHD_VK_LOAD)
-#undef WWHD_VK_LOAD
+  NSMBU_VK_RENDERING_FUNCTIONS(NSMBU_VK_LOAD)
+#undef NSMBU_VK_LOAD
 }
 }  // namespace gfxvk

@@ -34,7 +34,7 @@ int renderer_smoke_test();
 std::string device_description();  // "<GPU>, driver <version>, Vulkan <version>" ("" before init)
 namespace vk { void reset_shader_memoization(); }
 
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 // AppKit host (gfx/display.mm): the TV and GamePad views' CAMetalLayers (drc may be null)
 void init_appkit(void* tvLayer, void* drcLayer);
 void screen_changed(int screen, bool visible);  // 0 TV, 1 GamePad: resized / occluded

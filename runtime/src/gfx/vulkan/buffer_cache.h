@@ -1,10 +1,10 @@
 // Vulkan guest buffer cache (design: buffer_cache_core.h). On by default on macOS, off elsewhere:
-//   WWHD_VK_BUFFER_CACHE=0|1       vertex arrays, index arrays and uniform blocks come from persistent
+//   NSMBU_VK_BUFFER_CACHE=0|1       vertex arrays, index arrays and uniform blocks come from persistent
 //                                  GPU copies, re-uploaded only when their pages were written
-//   WWHD_VK_BUFFER_CACHE_VERIFY=1  (implies the cache) compares every hit with guest memory and logs
+//   NSMBU_VK_BUFFER_CACHE_VERIFY=1  (implies the cache) compares every hit with guest memory and logs
 //                                  mismatches; slow, for validation runs
-//   WWHD_VK_BUFFER_CACHE_MB=n      budget of resident GPU copies (default 256)
-//   WWHD_VK_BUFFER_CACHE_HINTS=0   ignore DCFlushRange/DCStoreRange and GX2Invalidate (faults only)
+//   NSMBU_VK_BUFFER_CACHE_MB=n      budget of resident GPU copies (default 256)
+//   NSMBU_VK_BUFFER_CACHE_HINTS=0   ignore DCFlushRange/DCStoreRange and GX2Invalidate (faults only)
 // Needs page write tracking (write_watch.h); without it the cache stays off.
 #pragma once
 #include <cstdint>

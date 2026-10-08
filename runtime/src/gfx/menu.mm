@@ -13,7 +13,7 @@
 #include "../crashrec.h"
 #include "../aspect.h"
 #include "renderer.h"
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
 #include "vulkan/settings.h"  // Presentation (present mode), kept with the other graphics options
 #endif
 #include "runtime.h"
@@ -49,12 +49,12 @@ namespace gfx { bool menu_hotkey(uint16_t code); NSMenuItem* controls_menu_item(
 
 static NSWindow* g_tv;
 static double g_fps = 0;  // frames presented per second, measured over the last half second
-static NSString* const kTitle = @"The Legend of Zelda: The Wind Waker HD (recompiled)";
+static NSString* const kTitle = @"New Super Mario Bros. U (recompiled)";
 
-// Graphics options are kept across launches (macOS user defaults, domain "wwhd"); an option's WWHD_*
+// Graphics options are kept across launches (macOS user defaults, domain "nsmbu"); an option's NSMBU_*
 // environment variable overrides the saved value for that run and is not saved. Scripted test runs
-// (WWHD_NO_HOST_INPUT) neither read nor write them.
-static const bool g_prefs = getenv("WWHD_NO_HOST_INPUT") == nullptr;
+// (NSMBU_NO_HOST_INPUT) neither read nor write them.
+static const bool g_prefs = getenv("NSMBU_NO_HOST_INPUT") == nullptr;
 static bool g_prefs_loaded = false;  // nothing is saved before the saved values were applied
 static bool env_set(std::initializer_list<const char*> env) {
     for (const char* e : env)
@@ -86,36 +86,36 @@ static void load_prefs() {
     g_prefs_loaded = true;
     if (!g_prefs) return;
     auto saved = [&](NSString* key, std::initializer_list<const char*> env) { return !env_set(env) && pref(key) != nil; };
-    if (saved(@"resScale", {"WWHD_RES_SCALE"})) set_res([pref(@"resScale") floatValue]);
-    if (saved(@"aoMode", {"WWHD_AO_MODE", "WWHD_NO_AO_QUIRK"})) render::set_ao_mode([pref(@"aoMode") intValue]);
-    if (saved(@"aoHires", {"WWHD_AO_HIRES"})) render::set_ao_hires([pref(@"aoHires") boolValue]);
-    if (saved(@"aniso", {"WWHD_ANISO"})) render::set_aniso([pref(@"aniso") boolValue]);
-    if (saved(@"fxaa", {"WWHD_FXAA"})) render::set_fxaa([pref(@"fxaa") boolValue]);
+    if (saved(@"resScale", {"NSMBU_RES_SCALE"})) set_res([pref(@"resScale") floatValue]);
+    if (saved(@"aoMode", {"NSMBU_AO_MODE", "NSMBU_NO_AO_QUIRK"})) render::set_ao_mode([pref(@"aoMode") intValue]);
+    if (saved(@"aoHires", {"NSMBU_AO_HIRES"})) render::set_ao_hires([pref(@"aoHires") boolValue]);
+    if (saved(@"aniso", {"NSMBU_ANISO"})) render::set_aniso([pref(@"aniso") boolValue]);
+    if (saved(@"fxaa", {"NSMBU_FXAA"})) render::set_fxaa([pref(@"fxaa") boolValue]);
     // frame rate: fps60 is the mode (0 30 fps, 1 frame interpolation, 2 true 60; the key predates
     // 120/240 fps), interpFps the interpolation's rate; "keep game speed" for 60 and for 120/240 fps
-    if (saved(@"interpFps", {"WWHD_INTERP_FPS"})) interp::set_fps([pref(@"interpFps") intValue]);
-    if (saved(@"fps60", {"WWHD_INTERP", "WWHD_TRUE60", "WWHD_INTERP_FPS"})) interp::set_mode([pref(@"fps60") intValue]);
-    if (saved(@"fps60Paced", {"WWHD_INTERP_PACED"})) interp::set_paced_interpolation_at(60, [pref(@"fps60Paced") boolValue]);
-    if (saved(@"fpsHighPaced", {"WWHD_INTERP_PACED"})) interp::set_paced_interpolation_at(120, [pref(@"fpsHighPaced") boolValue]);
-#ifdef WWHD_HAS_VULKAN
-    if (saved(@"vkPresentMode", {"WWHD_VK_PRESENT_MODE"})) gfxvk::set_present_mode([pref(@"vkPresentMode") intValue]);
+    if (saved(@"interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps([pref(@"interpFps") intValue]);
+    if (saved(@"fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"})) interp::set_mode([pref(@"fps60") intValue]);
+    if (saved(@"fps60Paced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(60, [pref(@"fps60Paced") boolValue]);
+    if (saved(@"fpsHighPaced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(120, [pref(@"fpsHighPaced") boolValue]);
+#ifdef NSMBU_HAS_VULKAN
+    if (saved(@"vkPresentMode", {"NSMBU_VK_PRESENT_MODE"})) gfxvk::set_present_mode([pref(@"vkPresentMode") intValue]);
 #endif
 }
 static void save_prefs() {
     if (!g_prefs || !g_prefs_loaded) return;
-    if (!env_set({"WWHD_RES_SCALE"})) set_pref(@"resScale", @(current_res_scale()));
-    if (!env_set({"WWHD_AO_MODE", "WWHD_NO_AO_QUIRK"})) set_pref(@"aoMode", @(render::ao_mode()));
-    if (!env_set({"WWHD_AO_HIRES"})) set_pref(@"aoHires", @(render::ao_hires()));
-    if (!env_set({"WWHD_ANISO"})) set_pref(@"aniso", @(render::aniso()));
-    if (!env_set({"WWHD_FXAA"})) set_pref(@"fxaa", @(render::fxaa()));
-    if (!env_set({"WWHD_INTERP", "WWHD_TRUE60", "WWHD_INTERP_FPS"})) set_pref(@"fps60", @(interp::mode()));
-    if (!env_set({"WWHD_INTERP_FPS"})) set_pref(@"interpFps", @(interp::fps()));
-    if (!env_set({"WWHD_INTERP_PACED"})) {
+    if (!env_set({"NSMBU_RES_SCALE"})) set_pref(@"resScale", @(current_res_scale()));
+    if (!env_set({"NSMBU_AO_MODE", "NSMBU_NO_AO_QUIRK"})) set_pref(@"aoMode", @(render::ao_mode()));
+    if (!env_set({"NSMBU_AO_HIRES"})) set_pref(@"aoHires", @(render::ao_hires()));
+    if (!env_set({"NSMBU_ANISO"})) set_pref(@"aniso", @(render::aniso()));
+    if (!env_set({"NSMBU_FXAA"})) set_pref(@"fxaa", @(render::fxaa()));
+    if (!env_set({"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"})) set_pref(@"fps60", @(interp::mode()));
+    if (!env_set({"NSMBU_INTERP_FPS"})) set_pref(@"interpFps", @(interp::fps()));
+    if (!env_set({"NSMBU_INTERP_PACED"})) {
         set_pref(@"fps60Paced", @(interp::paced_interpolation_at(60)));
         set_pref(@"fpsHighPaced", @(interp::paced_interpolation_at(120)));
     }
-#ifdef WWHD_HAS_VULKAN
-    if (!env_set({"WWHD_VK_PRESENT_MODE"})) set_pref(@"vkPresentMode", @(gfxvk::present_mode()));
+#ifdef NSMBU_HAS_VULKAN
+    if (!env_set({"NSMBU_VK_PRESENT_MODE"})) set_pref(@"vkPresentMode", @(gfxvk::present_mode()));
 #endif
     if (NSString* p = portable_prefs_path()) [g_portable_prefs writeToFile:p atomically:YES];
 }
@@ -141,7 +141,7 @@ static void update_title() {
     if (gx2::uncapped()) t = [t stringByAppendingString:@" \u00b7 UNCAPPED (debug)"];
     std::string msg = ss::last_message();  // save state confirmations
     if (!msg.empty()) t = [NSString stringWithFormat:@"%@ \u2014 %@ \u2014 %s", kTitle, rnd, msg.c_str()];
-    if (getenv("WWHD_LOG_TITLE") && ![t isEqualToString:g_tv.title]) {  // tests: the window title as it changes
+    if (getenv("NSMBU_LOG_TITLE") && ![t isEqualToString:g_tv.title]) {  // tests: the window title as it changes
         NSString* noFps = [t stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"%.0f fps", g_fps] withString:@"N fps"];
         static NSString* last;
         if (![noFps isEqualToString:last]) LOG("[display] title: %s", noFps.UTF8String);
@@ -156,7 +156,7 @@ static void choose_renderer(render::Api a) {
     render::set_preferred(a);
     update_title();
     if (a == render::active()) return;  // back to the renderer in use: nothing to restart
-    if (getenv("WWHD_NO_HOST_INPUT")) return;  // test runs: no dialogs
+    if (getenv("NSMBU_NO_HOST_INPUT")) return;  // test runs: no dialogs
     NSAlert* alert = [NSAlert new];
     alert.messageText = [NSString stringWithFormat:@"The game will use %s after a restart.", render::api_name(a)];
     alert.informativeText = @"Restart now? Progress since your last save (in-game save or save state) is lost.";
@@ -358,7 +358,7 @@ void install_menu(NSWindow* tv) {
     settings.target = g_target;
     settings.toolTip = @"In-game settings overlay over the picture (F1, or \u2318, in the game window)";
     [app addItem:[NSMenuItem separatorItem]];
-    [app addItemWithTitle:@"Quit Wind Waker HD" action:@selector(terminate:) keyEquivalent:@"q"];
+    [app addItemWithTitle:@"Quit New Super Mario Bros. U" action:@selector(terminate:) keyEquivalent:@"q"];
     appItem.submenu = app;
 
     NSMenuItem* gfxItem = [bar addItemWithTitle:@"Graphics" action:nil keyEquivalent:@""];
