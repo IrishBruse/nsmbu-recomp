@@ -2,25 +2,15 @@
 
 This tree starts from [NSMBURecomp](https://github.com/NSMBURecomp/NSMBURecomp) commit `853d7b18c8c6703c5fc50c40cb923c1fb9503ecd`.
 
-Use that commit as the rebase base.
+NSMBU is a Wii U game on Cafe OS and GX2.
 
-Details are in [docs/nsmbu.md](docs/nsmbu.md).
+The recompiler and native runtime stay.
 
-NSMBU is a Wii U game.
-
-It uses Cafe OS and GX2.
-
-The recompiler and the native runtime stay.
-
-The upstream Wind Waker HD launcher names do not stay.
-
-The upstream readme is in [docs/upstream-nsmbu-readme.md](docs/upstream-nsmbu-readme.md).
-
-Port notes are in [docs/nsmbu.md](docs/nsmbu.md).
-
-Game files stay on your machine.
+Wind Waker HD launcher names do not stay.
 
 This repository does not contain a disc image, a title key, or recompiled game code.
+
+Game files stay on your machine.
 
 ## Game dump
 
@@ -38,3 +28,11 @@ Keep everything in `game/`:
 Run `just extract`.
 
 That command reads `game/game.wux` and writes the `code/`, `content/`, and `meta/` folders under `game/`.
+
+## Documentation
+
+Use commit `853d7b18c8c6703c5fc50c40cb923c1fb9503ecd` as the rebase base.
+
+Port notes, build steps, and rebase commands are in [docs/nsmbu.md](docs/nsmbu.md).
+
+The upstream readme is in [docs/upstream-nsmbu-readme.md](docs/upstream-nsmbu-readme.md).
