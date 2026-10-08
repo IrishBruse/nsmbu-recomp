@@ -2,7 +2,7 @@
 // the pointer: it is hidden and detached from the cursor position, and its movement goes to the
 // camera (camera.cpp). Esc, a middle click, switching the mod off or leaving the window releases it.
 // The mouse wheel (first person mod) works whenever the TV window is the key window.
-// WWHD_NO_HOST_INPUT ignores the real mouse (test runs; WWHD_TEST_MOUSE injects movement).
+// NSMBU_NO_HOST_INPUT ignores the real mouse (test runs; NSMBU_TEST_MOUSE injects movement).
 #import <AppKit/AppKit.h>
 #include "../overlay/overlay.h"
 #include <Carbon/Carbon.h>  // kVK_Escape
@@ -52,7 +52,7 @@ static bool g_gyro_capture = false;
 namespace { bool gyro_capture_active() { return g_gyro_capture; } }
 void update_gyro_mouse() {
     const bool want = g_tv && motion::mouse_drives_gyro() && !overlay::captures() && g_tv.isKeyWindow && NSApp.isActive &&
-                      !getenv("WWHD_NO_HOST_INPUT");
+                      !getenv("NSMBU_NO_HOST_INPUT");
     if (want && !g_gyro_capture) {
         g_gyro_capture = true;
         if (!g_captured.load()) {
@@ -84,7 +84,7 @@ bool host_key_down(uint16_t code) {
 
 void mouse_init(void* tv_window) {
     g_tv = (__bridge NSWindow*)tv_window;
-    if (getenv("WWHD_NO_HOST_INPUT")) return;
+    if (getenv("NSMBU_NO_HOST_INPUT")) return;
     g_tv.acceptsMouseMovedEvents = YES;
     NSEventMask mask = NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged |
                        NSEventMaskOtherMouseDragged | NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp |

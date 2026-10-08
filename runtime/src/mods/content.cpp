@@ -51,7 +51,7 @@ void import_legacy(const fs::path& stage,const std::string& source_name){
         if(e.is_directory()){
             if(name=="content")candidates.push_back(e.path());
             require(name!="code"&&name!="meta"&&name!="aoc", "Only content replacements are supported; code, meta and DLC folders cannot be imported");
-            if(name.size()==16&&name.starts_with("00050000"))require(name=="0005000010143500","This SDCafiine pack targets another game or region (requires WWHD USA)");
+            if(name.size()==16&&name.starts_with("00050000"))require(name=="0005000010143500","This SDCafiine pack targets another game or region (requires NSMBU USA)");
         }else{
             auto ext=lower(e.path().extension().string());
             if(ext==".pack")loose_packs.push_back(e.path());
@@ -65,7 +65,7 @@ void import_legacy(const fs::path& stage,const std::string& source_name){
                 require(rules.find("[texture")==std::string::npos&&rules.find("[control")==std::string::npos&&rules.find("[preset")==std::string::npos,"Cemu texture/control/preset rules require an adapter; this import supports file-only packs");
                 std::istringstream lines(rules);std::string line;
                 while(std::getline(lines,line)){auto start=line.find_first_not_of(" \t\r");if(start!=std::string::npos&&line[start]=='['){auto end=line.find(']',start);require(end!=std::string::npos&&line.substr(start,end-start+1)=="[definition]","Only Definition metadata is supported in file-only Cemu packs");}}
-                auto title=rules.find("titleids");if(title!=std::string::npos){auto end=rules.find('\n',title);auto line=rules.substr(title,end-title);require(line.find("0005000010143500")!=std::string::npos,"Cemu pack does not target WWHD USA");}
+                auto title=rules.find("titleids");if(title!=std::string::npos){auto end=rules.find('\n',title);auto line=rules.substr(title,end-title);require(line.find("0005000010143500")!=std::string::npos,"Cemu pack does not target NSMBU USA");}
             }
         }
     }
@@ -94,7 +94,7 @@ void import_legacy(const fs::path& stage,const std::string& source_name){
     // Stable deterministic ID by source name. An explicit manifest can supply a different ID/version.
     auto name=fs::path(source_name).stem().string();require(!name.empty(),"Missing mod name");if(name.size()>128)name.resize(128);
     auto id=lower(name);for(char& c:id)if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'||c=='_'))c='-';if(id.size()>55)id.resize(55);id="content."+id;
-    json::Value m;m["format_version"]=1;m["id"]=id;m["name"]=name;m["version"]="1.0.0";m["game_id"]="wwhd-usa";m["kind"]="content";m["minimum_manager_version"]="1.1.0";
+    json::Value m;m["format_version"]=1;m["id"]=id;m["name"]=name;m["version"]="1.0.0";m["game_id"]="nsmbu-usa";m["kind"]="content";m["minimum_manager_version"]="1.1.0";
     m["content_dir"]=candidates.front().lexically_relative(stage).generic_string();
     std::string description="Imported local content replacement. Requires restart. Model and archive compatibility must be checked in game.";
     if(!mapped.empty())description+=" Loose files placed at: "+mapped+".";

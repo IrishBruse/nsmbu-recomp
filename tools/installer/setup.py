@@ -6,7 +6,7 @@ disc dump:
 
   1. asks for the disc image (.wux/.wud) and its keys, a Cemu Wii U archive (.wua; no keys), or an
      already extracted game folder;
-  2. extracts the game files (tools/bin/wwhd-extract);
+  2. extracts the game files (tools/bin/nsmbu-extract);
   3. translates the game's PowerPC code to C (tools/recomp/recomp.py);
   4. compiles that code with a C compiler (Apple's Command Line Tools on macOS, a pinned llvm-mingw
      on Windows, a pinned zig toolchain on Linux; downloaded and checked automatically);
@@ -284,7 +284,7 @@ def clean_path(s):
 
 
 def native_dialog(title, folder, filetypes):
-    if os.environ.get("WWHD_SETUP_NO_DIALOGS"):
+    if os.environ.get("NSMBU_SETUP_NO_DIALOGS"):
         return None
     try:
         if IS_MAC:
@@ -434,7 +434,7 @@ def win_shortcut(link, target, arguments="", workdir="", icon=""):
 
 
 # ---------------------------------------------------------------------------------------------
-# keys (kept in memory only; handed to wwhd-extract over stdin)
+# keys (kept in memory only; handed to nsmbu-extract over stdin)
 
 
 def parse_key(data):
@@ -504,11 +504,11 @@ def default_data_dir():
 def legacy_data_dir():
     """Where releases before 0.2 installed (and where a non-portable setup still does)."""
     if IS_MAC:
-        return os.path.expanduser("~/Library/Application Support/wwhd")
+        return os.path.expanduser("~/Library/Application Support/nsmbu")
     if IS_WIN:
-        return os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~\\AppData\\Local"), "WWHD")
+        return os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~\\AppData\\Local"), "NSMBU")
     base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
-    return os.path.join(base, "wwhd")
+    return os.path.join(base, "nsmbu")
 
 
 def free_space(path):
@@ -536,7 +536,7 @@ def download(url, dst, sha256, size_hint, label):
     tmp = dst + ".part"
     say("  Downloading %s" % url)
     h = hashlib.sha256()
-    req = urllib.request.Request(url, headers={"User-Agent": "wwhd-setup"})
+    req = urllib.request.Request(url, headers={"User-Agent": "nsmbu-setup"})
     try:
         with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
             total = int(r.headers.get("Content-Length") or size_hint or 0)
@@ -596,9 +596,9 @@ def get_toolchain(name, data_dir, ui):
     root = os.path.join(data_dir, "toolchain")
     os.makedirs(root, exist_ok=True)
     tdir = os.path.join(root, tc["dir"])
-    marker = os.path.join(tdir, ".wwhd-toolchain")
-    if os.environ.get("WWHD_TOOLCHAIN_DIR"):  # CI: a toolchain already unpacked from the same pinned archive
-        tdir = os.environ["WWHD_TOOLCHAIN_DIR"]
+    marker = os.path.join(tdir, ".nsmbu-toolchain")
+    if os.environ.get("NSMBU_TOOLCHAIN_DIR"):  # CI: a toolchain already unpacked from the same pinned archive
+        tdir = os.environ["NSMBU_TOOLCHAIN_DIR"]
     elif not (os.path.isfile(marker) and open(marker).read().strip() == tc["sha256"]):
         need = tc.get("size", 0) * 6
         if free_space(root) < need:
@@ -645,9 +645,9 @@ def get_toolchain(name, data_dir, ui):
 
 
 def extractor():
-    p = os.path.join(PKG, "tools", "bin", "wwhd-extract" + EXE_SUFFIX)
+    p = os.path.join(PKG, "tools", "bin", "nsmbu-extract" + EXE_SUFFIX)
     if not os.path.isfile(p):
-        raise SetupError("tools/bin/wwhd-extract%s is missing from this release folder (incomplete download?)" % EXE_SUFFIX)
+        raise SetupError("tools/bin/nsmbu-extract%s is missing from this release folder (incomplete download?)" % EXE_SUFFIX)
     return p
 
 
@@ -655,7 +655,7 @@ def disc_info(image, keys):
     p = subprocess.run([extractor(), "--keys-stdin", "info", image], input=keys.stdin_blob(), stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
     err = p.stderr.decode("utf-8", "replace").strip()
-    LOG.write("wwhd-extract info: exit %d %s" % (p.returncode, err))
+    LOG.write("nsmbu-extract info: exit %d %s" % (p.returncode, err))
     if p.returncode != 0:
         return EXTRACT_ERRORS.get(p.returncode, "image_bad"), err, None
     info = {}
@@ -689,14 +689,14 @@ def title_desc(tid, version=None):
 
 
 def archive_info(path, title=SUPPORTED_TITLE):
-    """wwhd-extract info on a Cemu archive, asking for a title (the supported one; None: just list them).
+    """nsmbu-extract info on a Cemu archive, asking for a title (the supported one; None: just list them).
     Returns (problem, message, info);
     info: {"titles": [{id, version, folder, files, bytes}], "selected", "title_id", "version", "files", "bytes"}
     (also for problem "wrong_title": what the archive does contain)."""
     p = subprocess.run([extractor()] + (["--title", title] if title else []) + ["info", path], stdin=subprocess.DEVNULL,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     err = p.stderr.decode("utf-8", "replace").strip()
-    LOG.write("wwhd-extract info (archive): exit %d %s" % (p.returncode, err))
+    LOG.write("nsmbu-extract info (archive): exit %d %s" % (p.returncode, err))
     info = {"titles": []}
     for line in p.stdout.decode("utf-8", "replace").splitlines():
         k, _, v = line.partition(" ")
@@ -907,8 +907,8 @@ def extract_game(image, keys, info, data_dir, title=None):
 
 
 def run_extract(image, keys, out, title=None, only=None):
-    """wwhd-extract into out: a disc image (keys) or one title of a Cemu archive (title, no keys);
-    only: path patterns (wwhd-extract --only) to take just those files. Removes out on failure."""
+    """nsmbu-extract into out: a disc image (keys) or one title of a Cemu archive (title, no keys);
+    only: path patterns (nsmbu-extract --only) to take just those files. Removes out on failure."""
     pr = Progress("extracting")
     opts = []
     for pattern in only or []:
@@ -1108,7 +1108,7 @@ def remove_language_source(data_dir, region):
 
 def add_language_source(source, data_dir, keys=None, info=None):
     """Takes the language packs of a European or Japanese game: source ("image", path) with keys and
-    disc info (wwhd-extract info), ("archive", path) or ("folder", path). Returns [manifest] (an archive
+    disc info (nsmbu-extract info), ("archive", path) or ("folder", path). Returns [manifest] (an archive
     can hold both)."""
     kind, path = source
     root = language_root(data_dir)
@@ -1303,10 +1303,10 @@ def mac_app(app_path, exe_src, data_dir, version):
     shutil.rmtree(tmp, ignore_errors=True)
     macos = os.path.join(tmp, "Contents", "MacOS")
     os.makedirs(macos)
-    shutil.copy2(exe_src, os.path.join(macos, "wwhd"))
+    shutil.copy2(exe_src, os.path.join(macos, "nsmbu"))
     launcher = os.path.join(macos, "launch")
     with open(launcher, "w") as f:
-        f.write('#!/bin/sh\n# written by the Wind Waker HD setup\ncd "%s" || exit 1\nexec "$(dirname "$0")/wwhd" '
+        f.write('#!/bin/sh\n# written by the Wind Waker HD setup\ncd "%s" || exit 1\nexec "$(dirname "$0")/nsmbu" '
                 '--game game --save save "$@"\n' % data_dir.replace('"', '\\"'))
     os.chmod(launcher, 0o755)
     plist = """<?xml version="1.0" encoding="UTF-8"?>
@@ -1314,7 +1314,7 @@ def mac_app(app_path, exe_src, data_dir, version):
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>%s</string>
   <key>CFBundleDisplayName</key><string>%s</string>
-  <key>CFBundleIdentifier</key><string>io.github.zeldawwhdrecomp.wwhd</string>
+  <key>CFBundleIdentifier</key><string>io.github.zeldansmbrecomp.nsmbu</string>
   <key>CFBundleExecutable</key><string>launch</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>%s</string>
@@ -1358,11 +1358,11 @@ def game_icon_png(data_dir):
 
 
 def write_game_icon(data_dir, ico):
-    """wwhd.ico (a PNG-compressed icon) or wwhd.png in the data folder, from the game's own icon."""
+    """nsmbu.ico (a PNG-compressed icon) or nsmbu.png in the data folder, from the game's own icon."""
     png = game_icon_png(data_dir)
     if not png:
         return None
-    path = os.path.join(data_dir, "wwhd.ico" if ico else "wwhd.png")
+    path = os.path.join(data_dir, "nsmbu.ico" if ico else "nsmbu.png")
     with open(path, "wb") as f:
         if ico:
             w, h = struct.unpack(">II", png[16:24])
@@ -1381,7 +1381,7 @@ def linux_launchers(data_dir, exe):
     os.chmod(play, 0o755)
     apps = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "applications")
     os.makedirs(apps, exist_ok=True)
-    with open(os.path.join(apps, "wwhd.desktop"), "w") as f:
+    with open(os.path.join(apps, "nsmbu.desktop"), "w") as f:
         f.write("[Desktop Entry]\nType=Application\nName=%s\nComment=The Wind Waker HD, native PC port\n"
                 "Exec=\"%s\"\nPath=%s\nTerminal=false\nCategories=Game;\n" % (APP_NAME, play, data_dir))
         icon = write_game_icon(data_dir, ico=False)
@@ -1437,7 +1437,7 @@ def create_shortcut():
     elif IS_LINUX:
         apps = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "applications")
         os.makedirs(apps, exist_ok=True)
-        link = os.path.join(apps, "wwhd.desktop")
+        link = os.path.join(apps, "nsmbu.desktop")
         with open(link, "w") as f:
             f.write("[Desktop Entry]\nType=Application\nName=%s\nExec=\"%s\"\nPath=%s\nTerminal=false\nCategories=Game;\n"
                     "Actions=setup;\n\n[Desktop Action setup]\nName=Setup (repair, update, change game)\n"
@@ -1524,11 +1524,11 @@ def import_save(kind, path, data_dir, replace=False):
 def legacy_config_dirs():
     """Settings folders the game used before portable releases (and still uses in source builds)."""
     if IS_MAC:
-        return [os.path.expanduser("~/Library/Application Support/WWHD"),
-                os.path.expanduser("~/Library/Application Support/wwhd")]
+        return [os.path.expanduser("~/Library/Application Support/NSMBU"),
+                os.path.expanduser("~/Library/Application Support/nsmbu")]
     if IS_WIN:
-        return [os.path.join(os.environ.get("APPDATA", ""), "WWHD")]
-    return [os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "wwhd")]
+        return [os.path.join(os.environ.get("APPDATA", ""), "NSMBU")]
+    return [os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "nsmbu")]
 
 
 SETTINGS_ITEMS = ["controls.json", "settings.ini", "display.plist", "states", "shadercache"]
@@ -1552,8 +1552,8 @@ def import_sources(path=None):
             if name not in seen and os.path.exists(src):
                 seen.add(name)
                 items.append((src, name))
-    if not path and IS_MAC and "shaders.bin" not in seen and os.path.isfile(os.path.expanduser("~/Library/Caches/wwhd/shaders.bin")):
-        items.append((os.path.expanduser("~/Library/Caches/wwhd/shaders.bin"), "shaders.bin"))
+    if not path and IS_MAC and "shaders.bin" not in seen and os.path.isfile(os.path.expanduser("~/Library/Caches/nsmbu/shaders.bin")):
+        items.append((os.path.expanduser("~/Library/Caches/nsmbu/shaders.bin"), "shaders.bin"))
     has_save = os.path.isfile(os.path.join(save, "cking.sav"))
     return (save if has_save else None), items
 
@@ -1867,7 +1867,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
             if not os.listdir(exe_dir):
                 os.rmdir(exe_dir)
             state["app"] = app
-            state["exe"] = os.path.join(app, "Contents", "MacOS", "wwhd")
+            state["exe"] = os.path.join(app, "Contents", "MacOS", "nsmbu")
             say("  App: %s" % app)
         elif IS_LINUX:
             state["launcher"] = linux_launchers(data_dir, exe)
@@ -1913,7 +1913,7 @@ def main():
     ap.add_argument("--app-dir", help="macOS: where the app goes (default: ~/Applications)")
     ap.add_argument("--repair", action="store_true", help="rebuild the game code from the installed game files")
     ap.add_argument("--jobs", type=int, help="parallel compiler processes")
-    ap.add_argument("--yes", action="store_true", help="non-interactive (also WWHD_SETUP_NONINTERACTIVE=1)")
+    ap.add_argument("--yes", action="store_true", help="non-interactive (also NSMBU_SETUP_NONINTERACTIVE=1)")
     ap.add_argument("--no-launch", action="store_true", help="do not start the game at the end")
     ap.add_argument("--no-shortcuts", action="store_true", help="no app bundle / menu entries")
     ap.add_argument("--shortcuts", action="store_true",
@@ -1935,7 +1935,7 @@ def main():
         pass
     if args.gui_protocol:
         return gui_main(args)
-    interactive = not (args.yes or os.environ.get("WWHD_SETUP_NONINTERACTIVE")) and sys.stdin.isatty()
+    interactive = not (args.yes or os.environ.get("NSMBU_SETUP_NONINTERACTIVE")) and sys.stdin.isatty()
     ui = UI(interactive)
     try:
         rc = run(args, ui)

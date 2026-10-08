@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Disassemble WWHD functions with names: wdis.py ADDR [ADDR...]  (whole functions, bl/b targets
+"""Disassemble NSMBU functions with names: wdis.py ADDR [ADDR...]  (whole functions, bl/b targets
 named from build/names.tsv, float constants from .rodata shown)"""
 import os
 import re

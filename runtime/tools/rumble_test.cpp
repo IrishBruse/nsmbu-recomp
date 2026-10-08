@@ -105,7 +105,7 @@ int main() {
     }
     {
         // the shared state and the option (real clock)
-        assert(rumble::enabled() == !(getenv("WWHD_RUMBLE") && !atoi(getenv("WWHD_RUMBLE"))));
+        assert(rumble::enabled() == !(getenv("NSMBU_RUMBLE") && !atoi(getenv("NSMBU_RUMBLE"))));
         rumble::set_enabled(true);
         const uint8_t on[15] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
         rumble::gamepad_pattern(0, on, 120);

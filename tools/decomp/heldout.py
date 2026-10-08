@@ -100,7 +100,7 @@ def main():
             if m.M[a] == seeds[a] or g.funcs[m.M[a]].dem == g.funcs[seeds[a]].dem and g.funcs[m.M[a]].file == g.funcs[seeds[a]].file:
                 ok[e] += 1
             elif m.M[a] in m.gcallees.get(seeds[a], ()) or seeds[a] in m.gcallees.get(m.M[a], ()):
-                inl[e] += 1   # wrapper vs. its callee: one of them is inlined into the other in WWHD
+                inl[e] += 1   # wrapper vs. its callee: one of them is inlined into the other in NSMBU
             else:
                 bad[e] += 1
                 if bad[e] <= 5:

@@ -22,11 +22,11 @@
 #endif
 
 #include "runtime.h"
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
 #include <SDL3/SDL_messagebox.h>
 #endif
 
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
 // AppKit host (gfx/display.mm): persistent settings, start-up message on the TV window
 namespace gfx {
 bool host_setting(const char* key, std::string& value);
@@ -56,17 +56,17 @@ bool parse(const char* s, Api& out) {
 }
 
 const Backend* backend_for(Api a) {
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
     if (a == Api::Metal) return &metal_backend();
 #endif
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
     if (a == Api::Vulkan) return &vulkan_backend();
 #endif
     return nullptr;
 }
 
 Api default_api() {
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
     return Api::Metal;
 #else
     return Api::Vulkan;
@@ -85,7 +85,7 @@ uint64_t frame_count() { return g_backend ? g_backend->frame_count() : 0; }
 
 Api preferred() {
     Api a = default_api();
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
     std::string v;
     if (gfx::host_setting("renderer", v)) parse(v.c_str(), a);
 #endif
@@ -96,7 +96,7 @@ bool restart_pending() { return g_pref_changed && preferred() != active(); }
 
 void set_preferred(Api a) {
     g_pref_changed = true;
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
     gfx::set_host_setting("renderer", api_key(a));
 #endif
     LOG("[gfx] renderer for the next start: %s", api_name(a));
@@ -105,11 +105,11 @@ void set_preferred(Api a) {
 void choose(int argc, char** argv) {
     Api a = preferred();
     const char* why = "default";
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
     std::string saved;
     if (gfx::host_setting("renderer", saved)) why = "saved setting";
 #endif
-    if (parse(getenv("WWHD_RENDERER_RUNTIME"), a)) why = "WWHD_RENDERER_RUNTIME";
+    if (parse(getenv("NSMBU_RENDERER_RUNTIME"), a)) why = "NSMBU_RENDERER_RUNTIME";
     for (int i = 1; i < argc; i++) {
         const char* v = nullptr;
         if (!strncmp(argv[i], "--renderer=", 11)) v = argv[i] + 11;
@@ -152,16 +152,16 @@ void init() {
         g_reason = "unknown error";
     }
     const Backend* fallback = nullptr;
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
     if (b->api != Api::Metal) fallback = &metal_backend();
 #endif
     if (!fallback) {
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
         // a player starts the game from the launcher, without a terminal: say why in a message box
         // (old graphics driver, no Vulkan) and end without a crash report
         LOG("FATAL: %s renderer could not start: %s", api_name(b->api), g_reason.c_str());
         const std::string text = std::string("The ") + api_name(b->api) + " renderer could not start.\n\n" + g_reason;
-        const char* hidden = getenv("WWHD_HIDDEN_WINDOWS");  // test runs: nothing pops up
+        const char* hidden = getenv("NSMBU_HIDDEN_WINDOWS");  // test runs: nothing pops up
         if (!hidden || !*hidden || !strcmp(hidden, "0"))
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Wind Waker HD", text.c_str(), nullptr);
         fflush(stderr);
@@ -176,7 +176,7 @@ void init() {
     g_backend = fallback;
     fallback->init();  // Metal: a failure here is fatal (no Metal device)
     LOG("[gfx] %s renderer started (fallback)", api_name(fallback->api));
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
     gfx::show_startup_notice(std::string(api_name(b->api)) + " could not start",
                              "The game is running with " + std::string(api_name(fallback->api)) + " instead.\n\n" + g_reason +
                                  "\n\nGraphics > Renderer selects the renderer for the next start.");
@@ -210,8 +210,8 @@ bool restart() {
     std::vector<char*> av;
     for (auto& s : g_args) av.push_back(const_cast<char*>(s.c_str()));
     av.push_back(nullptr);
-    // the environment's WWHD_RENDERER_RUNTIME would override the new choice
-    unsetenv("WWHD_RENDERER_RUNTIME");
+    // the environment's NSMBU_RENDERER_RUNTIME would override the new choice
+    unsetenv("NSMBU_RENDERER_RUNTIME");
     fflush(stdout);
     fflush(stderr);
     execv(exe.c_str(), av.data());

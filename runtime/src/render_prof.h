@@ -7,9 +7,9 @@
 // draws whose registers changed only in buffer pointers / ALU constants since the previous draw
 // (candidates for a continued-draw fast path).
 //
-// Every 120 swaps the counters are turned into a text report: logged with WWHD_PROFILE=1,
-// WWHD_VK_STATS or WWHD_VK_CPU_ONLY_STATS=1, and kept for the overlay's "Copy performance report"
-// button (latest_report()). WWHD_PROFILE=0 turns the profiler off.
+// Every 120 swaps the counters are turned into a text report: logged with NSMBU_PROFILE=1,
+// NSMBU_VK_STATS or NSMBU_VK_CPU_ONLY_STATS=1, and kept for the overlay's "Copy performance report"
+// button (latest_report()). NSMBU_PROFILE=0 turns the profiler off.
 #pragma once
 #include <cstdint>
 #include <string>

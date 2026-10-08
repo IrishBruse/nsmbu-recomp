@@ -84,7 +84,7 @@ static float parse_scale(const char* e) {
     float f = e ? (float)atof(e) : 1.0f;
     return std::clamp(f > 0 ? f : 1.0f, 1.0f, 4.0f);
 }
-static std::atomic<float> g_res_requested{parse_scale(getenv("WWHD_RES_SCALE"))};
+static std::atomic<float> g_res_requested{parse_scale(getenv("NSMBU_RES_SCALE"))};
 static float g_res_frame = g_res_requested.load();  // render thread: the factor for this frame
 static void latch_aspect();
 float res_scale() { return g_res_frame; }
@@ -94,10 +94,10 @@ void set_res_scale(float f) {
     LOG("[gfx] internal resolution %gx", g_res_requested.load());
 }
 void latch_res_scale() {
-    // test aid: WWHD_RES_SCALE_AT=frame:factor,... switches the factor at those frames
+    // test aid: NSMBU_RES_SCALE_AT=frame:factor,... switches the factor at those frames
     static std::vector<std::pair<uint64_t, float>> at = [] {
         std::vector<std::pair<uint64_t, float>> v;
-        if (const char* e = getenv("WWHD_RES_SCALE_AT"))
+        if (const char* e = getenv("NSMBU_RES_SCALE_AT"))
             for (char* p = (char*)e; *p;) {
                 uint64_t f = strtoull(p, &p, 10);
                 if (*p++ != ':') break;
@@ -155,8 +155,8 @@ static void target_aspect(const Surface* s, float& kx, float& ky) {
 }
 
 // the factor a render target gets. Shadow maps (depth arrays: the game's cascades) scale with the
-// internal resolution by default (sharper shadows; the user's choice). WWHD_SHADOW_FIX=1 keeps the
-// console's 1024x1024 (issue #67), and WWHD_SHADOW_SCALE=n gives them their own factor (overrides
+// internal resolution by default (sharper shadows; the user's choice). NSMBU_SHADOW_FIX=1 keeps the
+// console's 1024x1024 (issue #67), and NSMBU_SHADOW_SCALE=n gives them their own factor (overrides
 // both). The trade-off: the game softens shadow edges by sampling the map with bilinear depth compare at a per-pixel random
 // offset, then blurring the result on screen. At 2048x2048 each compare filters half as wide, so
 // shadow edges came out hard and the random offsets showed as crawling hatching (issue #67: the
@@ -166,8 +166,8 @@ static float target_scale(const Surface* s) {
     uint32_t width,height;
     if(!s->fmt.compressed&&s->mips==1&&mods::cemu::texture_extent(s->width,s->height,s->format,s->slices,s->tileMode,width,height))return 1.0f;
     if (s->fmt.compressed || s->mips > 1) return 1.0f;
-    static const float shadow = getenv("WWHD_SHADOW_SCALE") ? parse_scale(getenv("WWHD_SHADOW_SCALE"))
-                                : getenv("WWHD_SHADOW_FIX") && *getenv("WWHD_SHADOW_FIX") && *getenv("WWHD_SHADOW_FIX") != '0' ? 1.0f : 0.0f;
+    static const float shadow = getenv("NSMBU_SHADOW_SCALE") ? parse_scale(getenv("NSMBU_SHADOW_SCALE"))
+                                : getenv("NSMBU_SHADOW_FIX") && *getenv("NSMBU_SHADOW_FIX") && *getenv("NSMBU_SHADOW_FIX") != '0' ? 1.0f : 0.0f;
     if (shadow && s->isDepth && s->slices > 1) return shadow;
     return res_scale();
 }
@@ -377,10 +377,10 @@ static SparseHashStats sparseStats;
 SparseHashStats sparse_hash_stats() { return sparseStats; }
 static uint64_t sparse_hash(Surface* s) {
     static const bool enabled = [] {
-        const char* value = getenv("WWHD_VK_SPARSE_HASH_MEMO");
+        const char* value = getenv("NSMBU_VK_SPARSE_HASH_MEMO");
         return value && !strcmp(value,"1");
     }();
-    static const bool collectStats = getenv("WWHD_VK_STATS") != nullptr;
+    static const bool collectStats = getenv("NSMBU_VK_STATS") != nullptr;
     if(!enabled && !collectStats) {
         // Keep the default path's original streaming loop, without diagnostics.
         uint64_t h = 0xcbf29ce484222325ull;
@@ -418,7 +418,7 @@ static uint64_t sparse_hash(Surface* s) {
         return hash;
     }
     static const bool largerMemo = [] {
-        const char* value = getenv("WWHD_VK_SPARSE_HASH_ENTRIES");
+        const char* value = getenv("NSMBU_VK_SPARSE_HASH_ENTRIES");
         return value && !strcmp(value,"256");
     }();
     auto runMemo = [&](auto& memo) {
@@ -598,11 +598,11 @@ VkImageView sampled_texture_view(Surface* s,const uint32_t* texWords) {
 // VK_FILTER_NEAREST would take, written with gl_FragDepth; stencil is copied one bit per pass (the
 // pass writes its bit where the source has it, the depth pass zeroes all bits), so no
 // VK_EXT_shader_stencil_export is needed. Devices that can blit keep the blit.
-// Test aid: WWHD_VK_DEPTH_COPY=draw draws scaled depth copies on every device (the renderer smoke test
-// forces it too); WWHD_VK_DEPTH_COPY=none takes neither the blit nor the draw for depth, which shows
+// Test aid: NSMBU_VK_DEPTH_COPY=draw draws scaled depth copies on every device (the renderer smoke test
+// forces it too); NSMBU_VK_DEPTH_COPY=none takes neither the blit nor the draw for depth, which shows
 // the last resort (clear_unscalable).
 DepthCopyOverride g_depthCopyOverride=[]{
-    const char* e=getenv("WWHD_VK_DEPTH_COPY");
+    const char* e=getenv("NSMBU_VK_DEPTH_COPY");
     return !e?DepthCopyOverride::None:!strcmp(e,"draw")?DepthCopyOverride::Draw:!strcmp(e,"none")?DepthCopyOverride::Unsupported:DepthCopyOverride::None;
 }();
 enum class ScaledCopy { Blit, Draw, Unsupported };
@@ -621,7 +621,7 @@ static ScaledCopy scaled_copy_mode(const FormatInfo& fmt) {
         static std::vector<VkFormat> logged;
         if(std::find(logged.begin(),logged.end(),fmt.pixel)==logged.end()) {
             logged.push_back(fmt.pixel);
-            const char* why=blit?" (WWHD_VK_DEPTH_COPY)":"";
+            const char* why=blit?" (NSMBU_VK_DEPTH_COPY)":"";
             if(mode==ScaledCopy::Draw)LOG("[gfx] Vulkan: format %d: scaled depth copies are drawn, not blitted%s",int(fmt.pixel),why);
             else LOG("[gfx] Vulkan: format %d can be neither blitted nor drawn%s; scaled copies of it are cleared or skipped",int(fmt.pixel),why);
         }

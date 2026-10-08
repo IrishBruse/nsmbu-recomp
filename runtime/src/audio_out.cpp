@@ -1,9 +1,9 @@
 // CoreAudio output (default output AudioUnit) pulling from a single-producer ring buffer.
-// WWHD_AUDIO_DUMP=file.wav additionally records everything pushed by the game.
-// WWHD_NO_AUDIO=1 skips opening the device (the mix still runs and can be dumped).
+// NSMBU_AUDIO_DUMP=file.wav additionally records everything pushed by the game.
+// NSMBU_NO_AUDIO=1 skips opening the device (the mix still runs and can be dumped).
 #include "audio_out.h"
 
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 #include <AudioToolbox/AudioToolbox.h>
 #else
 #include <SDL3/SDL.h>
@@ -28,7 +28,7 @@ int16_t g_ring[kCapacity * 2];
 std::atomic<uint32_t> g_read{0}, g_write{0};
 std::atomic<bool> g_started{false};
 std::atomic<bool> g_flush{false};  // consumer skips everything queued
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 AudioComponentInstance g_unit = nullptr;
 #else
 SDL_AudioStream* g_unit = nullptr;
@@ -78,7 +78,7 @@ void pull(int16_t* out,uint32_t frames) {
     }
     g_read.store(r + n, std::memory_order_release);
 }
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 OSStatus render(void*,AudioUnitRenderActionFlags*,const AudioTimeStamp*,UInt32,UInt32 frames,AudioBufferList* io) {
     pull((int16_t*)io->mBuffers[0].mData,frames);return noErr;
 }
@@ -96,16 +96,16 @@ void SDLCALL render(void*,SDL_AudioStream* stream,int additional,int) {
 
 void init() {
     if (g_started.exchange(true)) return;
-    if (const char* p = getenv("WWHD_AUDIO_DUMP")) {
+    if (const char* p = getenv("NSMBU_AUDIO_DUMP")) {
         g_dump = fopen(p, "wb");
         if (g_dump) {
             write_wav_header();
             fseek(g_dump, 44, SEEK_SET);
         }
     }
-    if (getenv("WWHD_NO_AUDIO")) return;
+    if (getenv("NSMBU_NO_AUDIO")) return;
 
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
     AudioComponentDescription desc{};
     desc.componentType = kAudioUnitType_Output;
     desc.componentSubType = kAudioUnitSubType_DefaultOutput;
@@ -128,8 +128,8 @@ void init() {
     AudioUnitSetProperty(g_unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &fmt, sizeof fmt);
     AURenderCallbackStruct cb{render, nullptr};
     AudioUnitSetProperty(g_unit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb, sizeof cb);
-    // debug: WWHD_AUDIO_VOLUME=0..1 scales the device volume (e.g. silent tests of the real output path)
-    if (const char* v = getenv("WWHD_AUDIO_VOLUME"))
+    // debug: NSMBU_AUDIO_VOLUME=0..1 scales the device volume (e.g. silent tests of the real output path)
+    if (const char* v = getenv("NSMBU_AUDIO_VOLUME"))
         AudioUnitSetParameter(g_unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, (AudioUnitParameterValue)atof(v), 0);
     if (AudioUnitInitialize(g_unit) != noErr || AudioOutputUnitStart(g_unit) != noErr) {
         LOG("[audio] failed to start output unit");
@@ -141,7 +141,7 @@ void init() {
     SDL_AudioSpec spec{SDL_AUDIO_S16,2,kRate};
     g_unit=SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,&spec,render,nullptr);
     if(!g_unit){LOG("[audio] no output device: %s",SDL_GetError());return;}
-    if(const char* v=getenv("WWHD_AUDIO_VOLUME"))SDL_SetAudioStreamGain(g_unit,(float)atof(v));
+    if(const char* v=getenv("NSMBU_AUDIO_VOLUME"))SDL_SetAudioStreamGain(g_unit,(float)atof(v));
     if(!SDL_ResumeAudioStreamDevice(g_unit)){LOG("[audio] failed to start: %s",SDL_GetError());SDL_DestroyAudioStream(g_unit);g_unit=nullptr;return;}
     LOG("[audio] SDL output started (48 kHz stereo)");
 #endif

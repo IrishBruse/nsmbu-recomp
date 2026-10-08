@@ -99,8 +99,8 @@ HLE(proc_ui, ProcUIProcessMessages) { ret(c, 0); }  // PROCUI_STATUS_IN_FOREGROU
 HLE(vpad, VPADRead) {
     // (chan, VPADStatus* buf, count, int32* error) -> samples written
     uint32_t chan = arg(c, 0), st = arg(c, 1), count = arg(c, 2), err = arg(c, 3);
-    // debug: WWHD_TRACE_VPAD=n logs the guest call chain of the first n reads
-    static int trace = getenv("WWHD_TRACE_VPAD") ? atoi(getenv("WWHD_TRACE_VPAD")) : 0;
+    // debug: NSMBU_TRACE_VPAD=n logs the guest call chain of the first n reads
+    static int trace = getenv("NSMBU_TRACE_VPAD") ? atoi(getenv("NSMBU_TRACE_VPAD")) : 0;
     if (trace > 0) {
         trace--;
         char buf[256];
@@ -151,13 +151,13 @@ HLE(vpad, VPADRead) {
     st32(st + 0x04, hold & ~last_hold);   // trig
     st32(st + 0x08, last_hold & ~hold);   // release
     last_hold = hold;
-    {  // debug: WWHD_PAD_TRACE=path logs each read: logic step, repeated, buttons, trigger
-        static FILE* pt = getenv("WWHD_PAD_TRACE") ? fopen(getenv("WWHD_PAD_TRACE"), "w") : nullptr;
+    {  // debug: NSMBU_PAD_TRACE=path logs each read: logic step, repeated, buttons, trigger
+        static FILE* pt = getenv("NSMBU_PAD_TRACE") ? fopen(getenv("NSMBU_PAD_TRACE"), "w") : nullptr;
         if (pt) { fprintf(pt, "%llu %d %08X %08X\n", (unsigned long long)interp::logic_steps(), (int)repeat, hold, ld32(st + 4)); fflush(pt); }
     }
     stf32(st + 0x0C, p.lx); stf32(st + 0x10, p.ly);
     stf32(st + 0x14, p.rx); stf32(st + 0x18, p.ry);
-    {  // motion sensors (motion/motion.h). WWHD reads only the direction matrix (0x6C..0x8F): its
+    {  // motion sensors (motion/motion.h). NSMBU reads only the direction matrix (0x6C..0x8F): its
        // first-person camera turns by the change from one frame to the next (dCamera_c::CalcSubjectAngle)
         const motion::VpadMotion m = motion::vpad(repeat);
         auto vec = [&](uint32_t at, const motion::Vec3& v) { stf32(at, v.x); stf32(at + 4, v.y); stf32(at + 8, v.z); };

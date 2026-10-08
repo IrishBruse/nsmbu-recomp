@@ -72,7 +72,7 @@ def load_names(build):
             f = line.rstrip("\n").split("\t")
             if len(f) >= 4 and re.match(r"[0-9A-F]{8}$", f[0]):
                 names[int(f[0], 16)] = (f[1], f[2], f[3])
-    p = os.path.join(build, "wwhd_to_gc.tsv")
+    p = os.path.join(build, "nsmbu_to_gc.tsv")
     if os.path.exists(p):
         for line in open(p):
             f = line.rstrip("\n").split("\t")

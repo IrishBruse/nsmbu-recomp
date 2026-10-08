@@ -4,7 +4,7 @@
 //
 // Android: phones with 90/120 Hz screens often run an app at 60 Hz unless it asks for more. While
 // frame interpolation draws more than 60 fps, the game asks for a display mode with at least that
-// rate (WwhdActivity.requestRefreshRate), and leaves the choice to the system again otherwise. The
+// rate (NsmbuActivity.requestRefreshRate), and leaves the choice to the system again otherwise. The
 // rate in use is read from the display itself (SDL's value is only updated with the surface size).
 #include "display_rate.h"
 
@@ -23,7 +23,7 @@
 namespace display_rate {
 namespace {
 #ifdef __ANDROID__
-// static float/void methods of WwhdActivity (the game's activity class)
+// static float/void methods of NsmbuActivity (the game's activity class)
 jclass activity_class(JNIEnv* env) {
     jobject activity = (jobject)SDL_GetAndroidActivity();
     if (!activity) return nullptr;

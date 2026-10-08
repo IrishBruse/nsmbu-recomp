@@ -27,7 +27,7 @@ typedef struct CalleeInfo {
 
 typedef struct OrigFunc {
     uint32_t addr;
-    const char* name;      /* WWHD name (names.tsv) */
+    const char* name;      /* NSMBU name (names.tsv) */
     const char* gcsym;     /* GameCube mangled symbol, "" if none */
     void (*fn)(Cpu*);
     uint32_t nblocks;      /* coverage points */

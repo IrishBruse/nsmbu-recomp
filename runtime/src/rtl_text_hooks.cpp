@@ -161,7 +161,7 @@ void finish(Print& p) {
             const float right = (origin == 0 && t_box_width >= 0 && t_prints.size() == 1) ? t_box_width : block_right;
             shift = right - (last.pen + last.advance);
         }
-        if (getenv("WWHD_RTL_TRACE") && t_logged < 400) {
+        if (getenv("NSMBU_RTL_TRACE") && t_logged < 400) {
             std::string d;
             for (size_t k = 0; k < l.size(); k++) {
                 const Rec& r = p.recs[l[k]];
@@ -185,9 +185,9 @@ void finish(Print& p) {
 void language_pack_opened(const std::string& host_path) {
     std::lock_guard<std::mutex> lk(g_mu);
     if (g_on.load()) return;  // decided once (the pack is opened again for each archive it serves)
-    const char* env = std::getenv("WWHD_RTL");
+    const char* env = std::getenv("NSMBU_RTL");
     if (env && !strcmp(env, "0")) {
-        LOG("[rtl] right-to-left text off (WWHD_RTL=0)");
+        LOG("[rtl] right-to-left text off (NSMBU_RTL=0)");
         return;
     }
     std::string why;
@@ -213,7 +213,7 @@ void language_pack_opened(const std::string& host_path) {
     }
     LOG("[rtl] right-to-left text on%s: the message font has %zu Arabic and %zu Hebrew letters, %zu Arabic letter forms, "
         "%zu lam-alef ligatures, %zu harakat (missing ones are not drawn)",
-        force ? " (WWHD_RTL=1)" : "", arabic, hebrew, forms, lig, marks);
+        force ? " (NSMBU_RTL=1)" : "", arabic, hebrew, forms, lig, marks);
     g_on.store(true, std::memory_order_release);
 }
 
@@ -272,7 +272,7 @@ extern "C" void hook_028709E0(Cpu* c) {
     f_028709E0_orig(c);
     // the result (f1, the width) stays as the original computed it
     finish(*raw);
-    if (getenv("WWHD_RTL_TRACE") && t_logged < 400) {
+    if (getenv("NSMBU_RTL_TRACE") && t_logged < 400) {
         t_logged++;
         std::string s;
         for (int32_t i = 0; i < len && i < 400; i++) {

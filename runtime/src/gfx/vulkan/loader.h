@@ -11,10 +11,10 @@
 #include <vulkan/vulkan.h>
 
 // before an instance exists (vkGetInstanceProcAddr(nullptr, name))
-#define WWHD_VK_GLOBAL_FUNCTIONS(X) \
+#define NSMBU_VK_GLOBAL_FUNCTIONS(X) \
   X(vkCreateInstance) X(vkEnumerateInstanceExtensionProperties)
 // instance functions: physical devices and window surfaces
-#define WWHD_VK_INSTANCE_FUNCTIONS(X) \
+#define NSMBU_VK_INSTANCE_FUNCTIONS(X) \
   X(vkCreateDevice) X(vkDestroySurfaceKHR) X(vkEnumerateDeviceExtensionProperties) X(vkEnumeratePhysicalDevices) \
   X(vkGetDeviceProcAddr) X(vkGetPhysicalDeviceFeatures) X(vkGetPhysicalDeviceFeatures2) \
   X(vkGetPhysicalDeviceFormatProperties) X(vkGetPhysicalDeviceMemoryProperties) X(vkGetPhysicalDeviceProperties) \
@@ -22,7 +22,7 @@
   X(vkGetPhysicalDeviceSurfaceFormatsKHR) X(vkGetPhysicalDeviceSurfacePresentModesKHR) \
   X(vkGetPhysicalDeviceSurfaceSupportKHR)
 // device functions (vkGetDeviceProcAddr): Vulkan 1.0 core and VK_KHR_swapchain
-#define WWHD_VK_DEVICE_FUNCTIONS(X) \
+#define NSMBU_VK_DEVICE_FUNCTIONS(X) \
   X(vkAcquireNextImageKHR) X(vkAllocateCommandBuffers) X(vkAllocateDescriptorSets) X(vkAllocateMemory) \
   X(vkBeginCommandBuffer) X(vkBindBufferMemory) X(vkBindImageMemory) X(vkCmdBindDescriptorSets) \
   X(vkCmdBindIndexBuffer) X(vkCmdBindPipeline) X(vkCmdBindVertexBuffers) X(vkCmdBlitImage) \
@@ -43,18 +43,18 @@
   X(vkResetFences) X(vkUnmapMemory) X(vkUpdateDescriptorSets) X(vkWaitForFences)
 // dynamic rendering: Vulkan 1.3 core, or VK_KHR_dynamic_rendering on Vulkan 1.1 / 1.2 drivers (the
 // ...KHR entry points, loaded under these names; the structures are the same)
-#define WWHD_VK_RENDERING_FUNCTIONS(X) X(vkCmdBeginRendering) X(vkCmdEndRendering)
+#define NSMBU_VK_RENDERING_FUNCTIONS(X) X(vkCmdBeginRendering) X(vkCmdEndRendering)
 
 namespace gfxvk {
 extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
 extern PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion;  // null: a Vulkan 1.0 loader
 extern PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties;  // optional (log only)
-#define WWHD_VK_DECLARE(name) extern PFN_##name name;
-WWHD_VK_GLOBAL_FUNCTIONS(WWHD_VK_DECLARE)
-WWHD_VK_INSTANCE_FUNCTIONS(WWHD_VK_DECLARE)
-WWHD_VK_DEVICE_FUNCTIONS(WWHD_VK_DECLARE)
-WWHD_VK_RENDERING_FUNCTIONS(WWHD_VK_DECLARE)
-#undef WWHD_VK_DECLARE
+#define NSMBU_VK_DECLARE(name) extern PFN_##name name;
+NSMBU_VK_GLOBAL_FUNCTIONS(NSMBU_VK_DECLARE)
+NSMBU_VK_INSTANCE_FUNCTIONS(NSMBU_VK_DECLARE)
+NSMBU_VK_DEVICE_FUNCTIONS(NSMBU_VK_DECLARE)
+NSMBU_VK_RENDERING_FUNCTIONS(NSMBU_VK_DECLARE)
+#undef NSMBU_VK_DECLARE
 
 // Each step throws std::runtime_error naming what is missing.
 // gipa: the loader's vkGetInstanceProcAddr (SDL_Vulkan_GetVkGetInstanceProcAddr, or the macOS

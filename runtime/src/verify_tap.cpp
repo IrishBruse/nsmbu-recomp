@@ -1,8 +1,8 @@
 // Recording taps for the verification harness (tools/verify, runtime/include/verify_tap.h).
 //
-// Off unless WWHD_TAP=<dir> is set and the build has taps (tools/verify/mktap.py). Then each
-// tapped function records its first WWHD_TAP_N calls (default 100; WWHD_TAP_EVERY=k records
-// every k-th call; WWHD_TAP_AFTER=n starts once the game's step counter g_Counter.mCounter0
+// Off unless NSMBU_TAP=<dir> is set and the build has taps (tools/verify/mktap.py). Then each
+// tapped function records its first NSMBU_TAP_N calls (default 100; NSMBU_TAP_EVERY=k records
+// every k-th call; NSMBU_TAP_AFTER=n starts once the game's step counter g_Counter.mCounter0
 // reaches n) to <dir>/<ADDR>/<n>.tap: entry registers, its own loads and stores, every call it
 // makes with the registers before and after, exit registers.
 #include <filesystem>
@@ -40,10 +40,10 @@ uint32_t g_max = 100, g_every = 1, g_after = 0;
 std::once_flag g_once;
 
 void init() {
-    g_dir = getenv("WWHD_TAP");
-    if (const char* e = getenv("WWHD_TAP_N")) g_max = (uint32_t)atoi(e);
-    if (const char* e = getenv("WWHD_TAP_EVERY")) g_every = std::max(1, atoi(e));
-    if (const char* e = getenv("WWHD_TAP_AFTER")) g_after = (uint32_t)strtoul(e, nullptr, 10);
+    g_dir = getenv("NSMBU_TAP");
+    if (const char* e = getenv("NSMBU_TAP_N")) g_max = (uint32_t)atoi(e);
+    if (const char* e = getenv("NSMBU_TAP_EVERY")) g_every = std::max(1, atoi(e));
+    if (const char* e = getenv("NSMBU_TAP_AFTER")) g_after = (uint32_t)strtoul(e, nullptr, 10);
     if (g_dir) {
         std::error_code ec; std::filesystem::create_directories(g_dir,ec);
         fprintf(stderr, "[tap] recording to %s (%u calls per function, every %u)\n", g_dir, g_max, g_every);

@@ -1,4 +1,4 @@
-"""Second-generation matcher: grows trusted WWHD <-> GameCube pairs to a fixed point.
+"""Second-generation matcher: grows trusted NSMBU <-> GameCube pairs to a fixed point.
 
 All evidence is scored on GameCube function ids (binmodel.GC), so overloads, static functions with
 the same name in different actors, and weak copies of inline functions are kept apart.
@@ -7,8 +7,8 @@ Stages (each pair records the stage that found it):
   vtable    virtual tables aligned slot by slot with already matched slots as anchors
   graph     call-graph neighbourhood + content (BinDiff-like), mutual best with margin
   tu        unmatched functions between two matched functions of the same source file
-            (WWHD keeps translation units contiguous), scored like `graph`
-  dup       WWHD keeps a copy of an inline function per translation unit; identical bodies of a
+            (NSMBU keeps translation units contiguous), scored like `graph`
+  dup       NSMBU keeps a copy of an inline function per translation unit; identical bodies of a
             matched function get the same name (bodies of >= 4 instructions only)
 """
 import bisect
@@ -17,7 +17,7 @@ import re
 import math
 from collections import Counter, defaultdict
 
-from features import similarity, wwhd_functions
+from features import similarity, nsmbu_functions
 from shape import cosine, ldiff, shape, wjaccard
 from layout import accesses, align
 
@@ -68,7 +68,7 @@ class Matcher:
             for t in cs:
                 self.wcallers[t].add(a)
         # content tokens
-        self.W = wwhd_functions(w.x)
+        self.W = nsmbu_functions(w.x)
         df = Counter()
         for f in G:
             df.update(set(f.tokens))
@@ -76,7 +76,7 @@ class Matcher:
             df.update(set(f.tokens))
         n = len(G) + len(self.W)
         self.idf = {k: math.log(n / (1 + c)) for k, c in df.items()}
-        # identical-body groups on the WWHD side
+        # identical-body groups on the NSMBU side
         self.wbody = {}
         groups = defaultdict(list)
         for a in w.funcs:
@@ -99,7 +99,7 @@ class Matcher:
         self.file_dir = {}
         for f in G:
             d = os.path.dirname(f.path.split("/obj/", 1)[-1])
-            # WWHD links d/ and d/actor/ as one alphabetical run (d_a_* sorts among d_*)
+            # NSMBU links d/ and d/actor/ as one alphabetical run (d_a_* sorts among d_*)
             self.file_dir.setdefault(f.file, "d" if d == "d/actor" else d)
         self._between_cache = {}
         self._wshape, self._gshape = {}, {}
@@ -110,12 +110,12 @@ class Matcher:
         self.vt_known = {}
         self._fvotes = defaultdict(lambda: defaultdict(Counter))
         self._actor_base = False
-        self.M = {}            # WWHD address -> canonical GC id
+        self.M = {}            # NSMBU address -> canonical GC id
         self.Minv = defaultdict(set)
         self.ev = {}
         self.prob = {}         # model probability of graph/tu pairs
         self.blocked = set()
-        self.forbidden = set()  # (WWHD address, GC id) pairs known to be wrong   # WWHD addresses never to name (pure-virtual stub, conflicts)
+        self.forbidden = set()  # (NSMBU address, GC id) pairs known to be wrong   # NSMBU addresses never to name (pure-virtual stub, conflicts)
 
     # ------------------------------------------------------------ state
 
@@ -160,7 +160,7 @@ class Matcher:
     # ------------------------------------------------------------ evidence
 
     def tu_labels(self):
-        """file label per matched WWHD function whose GC function exists once (not a weak copy)"""
+        """file label per matched NSMBU function whose GC function exists once (not a weak copy)"""
         lab = []
         for a in sorted(self.M):
             c = self.M[a]
@@ -180,7 +180,7 @@ class Matcher:
         if not self.BOUNDARY:
             return None
         # between two files: either of them, or a file that sorts between them in the same
-        # directory (WWHD links each directory's units in alphabetical order)
+        # directory (NSMBU links each directory's units in alphabetical order)
         return self._between(f1, f2), None, None
 
     def _between(self, f1, f2):
@@ -196,7 +196,7 @@ class Matcher:
         return self._between_cache[key]
 
     def learn_data(self):
-        """WWHD data address -> GC data symbol, from the data references of matched pairs
+        """NSMBU data address -> GC data symbol, from the data references of matched pairs
         (.data/.bss only: .rodata constants are covered by the float/string tokens)"""
         self.data_lo = self.w.x.p.rpx.by_name[".data"].addr
         co = defaultdict(Counter)
@@ -344,7 +344,7 @@ class Matcher:
         return v
 
     def learn_fields(self):
-        """GC field offset -> WWHD offset per class, by aligning the this-accesses of matched pairs"""
+        """GC field offset -> NSMBU offset per class, by aligning the this-accesses of matched pairs"""
         for a, c in list(self.M.items()):
             if a in self._fdone or self.ev.get(a) in ("dup", "dup-graph"):
                 continue
@@ -449,8 +449,8 @@ class Matcher:
         self._gt, self._wt, self._ginv = gt, wt, ginv
 
     def learn_vtrefs(self):
-        """WWHD vtable (first-slot address) -> GameCube __vt__ symbol, from matched pairs whose
-        code stores the table (constructors, destructors): WWHD code addresses a table 12 bytes
+        """NSMBU vtable (first-slot address) -> GameCube __vt__ symbol, from matched pairs whose
+        code stores the table (constructors, destructors): NSMBU code addresses a table 12 bytes
         before its first slot"""
         starts = {a for a, s in self.w.vtables}
         co = defaultdict(Counter)
@@ -517,7 +517,7 @@ class Matcher:
                 scored.append((n + (0.5 if exact else 0), j, d))
             if not scored and kind == "vt" and wa in self.vtname:
                 # no two matched slots, but the constructors/destructors that store this table are
-                # matched to ones storing GameCube table N: align by length (WWHD actor classes
+                # matched to ones storing GameCube table N: align by length (NSMBU actor classes
                 # have one extra leading slot, the virtual destructor)
                 for j in self._gt_byname.get(self.vtname[wa], ()):
                     key = gt[j][2]
@@ -718,7 +718,7 @@ class Matcher:
         return fl in self._name_files[self.g.funcs[c].name]
 
     def stage_dupgroup(self):
-        """identical-body WWHD copies (inline functions emitted per translation unit) as one node:
+        """identical-body NSMBU copies (inline functions emitted per translation unit) as one node:
         the callers of all copies, once matched, must agree on one GameCube callee"""
         seen = set()
         added = 0
@@ -754,7 +754,7 @@ class Matcher:
         return added
 
     def stage_dupfile(self):
-        """inline-function copies named by source file: a WWHD copy inside file F's block is matched
+        """inline-function copies named by source file: a NSMBU copy inside file F's block is matched
         to the weak copy in F's GameCube object, decided by its matched callers"""
         if not hasattr(self, "_weak_by_file"):
             self._weak_by_file = defaultdict(list)

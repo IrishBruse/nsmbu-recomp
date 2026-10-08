@@ -3,16 +3,16 @@
 // click; the infinite health / magic / ammo switches top up every frame.
 //
 // The save data is dSv_info_c of the GameCube decompilation (zeldaret/tww include/d/d_save.h),
-// unchanged in WWHD as far as used here. Each cheat does what the game's own item_func_*
+// unchanged in NSMBU as far as used here. Each cheat does what the game's own item_func_*
 // (d_item.cpp) does for that item. It lives on the heap at the same address in every session; the
 // copy the file select reads/writes is elsewhere (0x144FDA00), so cheats last once the game is saved.
 //
 // Note: the game itself takes the sword away in Forsaken Fortress (first visit) and the bow in the
 // Tower of the Gods when those stages load (d_s_play.cpp), cheat or not.
 //
-// Test switch: WWHD_CHEAT=items,sword,stats,songs,triforce,dungeon,key applies those once a save
-// file is loaded; WWHD_CHEAT_INFINITE=health,magic,ammo switches those on.
-// WWHD_CHEAT_SAVE_ADDR=hex overrides the address (another game version).
+// Test switch: NSMBU_CHEAT=items,sword,stats,songs,triforce,dungeon,key applies those once a save
+// file is loaded; NSMBU_CHEAT_INFINITE=health,magic,ammo switches those on.
+// NSMBU_CHEAT_SAVE_ADDR=hex overrides the address (another game version).
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
@@ -38,7 +38,7 @@ constexpr uint32_t kTact = 0xBD, kTriforce = 0xBE;  // song bits (6), Triforce s
 constexpr uint32_t kStageKeys = 0x778 + 0x20, kStageDungeonItems = 0x778 + 0x21;  // bits: map, compass, boss key
 
 uint32_t save_addr() {
-    static const uint32_t a = getenv("WWHD_CHEAT_SAVE_ADDR") ? (uint32_t)strtoul(getenv("WWHD_CHEAT_SAVE_ADDR"), nullptr, 16) : 0x145AC92C;
+    static const uint32_t a = getenv("NSMBU_CHEAT_SAVE_ADDR") ? (uint32_t)strtoul(getenv("NSMBU_CHEAT_SAVE_ADDR"), nullptr, 16) : 0x145AC92C;
     return a;
 }
 
@@ -121,10 +121,10 @@ int parse_env(const char* var, std::initializer_list<std::pair<const char*, int>
     return w;
 }
 
-std::atomic<int> g_pending{parse_env("WWHD_CHEAT", {{"items", kCheatItems}, {"sword", kCheatSword}, {"stats", kCheatStats},
+std::atomic<int> g_pending{parse_env("NSMBU_CHEAT", {{"items", kCheatItems}, {"sword", kCheatSword}, {"stats", kCheatStats},
                                                     {"songs", kCheatSongs}, {"triforce", kCheatTriforce},
                                                     {"dungeon", kCheatDungeon}, {"key", kCheatKey}})};
-std::atomic<int> g_infinite{parse_env("WWHD_CHEAT_INFINITE", {{"health", kInfHealth}, {"magic", kInfMagic}, {"ammo", kInfAmmo}})};
+std::atomic<int> g_infinite{parse_env("NSMBU_CHEAT_INFINITE", {{"health", kInfHealth}, {"magic", kInfMagic}, {"ammo", kInfAmmo}})};
 }  // namespace
 
 void request_cheat(int which) { g_pending |= which; }

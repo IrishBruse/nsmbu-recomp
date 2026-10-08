@@ -25,11 +25,11 @@
 // Billboards need nothing here: they are J3D models (viewCalc blending) drawn with the blended
 // camera. The attention arrow too, except in true 60 (see hook_024EC1C8).
 //
-// debug: WWHD_INTERP_FX=mask turns parts off (1 particles, 2 sea, 4 material animations, 8 hold
+// debug: NSMBU_INTERP_FX=mask turns parts off (1 particles, 2 sea, 4 material animations, 8 hold
 // back per-step work on hold passes, 16 grass/tree/flower/bush/cloth, 32 weather and sky sprites,
-// 64 particles born this step, 128 particle colour/alpha/rotation/axis); WWHD_INTERP_FX_TRACE=n
-// logs n samples per part; WWHD_INTERP_FX_STATS=1 logs counts every 300 steps.
-// test aids: WWHD_SEA_WAVES=1 (full waves everywhere), WWHD_FORCE_RAIN=n (rain count).
+// 64 particles born this step, 128 particle colour/alpha/rotation/axis); NSMBU_INTERP_FX_TRACE=n
+// logs n samples per part; NSMBU_INTERP_FX_STATS=1 logs counts every 300 steps.
+// test aids: NSMBU_SEA_WAVES=1 (full waves everywhere), NSMBU_FORCE_RAIN=n (rain count).
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -88,7 +88,7 @@ void f_024EC1C8_orig(Cpu* c);  // dAttDraw_c::draw(pos, camera inverse rotation)
 
 namespace {
 uint32_t mask() {
-    static const uint32_t m = getenv("WWHD_INTERP_FX") ? (uint32_t)strtoul(getenv("WWHD_INTERP_FX"), nullptr, 0) : 0xFF;
+    static const uint32_t m = getenv("NSMBU_INTERP_FX") ? (uint32_t)strtoul(getenv("NSMBU_INTERP_FX"), nullptr, 0) : 0xFF;
     return m;
 }
 bool on(uint32_t bit) { return interp::enabled() && (mask() & bit); }
@@ -103,7 +103,7 @@ using interp::pacing::lerp_u8;
 
 int trace_left(int part) {
     static int left[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
-    if (left[part] < 0) left[part] = getenv("WWHD_INTERP_FX_TRACE") ? atoi(getenv("WWHD_INTERP_FX_TRACE")) : 0;
+    if (left[part] < 0) left[part] = getenv("NSMBU_INTERP_FX_TRACE") ? atoi(getenv("NSMBU_INTERP_FX_TRACE")) : 0;
     return left[part] > 0 ? left[part]-- : 0;
 }
 
@@ -410,7 +410,7 @@ struct WoodRec {
 
 // ---------------------------------------------------------------------------------------------
 // Weather and sky sprites (environment Execute, logic only; drawn by the painter). Each is an array
-// of effect records in a packet that g_env_light (10475A68) points to; WWHD's packets keep the
+// of effect records in a packet that g_env_light (10475A68) points to; NSMBU's packets keep the
 // GameCube records (the J3DPacket base grew). On logic passes every float field of every record
 // that did not respawn this step (same status byte, small position change) is drawn halfway.
 constexpr uint32_t kEnvLight = 0x10475A68;
@@ -445,7 +445,7 @@ void kankyo_move(Cpu* c, int k, void (*orig)(Cpu*)) {
     orig(c);
     if (ld32(kEnvLight + kk.env_off) != pk) return;  // recreated
     static int tr[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
-    if (tr[k] < 0) tr[k] = getenv("WWHD_INTERP_FX_TRACE") ? atoi(getenv("WWHD_INTERP_FX_TRACE")) : 0;
+    if (tr[k] < 0) tr[k] = getenv("NSMBU_INTERP_FX_TRACE") ? atoi(getenv("NSMBU_INTERP_FX_TRACE")) : 0;
     KankyoTrace t;
     const uint32_t* now = (const uint32_t*)ppc_ptr(pk + kk.base);
     for (int i = 0; i < kk.count; i++) {
@@ -548,8 +548,8 @@ extern "C" void hook_0256A448(Cpu* c) {
     uint32_t pk = tmp.r[3] ? ld32(tmp.r[3] + 0xAA0) : 0;
     if (pk < 0x10000000 || pk >= 0x50000000) pk = 0;
     g_wave_env_pkt = pk;
-    // debug: WWHD_WAVE_RAW=n dumps, after n logic-pass wave_move calls, the raw words of the first crests
-    static int raw_left = getenv("WWHD_WAVE_RAW") ? atoi(getenv("WWHD_WAVE_RAW")) : 0;
+    // debug: NSMBU_WAVE_RAW=n dumps, after n logic-pass wave_move calls, the raw words of the first crests
+    static int raw_left = getenv("NSMBU_WAVE_RAW") ? atoi(getenv("NSMBU_WAVE_RAW")) : 0;
     if (raw_left > 0 && pk && --raw_left == 0) {
         LOG("[waveraw] packet %08X env %08X count %d", pk, tmp.r[3], (int)(int16_t)ld16(tmp.r[3] + 0x9F8));
         for (int i = 0; i < 6; i++) {
@@ -617,10 +617,10 @@ extern "C" void f_02582500_orig(Cpu* c);
 extern "C" void hook_02582500(Cpu* c) {
     g_wave_pkt = c->r[3];
     g_wave_pkt_seen = g_passes;
-    // debug: WWHD_WAVE_STATS=1 logs how often the crests are drawn after logic / hold passes and
+    // debug: NSMBU_WAVE_STATS=1 logs how often the crests are drawn after logic / hold passes and
     // how many are visible (alpha > 0)
-    // debug: WWHD_WAVE_DUMP=n logs, for n passes, every field of 4 visible crests at each draw
-    static int dump_left = getenv("WWHD_WAVE_DUMP") ? atoi(getenv("WWHD_WAVE_DUMP")) : 0;
+    // debug: NSMBU_WAVE_DUMP=n logs, for n passes, every field of 4 visible crests at each draw
+    static int dump_left = getenv("NSMBU_WAVE_DUMP") ? atoi(getenv("NSMBU_WAVE_DUMP")) : 0;
     static int pick[4] = {-1, -1, -1, -1};
     if (dump_left > 0 && interp::enabled()) {
         uint32_t pk = g_wave_env_pkt;
@@ -639,7 +639,7 @@ extern "C" void hook_02582500(Cpu* c) {
         }
     }
 no_dump:
-    static const bool stats = getenv("WWHD_WAVE_STATS") != nullptr;
+    static const bool stats = getenv("NSMBU_WAVE_STATS") != nullptr;
     if (stats) {
         static int n[2] = {0, 0}, vis = 0, total = 0;
         static uint64_t last_pass = 0;
@@ -712,8 +712,8 @@ extern "C" void hook_0256BB6C(Cpu* c) { kankyo_move(c, kMoya, f_0256BB6C_orig); 
 extern "C" void hook_0256CA54(Cpu* c) { kankyo_move(c, kPoison, f_0256CA54_orig); }
 extern "C" void f_0257E7C0(Cpu* c);  // dKyw_rain_set(int count)
 extern "C" void hook_0256DDF8(Cpu* c) {
-    // test aid: WWHD_FORCE_RAIN=n sets the rain count (dKyw_rain_set) every step
-    static const int rain = getenv("WWHD_FORCE_RAIN") ? atoi(getenv("WWHD_FORCE_RAIN")) : -1;
+    // test aid: NSMBU_FORCE_RAIN=n sets the rain count (dKyw_rain_set) every step
+    static const int rain = getenv("NSMBU_FORCE_RAIN") ? atoi(getenv("NSMBU_FORCE_RAIN")) : -1;
     if (rain >= 0) {
         uint32_t lr = c->lr, r3 = c->r[3];
         c->r[3] = (uint32_t)rain;
@@ -724,7 +724,7 @@ extern "C" void hook_0256DDF8(Cpu* c) {
 }
 extern "C" void hook_0256A388(Cpu* c) { kankyo_move(c, kStar, f_0256A388_orig); }
 
-// Cloth (flags, sails: dCloth_packet_c, WWHD layout: +0x98 fly / +0x9C hoist grid size, +0xB0 /
+// Cloth (flags, sails: dCloth_packet_c, NSMBU layout: +0x98 fly / +0x9C hoist grid size, +0xB0 /
 // +0xB8 / +0xC0 position / normal / back-normal buffers [2], +0x1C0 current buffer). cloth_move
 // switches buffers and simulates one step into the new one, so the other buffer holds the previous
 // step. The vertex fill (0251D864, from the cloth's draw, every pass) copies the current buffers
@@ -967,10 +967,10 @@ uint64_t rnd_key(Cpu* c, char fn) {
     return ((uint64_t)fn << 32) | c->lr;
 }
 }
-// debug: WWHD_LIGHT_TRACE=1 logs per pass the draw-time light state (dKy_setLight target/colour,
+// debug: NSMBU_LIGHT_TRACE=1 logs per pass the draw-time light state (dKy_setLight target/colour,
 // plightcol_plus tevstr colour and light position)
 namespace {
-const bool g_light_trace = getenv("WWHD_LIGHT_TRACE") != nullptr;
+const bool g_light_trace = getenv("NSMBU_LIGHT_TRACE") != nullptr;
 std::string g_light_line;
 }
 namespace interp {
@@ -1027,10 +1027,10 @@ extern "C" void hook_025615B8(Cpu* c) {
         interp::light_trace_add(" | %X r%u w(%.1f,%.1f,%.1f) v(%.1f,%.1f,%.1f)", ts & 0xFFFFFF, ld8(ts + 0x18), ldf32(ts + 0x84), ldf32(ts + 0x88),
                                 ldf32(ts + 0x8C), ldf32(ts + 0), ldf32(ts + 4), ldf32(ts + 8));
 }
-// debug: WWHD_RND_TRACE=1 logs, every 300 calls on frames without logic, which code draws
+// debug: NSMBU_RND_TRACE=1 logs, every 300 calls on frames without logic, which code draws
 // random numbers there (cM_rnd / cM_rndF / cM_rndFX callers by return address)
 void rnd_trace(Cpu* c, char fn, bool replayed) {
-    static const bool on_ = getenv("WWHD_RND_TRACE") != nullptr;
+    static const bool on_ = getenv("NSMBU_RND_TRACE") != nullptr;
     if (!on_ || !interp::fx_hold_anim()) return;
     static std::unordered_map<uint64_t, int> n;
     static int total = 0, hits = 0;
@@ -1049,16 +1049,16 @@ void rnd_trace(Cpu* c, char fn, bool replayed) {
 // fn: ' ' cM_rnd (fraction), 'F' cM_rndF(max), 'X' cM_rndFX(max) = (fraction - 0.5) * 2 * max
 static void rnd_call(Cpu* c, char fn, void (*orig)(Cpu*)) {
     static int depth = 0;  // cM_rndF / cM_rndFX call cM_rnd: only the outer call counts
-    // debug: WWHD_RND_LOG=path logs every outer call: logic step, hold pass, in execute, caller, seed r0 before
-    static FILE* lf = getenv("WWHD_RND_LOG") ? fopen(getenv("WWHD_RND_LOG"), "w") : nullptr;
-    static const uint32_t bt_lo = getenv("WWHD_RND_BT") ? (uint32_t)strtoul(getenv("WWHD_RND_BT"), nullptr, 16) : 0;
+    // debug: NSMBU_RND_LOG=path logs every outer call: logic step, hold pass, in execute, caller, seed r0 before
+    static FILE* lf = getenv("NSMBU_RND_LOG") ? fopen(getenv("NSMBU_RND_LOG"), "w") : nullptr;
+    static const uint32_t bt_lo = getenv("NSMBU_RND_BT") ? (uint32_t)strtoul(getenv("NSMBU_RND_BT"), nullptr, 16) : 0;
     if (lf && bt_lo && (c->lr >> 12) == (bt_lo >> 12)) {  // debug: back chain of callers in that 4 KB page
         uint32_t sp = c->r[1];
         fprintf(lf, "BT");
         for (int k = 0; k < 10 && sp >= 0x10000000; k++) { sp = ld32(sp); if (sp < 0x10000000) break; fprintf(lf, " %08X", ld32(sp + 4)); }
         fprintf(lf, "\n");
     }
-    if (lf && !depth && (c->lr == 0x025616CCu || getenv("WWHD_RND_REGS_ALL")))
+    if (lf && !depth && (c->lr == 0x025616CCu || getenv("NSMBU_RND_REGS_ALL")))
         fprintf(lf, "REGS %08X %08X %08X %08X %08X %08X %08X L %08X %08X %08X %08X %08X\n", c->r[24], c->r[26], c->r[27], c->r[28], c->r[29], c->r[30], c->r[31],
                 ld32(c->r[24] + 0x14), ld32(c->r[24] + 0x18), ld32(c->r[24] + 0x1C), ld32(c->r[24] + 0x28), ld32(c->r[24] + 0x2C));
     if (lf && !depth) fprintf(lf, "%llu %d %d %c %08X %08X\n", (unsigned long long)interp::logic_steps(), (int)interp::hold_pass(),
@@ -1164,9 +1164,9 @@ extern "C" void hook_0246C7C8(Cpu* c) {
 }
 
 // daSea_packet_c::CalcFlatInter: wave strength (+0x130, 0 = flat near islands, 1 = open sea)
-// test aid: WWHD_SEA_WAVES=1 forces full waves everywhere (to check the wave blending on Outset)
+// test aid: NSMBU_SEA_WAVES=1 forces full waves everywhere (to check the wave blending on Outset)
 extern "C" void hook_0246BD4C(Cpu* c) {
-    static const bool force = getenv("WWHD_SEA_WAVES") != nullptr;
+    static const bool force = getenv("NSMBU_SEA_WAVES") != nullptr;
     uint32_t pk = c->r[3];
     f_0246BD4C_orig(c);
     if (force) {
@@ -1194,7 +1194,7 @@ namespace {
 void fx_step_stats() {
     static uint64_t n = 0;
     if (++n % 300) return;
-    static const bool stats = getenv("WWHD_INTERP_FX_STATS") != nullptr;
+    static const bool stats = getenv("NSMBU_INTERP_FX_STATS") != nullptr;
     if (stats)
         LOG("[interp-fx] per step: %.1f particles blended, %.1f new (%.1f drawn half a step back); anims %.1f blended, %.2f wrapped, %.2f jumped",
             g_pstats.blended / 300.0, g_pstats.fresh / 300.0, g_pstats.born / 300.0, g_astats.blended / 300.0, g_astats.wrapped / 300.0, g_astats.jumped / 300.0);

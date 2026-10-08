@@ -22,7 +22,7 @@ def symbols():
     found = set()
     for ext in ("c", "cpp", "h", "mm"):
         for path in glob.glob(os.path.join(root, "runtime", "**", "*." + ext), recursive=True):
-            if path.endswith("wwhd_guest_stubs.c"):
+            if path.endswith("nsmbu_guest_stubs.c"):
                 continue
             with open(path, errors="replace") as f:
                 text = f.read()
@@ -47,4 +47,4 @@ def main(out):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(root, "runtime", "src", "wwhd_guest_stubs.c"))
+    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(root, "runtime", "src", "nsmbu_guest_stubs.c"))

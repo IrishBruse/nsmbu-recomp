@@ -12,25 +12,25 @@ namespace {
 const Entry catalogue[] = {
     {"direct-camera", "Direct right-stick camera", "Camera",
      "Turn the camera immediately with the right stick, without the original easing.",
-     "WWHD_MOD_DIRECT_CAMERA", direct_camera, set_direct_camera},
+     "NSMBU_MOD_DIRECT_CAMERA", direct_camera, set_direct_camera},
     {"mouse-camera", "Mouse camera", "Camera",
      "Click the game picture to capture the mouse. Move it to look around; Esc releases it.",
-     "WWHD_MOD_MOUSE_CAMERA", mouse_camera, set_mouse_camera},
+     "NSMBU_MOD_MOUSE_CAMERA", mouse_camera, set_mouse_camera},
     {"first-person", "First-person shortcut", "Camera",
      "Enter first person with R3 or the mouse wheel.",
-     "WWHD_MOD_FIRST_PERSON", first_person_wheel, set_first_person_wheel},
+     "NSMBU_MOD_FIRST_PERSON", first_person_wheel, set_first_person_wheel},
     {"wall-climb", "Climb any wall", "Gameplay",
      "Grab and climb walls using a stamina wheel. A or B lets go.",
-     "WWHD_CLIMB", climb_enabled, set_climb_enabled},
+     "NSMBU_CLIMB", climb_enabled, set_climb_enabled},
     {"quick-doors", "Quick doors", "Gameplay",
      "Run door-opening and closing events at four times their normal speed.",
-     "WWHD_MOD_QUICK_DOORS", quick_doors, set_quick_doors},
+     "NSMBU_MOD_QUICK_DOORS", quick_doors, set_quick_doors},
     {"fast-scenes", "Fast scene changes", "Gameplay",
      "Speed up fades and scene transitions while keeping ordinary gameplay at normal speed.",
-     "WWHD_MOD_FAST_SCENES", fast_scenes, set_fast_scenes},
+     "NSMBU_MOD_FAST_SCENES", fast_scenes, set_fast_scenes},
 };
 std::string key(const Entry& entry) { return std::string("mod.")+entry.id+".enabled"; }
-bool player_preferences() { return !std::getenv("WWHD_NO_HOST_INPUT"); }
+bool player_preferences() { return !std::getenv("NSMBU_NO_HOST_INPUT"); }
 }
 
 std::span<const Entry> entries() { return catalogue; }
@@ -56,8 +56,8 @@ void load_saved() {
         if (end != value.c_str() && *end == '\0' && std::isfinite(parsed) && parsed >= lo && parsed <= hi)
             apply(parsed);
     };
-    number("mod.direct-camera.speed", "WWHD_MOD_CAMERA_SPEED", .5f, 2.f, set_camera_speed);
-    number("mod.mouse-camera.sensitivity", "WWHD_MOD_MOUSE_SENS", .08f, .3f, set_mouse_sensitivity);
+    number("mod.direct-camera.speed", "NSMBU_MOD_CAMERA_SPEED", .5f, 2.f, set_camera_speed);
+    number("mod.mouse-camera.sensitivity", "NSMBU_MOD_MOUSE_SENS", .08f, .3f, set_mouse_sensitivity);
 }
 bool set_enabled(std::string_view id, bool on) {
     const auto* entry = find(id);

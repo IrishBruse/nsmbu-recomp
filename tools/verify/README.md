@@ -1,12 +1,12 @@
-# tools/verify: verified decompilation of WWHD
+# tools/verify: verified decompilation of NSMBU
 
-Readable C++ for WWHD (`cking.rpx`) functions whose **behaviour is checked against the
+Readable C++ for NSMBU (`cking.rpx`) functions whose **behaviour is checked against the
 recompiled original** (`build/gen`), function by function, without running the game.
 
 - Our own code lives here: the harness, unit generator, recording taps (`runtime/src/verify_tap.cpp`)
   and the ABI layer (`include/gabi.h`).
-- The verified source is derived from Nintendo's code. It lives in `wwhd_src/` (not for
-  publication, see `wwhd_src/README.md`).
+- The verified source is derived from Nintendo's code. It lives in `nsmbu_src/` (not for
+  publication, see `nsmbu_src/README.md`).
 - Never commit `build/` (recompiled code, the RPX image dump, recordings).
 
 ## Quick start
@@ -59,7 +59,7 @@ For each input, the original and the candidate run from the same state. They mus
 
 The original is the game's recompiled code, extracted from `build/gen` and compiled with
 `include/vm_gen.h`, which routes every load, store and call through the harness. Every other
-WWHD function is **not executed**. Calls to it are recorded and answered by:
+NSMBU function is **not executed**. Calls to it are recorded and answered by:
 
 - a mock (generated inputs);
 - the recorded result and memory effects (recorded inputs);
@@ -112,7 +112,7 @@ Derived from the generated C of the whole program:
      recompiler.
   2. It then writes `build/gen/code_tap.c`: instrumented copies `tap_ADDR` whose own loads,
      stores and calls are logged.
-  3. With `WWHD_TAP=dir` set (optionally `WWHD_TAP_N`, `WWHD_TAP_EVERY`, `WWHD_TAP_AFTER`), each
+  3. With `NSMBU_TAP=dir` set (optionally `NSMBU_TAP_N`, `NSMBU_TAP_EVERY`, `NSMBU_TAP_AFTER`), each
      call is written to `dir/ADDR/n.tap`. Recording is off by default, and `mktap.py --clean`
      restores the normal build.
   4. The harness rebuilds each recording into a replay:
@@ -126,15 +126,15 @@ Derived from the generated C of the whole program:
 ## Writing candidate source (`include/gabi.h`)
 
 ```cpp
-struct daMtoge_c : fopAc_ac_c {          // WWHD layout, be<T> fields, explicit padding
+struct daMtoge_c : fopAc_ac_c {          // NSMBU layout, be<T> fields, explicit padding
     /* 0x3B4 */ gptr<J3DModel> mpModel;
     /* 0x3C0 */ be<f32> mHeightOffset;
 };
-WWHD_OFFSET(daMtoge_c, mHeightOffset, 0x3C0);
+NSMBU_OFFSET(daMtoge_c, mHeightOffset, 0x3C0);
 
 /* 021E01B8 */
 BOOL daMtoge_actionUp(daMtoge_c* i_this) {
-    WWHD_FUNC(0x021E01B8, BOOL, i_this);   // first statement: address, return type, arguments
+    NSMBU_FUNC(0x021E01B8, BOOL, i_this);   // first statement: address, return type, arguments
     cLib_chaseF(&i_this->speedF, 30.0f, 4.0f);
     ...
 }
@@ -147,13 +147,13 @@ VERIFY(0x021E01B8, daMtoge_actionUp);
   - Fields are `be<T>` (big-endian, accessed through the harness). Pointers are `gptr<T>`
     (32-bit). `gabi::at<T>(ea)` and `gabi::ea(p)` convert.
   - Layout structs are never copied (`be` has no copy constructor).
-- **Calls to other WWHD functions:** `gabi::call<R>(addr, args...)` follows the EABI:
+- **Calls to other NSMBU functions:** `gabi::call<R>(addr, args...)` follows the EABI:
   - integers and pointers in r3..r10, then on the stack;
   - floats in f1..f8;
   - result from r3 or f1, typed by `R`.
   
-  Bindings with real names live in `wwhd_src/include/bindings.h`.
-- **Calls between decompiled functions** are written as natural C++ calls. `WWHD_FUNC` turns a
+  Bindings with real names live in `nsmbu_src/include/bindings.h`.
+- **Calls between decompiled functions** are written as natural C++ calls. `NSMBU_FUNC` turns a
   nested call into a guest call to that function's address, so every function is tested alone.
   A native build can route the address to the implementation.
 - **Locals whose address is passed to guest code** use `gabi::Local<T>`, guest stack storage.
@@ -205,14 +205,14 @@ call/argument mismatch.
 
 ## Workflow for one actor (scales to many in parallel)
 
-1. **Pick the unit.** One GameCube translation unit. List the WWHD functions of its range:
+1. **Pick the unit.** One GameCube translation unit. List the NSMBU functions of its range:
    `build/names.tsv` plus the unnamed functions in between.
 2. **Layout.**
    - Start from the GameCube header shifted by the fopAc_ac_c delta (+0x11C) and fix it from
      the disassembly (`wdis.py`).
-   - Put the layout in `wwhd_src/include/...`, with `WWHD_OFFSET` asserts.
+   - Put the layout in `nsmbu_src/include/...`, with `NSMBU_OFFSET` asserts.
 3. **Port** each GameCube function. Add bindings for its callees (address + types), with
-   `WWHD_FUNC`/`VERIFY`.
+   `NSMBU_FUNC`/`VERIFY`.
 4. **Unit file** `tools/verify/units/<unit>.txt`:
    - `src` lines;
    - `field`/`ret` steering until the coverage column is close to full;
@@ -223,11 +223,11 @@ call/argument mismatch.
 6. **Record:**
    - `mktap.py --unit <unit>`;
    - build the game in a scratch clone;
-   - run a scripted session with `WWHD_TAP=dir`;
+   - run a scripted session with `NSMBU_TAP=dir`;
    - `verify.py <unit> -rec dir`.
 7. **Mutation test.** `mutate.py <unit>` should leave only equivalent mutants (swapped
    independent stores and the like). A non-equivalent survivor means an input gap: add steering.
-8. Commit the source (`wwhd_src/`) and the unit file.
+8. Commit the source (`nsmbu_src/`) and the unit file.
 
 **Parallelising.** Functions are verified one at a time and callees are always mocked, so
 functions of one actor can be written by different people or agents at once.

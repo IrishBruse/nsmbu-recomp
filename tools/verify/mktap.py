@@ -10,7 +10,7 @@ usage: mktap.py ADDR [ADDR ...]     (or: mktap.py --unit UNIT  to tap every VERI
    and stores and calls are logged (runtime/src/verify_tap.cpp), and hook_ADDR, which runs the
    tap copy while recording and the original otherwise.
 
-Recording is off unless WWHD_TAP=<dir> is set when the game runs (runtime/include/verify_tap.h).
+Recording is off unless NSMBU_TAP=<dir> is set when the game runs (runtime/include/verify_tap.h).
 --clean removes both files and re-runs the recompiler (back to the normal build).
 """
 import json

@@ -3,7 +3,7 @@
 //   mouse.mm    mouse capture in the game window (macOS events)
 //   turbo.cpp   quick doors and fast scene changes (extra logic steps while they run)
 //   cheats.cpp  items, sword/shield, stats, infinite health/magic/ammo, songs, Triforce, dungeon items
-// Test/start-up switches: WWHD_MOD_<NAME>=1 (see mods.cpp).
+// Test/start-up switches: NSMBU_MOD_<NAME>=1 (see mods.cpp).
 #pragma once
 #include <cstdint>
 
@@ -61,7 +61,7 @@ void cheats_service();          // game main thread, frame start (interp.cpp)
 // shared helpers (mods.cpp)
 uint64_t step();    // full logic steps so far (interp::logic_steps)
 double game_time(); // seconds of game time (steps / 30)
-bool trace_on();    // WWHD_MODS_TRACE: log mod decisions
+bool trace_on();    // NSMBU_MODS_TRACE: log mod decisions
 void trace(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
 }  // namespace mods

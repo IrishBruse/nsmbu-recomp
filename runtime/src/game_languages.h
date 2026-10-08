@@ -51,7 +51,7 @@ const std::string& region();
 // else the first available one
 int usable(int language);
 
-// Where the language sources are: WWHD_LANG_DIR, else the folder game-lang next to the game folder
+// Where the language sources are: NSMBU_LANG_DIR, else the folder game-lang next to the game folder
 // (the setup's data folder: data/game and data/game-lang/<EU|JP>/content/Common/Pack/...), else
 // game-lang in the current folder (the launchers start the game in the data folder; a game folder
 // used in place is elsewhere).

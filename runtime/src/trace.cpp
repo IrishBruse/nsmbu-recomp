@@ -1,6 +1,6 @@
 #include <atomic>
 // Per-thread ring buffer of guest function entries, for debugging.
-// Enable with WWHD_TRACE_FUNCS=1; dump with `kill -USR1 <pid>` or at fatal errors.
+// Enable with NSMBU_TRACE_FUNCS=1; dump with `kill -USR1 <pid>` or at fatal errors.
 #include "platform/host.h"
 #include <signal.h>
 #ifndef _WIN32
@@ -26,19 +26,19 @@ std::vector<Ring*> g_rings;
 thread_local Ring* t_ring = nullptr;
 }  // namespace
 
-// WWHD_WATCH=<hex addr>: log arguments whenever that guest function is entered
+// NSMBU_WATCH=<hex addr>: log arguments whenever that guest function is entered
 static uint32_t g_watch = 0;
 static int g_watch_count = 0, g_watch_limit = 200;
-static int g_watch_reg = -1;         // WWHD_WATCH_IF=reg=value: only log when r<reg> == value
+static int g_watch_reg = -1;         // NSMBU_WATCH_IF=reg=value: only log when r<reg> == value
 static uint32_t g_watch_val = 0;
 
-// WWHD_WATCH_R3=<hex>: log every function entered with r3 == value (object/list tracing), with thread
+// NSMBU_WATCH_R3=<hex>: log every function entered with r3 == value (object/list tracing), with thread
 static uint32_t g_watch_r3 = 0;
 static std::atomic<int> g_watch_r3_count{0};
 
-void true60_nan_probe(uint32_t addr);  // true60.cpp (WWHD_NAN_PROBE)
+void true60_nan_probe(uint32_t addr);  // true60.cpp (NSMBU_NAN_PROBE)
 extern "C" void ppc_trace_enter(uint32_t addr) {
-    static const bool nan_probe = getenv("WWHD_NAN_PROBE") != nullptr;
+    static const bool nan_probe = getenv("NSMBU_NAN_PROBE") != nullptr;
     if (nan_probe) true60_nan_probe(addr);
     if (g_watch_r3) {
         Cpu* c = threads::current();
@@ -56,7 +56,7 @@ extern "C" void ppc_trace_enter(uint32_t addr) {
             host::get_thread_name(tn, sizeof tn);
             log_msg("[watch] %s %08X lr=%08X r3=%08X r4=%08X r5=%08X r6=%08X r7=%08X r8=%08X | r28=%08X r29=%08X r30=%08X r31=%08X",
                     tn, addr, c->lr, c->r[3], c->r[4], c->r[5], c->r[6], c->r[7], c->r[8], c->r[28], c->r[29], c->r[30], c->r[31]);
-            if (const char* e = getenv("WWHD_WATCH_DUMP")) {  // "reg": hex dump 0x100 bytes at r<reg>
+            if (const char* e = getenv("NSMBU_WATCH_DUMP")) {  // "reg": hex dump 0x100 bytes at r<reg>
                 unsigned reg = (unsigned)atoi(e) & 31;
                 uint32_t base = c->r[reg];
                 for (uint32_t o = 0; o < 0x100; o += 32) {
@@ -66,7 +66,7 @@ extern "C" void ppc_trace_enter(uint32_t addr) {
                     log_msg("%s", line);
                 }
             }
-            if (const char* e = getenv("WWHD_WATCH_EXPR")) {  // "reg+off": print ld32(r<reg> + off)
+            if (const char* e = getenv("NSMBU_WATCH_EXPR")) {  // "reg+off": print ld32(r<reg> + off)
                 unsigned reg = 0, off = 0;
                 if (sscanf(e, "%u+%x", &reg, &off) == 2 && reg < 32) log_msg("[watch]   ld32(r%u+%X) = %08X", reg, off, ld32(c->r[reg] + off));
             }
@@ -99,18 +99,18 @@ static void on_usr1(int) {
 }
 
 __attribute__((constructor)) static void trace_init() {
-    if (const char* w = getenv("WWHD_WATCH_R3")) { g_watch_r3 = (uint32_t)strtoul(w, nullptr, 16); g_ppc_trace = 1; }
-    if (const char* w = getenv("WWHD_WATCH")) {
+    if (const char* w = getenv("NSMBU_WATCH_R3")) { g_watch_r3 = (uint32_t)strtoul(w, nullptr, 16); g_ppc_trace = 1; }
+    if (const char* w = getenv("NSMBU_WATCH")) {
         g_watch = (uint32_t)strtoul(w, nullptr, 16);
-        if (const char* l = getenv("WWHD_WATCH_LIMIT")) g_watch_limit = atoi(l);
-        if (const char* f = getenv("WWHD_WATCH_IF")) {
+        if (const char* l = getenv("NSMBU_WATCH_LIMIT")) g_watch_limit = atoi(l);
+        if (const char* f = getenv("NSMBU_WATCH_IF")) {
             unsigned reg; char val[32];
             if (sscanf(f, "%u=%31s", &reg, val) == 2) { g_watch_reg = (int)(reg & 31); g_watch_val = (uint32_t)strtoul(val, nullptr, 16); }
         }
         g_ppc_trace = 1;
     }
-    if (getenv("WWHD_NAN_PROBE")) g_ppc_trace = 1;
-    if (getenv("WWHD_TRACE_FUNCS")) {
+    if (getenv("NSMBU_NAN_PROBE")) g_ppc_trace = 1;
+    if (getenv("NSMBU_TRACE_FUNCS")) {
         g_ppc_trace = 1;
 #ifndef _WIN32
         signal(SIGUSR1, on_usr1);

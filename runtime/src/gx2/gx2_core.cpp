@@ -18,7 +18,7 @@
 #include "gx2_cmd.h"
 #include "gx2_regs.h"
 #include "gx2_texture_regs.h"
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
 #include "shader_key_dirty.h"
 #include "gfx/vulkan/api.h"
 #endif
@@ -46,11 +46,11 @@ uint32* regs() { return g_regs; }
 extern "C" { uint64_t g_shader_state_gen = 1; }
 
 static bool shader_irrelevant(uint32 reg) {
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
     // Vulkan resolves texture addresses freshly in bind_stage. These words do
     // not participate in shader translation; keep Metal's broader dirty gate.
     static const bool addressMemo = [] {
-        const char* e = getenv("WWHD_VK_SHADER_ADDRESS_MEMO");
+        const char* e = getenv("NSMBU_VK_SHADER_ADDRESS_MEMO");
         return render::vulkan() && e && !strcmp(e, "1");
     }();
     if (addressMemo)
@@ -74,13 +74,13 @@ static bool shader_irrelevant(uint32 reg) {
 static ShaderKeyDirtyStats shaderKeyDirtyStats;
 ShaderKeyDirtyStats shader_key_dirty_stats() { return shaderKeyDirtyStats; }
 
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
 static void apply_small_regs(uint32 first, const uint32* v, uint32 n) {
     static const bool keyDirty = [] {
-        const char* e = getenv("WWHD_VK_SHADER_KEY_DIRTY");
+        const char* e = getenv("NSMBU_VK_SHADER_KEY_DIRTY");
         return e && !strcmp(e, "1");
     }();
-    static const bool collectStats = getenv("WWHD_VK_STATS") != nullptr;
+    static const bool collectStats = getenv("NSMBU_VK_STATS") != nullptr;
     const bool classify = rprof::enabled();
     bool changed = false, baselineBump = false, actualBump = false;
     uint64_t maskedWords = 0;
@@ -118,10 +118,10 @@ static void apply_small_regs(uint32 first, const uint32* v, uint32 n) {
 
 static void apply_regs(uint32 first, const uint32* v, uint32 n) {
     if (first + n > kNumRegs) return;
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
     // Vulkan renderer only (the Metal renderer keeps the original bulk path)
     static const bool fusedSmall = [] {
-        const char* e = getenv("WWHD_VK_FUSE_SMALL_REGS");
+        const char* e = getenv("NSMBU_VK_FUSE_SMALL_REGS");
         // Enabled by default; explicit zero retains the original bulk path.
         return render::vulkan() && (!e || strcmp(e, "0") != 0);
     }();
@@ -137,12 +137,12 @@ static void apply_regs(uint32 first, const uint32* v, uint32 n) {
                     if (rprof::fast_class_reg(first + i)) rprof::g_reg_dirty |= 1;
                     else rprof::note_other_reg(first + i);
                 }
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
         static const bool keyDirty = [] {
-            const char* value = getenv("WWHD_VK_SHADER_KEY_DIRTY");
+            const char* value = getenv("NSMBU_VK_SHADER_KEY_DIRTY");
             return render::vulkan() && value && !strcmp(value, "1");
         }();
-        static const bool collectStats = render::vulkan() && getenv("WWHD_VK_STATS") != nullptr;
+        static const bool collectStats = render::vulkan() && getenv("NSMBU_VK_STATS") != nullptr;
         if(keyDirty || collectStats) {
             bool baselineBump = false, actualBump = false;
             uint64_t maskedWords = 0;
@@ -183,8 +183,8 @@ static void execute_one(Op op, const uint32* p, uint32 n);
 
 // ---------------------------------------------------------------- render thread
 // Like the real GPU, command execution runs asynchronously to the game: GX2 calls append to a
-// queue that a render thread turns into Metal work. WWHD_NO_RENDER_THREAD=1 executes inline.
-static const bool g_render_thread = getenv("WWHD_NO_RENDER_THREAD") == nullptr;
+// queue that a render thread turns into Metal work. NSMBU_NO_RENDER_THREAD=1 executes inline.
+static const bool g_render_thread = getenv("NSMBU_NO_RENDER_THREAD") == nullptr;
 static std::mutex g_q_mutex;
 static std::condition_variable g_q_cv, g_q_done_cv;
 static std::vector<uint32> g_q_pending, g_q_work;
@@ -225,11 +225,11 @@ static void enqueue(Op op, const uint32* payload, uint32 n) {
 }
 
 // block the game thread until the render thread has executed everything queued so far
-// debug: WWHD_SYNC_STATS=1 logs, every 5 s, how often each caller waited for the render thread to
+// debug: NSMBU_SYNC_STATS=1 logs, every 5 s, how often each caller waited for the render thread to
 // catch up (render_sync) and for how long
 enum SyncSite { kSyncShutdown, kSyncFlip, kSyncDrawDone, kSyncVsyncUncapped, kSyncVsyncFlip, kSyncSaveState, kSyncCopySurface, kSyncSites };
 static void sync_stat(int site, std::chrono::steady_clock::duration waited) {
-    static const bool on = getenv("WWHD_SYNC_STATS") != nullptr;
+    static const bool on = getenv("NSMBU_SYNC_STATS") != nullptr;
     if (!on) return;
     static std::mutex mu;
     static uint64_t count[kSyncSites], ns[kSyncSites];
@@ -306,7 +306,7 @@ static void emit_host(Op op, std::initializer_list<uint32> payload) {
     host::with_autorelease_pool([&] { execute_one(op, payload.begin(), (uint32)payload.size()); });
 }
 
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
 void checkpoint_vulkan_caches() {
     // Wait for queued work, then exclude further renderer mutations while the
     // SDL thread writes the final cache checkpoint during orderly shutdown.
@@ -372,11 +372,11 @@ static uint32 unpack_struct(const uint32* words, uint32 count, int slot) {
 }
 
 // Vulkan: GX2DrawDone queues the work instead of waiting for an idle device (the default on every
-// platform since 2026-10-07; WWHD_VK_LAZY_DRAW_DONE=0 restores the full wait). The Metal renderer
+// platform since 2026-10-07; NSMBU_VK_LAZY_DRAW_DONE=0 restores the full wait). The Metal renderer
 // reads large vertex buffers straight from guest memory, so it keeps the real GPU wait.
 static bool lazy_draw_done() {
     static const bool on = [] {
-        const char* e = getenv("WWHD_VK_LAZY_DRAW_DONE");
+        const char* e = getenv("NSMBU_VK_LAZY_DRAW_DONE");
         return render::vulkan() && (!e || atoi(e) != 0);
     }();
     return on;
@@ -432,9 +432,9 @@ static void execute_op(Op op, const uint32* p, uint32 n) {
         break;
     }
     case OP_COPY_SURFACE: {
-        // debug: WWHD_GX2_DELAY_COPY=ms stalls the render thread before each surface copy (a slow
+        // debug: NSMBU_GX2_DELAY_COPY=ms stalls the render thread before each surface copy (a slow
         // or busy render thread; reproduced the agl boot crash every time before GX2CopySurface waited)
-        static const int delay = getenv("WWHD_GX2_DELAY_COPY") ? atoi(getenv("WWHD_GX2_DELAY_COPY")) : 0;
+        static const int delay = getenv("NSMBU_GX2_DELAY_COPY") ? atoi(getenv("NSMBU_GX2_DELAY_COPY")) : 0;
         if (delay) std::this_thread::sleep_for(std::chrono::milliseconds(delay));
         uint32 src = unpack_struct(p, kSurfaceWords, 0);
         const uint32* q = p + kSurfaceWords;
@@ -577,8 +577,8 @@ static std::atomic<int> g_uncapped{-1};  // -1: not read from the environment ye
 bool gx2::uncapped() {
     int v = g_uncapped.load(std::memory_order_relaxed);
     if (v < 0) {
-        const char* any = getenv("WWHD_UNCAPPED");
-        const char* vk = getenv("WWHD_VK_UNCAPPED");
+        const char* any = getenv("NSMBU_UNCAPPED");
+        const char* vk = getenv("NSMBU_VK_UNCAPPED");
         v = (any && !strcmp(any, "1")) || (vk && !strcmp(vk, "1") && render::vulkan()) ? 1 : 0;
         int expected = -1;
         g_uncapped.compare_exchange_strong(expected, v);
@@ -605,7 +605,7 @@ static void update_flips() {  // g_flip_mutex held
         g_flip_count++;
     }
 }
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
 static void ready_flip_before_resume() {
     bool needsSync;
     {
@@ -703,8 +703,8 @@ HLE(gx2, GX2SetClearDepthStencil) {
     db->clearStencil = arg(c, 1) & 0xFF;
 }
 HLE(gx2, GX2CopySurface) {
-    // debug: WWHD_COPYDBG=1 logs each copy as issued (thread, caller, source and destination images)
-    static const bool dbg = getenv("WWHD_COPYDBG") != nullptr;
+    // debug: NSMBU_COPYDBG=1 logs each copy as issued (thread, caller, source and destination images)
+    static const bool dbg = getenv("NSMBU_COPYDBG") != nullptr;
     if (dbg)
         LOG("[copydbg] issue t=%.3f thread %08X lr %08X src %08X img %08X dst %08X img %08X size %X", timebase::now() / (double)timebase::kTicksPerSec,
             threads::current_thread(), c->lr, arg(c, 0), ld32(arg(c, 0) + 0x24), arg(c, 3), ld32(arg(c, 3) + 0x24), ld32(arg(c, 3) + 0x20));
@@ -743,8 +743,8 @@ HLE(gx2, GX2DrawDone) {
     ret(c, 1);
 }
 HLE(gx2, GX2SwapScanBuffers) {
-    // debug: WWHD_TRACE_SWAP=n logs the guest call chain of the first n swaps
-    static int trace = getenv("WWHD_TRACE_SWAP") ? atoi(getenv("WWHD_TRACE_SWAP")) : 0;
+    // debug: NSMBU_TRACE_SWAP=n logs the guest call chain of the first n swaps
+    static int trace = getenv("NSMBU_TRACE_SWAP") ? atoi(getenv("NSMBU_TRACE_SWAP")) : 0;
     if (trace > 0) {
         trace--;
         char buf[256];
@@ -773,8 +773,8 @@ HLE(gx2, GX2SwapScanBuffers) {
         g_swap_count++;
         g_pending_flips.push_back({vsync_index(), g_swap_count});
     }
-    // debug: WWHD_LOG_SLOW_SWAP=ms logs swaps that came more than ms after the previous one
-    static const double slow_ms = getenv("WWHD_LOG_SLOW_SWAP") ? atof(getenv("WWHD_LOG_SLOW_SWAP")) : 0;
+    // debug: NSMBU_LOG_SLOW_SWAP=ms logs swaps that came more than ms after the previous one
+    static const double slow_ms = getenv("NSMBU_LOG_SLOW_SWAP") ? atof(getenv("NSMBU_LOG_SLOW_SWAP")) : 0;
     if (slow_ms > 0) {
         static auto prev = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
@@ -788,7 +788,7 @@ HLE(gx2, GX2SwapScanBuffers) {
         double s = std::chrono::duration<double>(now - last).count();
         last = now;
         LOG("[gx2] frame %llu, %.1f swaps/s, swap interval %u", (unsigned long long)g_swap_count, 300 / s, g_swap_interval);
-        if (getenv("WWHD_SCHED_STATS")) threads::report_sched();
+        if (getenv("NSMBU_SCHED_STATS")) threads::report_sched();
     }
 }
 HLE(gx2, GX2GetSwapStatus) {
@@ -810,9 +810,9 @@ HLE(gx2, GX2WaitForVsync) {
         update_flips();
         return;
     }
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
     static const bool readyFlipWait = [] {
-        const char* value = getenv("WWHD_VK_READY_FLIP_WAIT");
+        const char* value = getenv("NSMBU_VK_READY_FLIP_WAIT");
         return render::vulkan() && value && !strcmp(value, "1");
     }();
     if(readyFlipWait) {
@@ -838,10 +838,10 @@ HLE(gx2, GX2WaitForVsync) {
     }
 #endif
     static const bool preciseSleep = [] {
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
         // Vulkan renderer's pacing (docs/vulkan.md); the Metal renderer keeps plain sleeping
         if (!render::vulkan()) return false;
-        const char* value = getenv("WWHD_VSYNC_PRECISE");
+        const char* value = getenv("NSMBU_VSYNC_PRECISE");
 #ifdef __APPLE__
         // Avoid the measured macOS sleep overshoot; explicit zero opts out.
         return !value || atoi(value) != 0;
@@ -854,9 +854,9 @@ HLE(gx2, GX2WaitForVsync) {
     }();
     const uint64_t granule = vsync_granule();
     const auto deadline = tick_time((vsync_index() / granule + 1) * granule);  // the next (virtual) vsync
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
     static const bool readyFlipPark = [] {
-        const char* value = getenv("WWHD_VK_READY_FLIP_PARK");
+        const char* value = getenv("NSMBU_VK_READY_FLIP_PARK");
         return render::vulkan() && value && !strcmp(value, "1");
     }();
     threads::park_sleep_until(deadline, preciseSleep,
@@ -867,7 +867,7 @@ HLE(gx2, GX2WaitForVsync) {
     std::lock_guard<std::mutex> lk(g_flip_mutex);
     update_flips();
     static uint64_t calls = 0;
-    if (getenv("WWHD_LOG_VSYNC") && ++calls % 60 == 0)
+    if (getenv("NSMBU_LOG_VSYNC") && ++calls % 60 == 0)
         LOG("[gx2] vsync %llu: swaps %llu flips %llu pending %zu", (unsigned long long)vsync_index(),
             (unsigned long long)g_swap_count, (unsigned long long)g_flip_count, g_pending_flips.size());
 }

@@ -1,4 +1,4 @@
-package org.wwhdrecomp.wwhd;
+package org.nsmbrecomp.nsmbu;
 
 import android.app.ActivityManager;
 import android.content.Context;

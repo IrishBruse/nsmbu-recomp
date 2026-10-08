@@ -42,9 +42,9 @@ void set(const char* k, const std::string& value) { ++writes;preferences[k]=valu
 namespace mods::packages { void remember_builtin(const std::string&,bool) {} }
 int main() {
     using namespace mods::manager;
-    env("WWHD_NO_HOST_INPUT",nullptr);
+    env("NSMBU_NO_HOST_INPUT",nullptr);
     for(const auto& entry:entries()) env(entry.startup_env,nullptr);
-    env("WWHD_MOD_CAMERA_SPEED",nullptr);env("WWHD_MOD_MOUSE_SENS",nullptr);
+    env("NSMBU_MOD_CAMERA_SPEED",nullptr);env("NSMBU_MOD_MOUSE_SENS",nullptr);
     assert(entries().size()==6);
     load_saved(); for(bool on:state) assert(!on); // stock defaults stay off
     preferences["mod.wall-climb.enabled"]="1";
@@ -53,15 +53,15 @@ int main() {
     preferences["mod.mouse-camera.sensitivity"]="nan";
     load_saved();assert(state[3]);assert(!state[4]);assert(speed==1.5f);assert(sensitivity==.15f);
     // Explicit zero and nonzero overrides both prevent loading saved state.
-    state[3]=false;env("WWHD_CLIMB","0");load_saved();assert(!state[3]);
+    state[3]=false;env("NSMBU_CLIMB","0");load_saved();assert(!state[3]);
     preferences["mod.direct-camera.enabled"]="0";
-    state[0]=true;env("WWHD_MOD_DIRECT_CAMERA","1");load_saved();assert(state[0]);
+    state[0]=true;env("NSMBU_MOD_DIRECT_CAMERA","1");load_saved();assert(state[0]);
     assert(set_enabled("quick-doors",true));assert(state[4]);
     assert(preferences["mod.quick-doors.enabled"]=="1");
     int prior=writes;assert(!set_enabled("unknown",true));assert(writes==prior);
     disable_all();for(bool on:state) assert(!on);
     for(const auto& entry:entries()) assert(preferences[std::string("mod.")+entry.id+".enabled"]=="0");
     // Test isolation protects player settings even when toggles are exercised.
-    env("WWHD_NO_HOST_INPUT","1");prior=reads;load_saved();assert(reads==prior);
+    env("NSMBU_NO_HOST_INPUT","1");prior=reads;load_saved();assert(reads==prior);
     prior=writes;assert(set_enabled("quick-doors",true));assert(state[4]);assert(writes==prior);
 }

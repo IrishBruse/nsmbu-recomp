@@ -1,4 +1,4 @@
-// "Climb any wall" (Gameplay menu, off by default; WWHD_CLIMB=1 starts with it on).
+// "Climb any wall" (Gameplay menu, off by default; NSMBU_CLIMB=1 starts with it on).
 //
 // Link climbs any steep wall with the game's own ivy climbing (d_a_player_climb.inc): grab, climb
 // up/down/sideways, climb onto the ledge at the top (procHangClimb), let go with A. Nothing new is
@@ -47,7 +47,7 @@ void f_0240CDD0_orig(Cpu* c);  // daPy_lk_c::execute
 }
 
 namespace {
-// daPy_lk_c fields (WWHD offsets; docs/decomp-notes.md)
+// daPy_lk_c fields (NSMBU offsets; docs/decomp-notes.md)
 constexpr uint32_t kCurProc = 0x65F0;         // mCurProc (GameCube 0x31D8)
 constexpr uint32_t kFrontWallType = 0x68D5;   // mFrontWallType (GameCube 0x34B9)
 constexpr uint32_t kModeFlg = 0x6A70;         // mModeFlg (GameCube 0x3618)
@@ -66,14 +66,14 @@ bool is_hang(int p) { return p >= kProcHangStart && p <= kProcHangWallCatch; }
 constexpr float kMinNy = -0.10f, kMaxNy = 0.50f;
 
 std::atomic<bool> g_on{[] {
-    const char* e = getenv("WWHD_CLIMB");
+    const char* e = getenv("NSMBU_CLIMB");
     return e && atoi(e) != 0;
 }()};
 
-// stamina: seconds of climbing on a full wheel (WWHD_CLIMB_STAMINA), per 30 Hz step
+// stamina: seconds of climbing on a full wheel (NSMBU_CLIMB_STAMINA), per 30 Hz step
 float climb_seconds() {
     static const float s = [] {
-        const char* e = getenv("WWHD_CLIMB_STAMINA");
+        const char* e = getenv("NSMBU_CLIMB_STAMINA");
         float v = e ? (float)atof(e) : 0.0f;
         return v > 0 ? v : 12.0f;
     }();
@@ -99,11 +99,11 @@ std::atomic<float> g_stamina{1.0f};
 std::atomic<float> g_alpha{0.0f};
 std::atomic<bool> g_exhausted{false};
 
-// debug (WWHD_CLIMB_DEBUG=1): why a climbing step let go
+// debug (NSMBU_CLIMB_DEBUG=1): why a climbing step let go
 int g_dbg_code = -1;
 float g_dbg_ny = 99;
 bool debug() {
-    static const bool d = getenv("WWHD_CLIMB_DEBUG") != nullptr;
+    static const bool d = getenv("NSMBU_CLIMB_DEBUG") != nullptr;
     return d;
 }
 

@@ -1487,7 +1487,7 @@ static bool untranslocate_bundle(const std::string& bundle, std::string& origina
 
 static PackageSearch find_package() {
     PackageSearch r;
-    if (const char* e = SDL_getenv("WWHD_SETUP_PKG")) return r.pkg = e, r;
+    if (const char* e = SDL_getenv("NSMBU_SETUP_PKG")) return r.pkg = e, r;
     std::string base = SDL_GetBasePath() ? SDL_GetBasePath() : "./";
     r.start = base;
 #ifdef __APPLE__

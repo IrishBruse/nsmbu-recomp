@@ -179,11 +179,11 @@ static void test_files() {
     std::string err;
     CHECK(load_file(path, r, &err) && r == m);
     CHECK(!load_file(std::string(dir) + "/missing.json", r, &err));
-    // the live mapping: WWHD_CONTROLS points it at our file
+    // the live mapping: NSMBU_CONTROLS points it at our file
 #ifdef _WIN32
-    _putenv_s("WWHD_CONTROLS",path.c_str());
+    _putenv_s("NSMBU_CONTROLS",path.c_str());
 #else
-    setenv("WWHD_CONTROLS", path.c_str(), 1);
+    setenv("NSMBU_CONTROLS", path.c_str(), 1);
 #endif
     CHECK(default_path() == path);
     load_startup();

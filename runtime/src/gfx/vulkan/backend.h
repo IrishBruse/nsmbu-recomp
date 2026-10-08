@@ -1,6 +1,6 @@
 #pragma once
 #include "loader.h"
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
 #include <SDL3/SDL.h>
 #endif
 #include <atomic>
@@ -38,7 +38,7 @@ struct Surface {
 };
 struct SurfaceDesc { uint32_t addr=0,mipAddr=0,width=0,height=0,slices=1,pitch=0,mips=1,format=0,dim=1,tileMode=0,swizzle=0; bool isDepth=false; };
 struct Screen {
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
  SDL_Window* window=nullptr;
 #else
  void* window=nullptr; // CAMetalLayer of the AppKit view (display.mm)
@@ -110,7 +110,7 @@ struct Renderer {
  // Upload arena memory is HOST_CACHED|HOST_COHERENT (every block so far): CPU reads of it are as fast as
  // heap reads (Apple silicon/MoltenVK, many UMA drivers). uploadReadsDirect: the snapshot reuse caches
  // and the native index scan may read mapped upload slices instead of keeping CPU copies (auto: when
- // uploadCached; WWHD_VK_UPLOAD_READS=shadow|direct forces a mode). Set by allocate_upload.
+ // uploadCached; NSMBU_VK_UPLOAD_READS=shadow|direct forces a mode). Set by allocate_upload.
  bool uploadCached=false,uploadReadsDirect=false;
  uint64_t vertexHistoryReuseChecks=0,vertexHistoryReuseHits=0,vertexHistoryReuseBytes=0;
  uint64_t vertexHistoryRequests=0,vertexHistoryMatches=0,vertexHistoryBytes=0;
@@ -193,7 +193,7 @@ Surface* sampled_texture(const uint32_t*,bool);
 void upload_surface(Surface*);
 void resample(Surface*,Surface*,uint32_t slices,float uMax=1,float vMax=1,uint32_t dstW=0,uint32_t dstH=0);
 // scaled depth copies: blitted where the device can, else drawn (surfaces.cpp, issue #72);
-// WWHD_VK_DEPTH_COPY=draw / =none override this for tests
+// NSMBU_VK_DEPTH_COPY=draw / =none override this for tests
 enum class DepthCopyOverride { None, Draw, Unsupported };
 extern DepthCopyOverride g_depthCopyOverride;
 float res_scale();void set_res_scale(float);void latch_res_scale();

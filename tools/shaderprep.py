@@ -42,7 +42,7 @@ own play sessions: for each program a hash of its microcode and the register sta
 with, the vertex fetch shaders (tiny attribute-layout descriptors) and the pipeline recipes recorded in
 those sessions. It is derived from the game, so it is not part of this repository; make it from your
 own runtime cache after playing for a while (the further you get, the more it covers):
-  shaderprep.py template ~/Library/Caches/wwhd/shaders.bin
+  shaderprep.py template ~/Library/Caches/nsmbu/shaders.bin
   shaderprep.py build
 `build` then writes:
   - type 1 records: programs from the template with their recorded states ("known"); the runtime
@@ -52,7 +52,7 @@ own runtime cache after playing for a while (the further you get, the more it co
     known records reproduce exactly since they carry the recorded register state; the runtime builds
     them in the background once those shaders are compiled and drops recipes whose shaders it lacks
   - type 3 records: every other archive program with up to --max states recorded for programs of the
-    same family (identical shader register block). Speculative; only `wwhd --warm-shaders` uses them,
+    same family (identical shader register block). Speculative; only `nsmbu --warm-shaders` uses them,
     compiling everything once so the macOS Metal shader cache already has the code later.
 """
 import collections
@@ -282,7 +282,7 @@ def read_template(path):
     if not os.path.isfile(path):
         sys.exit("no state template at %s\n"
                  "make one from your own runtime cache after playing for a while:\n"
-                 "  tools/shaderprep.py template ~/Library/Caches/wwhd/shaders.bin" % path)
+                 "  tools/shaderprep.py template ~/Library/Caches/nsmbu/shaders.bin" % path)
     d = open(path, "rb").read()
     if d[:4] != b"WWHT":
         sys.exit("not a template: " + path)

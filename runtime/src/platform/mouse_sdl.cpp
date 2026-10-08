@@ -33,7 +33,7 @@ bool host_key_down(uint16_t code) {
 static bool gyro_capture = false;
 static void update_gyro_capture() {
     const bool want = tv && motion::mouse_drives_gyro() && !overlay::captures() && SDL_GetKeyboardFocus() == tv &&
-                      !getenv("WWHD_NO_HOST_INPUT");
+                      !getenv("NSMBU_NO_HOST_INPUT");
     if (want && !gyro_capture) {
         gyro_capture = true;
         if (!captured.load() && SDL_SetWindowRelativeMouseMode(tv, true)) LOG("[gyro] mouse captured while the game aims");
@@ -48,7 +48,7 @@ void update_mouse() {
 }
 bool handle_mouse_event(const SDL_Event& event) {
     update_mouse();
-    if (!tv || getenv("WWHD_NO_HOST_INPUT")) return false;
+    if (!tv || getenv("NSMBU_NO_HOST_INPUT")) return false;
     const SDL_WindowID id = SDL_GetWindowID(tv);
     if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST && event.window.windowID == id) release_now();
     if (event.type == SDL_EVENT_KEY_DOWN && event.key.windowID == id &&

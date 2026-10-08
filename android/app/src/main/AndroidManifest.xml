@@ -23,7 +23,7 @@
         <!-- lets simpleperf (NDK) profile the release build from adb shell -->
         <profileable android:shell="true" />
 
-        <activity android:name=".WwhdActivity"
+        <activity android:name=".NsmbuActivity"
             android:label="@string/app_name"
             android:alwaysRetainTaskState="true"
             android:launchMode="singleInstance"

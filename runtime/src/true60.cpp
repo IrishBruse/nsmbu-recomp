@@ -74,7 +74,7 @@ uint64_t logic_steps();    // full logic steps so far
 
 namespace true60 {
 
-static std::atomic<bool> g_on{[] { const char* e = getenv("WWHD_TRUE60"); return e && atoi(e) != 0; }()};
+static std::atomic<bool> g_on{[] { const char* e = getenv("NSMBU_TRUE60"); return e && atoi(e) != 0; }()};
 bool enabled() { return g_on.load(std::memory_order_relaxed); }
 void set_enabled(bool v) {
     g_on = v;
@@ -152,14 +152,14 @@ uint32_t actor_execute_fn(uint32_t proc) {
     return ld32(sub + 8);
 }
 
-// Conversion groups. WWHD_TRUE60_GROUPS=+name,-name,... switches groups on/off relative to the
+// Conversion groups. NSMBU_TRUE60_GROUPS=+name,-name,... switches groups on/off relative to the
 // default; a list without +/- replaces the default ("all", "none" also work). Names: kGroupNames.
 // Only groups that passed the gates (docs/decomp-notes.md, "True 60 fps") are on by default.
 const char* const kGroupNames[kNumGroups] = {"loco", "camera", "sword", "items", "swim", "sail", "bk", "mo2", "cc", "ki"};
 constexpr uint32_t kGroupDefault = (1u << kGrpLoco) | (1u << kGrpCamera) | (1u << kGrpSword);
 uint32_t g_groups = [] {
     uint32_t m = kGroupDefault;
-    const char* e = getenv("WWHD_TRUE60_GROUPS");
+    const char* e = getenv("NSMBU_TRUE60_GROUPS");
     bool replaced = false;
     for (const char* p = e; p && *p;) {
         size_t n = strcspn(p, ",");
@@ -185,7 +185,7 @@ uint32_t g_groups = [] {
 
 // Link's procedures that run at 60 Hz (daPy_lk_c::daPy_PROC values) and how (link_proc_mode);
 // all others stay at 30 Hz. The lists hold the procedures measured against the 30 fps game
-// (docs/decomp-notes.md, "True 60 fps"). WWHD_TRUE60_LINK=audited|all|none|n,n,... (decimal or 0x
+// (docs/decomp-notes.md, "True 60 fps"). NSMBU_TRUE60_LINK=audited|all|none|n,n,... (decimal or 0x
 // hex; a trailing 's' runs that procedure's own logic on full passes only) overrides it (testing).
 uint8_t g_link_proc[256];
 const int kAudited[] = {
@@ -253,7 +253,7 @@ void init_link_procs() {
     static bool done = false;
     if (done) return;
     done = true;
-    const char* e = getenv("WWHD_TRUE60_LINK");
+    const char* e = getenv("NSMBU_TRUE60_LINK");
     if (e && !strcmp(e, "audited")) {
         for (int v : kAudited) g_link_proc[v] = 1;
         for (auto& pg : kLinkGroups)
@@ -279,7 +279,7 @@ void init_link_procs() {
 
 // The player camera (camera process; dCamera_c at +0x248) runs at 60 Hz while it uses the follow
 // camera (dCamera_c::followCamera, whose smoothing is converted by tools/true60/sites_camera.txt);
-// other camera modes stay at 30 Hz and are interpolated. WWHD_TRUE60_CAMERA=0 keeps it at 30 Hz.
+// other camera modes stay at 30 Hz and are interpolated. NSMBU_TRUE60_CAMERA=0 keeps it at 30 Hz.
 constexpr uint32_t kCamMtd = 0x228;              // camera_class::mpMtd (GameCube 0x224)
 constexpr uint32_t kCameraExecute = 0x024FFA3C;  // camera_execute
 constexpr uint32_t kDCamera = 0x248;             // camera_process_class::mCamera
@@ -287,7 +287,7 @@ bool g_follow_called = false;  // followCamera ran during the camera's execute
 bool g_cam_follow = false;     // ... during its last execute
 uint32_t g_camera = 0;
 bool camera_enabled() {
-    static const bool on = (!getenv("WWHD_TRUE60_CAMERA") || atoi(getenv("WWHD_TRUE60_CAMERA")) != 0) && (g_groups & (1u << kGrpCamera));
+    static const bool on = (!getenv("NSMBU_TRUE60_CAMERA") || atoi(getenv("NSMBU_TRUE60_CAMERA")) != 0) && (g_groups & (1u << kGrpCamera));
     return on && g_cam_fallback == 0;
 }
 
@@ -348,9 +348,9 @@ float classify(uint32_t proc) {
 }
 
 // ---- trace (also without true60, to compare with the original) ----
-// WWHD_LINK_TRACE=path: one line per Link execute: pass, real time, dt, proc, pos, speed, ...
+// NSMBU_LINK_TRACE=path: one line per Link execute: pass, real time, dt, proc, pos, speed, ...
 FILE* g_trace = [] {
-    const char* p = getenv("WWHD_LINK_TRACE");
+    const char* p = getenv("NSMBU_LINK_TRACE");
     return p ? fopen(p, "w") : nullptr;
 }();
 void trace_link(uint32_t proc, float dt) {
@@ -364,10 +364,10 @@ void trace_link(uint32_t proc, float dt) {
     static int n = 0;
     if (++n % 60 == 0) fflush(g_trace);
 }
-// WWHD_CAM_TRACE=path: one line per camera execute: pass, logic step, full pass, dt, follow camera
+// NSMBU_CAM_TRACE=path: one line per camera execute: pass, logic step, full pass, dt, follow camera
 // used, eye xyz, center xyz, fovy
 FILE* g_cam_trace = [] {
-    const char* p = getenv("WWHD_CAM_TRACE");
+    const char* p = getenv("NSMBU_CAM_TRACE");
     return p ? fopen(p, "w") : nullptr;
 }();
 void trace_camera(uint32_t proc, float dt) {
@@ -403,7 +403,7 @@ constexpr uint32_t kActorHeap = 0xF4;
 // execute; changes made by anything else, like the draw linking packets, stay): his actor heap, the
 // d_a_player statics holding his position (1046CD48, read back by the next execute) and the words of
 // the dComIfGp play state (1046F0B0) his execute writes (10473FE8..10474050: player position and
-// status, 10474C64: the do/A/R button statuses), found with WWHD_T60_REGIONLOG. Not whole static
+// status, 10474C64: the do/A/R button statuses), found with NSMBU_T60_REGIONLOG. Not whole static
 // regions: other threads (the sound engine) write there while his execute runs, and taking their
 // writes back crashed the sound thread (JASTrack). cM_rnd's seeds are put back separately.
 struct Region { uint32_t base = 0; std::vector<uint32_t> before, after; };
@@ -414,7 +414,7 @@ struct LinkSnap {
     Region regions[4];
     uint32_t env_player[3];  // g_env_light +0xB2C: Link's position for the scene lighting, set by his draw
 } g_snap;
-constexpr uint32_t kEnvPlayerPos = 0x10475A68 + 0xB2C;  // (found with WWHD_T60_ENVLOG)
+constexpr uint32_t kEnvPlayerPos = 0x10475A68 + 0xB2C;  // (found with NSMBU_T60_ENVLOG)
 void region_begin(Region& r, uint32_t base, uint32_t size) {
     r.base = base;
     r.before.resize(size / 4);
@@ -427,7 +427,7 @@ void region_end(Region& r) {
 }
 void region_restore(Region& r) {
     if (!r.base || r.after.size() != r.before.size()) return;
-    static const bool dbg = getenv("WWHD_T60_REGIONLOG") != nullptr;
+    static const bool dbg = getenv("NSMBU_T60_REGIONLOG") != nullptr;
     if (dbg && (&r == &g_snap.regions[3])) {
         static std::unordered_map<uint32_t, int> cnt;
         static int n = 0;
@@ -448,11 +448,11 @@ void region_restore(Region& r) {
     for (size_t i = 0, n = r.before.size(); i < n; i++)
         if (a[i] != b[i]) cur[i] = b[i];  // raw words: no byte swap needed
 }
-// debug: WWHD_T60_MEMDIFF=step: memory changed by the half pass of that logic step and not taken back
+// debug: NSMBU_T60_MEMDIFF=step: memory changed by the half pass of that logic step and not taken back
 std::vector<uint8_t> g_memdiff;
-uint64_t g_memdiff_step = getenv("WWHD_T60_MEMDIFF") ? strtoull(getenv("WWHD_T60_MEMDIFF"), nullptr, 10) : 0;
-const uint32_t kMemDiffLo = getenv("WWHD_T60_MEMDIFF_LO") ? (uint32_t)strtoul(getenv("WWHD_T60_MEMDIFF_LO"), nullptr, 16) : 0x10000000;
-const uint32_t kMemDiffHi = getenv("WWHD_T60_MEMDIFF_HI") ? (uint32_t)strtoul(getenv("WWHD_T60_MEMDIFF_HI"), nullptr, 16) : 0x4A000000;
+uint64_t g_memdiff_step = getenv("NSMBU_T60_MEMDIFF") ? strtoull(getenv("NSMBU_T60_MEMDIFF"), nullptr, 10) : 0;
+const uint32_t kMemDiffLo = getenv("NSMBU_T60_MEMDIFF_LO") ? (uint32_t)strtoul(getenv("NSMBU_T60_MEMDIFF_LO"), nullptr, 16) : 0x10000000;
+const uint32_t kMemDiffHi = getenv("NSMBU_T60_MEMDIFF_HI") ? (uint32_t)strtoul(getenv("NSMBU_T60_MEMDIFF_HI"), nullptr, 16) : 0x4A000000;
 void link_preview_begin(uint32_t proc) {
     if (g_memdiff_step && true60_test::origin_step() && interp::logic_steps() == true60_test::origin_step() + g_memdiff_step && g_memdiff.empty()) {
         g_memdiff.assign(ppc_ptr(kMemDiffLo), ppc_ptr(kMemDiffHi));
@@ -465,7 +465,7 @@ void link_preview_begin(uint32_t proc) {
     for (auto& r : g_snap.regions) r.base = 0;
     region_begin(g_snap.regions[0], 0x1046CD10, 0x44);          // d_a_player statics (his kept position at +0x38)
     region_begin(g_snap.regions[1], 0x10473FE8, 0x10474C68 - 0x10473FE8);  // dComIfGp play: player position/status words, button statuses
-    if (const char* e = getenv("WWHD_T60_EXTRA_REGION")) {  // debug: hunt for preview state (lo:size hex)
+    if (const char* e = getenv("NSMBU_T60_EXTRA_REGION")) {  // debug: hunt for preview state (lo:size hex)
         uint32_t lo = (uint32_t)strtoul(e, nullptr, 16), sz = strchr(e, ':') ? (uint32_t)strtoul(strchr(e, ':') + 1, nullptr, 16) : 0;
         if (sz) region_begin(g_snap.regions[3], lo, sz);
     }
@@ -499,8 +499,8 @@ void link_preview_restore() {
 // next full pass starts again from the camera as it was before that half pass (pass_begin) and takes
 // a whole step. So at full passes the camera is the 30 fps game's camera (Link reads it to steer;
 // what is in view, and so the draw-time random numbers of the scene lighting, stays the same).
-// WWHD_TRUE60_CAMERA_EXACT=0 keeps two half steps (debug).
-const bool g_cam_exact = !getenv("WWHD_TRUE60_CAMERA_EXACT") || atoi(getenv("WWHD_TRUE60_CAMERA_EXACT")) != 0;
+// NSMBU_TRUE60_CAMERA_EXACT=0 keeps two half steps (debug).
+const bool g_cam_exact = !getenv("NSMBU_TRUE60_CAMERA_EXACT") || atoi(getenv("NSMBU_TRUE60_CAMERA_EXACT")) != 0;
 std::vector<uint8_t> g_cam_half;
 // the camera's execute also writes the play state's camera data (dComIfGp: 1047E720.., 104846B0..,
 // eye/center/up of the camera slots, read by the next pass's draws before its own camera_draw):
@@ -511,7 +511,7 @@ uint64_t g_cam_half_pass = ~0ull, g_cam_restored = ~0ull;
 uint32_t g_cam_half_proc = 0;
 struct TimerField { uint32_t off; int bytes; };
 // camera (dCamera_c offsets + kDCamera): step counters m07C, m080, m108, m118, m11C (Run),
-// mForceLockTimer +0x138, and the follow camera's work counters (work at +0x37C in WWHD:
+// mForceLockTimer +0x138, and the follow camera's work counters (work at +0x37C in NSMBU:
 // +0x380 bezier counter (GameCube m388), +0x38A charge counter (m392); +0x384 see hook_025DF940)
 const TimerField kCamCounters[] = {
     {kDCamera + 0x07C, 4}, {kDCamera + 0x080, 4}, {kDCamera + 0x108, 4}, {kDCamera + 0x118, 4}, {kDCamera + 0x11C, 4},
@@ -546,7 +546,7 @@ uint64_t link_steps() { return g_link_steps; }
 bool g_state_loaded = false;
 bool state_loaded() { return g_state_loaded; }
 // camera_draw on a half pass sets the view matrix for the preview camera (j3dSys view matrix at
-// 104B45F8, found with WWHD_T60_CAMDRAWLOG). The next full pass draws its actors before its own
+// 104B45F8, found with NSMBU_T60_CAMDRAWLOG). The next full pass draws its actors before its own
 // camera_draw, as the 30 fps game does with the camera of the previous step: the matrix goes back to
 // the full pass's. Only these words: the area around holds sound-engine state written by the sound
 // thread meanwhile (taking a wider range back crashed it in JASTrack).
@@ -559,9 +559,9 @@ void camera_draw_preview(bool) {}  // (the view matrix is among the half-pass dr
 //   the scene lighting (g_env_light 10475A68: light fades, flicker, the lighting position of the
 //   player), the frustum clipper (mDoLib_clipper 1048CFF0, set up from the camera), the J3D view
 //   matrix (104B45F8).
-// WWHD_TRUE60_DRAWSTATE_KEEP=1 keeps them (debug).
+// NSMBU_TRUE60_DRAWSTATE_KEEP=1 keeps them (debug).
 struct HalfSave { uint32_t addr, size; std::vector<uint8_t> data; };
-// (found with WWHD_T60_DRAWWRITE: the words half-pass draws change; not the sound engine's areas
+// (found with NSMBU_T60_DRAWWRITE: the words half-pass draws change; not the sound engine's areas
 // around 104B5000 and 104C1000, which the sound thread writes at the same time)
 HalfSave g_half_saves[] = {
     {0x10474DE0, 0x10, {}},    // play state: lighting position written by Link's draw
@@ -572,7 +572,7 @@ HalfSave g_half_saves[] = {
 };
 uint64_t g_half_saves_pass = ~0ull;
 void pass_begin(bool full) {
-    static const bool keep = getenv("WWHD_TRUE60_DRAWSTATE_KEEP") != nullptr;
+    static const bool keep = getenv("NSMBU_TRUE60_DRAWSTATE_KEEP") != nullptr;
     if (!full) {
         if (enabled() && !keep && (g_link || g_camera)) {
             for (auto& h : g_half_saves) h.data.assign(ppc_ptr(h.addr), ppc_ptr(h.addr) + h.size);
@@ -645,11 +645,11 @@ void stats_tick() {
 using namespace true60;
 
 // fpcM_Execute(process): per-process gate and step length
-// debug: WWHD_WATCH_LINK=off: logs which process execute/draw changes the word at Link+off
+// debug: NSMBU_WATCH_LINK=off: logs which process execute/draw changes the word at Link+off
 static uint32_t watch_addr() {
-    static const long abs_a = getenv("WWHD_WATCH_ADDR") ? strtol(getenv("WWHD_WATCH_ADDR"), nullptr, 16) : -1;
+    static const long abs_a = getenv("NSMBU_WATCH_ADDR") ? strtol(getenv("NSMBU_WATCH_ADDR"), nullptr, 16) : -1;
     if (abs_a >= 0) return (uint32_t)abs_a;
-    static const long off = getenv("WWHD_WATCH_LINK") ? strtol(getenv("WWHD_WATCH_LINK"), nullptr, 16) : -1;
+    static const long off = getenv("NSMBU_WATCH_LINK") ? strtol(getenv("NSMBU_WATCH_LINK"), nullptr, 16) : -1;
     return off >= 0 && true60::link() ? true60::link() + (uint32_t)off : 0;
 }
 static void watch_link(const char* what, uint32_t proc, uint32_t before) {
@@ -662,7 +662,7 @@ static uint32_t watch_val() {
     uint32_t wa = watch_addr();
     return wa ? ld32(wa) : 0;
 }
-static FILE* g_rx = getenv("WWHD_RND_EXEC") ? fopen(getenv("WWHD_RND_EXEC"), "w") : nullptr;  // debug
+static FILE* g_rx = getenv("NSMBU_RND_EXEC") ? fopen(getenv("NSMBU_RND_EXEC"), "w") : nullptr;  // debug
 static void rx_log(uint32_t proc, uint32_t s0) {
     if (g_rx && ld32(0x101FF9D4) != s0)
         fprintf(g_rx, "%llu %d %08X %08X %08X\n", (unsigned long long)interp::logic_steps(), (int)half_pass(), proc, actor_execute_fn(proc), s0);
@@ -707,7 +707,7 @@ extern "C" void hook_025DF940(Cpu* c) {
     // the full pass starts again from the camera as it was before that half pass and takes a whole
     // step. So at full passes the camera is the 30 fps game's camera (what is in view, and so the
     // draw-time random numbers of the scene lighting, stay those of the 30 fps game).
-    // WWHD_TRUE60_CAMERA_EXACT=0 keeps two half steps (debug).
+    // NSMBU_TRUE60_CAMERA_EXACT=0 keeps two half steps (debug).
     bool cam_preview = false;
     if (g_cam_exact && proc == g_camera && dt < 1.0f) {
         if (half_pass()) {
@@ -799,7 +799,7 @@ extern "C" void hook_025DF940(Cpu* c) {
     }
     if (hold_cam) {  // counted on full passes only (also counts going down: the turn counter)
         // followCamera's catch-up move (work at +0x37C, tag 'FLLW'): +0x380 steps (GameCube m37C),
-        // +0x384 the remaining sum of step weights, which WWHD decrements by the remaining steps each
+        // +0x384 the remaining sum of step weights, which NSMBU decrements by the remaining steps each
         // step (the GameCube keeps the constant total m380). It is per step like m108, so it is held on
         // half passes too; otherwise it runs out while steps remain and the next ratio is x/0 -> NaN
         // (seen leaving Link's house). A restart of the move (m108 dropped) re-initialises it: kept.
@@ -1011,7 +1011,7 @@ extern "C" void hook_0200F8D0(Cpu* c) {  // int cLib_chaseAngleS(s16* v, s16 tar
     f_0200F8D0_orig(c);
 }
 
-// J3DFrameCtrl::update (WWHD layout, no vtable: rate +0x0, frame +0x4, start s16 +0x8,
+// J3DFrameCtrl::update (NSMBU layout, no vtable: rate +0x0, frame +0x4, start s16 +0x8,
 // end s16 +0xA, loop s16 +0xC, attribute u8 +0xE, state u8 +0xF): frame += rate * dt. The update
 // sets the rate to 0 when a one-shot animation ends; otherwise the real rate is put back.
 // Full passes are exact: when the half pass before advanced this frame control and nothing else
@@ -1072,7 +1072,7 @@ extern "C" void hook_027F2BF8(Cpu* c) {
 
 // mDoExt_MtxCalcOldFrame::decOldFrameMorfCounter: blend from the previous pose over a number of
 // steps; the counter drops by dt (the blend stays linear in time)
-// layout (GameCube = WWHD for this class, checked in the generated code): counter +0x4, 1/morf
+// layout (GameCube = NSMBU for this class, checked in the generated code): counter +0x4, 1/morf
 // +0x8, rate +0xC, +0x10, +0x14
 extern "C" void hook_025E3EC8(Cpu* c) {
     if (t_dt >= 1.0f) return f_025E3EC8_orig(c);
@@ -1146,27 +1146,27 @@ bool true60::drawing_60() {
 // which decides e.g. whether point-light flicker is drawn for it, with a random number each time).
 // At 60 fps that ran twice per step; with true 60 the words an actor's half-pass draw changed in
 // its own memory (allocation size from its heap block header, proc-8) are put back right after it.
-// WWHD_TRUE60_DRAW_KEEP=1 turns this off (debug).
+// NSMBU_TRUE60_DRAW_KEEP=1 turns this off (debug).
 extern "C" void hook_025DF904(Cpu* c) {
     uint32_t proc = c->r[3];
     if (g_draw_depth < 8) g_draw_stack[g_draw_depth] = proc;
     g_draw_depth++;
     uint32_t wv = watch_val();
-    static const uint32_t dlp = getenv("WWHD_DRAWLOG_PROC") ? (uint32_t)strtoul(getenv("WWHD_DRAWLOG_PROC"), nullptr, 16) : 0;
-    if (dlp && proc == dlp) {  // debug: draws of one process, with a word of it before (WWHD_DRAWLOG_OFF)
-        static const uint32_t off = getenv("WWHD_DRAWLOG_OFF") ? (uint32_t)strtoul(getenv("WWHD_DRAWLOG_OFF"), nullptr, 16) : 0;
+    static const uint32_t dlp = getenv("NSMBU_DRAWLOG_PROC") ? (uint32_t)strtoul(getenv("NSMBU_DRAWLOG_PROC"), nullptr, 16) : 0;
+    if (dlp && proc == dlp) {  // debug: draws of one process, with a word of it before (NSMBU_DRAWLOG_OFF)
+        static const uint32_t off = getenv("NSMBU_DRAWLOG_OFF") ? (uint32_t)strtoul(getenv("NSMBU_DRAWLOG_OFF"), nullptr, 16) : 0;
         LOG("[drawlog] step %llu %s depth %d word %08X exec %08X", (unsigned long long)interp::logic_steps(), half_pass() ? "half" : "full", g_draw_depth, ld32(proc + off), actor_execute_fn(proc));
-        static FILE* df = getenv("WWHD_DRAWLOG_DUMP") ? fopen(getenv("WWHD_DRAWLOG_DUMP"), "wb") : nullptr;
+        static FILE* df = getenv("NSMBU_DRAWLOG_DUMP") ? fopen(getenv("NSMBU_DRAWLOG_DUMP"), "wb") : nullptr;
         if (df && !half_pass()) {  // the process and g_env_light at its draw, as an ADMP record of 0x400 + 0x2000 bytes
-            static uint32_t rlo = getenv("WWHD_DRAWLOG_RANGE") ? (uint32_t)strtoul(getenv("WWHD_DRAWLOG_RANGE"), nullptr, 16) : 0x10475A68;
-            static uint32_t rsz = getenv("WWHD_DRAWLOG_RANGE") && strchr(getenv("WWHD_DRAWLOG_RANGE"), ':') ? (uint32_t)strtoul(strchr(getenv("WWHD_DRAWLOG_RANGE"), ':') + 1, nullptr, 16) : 0x2000;
+            static uint32_t rlo = getenv("NSMBU_DRAWLOG_RANGE") ? (uint32_t)strtoul(getenv("NSMBU_DRAWLOG_RANGE"), nullptr, 16) : 0x10475A68;
+            static uint32_t rsz = getenv("NSMBU_DRAWLOG_RANGE") && strchr(getenv("NSMBU_DRAWLOG_RANGE"), ':') ? (uint32_t)strtoul(strchr(getenv("NSMBU_DRAWLOG_RANGE"), ':') + 1, nullptr, 16) : 0x2000;
             uint64_t step = interp::logic_steps(); uint32_t full = 1, size = 0x400 + rsz; float dtv = 1.0f;
             fwrite("ADMP", 1, 4, df); fwrite(&step, 8, 1, df); fwrite(&full, 4, 1, df); fwrite(&dtv, 4, 1, df);
             fwrite(&proc, 4, 1, df); fwrite(&size, 4, 1, df); fwrite(mem::ptr(proc), 1, 0x400, df); fwrite(mem::ptr(rlo), 1, rsz, df);
             fflush(df);
         }
     }
-    static const bool keep = getenv("WWHD_TRUE60_DRAW_KEEP") != nullptr;
+    static const bool keep = getenv("NSMBU_TRUE60_DRAW_KEEP") != nullptr;
     static std::vector<uint32_t> before;
     uint32_t size = 0, cull_mtx = 0;
     uint8_t cull_before[0x30];
@@ -1182,12 +1182,12 @@ extern "C" void hook_025DF904(Cpu* c) {
         else
             cull_mtx = 0;
     }
-    static const bool envlog = getenv("WWHD_T60_ENVLOG") != nullptr;  // debug: env-light words Link's half-pass draw/execute changes
+    static const bool envlog = getenv("NSMBU_T60_ENVLOG") != nullptr;  // debug: env-light words Link's half-pass draw/execute changes
     static std::vector<uint32_t> env_before;
     bool envdbg = envlog && proc == g_link && half_pass();
     if (envdbg) env_before.assign((uint32_t*)ppc_ptr(0x10475A68), (uint32_t*)ppc_ptr(0x10475A68 + 0x2000));
-    // debug: WWHD_T60_DRAWWRITE=1 logs static words (1046F0B0..104C3000) that half-pass actor draws change, with counts
-    static const bool dwlog = getenv("WWHD_T60_DRAWWRITE") != nullptr;
+    // debug: NSMBU_T60_DRAWWRITE=1 logs static words (1046F0B0..104C3000) that half-pass actor draws change, with counts
+    static const bool dwlog = getenv("NSMBU_T60_DRAWWRITE") != nullptr;
     static std::vector<uint32_t> dw_before;
     bool dw = dwlog && half_pass() && g_draw_depth >= 2;
     if (dw) dw_before.assign((uint32_t*)ppc_ptr(0x1046F0B0), (uint32_t*)ppc_ptr(0x104C3000));
@@ -1258,7 +1258,7 @@ extern "C" void hook_025028B8(Cpu* c) {
 // (dScnPly_Draw -> dComIfGp_particle_calc3D/2D/Menu), which runs on every pass in both 60 fps
 // modes: measured 762-765 updates/s instead of 390, so particles ran at double speed (also with
 // frame interpolation). They step on full passes only (30 Hz particles, not converted yet).
-// debug: WWHD_PARTICLES_EVERY_PASS=1 restores the old behaviour.
+// debug: NSMBU_PARTICLES_EVERY_PASS=1 restores the old behaviour.
 namespace interp { bool enabled(); }
 // (hook_0282167C lives in interp_fx.cpp: held back on hold/half passes there, and blended)
 
@@ -1268,9 +1268,9 @@ namespace interp { bool enabled(); }
 // cCt_execCounter (g_Counter.mTimer++). Draws run on every pass in both 60 fps modes, so these ran
 // twice per step. On half passes the condition is made false (site before the `cmpwi r3, 0` that
 // tests the pause check's result, 025B00B0), and the else branch's dVibration_c::Pause is skipped.
-// debug: WWHD_WORLD_EVERY_PASS=1 restores the old behaviour.
+// debug: NSMBU_WORLD_EVERY_PASS=1 restores the old behaviour.
 static bool hold_world() {
-    static const bool every = getenv("WWHD_WORLD_EVERY_PASS") != nullptr;
+    static const bool every = getenv("NSMBU_WORLD_EVERY_PASS") != nullptr;
     return interp::enabled() && interp::hold_pass() && !every;
 }
 extern "C" void site_025B00B0(Cpu* c) {
@@ -1315,7 +1315,7 @@ extern "C" void hook_02018D40(Cpu* c) {
     f_02018D40_orig(c);
 }
 
-// debug: WWHD_NAN_PROBE=1 (with WWHD_TRUE60_CAMERA=1): during each camera step, checks the camera's
+// debug: NSMBU_NAN_PROBE=1 (with NSMBU_TRUE60_CAMERA=1): during each camera step, checks the camera's
 // first state vectors (dCamera +0x10..+0x60) at every guest function entry and logs the functions
 // entered just before the first NaN appears (the one that produced it is among the last entries)
 void true60_nan_probe(uint32_t addr) {
@@ -1348,7 +1348,7 @@ void true60_nan_probe(uint32_t addr) {
 // still draw it): HUD timing and its use of the shared random numbers are those of the 30 fps game.
 extern "C" void f_02593B10_orig(Cpu* c);
 extern "C" void hook_02593B10(Cpu* c) {
-    static const bool every = getenv("WWHD_HUD_EVERY_PASS") != nullptr;  // debug: old behaviour
+    static const bool every = getenv("NSMBU_HUD_EVERY_PASS") != nullptr;  // debug: old behaviour
     if (enabled() && half_pass() && !every) return;
     f_02593B10_orig(c);
 }

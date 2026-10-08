@@ -1,11 +1,11 @@
 // Renderer selection and dispatch. One executable can contain both renderers (macOS default build:
-// WWHD_RENDERER=BOTH): Metal (gfx/metal_*.mm, namespace gfx) and Vulkan (gfx/vulkan/*, namespace
+// NSMBU_RENDERER=BOTH): Metal (gfx/metal_*.mm, namespace gfx) and Vulkan (gfx/vulkan/*, namespace
 // gfxvk). Each fills a Backend table; the GX2 layer and the host (windows, menus, save states) call
 // the functions below, which forward to the renderer chosen once at start-up.
 //
 // Choice, highest priority first:
 //   --renderer=metal|vulkan (or --renderer metal|vulkan)   command line
-//   WWHD_RENDERER_RUNTIME=metal|vulkan                      environment (tests)
+//   NSMBU_RENDERER_RUNTIME=metal|vulkan                      environment (tests)
 //   Graphics > Renderer                                     saved setting (display.plist, "renderer")
 //   Metal                                                   default
 // If Vulkan cannot start (no Vulkan loader / MoltenVK / suitable device), the game starts with Metal
@@ -71,10 +71,10 @@ enum Feature : int { kFeatureAO, kFeatureAOHires, kFeatureAniso, kFeatureFXAA, k
                      kFeatureShaderHeadStart };
 
 extern const Backend* g_backend;
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
 const Backend& metal_backend();   // gfx/metal_backend.mm
 #endif
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
 const Backend& vulkan_backend();  // gfx/vulkan/backend_table.cpp
 #endif
 
@@ -124,7 +124,7 @@ inline void ss_reset() { g_backend->ss_reset(); }
 uint64_t frame_count();  // 0 before the renderer started
 inline void request_tv_dump(const std::string& path, int frames_ahead) { g_backend->request_tv_dump(path, frames_ahead); }
 inline void request_capture() { g_backend->request_capture(); }
-void shutdown();         // once, on the way out (Quit, window closed, WWHD_EXIT_AT_FRAME)
+void shutdown();         // once, on the way out (Quit, window closed, NSMBU_EXIT_AT_FRAME)
 
 inline float res_scale() { return g_backend->res_scale(); }
 inline void set_res_scale(float f) { g_backend->set_res_scale(f); }

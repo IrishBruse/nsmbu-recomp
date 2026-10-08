@@ -37,7 +37,7 @@ play statistics) starts as in a new HD file. Files that were empty on the GameCu
 ## Tools
 
 Plain Python 3, no dependencies, no game data. Layouts come from the zeldaret tww decompilation
-(GameCube) and this project's verified WWHD decompilation (HD); `wwsave.py` names the exact
+(GameCube) and this project's verified NSMBU decompilation (HD); `wwsave.py` names the exact
 functions.
 
 | Tool | Use |
@@ -60,7 +60,7 @@ checksum (byte sum, complement sum), u32 checksum of big-endian u16 sums at 0x1F
 Picto Box pictures. Read like `mDoMemCdRWm_Restore`: per file the first copy, the second if the
 first fails its checksum.
 
-**HD `cking.sav`** (8966 bytes, SaveMgr in `wwhd_src/d/d_menu_save_*`):
+**HD `cking.sav`** (8966 bytes, SaveMgr in `nsmbu_src/d/d_menu_save_*`):
 
 | Offset | Size | Content |
 |---|---|---|

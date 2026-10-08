@@ -1,7 +1,7 @@
 """Spread names through the call graph.
 
-For a WWHD function already named after decompiled function F, compare F's calls (from the
-source) with the WWHD function's calls (bl targets). Callees that are resolved on both sides are
+For a NSMBU function already named after decompiled function F, compare F's calls (from the
+source) with the NSMBU function's calls (bl targets). Callees that are resolved on both sides are
 paired off; when exactly one unresolved callee remains on each side, they are the same function.
 Repeated until nothing changes. Conservative on purpose: inlining differs between the compilers,
 so anything less certain is left unnamed.
@@ -37,8 +37,8 @@ def decomp_calls(tww):
     return out
 
 
-def wwhd_calls(x, f):
-    """bl targets of WWHD function f in order (internal functions only)"""
+def nsmbu_calls(x, f):
+    """bl targets of NSMBU function f in order (internal functions only)"""
     p = x.p
     i = x.funcs.index(f) if not hasattr(x, "_pos") else x._pos[f]
     end = x.funcs[i + 1] if i + 1 < len(x.funcs) else p.text_hi
@@ -53,7 +53,7 @@ def wwhd_calls(x, f):
 
 
 def spread(x, tww, named):
-    """named: WWHD address -> (decomp name, file). Returns new names {address: (name, file)}."""
+    """named: NSMBU address -> (decomp name, file). Returns new names {address: (name, file)}."""
     x._pos = {f: i for i, f in enumerate(x.funcs)}
     calls = decomp_calls(tww)
     by_file = {}  # file -> {short name -> [full names]}
@@ -79,7 +79,7 @@ def spread(x, tww, named):
                 if full and len(set(full)) == 1:
                     dres.append(full[0])
             dun = [c for c in dict.fromkeys(dres) if (file, c) not in taken]
-            wun = [t for t in dict.fromkeys(wwhd_calls(x, f)) if t not in cur]
+            wun = [t for t in dict.fromkeys(nsmbu_calls(x, f)) if t not in cur]
             if len(dun) == 1 and len(wun) == 1:
                 new[wun[0]] = (dun[0], file)
                 taken.add((file, dun[0]))

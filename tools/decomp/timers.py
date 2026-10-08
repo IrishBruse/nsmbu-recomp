@@ -1,8 +1,8 @@
 """Frame-count timers: fields decremented by one (or passed to cLib_calcTimer) in code reachable from
-an actor's Execute, in the GameCube build. With the WWHD counterpart when the function is matched:
-the WWHD decrement sites of the matched function are paired with the GameCube ones in order.
+an actor's Execute, in the GameCube build. With the NSMBU counterpart when the function is matched:
+the NSMBU decrement sites of the matched function are paired with the GameCube ones in order.
 
-Usage: timers.py wwhd_to_gc.tsv cking.rpx tww > timers.tsv
+Usage: timers.py nsmbu_to_gc.tsv cking.rpx tww > timers.tsv
 """
 import re
 import sys
@@ -105,7 +105,7 @@ def main():
                 seen.add(t)
                 q.append(t)
     hdr_cache = {}
-    print("file\tclass\tgc_offset\twwhd_offset\twidth\tkind\tfield\tgc_function\twwhd_function")
+    print("file\tclass\tgc_offset\tnsmbu_offset\twidth\tkind\tfield\tgc_function\tnsmbu_function")
     for c in sorted(seen):
         f = g.funcs[c]
         # call sites to cLib_calcTimer, by word index (callee list order = relocation order)

@@ -100,7 +100,7 @@ int main() {
         CHECK(r.not_deleted == 0);
         CHECK(r.min_frames_to_delete == 2);
     }
-    // quick doors (turbo.cpp runs 3 extra steps; also other WWHD_MOD_DOOR_EXTRA values)
+    // quick doors (turbo.cpp runs 3 extra steps; also other NSMBU_MOD_DOOR_EXTRA values)
     for (int extra = 1; extra <= 7; extra++) {
         Result r = door_event(mods::kDoorExtraStep, extra);
         CHECK(r.deleted_while_entered == 0);

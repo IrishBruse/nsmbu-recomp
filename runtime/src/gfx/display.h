@@ -13,8 +13,8 @@ struct Box { float x = 0, y = 0, w = 0, h = 0; };
 
 // What to draw this frame (render thread, once per swap)
 struct PresentPlan {
-    float dw = 0, dh = 0;      // size the TV layout is for: the TV drawable, or WWHD_SIM_SCREEN
-    bool sim = false;          // WWHD_SIM_SCREEN: the window itself still gets a layout for its drawable
+    float dw = 0, dh = 0;      // size the TV layout is for: the TV drawable, or NSMBU_SIM_SCREEN
+    bool sim = false;          // NSMBU_SIM_SCREEN: the window itself still gets a layout for its drawable
     Box tv, pip;               // TV picture; GamePad overlay (pip_on)
     bool pip_on = false;
     bool pip_wanted = false;   // the overlay is up this frame (pip_on also needs a GamePad picture)
@@ -38,7 +38,7 @@ PresentPlan display_plan_for(const PresentPlan& p, float dw, float dh, float tvW
 Box display_layout(float dw, float dh, float tw, float th);
 // automatic overlay: display-encoded luma (0..1, kSignatureW x kSignatureH) of the GamePad and TV pictures
 void display_auto_signature(const std::vector<float>& drc, const std::vector<float>* tv, uint64_t frame);
-// WWHD_DUMP_PRESENT / capture: composed window pictures requested since the last present
+// NSMBU_DUMP_PRESENT / capture: composed window pictures requested since the last present
 std::vector<std::string> display_take_present_dumps();
 void request_present_dump(const std::string& path);
 void display_log_present_dump(const std::string& path, const PresentPlan& p, float tvW, float tvH);

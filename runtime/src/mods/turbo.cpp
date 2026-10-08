@@ -56,17 +56,17 @@ int env_i(const char* n, int d) {
     const char* e = getenv(n);
     return e ? atoi(e) : d;
 }
-const int kDoorExtra = env_i("WWHD_MOD_DOOR_EXTRA", 3);    // 4 logic steps per frame
-const int kSceneExtra = env_i("WWHD_MOD_SCENE_EXTRA", 3);  // 4 transition steps per frame
-// debug: WWHD_MOD_DOOR_DELETE=1 runs process deletion in the extra steps too (the behaviour before
+const int kDoorExtra = env_i("NSMBU_MOD_DOOR_EXTRA", 3);    // 4 logic steps per frame
+const int kSceneExtra = env_i("NSMBU_MOD_SCENE_EXTRA", 3);  // 4 transition steps per frame
+// debug: NSMBU_MOD_DOOR_DELETE=1 runs process deletion in the extra steps too (the behaviour before
 // the fix of issue #61, for A/B runs: it can delete a process whose packets are still listed)
 const StepParts kDoorStep = [] {
     StepParts p = kDoorExtraStep;
-    if (env_i("WWHD_MOD_DOOR_DELETE", 0)) p.deletion = true;
+    if (env_i("NSMBU_MOD_DOOR_DELETE", 0)) p.deletion = true;
     return p;
 }();
 
-// traces (WWHD_MODS_TRACE): the processes in the delete queue whose timer has run out, which the
+// traces (NSMBU_MODS_TRACE): the processes in the delete queue whose timer has run out, which the
 // next fpcDt_Handler deletes (g_fpcDtTg_Queue 101F3A1C, see fpcDt_Handler 025DE024; delete tag:
 // +8 next node, +0xC process, +0x18 timer, fpcDtTg_Do 025DDE44)
 constexpr uint32_t kDeleteQueue = 0x101F3A1C;
@@ -91,11 +91,11 @@ uint64_t g_extra_door = 0, g_extra_scene = 0;
 
 // "pressed this frame" / "released this frame" words of the game's pad state (sead controller:
 // +0x124 held, +0x18 pressed, +0x1C released, +0x40 hold counter; measured with A presses), cleared
-// for the extra steps. WWHD_MODS_PADLOG=1 logs the pad state words when they change.
+// for the extra steps. NSMBU_MODS_PADLOG=1 logs the pad state words when they change.
 const uint32_t kTrigWords[] = {0x18, 0x1C};
 
 void padlog() {
-    static const bool on = getenv("WWHD_MODS_PADLOG") != nullptr;
+    static const bool on = getenv("NSMBU_MODS_PADLOG") != nullptr;
     if (!on) return;
     uint32_t p = ld32(kPadPtr);
     if (!p) return;
@@ -109,9 +109,9 @@ void padlog() {
 
 bool overlap_active() { return ld32(kOverlap) != 0; }
 
-// debug: WWHD_MODS_OVLPLOG=1 traces the overlap request words (and its task's first words) on change
+// debug: NSMBU_MODS_OVLPLOG=1 traces the overlap request words (and its task's first words) on change
 void ovlplog() {
-    static const bool on = getenv("WWHD_MODS_OVLPLOG") != nullptr;
+    static const bool on = getenv("NSMBU_MODS_OVLPLOG") != nullptr;
     uint32_t r = ld32(kOverlap);
     if (!on || !r) return;
     static uint32_t last[16], lastt[8];
@@ -142,7 +142,7 @@ void call(Cpu* c, void (*f)(Cpu*), uint32_t r3) {
     f(c);
 }
 
-// test aid (issue #61): WWHD_TEST_DOOR_DELETE=FN (hex) queues the first actor whose execute
+// test aid (issue #61): NSMBU_TEST_DOOR_DELETE=FN (hex) queues the first actor whose execute
 // function is FN for deletion (fopAcM_delete) right after the first logic step of each door event,
 // as an actor deleting itself in that step would (a rat going into its hole, a pot breaking, Tingle
 // leaving). FN=list traces the actors (execute function, position) instead.
@@ -152,7 +152,7 @@ uint32_t actor_execute(uint32_t a) {
     return sub >= 0x10000000 && sub < 0x50000000 ? ld32(sub + 8) : 0;
 }
 void test_door_delete(Cpu* c) {
-    static const char* e = getenv("WWHD_TEST_DOOR_DELETE");
+    static const char* e = getenv("NSMBU_TEST_DOOR_DELETE");
     if (!e) return;
     const bool list = !strcmp(e, "list");
     const uint32_t fn = (uint32_t)strtoul(e, nullptr, 16);

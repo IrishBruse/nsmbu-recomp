@@ -17,8 +17,8 @@
 // (input::prompt_text: window title on SDL, a sheet on macOS).
 //
 // Test switches (scripted runs, see README "Testing"):
-//   WWHD_TEST_PAD=1600-1603:A,...   host controller inputs (overlay.cpp) also drive the on-screen keyboard
-//   WWHD_TEST_POST_KEYS=1600:Text=Tetra,1650:Return   typed text and keys through the host's real path
+//   NSMBU_TEST_PAD=1600-1603:A,...   host controller inputs (overlay.cpp) also drive the on-screen keyboard
+//   NSMBU_TEST_POST_KEYS=1600:Text=Tetra,1650:Return   typed text and keys through the host's real path
 #pragma once
 #include <functional>
 #include <memory>

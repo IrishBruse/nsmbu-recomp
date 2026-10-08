@@ -83,7 +83,7 @@ State& state() {
   if (State* s = g_state.load(std::memory_order_acquire)) return *s;
   State* created = new State;  // lives as long as the device (never torn down, like the upload arena)
   auto& b = created->backing;
-  if (const char* mb = std::getenv("WWHD_VK_BUFFER_CACHE_MB"))
+  if (const char* mb = std::getenv("NSMBU_VK_BUFFER_CACHE_MB"))
     b.budget = std::max<uint64_t>(std::strtoull(mb, nullptr, 10), 64) << 20;
   VkPhysicalDeviceMemoryProperties p;
   vkGetPhysicalDeviceMemoryProperties(R.physicalDevice, &p);
@@ -102,9 +102,9 @@ State& state() {
   LOG("[vulkan buffer cache] on%s: budget %llu MiB, %s memory, hints %s", buffer_cache_verify() ? " (verify mode)" : "",
       (unsigned long long)(b.budget >> 20),
       (b.flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ? "device-local host-visible" : "host-visible",
-      env_is("WWHD_VK_BUFFER_CACHE_HINTS", "0") ? "off" : "on");
-  // WWHD_VK_BUFFER_CACHE_LOG=1: log the first 300 ranges that become dynamic
-  if (env_is("WWHD_VK_BUFFER_CACHE_LOG", "1"))
+      env_is("NSMBU_VK_BUFFER_CACHE_HINTS", "0") ? "off" : "on");
+  // NSMBU_VK_BUFFER_CACHE_LOG=1: log the first 300 ranges that become dynamic
+  if (env_is("NSMBU_VK_BUFFER_CACHE_LOG", "1"))
     created->cache.onDynamic = [](const bufcache::Key& k, const bufcache::Entry& e, bool hintOnly) {
       static int logged = 0;
       if (logged++ < 300)
@@ -118,14 +118,14 @@ State& state() {
 }  // namespace
 
 bool buffer_cache_verify() {
-  static const bool verify = env_is("WWHD_VK_BUFFER_CACHE_VERIFY", "1");
+  static const bool verify = env_is("NSMBU_VK_BUFFER_CACHE_VERIFY", "1");
   return verify;
 }
 
 // On by default on macOS (verified there: 0 mismatches in verify mode over long gameplay runs) and on
 // desktop Linux (Steam Deck included; an RK3588 report in issue #50 went from a 20 fps lock to full speed
 // with it); off on Windows and Android until the verify run and the write-fault cost have been checked on
-// those hosts. WWHD_VK_BUFFER_CACHE=0|1 overrides the default everywhere.
+// those hosts. NSMBU_VK_BUFFER_CACHE=0|1 overrides the default everywhere.
 #if defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__))
 constexpr bool kBufferCacheDefault = true;
 #else
@@ -134,14 +134,14 @@ constexpr bool kBufferCacheDefault = false;
 
 bool buffer_cache_enabled() {
   static const bool enabled = [] {
-    bool want = kBufferCacheDefault || env_is("WWHD_VK_BUFFER_CACHE", "1") || buffer_cache_verify();
-    if (env_is("WWHD_VK_BUFFER_CACHE", "0")) want = false;
+    bool want = kBufferCacheDefault || env_is("NSMBU_VK_BUFFER_CACHE", "1") || buffer_cache_verify();
+    if (env_is("NSMBU_VK_BUFFER_CACHE", "0")) want = false;
     if (!want) return false;
     if (!wwatch::active()) {
       LOG("[vulkan buffer cache] off: page write tracking is unavailable");
       return false;
     }
-    if (!env_is("WWHD_VK_BUFFER_CACHE_HINTS", "0")) wwatch::enable_hints();
+    if (!env_is("NSMBU_VK_BUFFER_CACHE_HINTS", "0")) wwatch::enable_hints();
     return true;
   }();
   return enabled;

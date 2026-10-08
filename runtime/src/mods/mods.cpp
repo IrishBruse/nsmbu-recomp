@@ -1,12 +1,12 @@
 // Gameplay mods: switches and shared helpers. See mods.h.
 //
 // Start-up / test switches (all off by default, also switchable from the Gameplay menu):
-//   WWHD_MOD_DIRECT_CAMERA=1   direct right-stick camera (WWHD_MOD_CAMERA_SPEED=1.5 multiplier)
-//   WWHD_MOD_MOUSE_CAMERA=1    mouse camera (WWHD_MOD_MOUSE_SENS=0.15 degrees per point)
-//   WWHD_MOD_FIRST_PERSON=1    first person on R3 / mouse wheel
-//   WWHD_MOD_QUICK_DOORS=1     quick doors
-//   WWHD_MOD_FAST_SCENES=1     fast scene changes
-//   WWHD_MODS_TRACE=path       log of mod decisions and timing events (door events, scene changes,
+//   NSMBU_MOD_DIRECT_CAMERA=1   direct right-stick camera (NSMBU_MOD_CAMERA_SPEED=1.5 multiplier)
+//   NSMBU_MOD_MOUSE_CAMERA=1    mouse camera (NSMBU_MOD_MOUSE_SENS=0.15 degrees per point)
+//   NSMBU_MOD_FIRST_PERSON=1    first person on R3 / mouse wheel
+//   NSMBU_MOD_QUICK_DOORS=1     quick doors
+//   NSMBU_MOD_FAST_SCENES=1     fast scene changes
+//   NSMBU_MODS_TRACE=path       log of mod decisions and timing events (door events, scene changes,
 //                              Link's control), one line per event with the logic step
 #include "mods.h"
 
@@ -29,13 +29,13 @@ float env_f(const char* n, float d) {
     const char* e = getenv(n);
     return e ? (float)atof(e) : d;
 }
-std::atomic<bool> g_direct{env_on("WWHD_MOD_DIRECT_CAMERA")};
-std::atomic<float> g_speed{env_f("WWHD_MOD_CAMERA_SPEED", 1.0f)};
-std::atomic<bool> g_mouse{env_on("WWHD_MOD_MOUSE_CAMERA")};
-std::atomic<float> g_sens{env_f("WWHD_MOD_MOUSE_SENS", 0.15f)};
-std::atomic<bool> g_fp{env_on("WWHD_MOD_FIRST_PERSON")};
-std::atomic<bool> g_doors{env_on("WWHD_MOD_QUICK_DOORS")};
-std::atomic<bool> g_scenes{env_on("WWHD_MOD_FAST_SCENES")};
+std::atomic<bool> g_direct{env_on("NSMBU_MOD_DIRECT_CAMERA")};
+std::atomic<float> g_speed{env_f("NSMBU_MOD_CAMERA_SPEED", 1.0f)};
+std::atomic<bool> g_mouse{env_on("NSMBU_MOD_MOUSE_CAMERA")};
+std::atomic<float> g_sens{env_f("NSMBU_MOD_MOUSE_SENS", 0.15f)};
+std::atomic<bool> g_fp{env_on("NSMBU_MOD_FIRST_PERSON")};
+std::atomic<bool> g_doors{env_on("NSMBU_MOD_QUICK_DOORS")};
+std::atomic<bool> g_scenes{env_on("NSMBU_MOD_FAST_SCENES")};
 
 void note(const char* what, bool on) { LOG("[mods] %s %s", what, on ? "on" : "off"); }
 }  // namespace
@@ -69,7 +69,7 @@ uint64_t step() { return interp::logic_steps(); }
 double game_time() { return (double)interp::logic_steps() / 30.0; }
 
 static FILE* g_trace = [] {
-    const char* p = getenv("WWHD_MODS_TRACE");
+    const char* p = getenv("NSMBU_MODS_TRACE");
     return p ? fopen(p, "w") : nullptr;
 }();
 bool trace_on() { return g_trace != nullptr; }

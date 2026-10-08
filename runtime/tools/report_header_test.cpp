@@ -77,17 +77,17 @@ int main() {
     // ---- overrides: only switches away from their defaults
     default_env();
     expect(joined(vulkan_overrides(fake_env)), "", "defaults: no overrides");
-    g_env["WWHD_VK_LAZY_DRAW_DONE"] = "1";  // explicit default
-    g_env["WWHD_VK_ASYNC_PRESENT"] = "2";   // any nonzero number is on
+    g_env["NSMBU_VK_LAZY_DRAW_DONE"] = "1";  // explicit default
+    g_env["NSMBU_VK_ASYNC_PRESENT"] = "2";   // any nonzero number is on
     expect(joined(vulkan_overrides(fake_env)), "", "explicit defaults: no overrides");
-    g_env["WWHD_VK_REUSE_VERTEX_SNAPSHOTS"] = "0";
-    g_env["WWHD_VK_SAMPLER_MEMO"] = "yes";  // active only when exactly 1
-    g_env.erase("WWHD_VK_FETCH_MEMO");      // not set at all (outside main.cpp)
-    g_env["WWHD_VK_LAZY_DRAW_DONE"] = "0";
-    g_env["WWHD_VK_ASYNC_PRESENT"] = "off";  // atoi 0: off
+    g_env["NSMBU_VK_REUSE_VERTEX_SNAPSHOTS"] = "0";
+    g_env["NSMBU_VK_SAMPLER_MEMO"] = "yes";  // active only when exactly 1
+    g_env.erase("NSMBU_VK_FETCH_MEMO");      // not set at all (outside main.cpp)
+    g_env["NSMBU_VK_LAZY_DRAW_DONE"] = "0";
+    g_env["NSMBU_VK_ASYNC_PRESENT"] = "off";  // atoi 0: off
     expect(joined(vulkan_overrides(fake_env)),
-           "WWHD_VK_FETCH_MEMO unset|WWHD_VK_SAMPLER_MEMO=yes|WWHD_VK_REUSE_VERTEX_SNAPSHOTS=0|"
-           "WWHD_VK_LAZY_DRAW_DONE=0|WWHD_VK_ASYNC_PRESENT=off",
+           "NSMBU_VK_FETCH_MEMO unset|NSMBU_VK_SAMPLER_MEMO=yes|NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=0|"
+           "NSMBU_VK_LAZY_DRAW_DONE=0|NSMBU_VK_ASYNC_PRESENT=off",
            "overrides in list order");
     // every one of the 15 paths is checked
     default_env();
@@ -105,19 +105,19 @@ int main() {
     in.fps = "60 fps interpolation";
     in.scale = 2.0f;
     in.bufferCache = 0;
-    in.overrides = {"WWHD_VK_REUSE_VERTEX_SNAPSHOTS=0"};
+    in.overrides = {"NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=0"};
     expect(format(in),
            "Wind Waker HD v0.2.5 (2ff030c), Windows 11 23H2 (build 22631.4317), AMD Radeon RX 6700 XT, driver 2.0.302, "
            "Vulkan 1.3.287\n"
            "performance report: renderer Vulkan, host SDL, 60 fps interpolation, internal scale 2.0x, buffer cache off; "
-           "overrides: WWHD_VK_REUSE_VERTEX_SNAPSHOTS=0\n",
+           "overrides: NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=0\n",
            "Vulkan header");
-    in.overrides.push_back("WWHD_VK_ASYNC_PRESENT=0");
+    in.overrides.push_back("NSMBU_VK_ASYNC_PRESENT=0");
     in.gyro = "controller";
     in.bufferCache = 1;
     expect(format(in).substr(format(in).find('\n') + 1),
            "performance report: renderer Vulkan, host SDL, 60 fps interpolation, internal scale 2.0x, buffer cache on, "
-           "gyro controller; overrides: WWHD_VK_REUSE_VERTEX_SNAPSHOTS=0, WWHD_VK_ASYNC_PRESENT=0\n",
+           "gyro controller; overrides: NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=0, NSMBU_VK_ASYNC_PRESENT=0\n",
            "Vulkan header with gyro and two overrides");
     Info m;
     m.version = "v0.2.5+3";

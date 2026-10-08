@@ -1,17 +1,17 @@
-/* WWHD recomp frame-mod ABI v1. Plain C; game bytes are never part of the SDK. */
+/* NSMBU recomp frame-mod ABI v1. Plain C; game bytes are never part of the SDK. */
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define WWHD_MOD_ABI_VERSION 1
+#define NSMBU_MOD_ABI_VERSION 1
 #if defined(_WIN32)
-#define WWHD_MOD_EXPORT __declspec(dllexport)
+#define NSMBU_MOD_EXPORT __declspec(dllexport)
 #else
-#define WWHD_MOD_EXPORT __attribute__((visibility("default")))
+#define NSMBU_MOD_EXPORT __attribute__((visibility("default")))
 #endif
-typedef struct WWHDModHostV1 {
+typedef struct NSMBUModHostV1 {
     uint32_t size, abi_version;
     void* context;
     const char* game_id;
@@ -24,8 +24,8 @@ typedef struct WWHDModHostV1 {
     const char* (*get_string)(void*, const char* option_id);
     double (*get_number)(void*, const char* option_id);
     int (*get_bool)(void*, const char* option_id);
-} WWHDModHostV1;
-typedef struct WWHDModV1 {
+} NSMBUModHostV1;
+typedef struct NSMBUModV1 {
     uint32_t size, abi_version;
     void* instance;
     /* Once per original logic step, after actor execution. No callback on interpolated draws. */
@@ -33,10 +33,10 @@ typedef struct WWHDModV1 {
     void (*on_config_changed)(void*);
     /* Runs after the last frame callback, before the library unloads. */
     void (*on_unload)(void*);
-} WWHDModV1;
-typedef int (*WWHDModInitV1)(const WWHDModHostV1*, WWHDModV1*);
+} NSMBUModV1;
+typedef int (*NSMBUModInitV1)(const NSMBUModHostV1*, NSMBUModV1*);
 /* Each native mod exports this entry point and returns nonzero on successful init. */
-WWHD_MOD_EXPORT int wwhd_mod_init_v1(const WWHDModHostV1*, WWHDModV1*);
+NSMBU_MOD_EXPORT int nsmbu_mod_init_v1(const NSMBUModHostV1*, NSMBUModV1*);
 #ifdef __cplusplus
 }
 #endif

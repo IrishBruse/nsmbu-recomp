@@ -1,10 +1,10 @@
 # CTest crash_log_module: the crash log names the module that holds a host crash address.
-# Runs the game executable with WWHD_TEST_HOST_CRASH=1 (main.cpp: strlen of a bad pointer, right
+# Runs the game executable with NSMBU_TEST_HOST_CRASH=1 (main.cpp: strlen of a bad pointer, right
 # after the crash handler is installed; no game files needed) and checks captures/crash-*.log.
-# cmake -DWWHD=<wwhd executable> -DWORK=<empty work folder> -P crash_log_test.cmake
+# cmake -DNSMBU=<nsmbu executable> -DWORK=<empty work folder> -P crash_log_test.cmake
 file(REMOVE_RECURSE "${WORK}")
 file(MAKE_DIRECTORY "${WORK}")
-execute_process(COMMAND "${CMAKE_COMMAND}" -E env WWHD_TEST_HOST_CRASH=1 WWHD_NO_AUDIO=1 "${WWHD}"
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env NSMBU_TEST_HOST_CRASH=1 NSMBU_NO_AUDIO=1 "${NSMBU}"
                 WORKING_DIRECTORY "${WORK}" RESULT_VARIABLE rc OUTPUT_VARIABLE out ERROR_VARIABLE err TIMEOUT 120)
 if(rc EQUAL 0)
   message(FATAL_ERROR "the executable did not crash:\n${out}\n${err}")
@@ -32,7 +32,7 @@ else()
   expect("host pc 0x[0-9a-f]+ in ([^ \n]+)\\+0x[0-9a-f]+ \\(base 0x[0-9a-f]+\\)" "the module of the crash address")
   set(module "${match1}")
 endif()
-get_filename_component(exe "${WWHD}" NAME)
+get_filename_component(exe "${NSMBU}" NAME)
 if(module STREQUAL exe)
   message(FATAL_ERROR "the crash address was placed in ${module}; strlen lives in the C library")
 endif()
@@ -47,5 +47,5 @@ if(WIN32)
   expect("host backtrace:\n  #0 +[0-9A-F]+ in ${module_re}\\+0x" "the faulting frame first in the backtrace")
 endif()
 # and the log ring
-expect("--- last log lines ---\n.*WWHD_TEST_HOST_CRASH" "the last log lines")
+expect("--- last log lines ---\n.*NSMBU_TEST_HOST_CRASH" "the last log lines")
 message(STATUS "crash address in ${module}: ok")

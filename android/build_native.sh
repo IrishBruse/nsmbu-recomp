@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the native libraries of the Android app (arm64-v8a) with the NDK: the game as libmain.so,
 # with SDL3, glslang, zlib and LZ4 built in the same CMake run from the pinned sources (URL + SHA-256)
-# of cmake/WindowsDependencies.cmake (WWHD_BUNDLED_DEPS; SDL 3.4.18, the version of the app's SDL
+# of cmake/WindowsDependencies.cmake (NSMBU_BUNDLED_DEPS; SDL 3.4.18, the version of the app's SDL
 # Java files), and copies libmain.so, libSDL3.so and libc++_shared.so to android/app/libs/arm64-v8a
 # for Gradle (cd android && ./gradlew assembleRelease).
 #
@@ -43,8 +43,8 @@ mkdir -p "$out"
 "$cmake" -S "$root" -B "$out" -G Ninja "-DCMAKE_MAKE_PROGRAM=$ninja" \
     "-DCMAKE_TOOLCHAIN_FILE=$ndk/build/cmake/android.toolchain.cmake" -DANDROID_ABI=arm64-v8a \
     "-DANDROID_PLATFORM=android-$api" -DANDROID_STL=c++_shared -DCMAKE_BUILD_TYPE=Release \
-    -DWWHD_BUNDLED_DEPS=ON "-DGEN_DIR=${GEN_DIR:-$root/build/gen}" ${flags[@]+"${flags[@]}"} > "$out.log"
-"$cmake" --build "$out" -j "$jobs" --target wwhd >> "$out.log" 2>&1 || { tail -40 "$out.log"; exit 1; }
+    -DNSMBU_BUNDLED_DEPS=ON "-DGEN_DIR=${GEN_DIR:-$root/build/gen}" ${flags[@]+"${flags[@]}"} > "$out.log"
+"$cmake" --build "$out" -j "$jobs" --target nsmbu >> "$out.log" 2>&1 || { tail -40 "$out.log"; exit 1; }
 libs="$here/app/libs/arm64-v8a"
 mkdir -p "$libs"
 bin="$ndk/toolchains/llvm/prebuilt/$host"

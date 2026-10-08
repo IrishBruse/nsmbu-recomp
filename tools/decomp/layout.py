@@ -1,12 +1,12 @@
-"""Infer WWHD structure layouts from matched function pairs.
+"""Infer NSMBU structure layouts from matched function pairs.
 
 For every matched pair whose GameCube function takes a pointer to class C as `this` (methods of C)
 or as first argument (e.g. fopAcM_* on fopAc_ac_c*), the loads/stores through that pointer are
 listed in order on both sides and aligned (same access width/kind scores, gaps allowed). Every
-aligned pair votes GC offset -> WWHD offset; the majority wins. Field names come from the
+aligned pair votes GC offset -> NSMBU offset; the majority wins. Field names come from the
 decompilation headers' /* 0x... */ offset comments.
 
-Usage: layout.py wwhd_to_gc.tsv cking.rpx tww Class [Class...]
+Usage: layout.py nsmbu_to_gc.tsv cking.rpx tww Class [Class...]
 """
 import os
 import re
@@ -171,7 +171,7 @@ def main():
                 continue
             seen.add((go, wo))
             name = fields.get(go, "")
-            print("  gc 0x%04X -> wwhd 0x%04X  (%+d)  %s  votes %d/%d  %s" % (go, wo, wo - go, k, n, tot, name))
+            print("  gc 0x%04X -> nsmbu 0x%04X  (%+d)  %s  votes %d/%d  %s" % (go, wo, wo - go, k, n, tot, name))
 
 
 if __name__ == "__main__":

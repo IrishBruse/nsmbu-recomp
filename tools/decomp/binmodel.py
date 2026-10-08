@@ -4,7 +4,7 @@ GameCube (GC): the split objects of the decompilation's build (tww/build/GZLE01/
 real symbol names and relocations, so every function's callees, data references and every class's
 virtual table are exact. Functions get a stable integer id (index into GC.funcs).
 
-WWHD: cking.rpx functions (from tools/recomp discovery), callees from `bl`, data references from
+NSMBU: cking.rpx functions (from tools/recomp discovery), callees from `bl`, data references from
 ADDR16_LO relocations, virtual tables from runs of {delta:index, function} entries in .data/.rodata
 (Green Hills/EDG layout: 8 bytes per slot, the function pointer in the second word).
 """
@@ -253,7 +253,7 @@ class GC:
 
 
 class WW:
-    """WWHD side; wraps an Xref"""
+    """NSMBU side; wraps an Xref"""
 
     def __init__(self, x):
         self.x = x

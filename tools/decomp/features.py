@@ -1,5 +1,5 @@
 """Content features of PowerPC functions, computed the same way for the GameCube objects (split by
-the decompilation's build into build/GZLE01/**/obj/*.o, with names) and for WWHD (cking.rpx).
+the decompilation's build into build/GZLE01/**/obj/*.o, with names) and for NSMBU (cking.rpx).
 
 Features are multisets of tokens that survive a change of compiler:
   F:<value>   float constants loaded (lfs/lfd from a relocated address)
@@ -160,10 +160,10 @@ def gc_functions(tww):
     return out
 
 
-# ---------------------------------------------------------------- WWHD
+# ---------------------------------------------------------------- NSMBU
 
 
-def wwhd_functions(x):
+def nsmbu_functions(x):
     p = x.p
     out = {}
     for i, a in enumerate(x.funcs):

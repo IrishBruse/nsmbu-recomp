@@ -5,7 +5,7 @@
 // (site_ADDR runs before the instruction at ADDR; "@ADDR" lines in tools/recomp/hooks.txt) and
 // function hooks. Everything here is a no-op unless Link's execute runs with dt < 1.
 //
-// WWHD addresses are from the generated code (build/gen) of the functions named in build/names.tsv;
+// NSMBU addresses are from the generated code (build/gen) of the functions named in build/names.tsv;
 // the GameCube source lines are in tww/src/d/actor/d_a_player_main.cpp.
 #include <cmath>
 
@@ -91,7 +91,7 @@ extern "C" void hook_025AAE08(Cpu* c) { if (!calc_timer_held<4>(c)) f_025AAE08_o
 // speed-dependent sounds, which is per original step.
 
 // ---- the procedure call in daPy_lk_c::execute (0240CDD0; GameCube d_a_player_main.cpp:11346,
-// `(this->*mCurProcFunc)()`; WWHD: member pointer at this+0x65F4, bctrl at 0240D6D8 / 0240D6F8) ----
+// `(this->*mCurProcFunc)()`; NSMBU: member pointer at this+0x65F4, bctrl at 0240D6D8 / 0240D6F8) ----
 // With true 60, Link's full pass is the 30 fps game's step and his half pass a preview that the next
 // full pass takes back (true60.cpp, link_preview_begin). The preview advances what is continuous:
 // animation (frame + rate/2), movement (speed/2, gravity, root motion), collision correction, model
@@ -150,7 +150,7 @@ extern "C" void site_0240D6FC(Cpu* c) {
 }
 
 // daPy_lk_c::checkItemAction (023FB230; GameCube d_a_player_main.cpp, called from execute right
-// after changeBoomerangCatchProc, as in WWHD 0240D5CC): item buttons and the upper-body item
+// after changeBoomerangCatchProc, as in NSMBU 0240D5CC): item buttons and the upper-body item
 // animations (taking out / putting away the sword and items, their ends by frame thresholds, the
 // face texture reset with its random blink timer). Buttons only change on full passes, and the
 // frame thresholds must be met at the same step as at 30 fps, so it runs on full passes only.

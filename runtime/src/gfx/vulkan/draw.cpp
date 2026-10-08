@@ -31,7 +31,7 @@ using namespace Latte;
 namespace gfxvk {
 namespace {
 bool preparation_stats_enabled() {
-  static const bool enabled=std::getenv("WWHD_VK_STATS")!=nullptr;
+  static const bool enabled=std::getenv("NSMBU_VK_STATS")!=nullptr;
   return enabled;
 }
 VkImageView null_texture_view(E_DIM dim, bool depth) {
@@ -129,7 +129,7 @@ VkImageView null_texture_view(E_DIM dim, bool depth) {
   return slot.view;
 }
 // Bounded overlap: the default on every platform (measured on macOS and Windows); an explicit
-// zero/invalid WWHD_VK_DRAW_BATCH disables it.
+// zero/invalid NSMBU_VK_DRAW_BATCH disables it.
 uint32_t parse_draw_batch(const char* text) {
   if (!text) return 2048;
   if (!*text) return 0;
@@ -225,11 +225,11 @@ UploadSlice snapshot(const void *data, size_t size, VkDeviceSize alignment) {
 UploadSlice vertex_snapshot(uint32_t binding, uint32_t address, uint32_t size,
                             bool bounded) {
   static const bool enabled = [] {
-    const char *value = std::getenv("WWHD_VK_REUSE_VERTEX_SNAPSHOTS");
+    const char *value = std::getenv("NSMBU_VK_REUSE_VERTEX_SNAPSHOTS");
     return value && std::strcmp(value, "1") == 0;
   }();
   static const bool probeEnabled = [] {
-    const char* e = std::getenv("WWHD_VK_VERTEX_HISTORY_PROBE");
+    const char* e = std::getenv("NSMBU_VK_VERTEX_HISTORY_PROBE");
     return e && !std::strcmp(e, "1") && preparation_stats_enabled();
   }();
   if (probeEnabled) {
@@ -248,7 +248,7 @@ UploadSlice vertex_snapshot(uint32_t binding, uint32_t address, uint32_t size,
   if (!enabled)
     return snapshot(mem::ptr(address), size, 4);
   static const bool historyEnabled = [] {
-    const char* e = std::getenv("WWHD_VK_VERTEX_HISTORY_REUSE");
+    const char* e = std::getenv("NSMBU_VK_VERTEX_HISTORY_REUSE");
     return e && !std::strcmp(e, "1");
   }();
   static std::array<VertexSnapshotHistory<UploadSlice>, 16> cache{};
@@ -275,7 +275,7 @@ UploadSlice vertex_snapshot(uint32_t binding, uint32_t address, uint32_t size,
   if (candidate) {
     ++R.vertexReuseChecks;
     if (secondary) ++R.vertexHistoryReuseChecks;
-    static const bool timed = std::getenv("WWHD_VK_STATS") != nullptr;
+    static const bool timed = std::getenv("NSMBU_VK_STATS") != nullptr;
     std::chrono::steady_clock::time_point start;
     if (timed) start = std::chrono::steady_clock::now();
     // the entry's CPU copy, not candidate->slice.mapped, unless the entry was made with direct reads
@@ -312,7 +312,7 @@ UploadSlice vertex_window_snapshot(uint32_t binding,uint32_t address,uint32_t re
     for(auto& e:entries) e.clear();
     device=R.device;generation=R.submissionGeneration;
   }
-  static const bool reuse=[] {const char* e=std::getenv("WWHD_VK_REUSE_VERTEX_SNAPSHOTS");
+  static const bool reuse=[] {const char* e=std::getenv("NSMBU_VK_REUSE_VERTEX_SNAPSHOTS");
     return e && !std::strcmp(e,"1");}();
   Entry* entry=reuse && binding<entries.size()?&entries[binding]:nullptr;
   const auto* fresh=static_cast<const uint8_t*>(source?source:mem::ptr(address))+begin;
@@ -359,7 +359,7 @@ struct VertexExtent {
   uint32_t minimum = 0;
 };
 bool vertex_copy_window_enabled() {
-  static const bool enabled=[] {const char* e=std::getenv("WWHD_VK_VERTEX_COPY_WINDOW");
+  static const bool enabled=[] {const char* e=std::getenv("NSMBU_VK_VERTEX_COPY_WINDOW");
     return e && !std::strcmp(e,"1");}();
   return enabled;
 }
@@ -476,7 +476,7 @@ VertexWindowExtent vertex_window_extent(const void* data, size_t count,
   return {true,uint32_t(low),uint32_t(high)};
 }
 bool vertex_window_stats_enabled() {
-  static const bool enabled=[] {const char* e=std::getenv("WWHD_VK_VERTEX_WINDOW_STATS");
+  static const bool enabled=[] {const char* e=std::getenv("NSMBU_VK_VERTEX_WINDOW_STATS");
     return e && !std::strcmp(e,"1");}();
   return enabled;
 }
@@ -703,7 +703,7 @@ struct PipelineLookaside {
 PipelineLookaside pipelineLookaside;
 bool pipeline_lookaside_enabled() {
   static const bool enabled = [] {
-    const char* e = std::getenv("WWHD_VK_PIPELINE_LOOKASIDE");
+    const char* e = std::getenv("NSMBU_VK_PIPELINE_LOOKASIDE");
     return e && !std::strcmp(e, "1");
   }();
   return enabled;
@@ -1160,7 +1160,7 @@ struct SamplerMemo {
 SamplerMemo samplerMemo;
 VkSampler sampler(const uint32_t *words, bool compare, bool integer, bool allowAniso) {
   static const bool memo = [] {
-    const char* e = std::getenv("WWHD_VK_SAMPLER_MEMO");
+    const char* e = std::getenv("NSMBU_VK_SAMPLER_MEMO");
     return e && !std::strcmp(e, "1");
   }();
   const bool forceAniso = allowAniso && aniso_enabled();
@@ -1513,7 +1513,7 @@ struct FeedbackStats {
 FeedbackStats feedbackStats;
 bool feedback_stats_enabled() {
   static const bool enabled=[] {
-    const char* e=std::getenv("WWHD_VK_FEEDBACK_STATS");
+    const char* e=std::getenv("NSMBU_VK_FEEDBACK_STATS");
     return e && !std::strcmp(e,"1");
   }();
   return enabled;
@@ -1557,7 +1557,7 @@ VkImageView feedback_view(Surface *source, const uint32_t *textureWords,
     feedbackStats.compressed+=source->fmt.compressed;
   }
   static const bool reuse = [] {
-    const char* e = std::getenv("WWHD_VK_REUSE_FEEDBACK_IMAGES");
+    const char* e = std::getenv("NSMBU_VK_REUSE_FEEDBACK_IMAGES");
     return e && !std::strcmp(e, "1");
   }();
   Surface temporary;
@@ -1604,8 +1604,8 @@ VkImageView feedback_view(Surface *source, const uint32_t *textureWords,
       *slot = {};
     }
     make_feedback_image(temporary, *source);
-    // debug: WWHD_VK_FEEDBACK_ALLOC_LOG=1 reports feedback image creations every 120 frames
-    static const bool allocLog = getenv("WWHD_VK_FEEDBACK_ALLOC_LOG") != nullptr;
+    // debug: NSMBU_VK_FEEDBACK_ALLOC_LOG=1 reports feedback image creations every 120 frames
+    static const bool allocLog = getenv("NSMBU_VK_FEEDBACK_ALLOC_LOG") != nullptr;
     if (allocLog) {
       static uint64_t creates = 0, unslotted = 0, overBudget = 0, lastFrame = 0;
       ++creates;
@@ -1689,7 +1689,7 @@ StageResources bind_stage(const uint32_t *r, vk::Shader *sh,
   std::array<std::pair<uint32_t, uint32_t>, 17> dynamicBindings{};
   uint32_t dynamicCount = 0;
   static const bool ranksEnabled = [] {
-    const char* value = std::getenv("WWHD_VK_DESCRIPTOR_RANKS");
+    const char* value = std::getenv("NSMBU_VK_DESCRIPTOR_RANKS");
     return value && std::strcmp(value, "1") == 0;
   }();
   const auto& rankPlan = sh->descriptorRanks;
@@ -1724,7 +1724,7 @@ StageResources bind_stage(const uint32_t *r, vk::Shader *sh,
       R.cpuPreparation.uniformSnapshotBytes+=size;
     }
     static const bool reuseUniforms = [] {
-      const char* value = std::getenv("WWHD_VK_REUSE_UNIFORM_SNAPSHOTS");
+      const char* value = std::getenv("NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS");
       return value && std::strcmp(value, "1") == 0;
     }();
     // compares CPU copies of the slots' bytes, not mapped upload memory, unless the upload memory is
@@ -2001,7 +2001,7 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
   default: break;
   }
   static const bool specializeIndices = [] {
-    const char* e = std::getenv("WWHD_VK_SPECIALIZE_INDICES");
+    const char* e = std::getenv("NSMBU_VK_SPECIALIZE_INDICES");
     return e && !std::strcmp(e, "1");
   }();
   // ld16/ld32 use uint32 guest-EA arithmetic. A wrapped BE range stays on
@@ -2294,7 +2294,7 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
   std::copy_n(pres.dynamicOffsets.begin(), pres.dynamicOffsetCount,
               dynamicOffsets.begin() + vres.dynamicOffsetCount);
   static const bool skipRedundantBinds = [] {
-    const char* e=std::getenv("WWHD_VK_SKIP_REDUNDANT_BINDS");
+    const char* e=std::getenv("NSMBU_VK_SKIP_REDUNDANT_BINDS");
     return e && !std::strcmp(e,"1");
   }();
   DescriptorBindProbe::Matches matches;
@@ -2487,7 +2487,7 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
                           supported && attributeEnd && extent.valid && vertexExtent.valid);
     VkDeviceSize offset = b.offset;
     static const bool skipVertexBinds = [] {
-      const char* e=std::getenv("WWHD_VK_SKIP_VERTEX_BINDS");
+      const char* e=std::getenv("NSMBU_VK_SKIP_VERTEX_BINDS");
       return e && !std::strcmp(e,"1");
     }();
     // Snapshot preparation above stays fresh even when its immutable slice is
@@ -2538,9 +2538,9 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
     } guard;
     draw(r, prim, count, indexType, indexAddr, baseVertex, instances);
   }
-  static const uint32_t drawBatch = parse_draw_batch(std::getenv("WWHD_VK_DRAW_BATCH"));
+  static const uint32_t drawBatch = parse_draw_batch(std::getenv("NSMBU_VK_DRAW_BATCH"));
   static const uint32_t drawBatchCap =
-      parse_draw_batch_cap(std::getenv("WWHD_VK_DRAW_BATCH_CAP"));
+      parse_draw_batch_cap(std::getenv("NSMBU_VK_DRAW_BATCH_CAP"));
   if (drawBatchState.after_draw(R.frame, drawBatch, drawBatchCap)) {
     // Submit only after this draw owns all its upload slices and deferred
     // resources. The next draw reopens attachments with LOAD and rebinds state.

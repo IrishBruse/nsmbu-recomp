@@ -9,10 +9,10 @@
 // Bindings used twice are drawn in orange. Changes apply at once and are saved to controls.json.
 // While this window is the key window, input.mm's key monitor passes key events to it instead of the game.
 //
-// Debug: WWHD_SHOW_CONTROLS=1 opens the window at start (without the keyboard focus in test runs);
-// WWHD_CONTROLS_SNAPSHOT=<prefix> then writes <prefix>_{gamepad,pro}_{light,dark}.png of the window
-// after WWHD_CONTROLS_SNAPSHOT_AT seconds (default 3); WWHD_CONTROLS_HOVER=<input id, e.g. ZR> shows
-// that input hovered. WWHD_CONTROLS_SELFTEST=1 drives the window with synthetic events.
+// Debug: NSMBU_SHOW_CONTROLS=1 opens the window at start (without the keyboard focus in test runs);
+// NSMBU_CONTROLS_SNAPSHOT=<prefix> then writes <prefix>_{gamepad,pro}_{light,dark}.png of the window
+// after NSMBU_CONTROLS_SNAPSHOT_AT seconds (default 3); NSMBU_CONTROLS_HOVER=<input id, e.g. ZR> shows
+// that input hovered. NSMBU_CONTROLS_SELFTEST=1 drives the window with synthetic events.
 #import <Cocoa/Cocoa.h>
 #import <GameController/GameController.h>
 #include <Carbon/Carbon.h>  // kVK_* key codes
@@ -982,7 +982,7 @@ static NSTextField* label(NSString* s) {
     w.releasedWhenClosed = NO;
     w.contentMinSize = NSMakeSize(960, 570);
     // remembered window frame (NSUserDefaults); not in portable mode, which keeps nothing outside its folder
-    if (!getenv("WWHD_NO_HOST_INPUT") && !host::portable()) w.frameAutosaveName = @"WWHDControls2";  // test runs: always the default size
+    if (!getenv("NSMBU_NO_HOST_INPUT") && !host::portable()) w.frameAutosaveName = @"NSMBUControls2";  // test runs: always the default size
     self.window = w;
     WWRootView* root = [[WWRootView alloc] init];
     w.contentView = root;
@@ -1149,7 +1149,7 @@ static NSTextField* label(NSString* s) {
 - (void)tick:(NSTimer*)t { [self poll]; }
 
 - (void)poll {
-    static const bool no_host = getenv("WWHD_NO_HOST_INPUT") != nullptr;
+    static const bool no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
     bool dirty = false;
     if (generation() != _gen && _st.capAction < 0) {  // changed elsewhere (another window, reset)
         _st.m = current();
@@ -1440,7 +1440,7 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
     [self reloadFromModel];
     [self startTimer];
     [self poll];
-    const char* hidden = getenv("WWHD_HIDDEN_WINDOWS");
+    const char* hidden = getenv("NSMBU_HIDDEN_WINDOWS");
     if (hidden && *hidden && strcmp(hidden, "0")) return;  // test runs: never on screen (snapshots still work)
     if (takeFocus) [self.window makeKeyAndOrderFront:nil];
     else [self.window orderFront:nil];
@@ -1476,7 +1476,7 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
 @end
 
 // ================================================================= debug self-test
-// WWHD_CONTROLS_SELFTEST=1 drives the window with synthetic events (no focus needed) and logs the
+// NSMBU_CONTROLS_SELFTEST=1 drives the window with synthetic events (no focus needed) and logs the
 // results; the window stays open with a sample state (swapped A/B, a conflict, a capture in progress).
 
 static WWControls* g_controls;
@@ -1488,8 +1488,8 @@ static NSEvent* key_event(NSWindow* w, uint16_t code, NSString* chars) {
 }
 
 static void self_test() {
-    if (!getenv("WWHD_CONTROLS")) {  // it rewrites the controls file: never the user's own
-        LOG("[controls-test] needs WWHD_CONTROLS=<scratch file>");
+    if (!getenv("NSMBU_CONTROLS")) {  // it rewrites the controls file: never the user's own
+        LOG("[controls-test] needs NSMBU_CONTROLS=<scratch file>");
         return;
     }
     WWControls* c = g_controls;
@@ -1579,20 +1579,20 @@ NSMenuItem* controls_menu_item() {
     static WWControlsMenuTarget* target = [WWControlsMenuTarget new];
     NSMenuItem* it = [[NSMenuItem alloc] initWithTitle:@"Controls…" action:@selector(open:) keyEquivalent:@""];
     it.target = target;
-    bool selftest = getenv("WWHD_CONTROLS_SELFTEST"), show = getenv("WWHD_SHOW_CONTROLS"), snap = getenv("WWHD_CONTROLS_SNAPSHOT");
+    bool selftest = getenv("NSMBU_CONTROLS_SELFTEST"), show = getenv("NSMBU_SHOW_CONTROLS"), snap = getenv("NSMBU_CONTROLS_SNAPSHOT");
     if (selftest || show || snap)
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             if (!g_controls) g_controls = [[WWControls alloc] init];
-            // a test run (WWHD_NO_HOST_INPUT) never takes the keyboard focus
-            [g_controls show:!getenv("WWHD_NO_HOST_INPUT")];
+            // a test run (NSMBU_NO_HOST_INPUT) never takes the keyboard focus
+            [g_controls show:!getenv("NSMBU_NO_HOST_INPUT")];
             if (selftest) self_test();
-            if (const char* h = getenv("WWHD_CONTROLS_HOVER")) {
+            if (const char* h = getenv("NSMBU_CONTROLS_HOVER")) {
                 g_controls.padView.hoverAction = action_from_id(h);
                 g_controls.padView.hoverSlot = -1;
                 [g_controls hoverChanged];
             }
-            if (const char* path = getenv("WWHD_CONTROLS_SNAPSHOT")) {
-                double at = getenv("WWHD_CONTROLS_SNAPSHOT_AT") ? atof(getenv("WWHD_CONTROLS_SNAPSHOT_AT")) : 3;
+            if (const char* path = getenv("NSMBU_CONTROLS_SNAPSHOT")) {
+                double at = getenv("NSMBU_CONTROLS_SNAPSHOT_AT") ? atof(getenv("NSMBU_CONTROLS_SNAPSHOT_AT")) : 3;
                 NSString* prefix = ns(path);
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(std::max(0.0, at - 1) * NSEC_PER_SEC)),
                                dispatch_get_main_queue(), ^{ [g_controls snapshotTo:prefix]; });

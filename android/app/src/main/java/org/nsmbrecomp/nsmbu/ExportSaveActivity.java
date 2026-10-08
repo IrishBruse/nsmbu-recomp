@@ -1,4 +1,4 @@
-package org.wwhdrecomp.wwhd;
+package org.nsmbrecomp.nsmbu;
 
 import android.app.Activity;
 import android.content.ContentValues;
@@ -11,7 +11,7 @@ import android.widget.Toast;
 
 import java.io.OutputStream;
 
-// Launcher shortcut "Export save": the save folder as a zip in Downloads (WWHD-save-<time>.zip), then
+// Launcher shortcut "Export save": the save folder as a zip in Downloads (NSMBU-save-<time>.zip), then
 // the share sheet (Drive, messages, e-mail...). The zip has the layout of the PC version's save/.
 public class ExportSaveActivity extends Activity {
     @Override
@@ -27,7 +27,7 @@ public class ExportSaveActivity extends Activity {
             String error = null;
             try {
                 ContentValues v = new ContentValues();
-                v.put(MediaStore.Downloads.DISPLAY_NAME, "WWHD-save-" + SaveFiles.stamp() + ".zip");
+                v.put(MediaStore.Downloads.DISPLAY_NAME, "NSMBU-save-" + SaveFiles.stamp() + ".zip");
                 v.put(MediaStore.Downloads.MIME_TYPE, "application/zip");
                 v.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
                 v.put(MediaStore.Downloads.IS_PENDING, 1);

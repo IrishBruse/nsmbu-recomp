@@ -12,7 +12,7 @@ void choose_mod_source(bool folder, std::function<void(std::string)> chosen);
 void post(std::function<void()> fn);  // run on the main thread (soon, in order)
 
 // persistent settings: display.plist (AppKit) or <config dir>/settings.ini (SDL host). Test runs
-// (WWHD_NO_HOST_INPUT) neither read nor write the user's file.
+// (NSMBU_NO_HOST_INPUT) neither read nor write the user's file.
 bool get(const char* key, std::string& value);
 void set(const char* key, const std::string& value);
 

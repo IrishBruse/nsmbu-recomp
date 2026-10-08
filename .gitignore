@@ -42,6 +42,6 @@ headstart.bin
 *.metal
 *.tsv
 # verified decompiled source (derived from the game): never published
-/wwhd_src/
+/nsmbu_src/
 # local coordination board
 /task.md

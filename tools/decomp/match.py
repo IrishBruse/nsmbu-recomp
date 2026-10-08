@@ -1,9 +1,9 @@
-"""Match WWHD (cking.rpx) functions to GameCube decompilation functions.
+"""Match NSMBU (cking.rpx) functions to GameCube decompilation functions.
 
 Evidence, strongest first:
   asserts   (file, condition) pairs shared with the decompilation's JUT_ASSERTs
   strings   string literals (direct or via file-scope constants), weighted by rarity
-Every candidate must also agree with the source file of its WWHD neighbourhood: functions of one
+Every candidate must also agree with the source file of its NSMBU neighbourhood: functions of one
 translation unit sit together in the executable, and many reference their own file name.
 
 Usage: match.py game/code/cking.rpx tww out.tsv
@@ -20,7 +20,7 @@ from xref import Xref
 SRC_RE = re.compile(r"^[\w.+-]+\.(cpp|h|inc)$")
 
 
-def wwhd_asserts(x, f):
+def nsmbu_asserts(x, f):
     out, prev = [], None
     for _, _, s in x.strings(f):
         if SRC_RE.match(s) and prev is not None and not SRC_RE.match(prev):
@@ -30,7 +30,7 @@ def wwhd_asserts(x, f):
 
 
 class TuMap:
-    """source file of WWHD address ranges, from functions that name exactly one .cpp file"""
+    """source file of NSMBU address ranges, from functions that name exactly one .cpp file"""
 
     def __init__(self, x):
         self.addr, self.tu = [], []
@@ -75,7 +75,7 @@ def main():
         kind = {}
         for f in x.funcs:
             v = Counter()
-            for k in set(wwhd_asserts(x, f)):
+            for k in set(nsmbu_asserts(x, f)):
                 for owner, _ in aidx.get(k, ()):
                     v[(k[0], owner)] += 3.0
             if v:
@@ -182,7 +182,7 @@ def main():
                 out[a] = (name, file, "callgraph-legacy", "-")
                 added += 1
         print("legacy call graph: +%d functions (lower confidence)" % added)
-    print("total named %d of %d WWHD functions" % (len(out), len(x.funcs)))
+    print("total named %d of %d NSMBU functions" % (len(out), len(x.funcs)))
     with open(sys.argv[3], "w") as o:
         for f in sorted(out):
             o.write("%08X\t%s\t%s\t%s\t%s\n" % ((f,) + out[f]))
@@ -194,14 +194,14 @@ def main():
 
 def legacy_callgraph(x, tww, out):
     import math
-    from callgraph import wwhd_calls
+    from callgraph import nsmbu_calls
     from callmatch import propagate
-    from features import gc_functions, wwhd_functions
+    from features import gc_functions, nsmbu_functions
     from gc_layout import demangle
     x._pos = {f: i for i, f in enumerate(x.funcs)}
-    W = wwhd_functions(x)
+    W = nsmbu_functions(x)
     G = gc_functions(tww)
-    wc = {a: wwhd_calls(x, a) for a in x.funcs}
+    wc = {a: nsmbu_calls(x, a) for a in x.funcs}
     df = Counter()
     for g in G:
         df.update(set(g.tokens))

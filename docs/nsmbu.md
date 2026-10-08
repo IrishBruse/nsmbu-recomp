@@ -54,7 +54,7 @@ These parts still describe Wind Waker HD.
 
 Do not treat them as NSMBU behaviour.
 
-- `tools/recomp/wwhd_hooks/` holds Wind Waker function addresses.
+- `tools/recomp/nsmbu_hooks/` holds Wind Waker function addresses.
   The recompiler does not load that directory.
   A hook address from Wind Waker is a different function in NSMBU.
 - Save tools under `tools/savegame/` read `cking.sav`.
@@ -94,7 +94,7 @@ cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
 ```
 
-`runtime/src/wwhd_guest_stubs.c` holds a weak stub for each Wind Waker function the runtime still names.
+`runtime/src/nsmbu_guest_stubs.c` holds a weak stub for each Wind Waker function the runtime still names.
 
 Regenerate it with `python3 tools/recomp/guest_stubs.py`.
 

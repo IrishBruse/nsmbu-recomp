@@ -1,7 +1,7 @@
 #ifndef VK_ENABLE_BETA_EXTENSIONS
 #define VK_ENABLE_BETA_EXTENSIONS
 #endif
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 #define VK_USE_PLATFORM_METAL_EXT  // VK_EXT_metal_surface: AppKit views' CAMetalLayers
 #endif
 #include "backend.h"
@@ -16,7 +16,7 @@
 #include "mods/mods.h"
 #include "overlay/hostui.h"
 #include "overlay/overlay.h"
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
 #include "platform/input_sdl.h"
 #include <SDL3/SDL_vulkan.h>
 #endif
@@ -57,12 +57,12 @@ namespace gfxvk {
 Renderer R;
 namespace {
 bool perf_enabled() {
-  static const bool enabled = std::getenv("WWHD_VK_STATS") != nullptr;
+  static const bool enabled = std::getenv("NSMBU_VK_STATS") != nullptr;
   return enabled;
 }
 bool cpu_only_stats_enabled() {
   static const bool enabled = [] {
-    const char* value = std::getenv("WWHD_VK_CPU_ONLY_STATS");
+    const char* value = std::getenv("NSMBU_VK_CPU_ONLY_STATS");
     return value && !std::strcmp(value, "1");
   }();
   return enabled;
@@ -119,13 +119,13 @@ bool unpack_pipeline_cache(std::vector<uint8_t>& file) {
   return compatible_pipeline_cache(file);
 }
 void init_pipeline_cache() try {
-  if (const char* explicitPath=std::getenv("WWHD_VK_PIPELINE_CACHE")) {
+  if (const char* explicitPath=std::getenv("NSMBU_VK_PIPELINE_CACHE")) {
     if (std::strcmp(explicitPath,"0")) pipelineCachePath=explicitPath;
-  } else if (const char* shaderPath=std::getenv("WWHD_SHADER_CACHE");
+  } else if (const char* shaderPath=std::getenv("NSMBU_SHADER_CACHE");
              !shaderPath || std::strcmp(shaderPath,"0")) {
     char ids[32];
     std::snprintf(ids,sizeof ids,"vulkan-%08x-%08x-",R.properties.vendorID,R.properties.deviceID);
-    // a WWHD_SHADER_CACHE file (test runs, separate setups) keeps the pipeline cache next to it,
+    // a NSMBU_SHADER_CACHE file (test runs, separate setups) keeps the pipeline cache next to it,
     // so such runs never write the user's own cache in the config folder
     pipelineCachePath=shaderPath ? std::string(shaderPath)+"."+ids
                                  : host::config_dir()+"/shadercache/"+ids;
@@ -348,21 +348,21 @@ Buffer create_readback_buffer(VkDeviceSize size) {
 // 100 times slower than cached ones. Rule: the CPU never reads mapped upload memory. Reuse checks and
 // index scans use CPU copies kept beside the slices (vertex_snapshot_history.h, uniform_snapshot.h,
 // draw.cpp's index paths, the buffer cache's index shadows); see docs/vulkan.md. The one exception is
-// the buffer cache's opt-in verify mode (WWHD_VK_BUFFER_CACHE_VERIFY=1, a diagnostic).
+// the buffer cache's opt-in verify mode (NSMBU_VK_BUFFER_CACHE_VERIFY=1, a diagnostic).
 // Unless the memory is host-cached: if the arena's memory type is HOST_CACHED and HOST_COHERENT (Apple
 // silicon/MoltenVK has only cached types; many UMA drivers too), reads cost what heap reads cost and the
 // copies only add time, so R.uploadReadsDirect lets the reuse caches and the native index scan read the
 // slices. CACHED without COHERENT never counts: the arena requires COHERENT (no flush/invalidate).
-// WWHD_VK_UPLOAD_READS=auto (default) | shadow (always keep CPU copies) | direct (always read slices).
+// NSMBU_VK_UPLOAD_READS=auto (default) | shadow (always keep CPU copies) | direct (always read slices).
 namespace {
 enum class UploadReads { Auto, Shadow, Direct };
 UploadReads upload_reads_mode() {
   static const UploadReads mode = [] {
-    const char* e = std::getenv("WWHD_VK_UPLOAD_READS");
+    const char* e = std::getenv("NSMBU_VK_UPLOAD_READS");
     if (!e || !*e || !std::strcmp(e, "auto")) return UploadReads::Auto;
     if (!std::strcmp(e, "shadow")) return UploadReads::Shadow;
     if (!std::strcmp(e, "direct")) return UploadReads::Direct;
-    LOG("[vulkan] WWHD_VK_UPLOAD_READS=%s unknown (auto|shadow|direct): auto", e);
+    LOG("[vulkan] NSMBU_VK_UPLOAD_READS=%s unknown (auto|shadow|direct): auto", e);
     return UploadReads::Auto;
   }();
   return mode;
@@ -375,7 +375,7 @@ void note_upload_block(const Buffer& buffer) {
   const auto mode = upload_reads_mode();
   const bool direct = mode == UploadReads::Direct || (mode == UploadReads::Auto && cached);
   if (first || direct != R.uploadReadsDirect)
-    LOG("[vulkan] upload arena memory: %s; reuse checks %s (WWHD_VK_UPLOAD_READS=%s)",
+    LOG("[vulkan] upload arena memory: %s; reuse checks %s (NSMBU_VK_UPLOAD_READS=%s)",
         cached ? "host-cached" : "not host-cached", direct ? "read the slices" : "keep CPU copies",
         mode == UploadReads::Auto ? "auto" : mode == UploadReads::Shadow ? "shadow" : "direct");
   R.uploadCached = cached;
@@ -463,8 +463,8 @@ static void destroy_gpu_timestamp_queries() {
   }
 }
 static void init_gpu_timestamp_queries() {
-  const char* requested = std::getenv("WWHD_VK_GPU_TIMESTAMPS");
-  const char* passes = std::getenv("WWHD_VK_GPU_PASS_TIMESTAMPS");
+  const char* requested = std::getenv("NSMBU_VK_GPU_TIMESTAMPS");
+  const char* passes = std::getenv("NSMBU_VK_GPU_PASS_TIMESTAMPS");
   const bool passRequested = passes && !std::strcmp(passes, "1");
   if ((!requested || std::strcmp(requested, "1")) && !passRequested) return;
   if (!timestamp_capable(R.gpuTimestampValidBits, R.properties.limits.timestampPeriod)) {
@@ -705,7 +705,7 @@ void transition_image(Surface *s, VkImageLayout layout,
   b.image = s->image;
   b.subresourceRange = {s->aspect, 0, s->mips, 0, s->arrayLayers};
   static const bool narrow = [] {
-    const char* e = std::getenv("WWHD_VK_NARROW_BARRIERS");
+    const char* e = std::getenv("NSMBU_VK_NARROW_BARRIERS");
     return e && !std::strcmp(e, "1");
   }();
   const auto source = image_source_scope(s->layout, narrow);
@@ -866,7 +866,7 @@ static void make_swapchain(Screen &s) {
     fs[0].format = VK_FORMAT_B8G8R8A8_SRGB;
   VkSurfaceFormatKHR format{};
   bool found = false;
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
   const VkFormat preferred = VK_FORMAT_B8G8R8A8_SRGB;
 #else
   // AppKit windows: like the Metal layer, an sRGB drawable only for an sRGB scan buffer (the
@@ -956,7 +956,7 @@ static void make_swapchain(Screen &s) {
   std::vector<VkPresentModeKHR> modes(modeCount);
   vk_check(vkGetPhysicalDeviceSurfacePresentModesKHR(R.physicalDevice,
       s.surface, &modeCount, modes.data()), "presentation modes");
-  // Presentation (Graphics > Presentation in the settings overlay, WWHD_VK_PRESENT_MODE): FIFO (vsync)
+  // Presentation (Graphics > Presentation in the settings overlay, NSMBU_VK_PRESENT_MODE): FIFO (vsync)
   // by default; mailbox (low latency) or immediate (may tear) when chosen and the surface offers them.
   // Guest GX2 pacing still controls game flips in every mode.
   static const VkPresentModeKHR kModes[kPresentModes] = {VK_PRESENT_MODE_FIFO_KHR, VK_PRESENT_MODE_MAILBOX_KHR,
@@ -1041,7 +1041,7 @@ static bool SDLCALL lifecycle_watch(void *, SDL_Event *event) {
   return true;
 }
 #endif
-// Asynchronous presentation (the default on every platform since 2026-10-07; WWHD_VK_ASYNC_PRESENT=0
+// Asynchronous presentation (the default on every platform since 2026-10-07; NSMBU_VK_ASYNC_PRESENT=0
 // restores the waiting path): the presentation submission goes into the four-slot ring like GX2Flush
 // work instead of waiting for the GPU, and swap() does not drain the queue, so the render thread
 // records frame N+1 while the GPU draws frame N. Each frame in flight has its own acquire semaphore
@@ -1049,7 +1049,7 @@ static bool SDLCALL lifecycle_watch(void *, SDL_Event *event) {
 // render-finished semaphore. Captures and frame dumps keep the waiting path.
 static bool async_present() {
   static const bool on = [] {
-    const char *e = std::getenv("WWHD_VK_ASYNC_PRESENT");
+    const char *e = std::getenv("NSMBU_VK_ASYNC_PRESENT");
     return !e || std::atoi(e) != 0;
   }();
   return on;
@@ -1097,7 +1097,7 @@ static void present(Screen &s) {
                      VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)
                         ? VK_FILTER_LINEAR
                         : VK_FILTER_NEAREST;
-#ifndef WWHD_SDL_HOST
+#ifndef NSMBU_SDL_HOST
   if (s.swapchain && (s.swapFormat == VK_FORMAT_B8G8R8A8_SRGB) != s.srgb.load())
     s.resize = true;  // the scan buffer's encoding changed (GX2SetTVBuffer)
 #endif
@@ -1272,8 +1272,8 @@ void copy_to_scan(uint32_t cb, uint32_t target) {
     draw_mod_overlay(*s.scan);  // HUD of gameplay mods (stamina wheel), as the Metal renderer
   mark_gpu_written(s.scan.get());
 }
-// debug: WWHD_DUMP_FRAMES=100,300 writes the TV image of those frames to frame_<n>.png (and
-// frame_<n>_drc.png; WWHD_DUMP_PRESENT=1 adds the composed window, frame_<n>_present.png), as Metal
+// debug: NSMBU_DUMP_FRAMES=100,300 writes the TV image of those frames to frame_<n>.png (and
+// frame_<n>_drc.png; NSMBU_DUMP_PRESENT=1 adds the composed window, frame_<n>_present.png), as Metal
 static void dump_scan(Screen &s, const std::string &path) {
   if (!s.scan || !s.scan->image)
     return;
@@ -1292,7 +1292,7 @@ void request_capture() { captureRequested = true; }
 static void frame_dumps(uint64_t frame) {
   static const std::vector<uint64_t> frames = [] {
     std::vector<uint64_t> f;
-    if (const char *e = getenv("WWHD_DUMP_FRAMES"))
+    if (const char *e = getenv("NSMBU_DUMP_FRAMES"))
       for (const char *p = e; *p;) {
         f.push_back(strtoull(p, (char **)&p, 10));
         while (*p == ',') p++;
@@ -1302,13 +1302,13 @@ static void frame_dumps(uint64_t frame) {
   if (std::find(frames.begin(), frames.end(), frame) != frames.end()) {
     dump_scan(R.tv, "frame_" + std::to_string(frame) + ".png");
     dump_scan(R.drc, "frame_" + std::to_string(frame) + "_drc.png");
-    if (getenv("WWHD_DUMP_PRESENT"))
+    if (getenv("NSMBU_DUMP_PRESENT"))
       request_present_dump("frame_" + std::to_string(frame) + "_present.png");
   }
-  // P / F12 (Graphics menu): the pictures of this frame in captures/<time>/ (WWHD_CAPTURE=<frame>
-  // scripts it when WWHD_CAPTURE_PATH is not used); the Metal renderer also writes a draw log
-  static const uint64_t scripted = getenv("WWHD_CAPTURE") && !getenv("WWHD_CAPTURE_PATH")
-                                       ? strtoull(getenv("WWHD_CAPTURE"), nullptr, 10) : ~0ull;
+  // P / F12 (Graphics menu): the pictures of this frame in captures/<time>/ (NSMBU_CAPTURE=<frame>
+  // scripts it when NSMBU_CAPTURE_PATH is not used); the Metal renderer also writes a draw log
+  static const uint64_t scripted = getenv("NSMBU_CAPTURE") && !getenv("NSMBU_CAPTURE_PATH")
+                                       ? strtoull(getenv("NSMBU_CAPTURE"), nullptr, 10) : ~0ull;
   if (captureRequested.exchange(false) || frame == scripted) {
     char dir[64];
     time_t t = time(nullptr);
@@ -1328,7 +1328,7 @@ void swap() {
   // comes from gfx/display_modes.cpp, which both window hosts and the Metal renderer share
   Surface *tvScan = R.tv.scan && R.tv.scan->image ? R.tv.scan.get() : nullptr;
   Surface *drcScan = R.drc.scan && R.drc.scan->image ? R.drc.scan.get() : nullptr;
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
   gfx::g_filter = scale_filter();  // the SDL host keeps the scaling filter with the Vulkan settings
   const float layerW = float(R.tv.width.load()), layerH = float(R.tv.height.load());
 #else
@@ -1375,7 +1375,7 @@ void swap() {
       // the GamePad window's size: its swapchain, or (SDL host test runs with hidden windows, which
       // present nothing) the window's pixel size
       uint32_t drcW = R.drc.swapchain ? R.drc.swapExtent.width : 0, drcH = R.drc.swapchain ? R.drc.swapExtent.height : 0;
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
       if (!R.drc.swapchain && R.drc.window)
         drcW = uint32_t(std::max(0, R.drc.width.load())), drcH = uint32_t(std::max(0, R.drc.height.load()));
 #endif
@@ -1614,13 +1614,13 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_message(
           data->pMessage);
   return VK_FALSE;
 }
-// Test aids for the paths of older drivers (docs/vulkan.md): WWHD_VK_FORCE_API=1.2 treats every GPU as
+// Test aids for the paths of older drivers (docs/vulkan.md): NSMBU_VK_FORCE_API=1.2 treats every GPU as
 // if it reported that Vulkan version (Vulkan 1.3 GPUs then take the VK_KHR_dynamic_rendering path);
-// WWHD_VK_HIDE_EXTENSIONS=VK_KHR_dynamic_rendering,... hides device extensions from the renderer.
+// NSMBU_VK_HIDE_EXTENSIONS=VK_KHR_dynamic_rendering,... hides device extensions from the renderer.
 static uint32_t device_api_version(const VkPhysicalDeviceProperties &p) {
   static const uint32_t forced = [] {
     unsigned major, minor;
-    const char *e = getenv("WWHD_VK_FORCE_API");
+    const char *e = getenv("NSMBU_VK_FORCE_API");
     return e && sscanf(e, "%u.%u", &major, &minor) == 2 ? VK_MAKE_API_VERSION(0, major, minor, 0) : ~0u;
   }();
   return forced < VK_MAKE_API_VERSION(0, VK_API_VERSION_MAJOR(p.apiVersion), VK_API_VERSION_MINOR(p.apiVersion), 0)
@@ -1632,7 +1632,7 @@ static std::vector<VkExtensionProperties> device_extensions(VkPhysicalDevice dev
   std::vector<VkExtensionProperties> des(n);
   vkEnumerateDeviceExtensionProperties(device, nullptr, &n, des.data());
   des.resize(n);
-  if (const char *hide = getenv("WWHD_VK_HIDE_EXTENSIONS"))
+  if (const char *hide = getenv("NSMBU_VK_HIDE_EXTENSIONS"))
     std::erase_if(des, [&](const VkExtensionProperties &e) {
       for (const char *p = hide; *p;) {
         size_t len = strcspn(p, ",");
@@ -1784,7 +1784,7 @@ static void init_device(std::vector<const char *> extensions,
   VkDebugUtilsMessengerCreateInfoEXT debug{
       VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
   const char *layer = "VK_LAYER_KHRONOS_validation";
-  if (getenv("WWHD_VK_VALIDATION")) {
+  if (getenv("NSMBU_VK_VALIDATION")) {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     ci.enabledLayerCount = 1;
     ci.ppEnabledLayerNames = &layer;
@@ -1797,7 +1797,7 @@ static void init_device(std::vector<const char *> extensions,
     ci.pNext = &debug;
   }
   VkApplicationInfo ai{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-  ai.pApplicationName = "WWHD Vulkan";
+  ai.pApplicationName = "NSMBU Vulkan";
   ai.apiVersion = VK_API_VERSION_1_3;
   ci.pApplicationInfo = &ai;
   ci.enabledExtensionCount = extensions.size();
@@ -1805,7 +1805,7 @@ static void init_device(std::vector<const char *> extensions,
   vk_check(vkCreateInstance(&ci, nullptr, &R.instance),
            "create Vulkan instance");
   load_instance_functions(R.instance);
-  if (getenv("WWHD_VK_VALIDATION")) {
+  if (getenv("NSMBU_VK_VALIDATION")) {
     auto create = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
         R.instance, "vkCreateDebugUtilsMessengerEXT");
     VkDebugUtilsMessengerEXT messenger;
@@ -2013,15 +2013,15 @@ static void init_device(std::vector<const char *> extensions,
   set_graphics_feature_available(GraphicsFeature::AOHires);
   set_graphics_feature_available(GraphicsFeature::Anisotropy,
                                  R.enabledFeatures.samplerAnisotropy);
-  if (const char* path = getenv("WWHD_CAPTURE_PATH")) {
-    const char* frame = getenv("WWHD_CAPTURE");
+  if (const char* path = getenv("NSMBU_CAPTURE_PATH")) {
+    const char* frame = getenv("NSMBU_CAPTURE");
     request_tv_dump(path, frame ? std::max(0, atoi(frame)) : 120);
   }
 }
 
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
 static bool hidden_windows() {
-  static const bool hidden = [] { const char* e = getenv("WWHD_HIDDEN_WINDOWS"); return e && *e && strcmp(e, "0"); }();
+  static const bool hidden = [] { const char* e = getenv("NSMBU_HIDDEN_WINDOWS"); return e && *e && strcmp(e, "0"); }();
   return hidden;
 }
 // The game's own icon on the windows (title bar, taskbar): meta/iconTex.tga of the game folder, an
@@ -2075,7 +2075,7 @@ void init() {
   SDL_AddEventWatch(lifecycle_watch, nullptr);
   const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN | SDL_WINDOW_FULLSCREEN;
 #else
-  // test runs: WWHD_HIDDEN_WINDOWS=1 never puts the windows on screen (nothing pops up or takes the
+  // test runs: NSMBU_HIDDEN_WINDOWS=1 never puts the windows on screen (nothing pops up or takes the
   // focus); the swapchains still exist, so frame dumps and present dumps work as with visible windows
   const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE |
                                       (hidden_windows() ? SDL_WINDOW_HIDDEN : 0);
@@ -2087,7 +2087,7 @@ void init() {
   // one surface: the GamePad picture is drawn into it (display_modes.h: picture-in-picture, GamePad
   // only), never a window of its own
 #else
-  if (!getenv("WWHD_NO_GAMEPAD")) {
+  if (!getenv("NSMBU_NO_GAMEPAD")) {
     // made hidden: the GamePad screen mode (load_saved_options below) shows it in window mode only;
     // the other modes draw the GamePad picture into the TV window (gfx/display_modes.h)
     R.drc.window = SDL_CreateWindow("GamePad — Vulkan", 854, 480, windowFlags | SDL_WINDOW_HIDDEN);
@@ -2135,7 +2135,7 @@ void save_renderer_caches() {
   vk::save_shader_cache();
   save_pipeline_cache();
 }
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
 // GamePad touch screen: the left mouse button on the GamePad picture, in the GamePad window (window
 // mode; the picture fitted as display_layout fits it) or inside the TV window (picture-in-picture,
 // GamePad only: display_modes.cpp maps the point as on macOS), mapped to 0..1 touch coordinates. A
@@ -2328,9 +2328,9 @@ static std::vector<uint64_t> test_frames(const char *var) {
     }
   return f;
 }
-// debug: WWHD_TEST_DRC_KEY=3500,3700 simulates Ctrl+G at those frames (as display.mm's Cmd+G)
+// debug: NSMBU_TEST_DRC_KEY=3500,3700 simulates Ctrl+G at those frames (as display.mm's Cmd+G)
 static void test_drc_key() {
-  static const std::vector<uint64_t> frames = test_frames("WWHD_TEST_DRC_KEY");
+  static const std::vector<uint64_t> frames = test_frames("NSMBU_TEST_DRC_KEY");
   static size_t i = 0;
   if (test_frame_due(frames, i)) {
     LOG("[display] test: Ctrl+G at frame %llu", (unsigned long long)frame_count());
@@ -2360,10 +2360,10 @@ static bool fullscreen_key(const SDL_Event& event) {
   toggle_fullscreen(window ? window : R.tv.window);
   return true;
 }
-// debug: WWHD_TEST_FULLSCREEN_KEY=3500,3700 simulates F11 on the TV window at those frames (with
-// WWHD_HIDDEN_WINDOWS the window stays hidden: SDL only notes the state for when it is shown)
+// debug: NSMBU_TEST_FULLSCREEN_KEY=3500,3700 simulates F11 on the TV window at those frames (with
+// NSMBU_HIDDEN_WINDOWS the window stays hidden: SDL only notes the state for when it is shown)
 static void test_fullscreen_key() {
-  static const std::vector<uint64_t> frames = test_frames("WWHD_TEST_FULLSCREEN_KEY");
+  static const std::vector<uint64_t> frames = test_frames("NSMBU_TEST_FULLSCREEN_KEY");
   static size_t i = 0;
   if (test_frame_due(frames, i)) {
     LOG("[display] test: F11 at frame %llu", (unsigned long long)frame_count());
@@ -2373,7 +2373,7 @@ static void test_fullscreen_key() {
 
 // Closing the TV window ends the game. SDL only sends SDL_EVENT_QUIT once every window is closed, so
 // with the GamePad window open the close button of the TV window did nothing. Closing the GamePad
-// window only hides it (WWHD_NO_GAMEPAD=1 starts without it).
+// window only hides it (NSMBU_NO_GAMEPAD=1 starts without it).
 static void quit_game() {
   gx2::checkpoint_vulkan_caches();
   std::_Exit(0);
@@ -2392,7 +2392,7 @@ void run_main_loop() {
   auto titleTime = std::chrono::steady_clock::now();
   uint64_t titleFrames = gx2::flips_presented();
   // Deterministic shutdown hook for cache durability tests.
-  const char* exitAt=getenv("WWHD_EXIT_AT_FRAME");
+  const char* exitAt=getenv("NSMBU_EXIT_AT_FRAME");
   const uint64_t exitFrame=exitAt ? std::strtoull(exitAt,nullptr,10) : 0;
   for (;;) {
     SDL_Event event;
@@ -2454,9 +2454,9 @@ void run_main_loop() {
     SDL_Delay(1);
   }
 }
-#endif  // WWHD_SDL_HOST
+#endif  // NSMBU_SDL_HOST
 
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 // AppKit host: the TV / GamePad windows of gfx/display.mm, shared with the Metal renderer. Each view
 // has a CAMetalLayer; Vulkan presents to it through VK_EXT_metal_surface (MoltenVK).
 static bool image_loaded(const char *part) {
@@ -2467,8 +2467,8 @@ static bool image_loaded(const char *part) {
   return false;
 }
 void init_appkit(void *tvLayer, void *drcLayer) {
-  if (const char *e = getenv("WWHD_VK_FORCE_INIT_FAIL"); e && *e && strcmp(e, "0"))
-    throw std::runtime_error("Vulkan start-up failure forced for testing (WWHD_VK_FORCE_INIT_FAIL)");
+  if (const char *e = getenv("NSMBU_VK_FORCE_INIT_FAIL"); e && *e && strcmp(e, "0"))
+    throw std::runtime_error("Vulkan start-up failure forced for testing (NSMBU_VK_FORCE_INIT_FAIL)");
   // weak imports (CMakeLists.txt): a Mac without them still starts the game with Metal
   if (!image_loaded("/libvulkan"))
     throw std::runtime_error("The Vulkan loader (libvulkan) is not installed. "

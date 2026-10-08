@@ -35,7 +35,7 @@ mods that are part of this build: direct camera, mouse camera, first-person
 shortcut, wall climbing, quick doors and fast scenes. Descriptions and options
 appear beside the selected entry. All defaults are off.
 
-The Installed packages section accepts a local folder or `.wwhdmod` ZIP. Choose
+The Installed packages section accepts a local folder or `.nsmbumod` ZIP. Choose
 it with the file/folder picker, then press Install package. Installed packages
 start disabled; nothing from a package is loaded until you enable it. Enabling
 resolves required dependencies; missing versions, cycles, declared conflicts and
@@ -81,22 +81,22 @@ a profile. Disable all covers both built-ins and external packages. Explicit
 startup environment values, including zero, override saved choices at startup.
 
 Storage is `<host config directory>/ModManager`: `Mods/<id>/manifest.json` plus
-package files, and `profiles.json`. `WWHD_MOD_MANAGER_DIR` selects isolated
-storage. `WWHD_NO_HOST_INPUT` skips user preferences and package storage unless
+package files, and `profiles.json`. `NSMBU_MOD_MANAGER_DIR` selects isolated
+storage. `NSMBU_NO_HOST_INPUT` skips user preferences and package storage unless
 an explicit manager directory is supplied for a test. Content mods are copied locally into manager storage; the original game files
 are preserved. Game assets and saves are never committed, uploaded or redistributed.
 
-Test aids (only with `WWHD_NO_HOST_INPUT`): `WWHD_TEST_TRUST_NATIVE_MODS=id[,id…]`
+Test aids (only with `NSMBU_NO_HOST_INPUT`): `NSMBU_TEST_TRUST_NATIVE_MODS=id[,id…]`
 treats those native packages as confirmed without writing `native_trust`; it
-also needs an explicit `WWHD_MOD_MANAGER_DIR`, so it never applies to a player's
-storage. `WWHD_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when the
-Mods tab is drawn (with `WWHD_TEST_OVERLAY=open:mods`), which shows the
+also needs an explicit `NSMBU_MOD_MANAGER_DIR`, so it never applies to a player's
+storage. `NSMBU_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when the
+Mods tab is drawn (with `NSMBU_TEST_OVERLAY=open:mods`), which shows the
 confirmation for an unconfirmed native package.
 
 ## Native mod SDK v1
 
-`runtime/include/wwhd_mod.h` defines a plain C ABI. Export
-`wwhd_mod_init_v1`, validate host size/ABI, and return initialized `WWHDModV1`.
+`runtime/include/nsmbu_mod.h` defines a plain C ABI. Export
+`nsmbu_mod_init_v1`, validate host size/ABI, and return initialized `NSMBUModV1`.
 Initialization, configuration callbacks, game-update callbacks and unloading run
 on the game thread. The frame callback runs once per original logic step after
 actor execution; interpolated draws do not invoke it. Host/context pointers and
@@ -122,7 +122,7 @@ Package manifest fields:
 | --- | --- |
 | `format_version` | `1` |
 | `id`, `name`, `version` | Stable lowercase ASCII identifier, display name, three-part version |
-| `game_id` | `wwhd-usa` (the runtime also verifies its exact RPX entry) |
+| `game_id` | `nsmbu-usa` (the runtime also verifies its exact RPX entry) |
 | `author`, `description` | Optional display metadata |
 | `minimum_manager_version` | Optional three-part minimum |
 | `kind` | `native`, `settings`, `content` or `cemu` |
@@ -143,7 +143,7 @@ need a separate import bridge. Online downloads/catalogues are outside v1.
 ## Packaging a mod
 
 A package is a folder, or a ZIP archive of that folder's contents renamed to
-`.wwhdmod`, with `manifest.json` at its root and, for a native mod, the library
+`.nsmbumod`, with `manifest.json` at its root and, for a native mod, the library
 named in `binaries`. Packages you publish must not contain game files; content and Cemu packs are
 imported locally by the player (see below). Native packages run
 with the same permissions as the game: install only mods you trust.
@@ -184,7 +184,7 @@ Content packages contain no native code and never ask for a native confirmation.
 
 The importer accepts a simple `MyMod/content/...` tree, a single-pack SDCafiine
 layout, and file-only Cemu packs with Definition metadata. Explicit SDCafiine
-and Cemu title IDs must include WWHD USA `0005000010143500`. ZIP wrappers are
+and Cemu title IDs must include NSMBU USA `0005000010143500`. ZIP wrappers are
 accepted if they contain exactly one content directory. Multiple packs require
 selecting or extracting one pack first. Known loose pack files (including
 `permanent_3d.pack` and all nine `permanent_2d_<Us|Eu|Jp><Language>.pack`
@@ -237,7 +237,7 @@ An explicit package uses, for example:
   "id": "my-model",
   "name": "My local model replacement",
   "version": "1.0.0",
-  "game_id": "wwhd-usa",
+  "game_id": "nsmbu-usa",
   "minimum_manager_version": "1.1.0",
   "kind": "content",
   "content_dir": "content"
@@ -273,7 +273,7 @@ files are not changed, and game assets stay outside Git.
 ## Cemu graphics packs (manager 1.2)
 
 Import one Cemu pack folder or ZIP with Mods → Installed packages → Install
-package. The adapter reads `rules.txt` versions 4/5, checks the USA WWHD title
+package. The adapter reads `rules.txt` versions 4/5, checks the USA NSMBU title
 ID, and exposes each preset category as a dropdown. Enable it and restart.
 Changing a preset, disabling or switching profiles also requires a restart. The
 active snapshot stays fixed until exit; active pack files cannot be replaced or
@@ -285,7 +285,7 @@ Supported graphics rules are width/height/depth, formats/tileModes filters and
 Guest memory, resource formats and the original game files remain unchanged.
 Matching rules replace the native resolution scale rather than multiplying it.
 Pure dimension packs work in Metal and Vulkan. Packs containing GLSL require a
-build configured with `-DWWHD_RENDERER=BOTH` or `VULKAN`, and Vulkan selected at
+build configured with `-DNSMBU_RENDERER=BOTH` or `VULKAN`, and Vulkan selected at
 runtime: choose it in Graphics, restart, then enable the pack. Metal shader
 translation is not implemented. If Vulkan falls back to Metal, the pack's shader
 and dimension changes are suppressed and the UI reports the backend requirement.
@@ -300,7 +300,7 @@ mismatch retains the original shader, with a log diagnostic and applied/rejected
 counts in Mods. Matching a filename is not a guarantee of compatibility with
 this backend.
 
-The official WWHD Resolution pack's exact EUR/JAP/USA aspect constant patch table
+The official NSMBU Resolution pack's exact EUR/JAP/USA aspect constant patch table
 is recognized and mapped to the recomp's native projection adapter. No arbitrary
 instruction patch is applied. Other `patches.txt` contents, geometry shaders,
 unsupported rules/conditions, format replacement, DLC/code/meta payloads and
@@ -315,8 +315,8 @@ enabled packs and duplicate shader variants are rejected. Both imported presets
 and changes to an enabled pack are checked before saving the profile.
 
 Primary format reference: [Cemu graphics pack documentation](https://github.com/cemu-project/cemu_graphic_packs/wiki/How-to-create-Graphic-Packs).
-Compatibility was checked against the public [WWHD Resolution pack](https://github.com/cemu-project/cemu_graphic_packs/tree/master/Resolutions/WindWakerHD_Resolution)
-and [WWHD Contrasty pack](https://github.com/cemu-project/cemu_graphic_packs/tree/master/Enhancements/WindWakerHD_Contrasty);
+Compatibility was checked against the public [NSMBU Resolution pack](https://github.com/cemu-project/cemu_graphic_packs/tree/master/Resolutions/WindWakerHD_Resolution)
+and [NSMBU Contrasty pack](https://github.com/cemu-project/cemu_graphic_packs/tree/master/Enhancements/WindWakerHD_Contrasty);
 their sources are not part of the repository, and the host tests use synthetic
 fixtures only. This covers the tested adapter paths, not universal Cemu
 graphics-pack compatibility or the visual accuracy of every preset.

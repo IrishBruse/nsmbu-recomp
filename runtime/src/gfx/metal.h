@@ -114,7 +114,7 @@ Surface* surface_from_depth_buffer(uint32_t gx2DepthBuffer, uint32_t* firstSlice
 Surface* sampled_texture(const uint32_t* texWords, bool isDepthSampler);  // from SQ_TEX_RESOURCE words
 void upload_surface(Surface* s);
 
-// internal resolution (Graphics menu / R / WWHD_RES_SCALE): render targets are allocated at this
+// internal resolution (Graphics menu / R / NSMBU_RES_SCALE): render targets are allocated at this
 // multiple of their guest size; a change takes effect at the next frame (targets are resized on next use)
 float res_scale();          // the factor in effect this frame
 void set_res_scale(float f);

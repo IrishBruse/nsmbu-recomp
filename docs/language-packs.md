@@ -18,7 +18,7 @@ key, a Cemu `.wua` archive or an extracted folder.
 
 ```
 setup.py --language-source "Wind Waker HD (EUR).wux" --language-disc-key eur.key --common-key common.key
-setup.py --language-source wwhd-eur.wua
+setup.py --language-source nsmbu-eur.wua
 setup.py --language-source /path/to/extracted/eur-game
 setup.py --remove-language-source EU
 ```
@@ -34,8 +34,8 @@ repository or the release.
 
 In the game, open the settings (F1) > Language: the source's languages appear under "From your
 European game" / "From your Japanese game". The choice applies on the next start. Without the
-overlay: `WWHD_LANGUAGE=3 WWHD_LANGUAGE_REGION=eu` (German from the European source),
-`WWHD_LANGUAGE=0 WWHD_LANGUAGE_REGION=jp` (Japanese). `WWHD_LANG_DIR` points the game at another
+overlay: `NSMBU_LANGUAGE=3 NSMBU_LANGUAGE_REGION=eu` (German from the European source),
+`NSMBU_LANGUAGE=0 NSMBU_LANGUAGE_REGION=jp` (Japanese). `NSMBU_LANG_DIR` points the game at another
 folder of language sources (default: `game-lang` next to the game folder, else in the current
 folder).
 
@@ -76,7 +76,7 @@ folder).
 
 ### What the port does
 
-* **Setup** takes the packs of the second game (`wwhd-extract --only`).
+* **Setup** takes the packs of the second game (`nsmbu-extract --only`).
 * **Runtime** (`runtime/src/game_languages.{h,cpp}`) finds the packs in
   `data/game-lang/*/content/Common/Pack` (names without case, `SARC` header, packs the USA game
   has itself are skipped) and offers them in the Language tab.
@@ -162,10 +162,10 @@ and its key; 57 MB taken, five packs):
 
 0. **Before any European dump** (checks the region path with the USA files only): make a folder
    `X/EU/content/Common/Pack` with a **symlink** `permanent_2d_EuFrench.pack` → your USA
-   `permanent_2d_UsFrench.pack`, start with `WWHD_LANG_DIR=X WWHD_LANGUAGE=2
-   WWHD_LANGUAGE_REGION=eu`. The log must say "language source active ... region 4"; the game
+   `permanent_2d_UsFrench.pack`, start with `NSMBU_LANG_DIR=X NSMBU_LANGUAGE=2
+   NSMBU_LANGUAGE_REGION=eu`. The log must say "language source active ... region 4"; the game
    must ask for `permanent_2d_EuFrench.pack` and show French; the name keyboard is AZERTY.
-1. `wwhd-extract list` on the European/Japanese image: compare the file list and sizes with the
+1. `nsmbu-extract list` on the European/Japanese image: compare the file list and sizes with the
    USA game. Every file outside `content/Common/Pack/permanent_2d_*` that differs is a candidate
    for the language source (note especially `Common/Layout`, `Jpeg`, `ProgramTexture`,
    `Cafe/EU`).

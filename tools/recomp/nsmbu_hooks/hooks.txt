@@ -182,7 +182,7 @@
 0246C5E8  # daSea_packet_c vertex grid: halfway wave heights on logic passes
 0246C7C8  # daSea_packet_c material setup: scroll counter held back on hold passes
 028E93CC  # PSMTXTrans: the sea's halfway texture scroll
-0246BD4C  # daSea_packet_c::CalcFlatInter (test aid: WWHD_SEA_WAVES forces waves)
+0246BD4C  # daSea_packet_c::CalcFlatInter (test aid: NSMBU_SEA_WAVES forces waves)
 02582500  # dKankyo_wave_Packet::draw (wave crest sprites): remembers the packet
 0256A448  # wave_move: wave crest sprites drawn halfway on logic passes
 025A8148  # dPa_control_c particle calc 7-8 (+ g_Counter.mTimer++ after it): held back on hold passes
@@ -204,11 +204,11 @@
 024EC1C8  # dAttDraw_c::draw: in true 60, the attention arrow is built from halfway values and the current camera
 025615B8  # dScnKy_env_light_c::settingTevStruct_plightcol_plus: candle flicker held on frames without logic (interp_fx.cpp)
 020198D8  # cM_rndF: the flicker random value inside it
-02019788  # cM_rnd: WWHD_RND_TRACE (interp_fx.cpp)
-02019918  # cM_rndFX: WWHD_RND_TRACE
+02019788  # cM_rnd: NSMBU_RND_TRACE (interp_fx.cpp)
+02019918  # cM_rndFX: NSMBU_RND_TRACE
 02018D40  # cM3dGSph::SetC: NaN centre in a 60 Hz camera step is skipped and the step undone (true60.cpp)
 0203DEEC  # OliveOperationMgr message handler: throttled while Miiverse is unavailable (hle/system_stubs.cpp)
-# debug traces for the true 60 comparisons (true60_test.cpp; pass-through unless WWHD_LIGHT_TRACE)
+# debug traces for the true 60 comparisons (true60_test.cpp; pass-through unless NSMBU_LIGHT_TRACE)
 025564B4  # dKy_plight_set
 0255A2B8  # dKy_plight_priority_set
 0255A374  # dKy_plight_cut
@@ -216,7 +216,7 @@
 0255BA9C  # dKy_efplight_cut
 025626A4  # dScnKy_env_light_c::settingTevStruct (debug trace, true60_test.cpp)
 025D6CE8  # fopAcM_cullingCheck (debug trace, true60_test.cpp)
-02786520  # agl shader program archive setup (debug WWHD_BOOTDBG, true60_test.cpp)
-027B8904  # agl ShaderProgramArchive init (debug WWHD_BOOTDBG, true60_test.cpp)
-027B82B8  # agl ShaderProgramArchive setup from sharc (debug WWHD_BOOTDBG, true60_test.cpp)
-02753D6C  # sead::ExpHeap::alloc (debug WWHD_HEAPLOG, true60_test.cpp)
+02786520  # agl shader program archive setup (debug NSMBU_BOOTDBG, true60_test.cpp)
+027B8904  # agl ShaderProgramArchive init (debug NSMBU_BOOTDBG, true60_test.cpp)
+027B82B8  # agl ShaderProgramArchive setup from sharc (debug NSMBU_BOOTDBG, true60_test.cpp)
+02753D6C  # sead::ExpHeap::alloc (debug NSMBU_HEAPLOG, true60_test.cpp)

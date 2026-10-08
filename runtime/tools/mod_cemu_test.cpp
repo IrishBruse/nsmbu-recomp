@@ -21,7 +21,7 @@ int main(int argc,char** argv) {
     assert(cemu::expression("max(2, $width / 2) + floor(1.9)",{{"$width",8}})==5);
     assert(cemu::expression("0x80e",{})==2062);
     rejects([]{cemu::expression("1/0",{});});rejects([]{cemu::expression("$missing",{});});
-    auto root=fs::temp_directory_path()/"wwhd-cemu-unit-tests";fs::create_directories(root);
+    auto root=fs::temp_directory_path()/"nsmbu-cemu-unit-tests";fs::create_directories(root);
     auto write=[&](const std::string& text){std::ofstream(root/"rules.txt")<<text;};
     std::string definition="[Definition]\nname = Test\ntitleIds = 0005000010143500\nversion = 4\n";
     std::string presets="[Default]\n$scale = 1\n[Preset]\nname = Small\ncategory = Resolution\n$scale = 1\n[Preset]\nname = Large\ncategory = Resolution\n$scale = 2\n";

@@ -16,7 +16,7 @@
 // fraction from pass_t(); at 60 fps (t = 1/2) the arithmetic is bit-identical to the original
 // halfway code (lerp_f() and friends special-case 1/2).
 //
-// Main loop functions in WWHD: see tools/recomp/hooks.txt and docs/decomp-notes.md.
+// Main loop functions in NSMBU: see tools/recomp/hooks.txt and docs/decomp-notes.md.
 // Camera layout (camera_draw, 024FFC40): near +0xCC, far +0xD0, fovy +0xD4, aspect +0xD8,
 // eye +0xDC, center +0xE8, up +0xF4, bank (s16) +0x100.
 #include <algorithm>
@@ -82,13 +82,13 @@ void f_027F5018_orig(Cpu* c);  // J3DModel UBO update
 namespace interp {
 
 // Output frame rate with interpolation: 60, 120 or 240 (in-between frames per step: fps/30 - 1).
-// WWHD_INTERP_FPS=60|120|240 sets it at start (and switches interpolation on); it wins over the
+// NSMBU_INTERP_FPS=60|120|240 sets it at start (and switches interpolation on); it wins over the
 // saved choice and is not saved.
 using pacing::valid_fps;
-static const int g_env_fps = [] { const char* e = getenv("WWHD_INTERP_FPS"); return e ? valid_fps(atoi(e)) : 0; }();
+static const int g_env_fps = [] { const char* e = getenv("NSMBU_INTERP_FPS"); return e ? valid_fps(atoi(e)) : 0; }();
 static std::atomic<int> g_fps{g_env_fps ? g_env_fps : 60};
 static std::atomic<bool> g_on{[] {
-    const char* e = getenv("WWHD_INTERP");
+    const char* e = getenv("NSMBU_INTERP");
     return (e ? atoi(e) != 0 : g_env_fps != 0) && !true60::enabled();
 }()};
 bool interp_on() { return g_on.load(std::memory_order_relaxed); }
@@ -102,9 +102,9 @@ int fps() { return g_fps.load(std::memory_order_relaxed); }  // the chosen rate
 // 0 = unknown) and whether presenting waits for its vsync (Metal; Vulkan FIFO). Frames beyond the
 // refresh rate never reach the screen with vsync and would only slow the game down (or, paced, be
 // dropped unevenly), so the drawn rate is capped to what the display shows (pacing::cap_fps: 240 fps
-// on a 120 Hz display draws 120, on a 60 Hz display 60). WWHD_DISPLAY_HZ=n overrides the detected
+// on a 120 Hz display draws 120, on a 60 Hz display 60). NSMBU_DISPLAY_HZ=n overrides the detected
 // rate (0: no cap; tests and benchmarks with hidden windows).
-static const int g_env_hz = getenv("WWHD_DISPLAY_HZ") ? atoi(getenv("WWHD_DISPLAY_HZ")) : -1;
+static const int g_env_hz = getenv("NSMBU_DISPLAY_HZ") ? atoi(getenv("NSMBU_DISPLAY_HZ")) : -1;
 static std::atomic<int> g_display_hz{0};
 static std::atomic<bool> g_present_vsync{true};
 int display_hz() { return g_env_hz >= 0 ? g_env_hz : g_display_hz.load(std::memory_order_relaxed); }
@@ -114,7 +114,7 @@ void set_display_hz(int hz) {
     if (hz < 0) hz = 0;
     const int old = g_display_hz.exchange(hz);
     if (old == hz) return;
-    if (g_env_hz >= 0) LOG("[interp] display refresh rate %d Hz (WWHD_DISPLAY_HZ=%d is used)", hz, g_env_hz);
+    if (g_env_hz >= 0) LOG("[interp] display refresh rate %d Hz (NSMBU_DISPLAY_HZ=%d is used)", hz, g_env_hz);
     else LOG("[interp] display refresh rate %d Hz: frame interpolation draws up to %d fps", hz, pacing::cap_fps(240, hz, present_vsync()));
 }
 void set_present_vsync(bool on) {
@@ -218,7 +218,7 @@ using pacing::lerp_s16;
 float g_last_step = 0;  // camera eye movement over the previous step
 
 bool cam_snap(const CamState& a, const CamState& b) {
-    static const float kCut = getenv("WWHD_INTERP_CUT") ? (float)atof(getenv("WWHD_INTERP_CUT")) : 800.0f;
+    static const float kCut = getenv("NSMBU_INTERP_CUT") ? (float)atof(getenv("NSMBU_INTERP_CUT")) : 800.0f;
     float step = std::max(dist(a.eye, b.eye), dist(a.center, b.center));
     float prev = g_last_step;
     g_last_step = step;
@@ -330,9 +330,9 @@ bool record_pass() { return g_hold && g_phase >= g_step_n; }
 
 }  // namespace interp
 
-// debug: WWHD_INTERP_CAM_TRACE=n logs n camera draws: logic step, pass fraction, eye and center as drawn
+// debug: NSMBU_INTERP_CAM_TRACE=n logs n camera draws: logic step, pass fraction, eye and center as drawn
 static void cam_trace(uint32_t cam, const char* what) {
-    static int left = getenv("WWHD_INTERP_CAM_TRACE") ? atoi(getenv("WWHD_INTERP_CAM_TRACE")) : 0;
+    static int left = getenv("NSMBU_INTERP_CAM_TRACE") ? atoi(getenv("NSMBU_INTERP_CAM_TRACE")) : 0;
     if (left <= 0 || !interp::enabled()) return;
     left--;
     interp::CamState s = interp::read_cam(cam);
@@ -371,7 +371,7 @@ extern "C" void hook_024FFC40(Cpu* c) {
         true60::camera_draw_preview(false);
         return;
     }
-    static const bool dbg = getenv("WWHD_T60_CAMDRAWLOG") != nullptr;  // debug: statics camera_draw writes
+    static const bool dbg = getenv("NSMBU_T60_CAMDRAWLOG") != nullptr;  // debug: statics camera_draw writes
     if (dbg && g_hold) {
         static std::vector<uint32_t> before;
         static std::unordered_map<uint32_t, int> cnt;
@@ -431,11 +431,11 @@ std::unordered_map<uint32_t, UboBlend> g_ubo;
 float wf(uint32_t w) { return u32_as_f32(__builtin_bswap32(w)); }
 uint32_t fw(float f) { return __builtin_bswap32(f32_as_u32(f)); }
 
-// debug: WWHD_INTERP_MODEL_TRACE=n logs n draws of one model (the first with at least
-// WWHD_INTERP_MODEL_TRACE_JOINTS joints, default 40): root joint translation as drawn
+// debug: NSMBU_INTERP_MODEL_TRACE=n logs n draws of one model (the first with at least
+// NSMBU_INTERP_MODEL_TRACE_JOINTS joints, default 40): root joint translation as drawn
 void trace_model(const char* what, uint32_t jnt, uint32_t n, const uint32_t* w) {
-    static int left = getenv("WWHD_INTERP_MODEL_TRACE") ? atoi(getenv("WWHD_INTERP_MODEL_TRACE")) : 0;
-    static const uint32_t min_joints = getenv("WWHD_INTERP_MODEL_TRACE_JOINTS") ? atoi(getenv("WWHD_INTERP_MODEL_TRACE_JOINTS")) : 40;
+    static int left = getenv("NSMBU_INTERP_MODEL_TRACE") ? atoi(getenv("NSMBU_INTERP_MODEL_TRACE")) : 0;
+    static const uint32_t min_joints = getenv("NSMBU_INTERP_MODEL_TRACE_JOINTS") ? atoi(getenv("NSMBU_INTERP_MODEL_TRACE_JOINTS")) : 40;
     static uint32_t which = 0;
     if (left <= 0 || n < min_joints || (which && which != jnt)) return;
     which = jnt;
@@ -509,7 +509,7 @@ void blend_mtx(const float* a, const float* b, float* out, float t) {
 // J3DModel::viewCalc(J3DModel*)
 extern "C" void hook_027F55FC(Cpu* c) {
     using namespace interp;
-    static const bool off = getenv("WWHD_INTERP_MODELS") && !atoi(getenv("WWHD_INTERP_MODELS"));  // debug
+    static const bool off = getenv("NSMBU_INTERP_MODELS") && !atoi(getenv("NSMBU_INTERP_MODELS"));  // debug
     if (!enabled() || off || (!g_hold && (true60::drawing_60() || g_exact_step))) {
         f_027F55FC_orig(c);
         return;
@@ -549,7 +549,7 @@ extern "C" void hook_027F55FC(Cpu* c) {
         f_027F55FC_orig(c);
         return;
     }
-    static const float kCut = getenv("WWHD_INTERP_MODEL_CUT") ? (float)atof(getenv("WWHD_INTERP_MODEL_CUT")) : 400.0f;
+    static const float kCut = getenv("NSMBU_INTERP_MODEL_CUT") ? (float)atof(getenv("NSMBU_INTERP_MODEL_CUT")) : 400.0f;
     const float t = pass_t();
     std::vector<uint32_t> saved(cur, cur + words);
     std::vector<uint32_t> mid(words);
@@ -604,7 +604,7 @@ extern "C" void hook_027F5018(Cpu* c) {
     memcpy(ppc_ptr(b.mtx), b.exact.data(), bytes);
 }
 
-// Per-frame function (0203593C): WWHD's own per-frame systems (HD menus, system UI, lighting setup)
+// Per-frame function (0203593C): NSMBU's own per-frame systems (HD menus, system UI, lighting setup)
 // around the loop body. On hold passes the whole frame is held back and only redrawn, so these
 // systems stay in step with the game logic at 30 steps per second.
 namespace interp {
@@ -627,7 +627,7 @@ void ss_reset() {
     fx_ss_reset();
     true60::ss_reset();
 }
-// Paced interpolation (WWHD_INTERP_PACED=1, the default on Android and at 120/240 fps): an
+// Paced interpolation (NSMBU_INTERP_PACED=1, the default on Android and at 120/240 fps): an
 // in-between pass is drawn only when it fits before the next logic step is due (33.3 ms after the
 // last one, measured with the passes' recent durations); otherwise the rest of the step's
 // in-between passes are dropped and the next step waits for its time. The game then always advances
@@ -643,7 +643,7 @@ void ss_reset() {
 // The settings overlay switches it ("Keep game speed", saved with the graphics options, one value
 // for 60 fps and one for 120/240 fps); the variable sets both at start and wins over the saved
 // values.
-static const char* const g_env_paced = getenv("WWHD_INTERP_PACED");
+static const char* const g_env_paced = getenv("NSMBU_INTERP_PACED");
 static std::atomic<bool> g_paced{[] {
 #ifdef __ANDROID__
     return !g_env_paced || atoi(g_env_paced) != 0;
@@ -796,7 +796,7 @@ static void after_pass(int phase) {
 
 namespace mods { void cheats_service(); }  // mods/cheats.cpp
 
-// debug: WWHD_INTERP_PASS_STATS=1 adds to the 300-step log the main thread's CPU time per pass
+// debug: NSMBU_INTERP_PASS_STATS=1 adds to the 300-step log the main thread's CPU time per pass
 // (thread CPU time, so waits for the vsync and the GPU are left out): logic passes, blended hold
 // passes and record passes - the cost of each in-between frame at 120/240 fps
 namespace interp {
@@ -807,7 +807,7 @@ struct PassCpu {
 };
 PassCpu g_pass_cpu;
 bool pass_stats() {
-    static const bool on = getenv("WWHD_INTERP_PASS_STATS") != nullptr;
+    static const bool on = getenv("NSMBU_INTERP_PASS_STATS") != nullptr;
     return on;
 }
 double thread_cpu_ms() { return rprof::thread_cpu_ns() / 1e6; }
@@ -840,11 +840,11 @@ extern "C" void hook_0203593C(Cpu* c) {
     ss::service(c);  // save states: exact values are back in guest memory, all other threads idle
     mods::cheats_service();
     g_passes++;
-    // test aid: WWHD_INTERP_AT_STEP=n switches interpolation on after n frames
+    // test aid: NSMBU_INTERP_AT_STEP=n switches interpolation on after n frames
     static uint64_t passes = 0;
-    static const uint64_t at = getenv("WWHD_INTERP_AT_STEP") ? strtoull(getenv("WWHD_INTERP_AT_STEP"), nullptr, 10) : 0;
+    static const uint64_t at = getenv("NSMBU_INTERP_AT_STEP") ? strtoull(getenv("NSMBU_INTERP_AT_STEP"), nullptr, 10) : 0;
     if (at && ++passes == at) set_enabled(true);
-    static uint64_t at60 = getenv("WWHD_TRUE60_AT_STEP") ? strtoull(getenv("WWHD_TRUE60_AT_STEP"), nullptr, 10) : 0;
+    static uint64_t at60 = getenv("NSMBU_TRUE60_AT_STEP") ? strtoull(getenv("NSMBU_TRUE60_AT_STEP"), nullptr, 10) : 0;
     static uint64_t passes60 = 0;
     if (at60 && ++passes60 == at60) set_mode(2);
     paced_pass_start();
@@ -927,7 +927,7 @@ extern "C" void hook_025F172C(Cpu* c) {
 }
 
 // children of the per-frame function on hold passes: run (bit set) or skip.
-// debug: WWHD_HOLD_RUN=mask overrides the default
+// debug: NSMBU_HOLD_RUN=mask overrides the default
 // Only calls made directly by the per-frame function (return address inside 0203593C..02035A78) are
 // held back; the same functions are also called from elsewhere (e.g. 025EE048 as a getter inside
 // drawing code), and those calls must always run.
@@ -945,7 +945,7 @@ static bool hold_skip_child(int i) {
     // light counts of the HD light manager at *101F8A20 (+0x10..+0x1C), which dKy_setLight (child 8)
     // fills via 0273862C and child 9 hands to the renderer; held, every point light was added a
     // second time on hold passes: candle light twice as bright on every other frame at 60 fps).
-    static const uint32_t run = (getenv("WWHD_HOLD_RUN") ? (uint32_t)strtoul(getenv("WWHD_HOLD_RUN"), nullptr, 0) : 0x7FCC) | 1;
+    static const uint32_t run = (getenv("NSMBU_HOLD_RUN") ? (uint32_t)strtoul(getenv("NSMBU_HOLD_RUN"), nullptr, 0) : 0x7FCC) | 1;
     return interp::g_hold_frame && !(run & (1u << i)) && called_from_frame_function();
 }
 extern "C" void hook_02032FE8(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_child(0)) f_02032FE8_orig(c); }
@@ -1027,10 +1027,10 @@ extern "C" void hook_02039834(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_chi
 
 
 // logic parts of fpcM_Management / fapGm_Execute, skipped on hold passes
-// debug: WWHD_INTERP_RUN=mask runs selected parts on hold passes too
+// debug: NSMBU_INTERP_RUN=mask runs selected parts on hold passes too
 // (1 execute, 2 delete, 4 priority, 8 create, 16 fapGm_After, 32 counter)
 static bool skip(int bit) {
-    static const int run = getenv("WWHD_INTERP_RUN") ? atoi(getenv("WWHD_INTERP_RUN")) : 0;
+    static const int run = getenv("NSMBU_INTERP_RUN") ? atoi(getenv("NSMBU_INTERP_RUN")) : 0;
     return interp::g_hold && !(run & bit);
 }
 static bool g_in_execute = false;  // inside fpcEx_Handler (actor Execute): logic, not drawing
@@ -1056,8 +1056,8 @@ namespace interp {
 // without logic. While interpolating, that read repeats the previous sample (see VPADRead /
 // KPADReadEx), so every change reaches the logic exactly once.
 void trace_read(const char* who) {
-    // debug: WWHD_TRACE_INPUT_PHASE=n logs n controller reads with the pass they happen in
-    static int n = getenv("WWHD_TRACE_INPUT_PHASE") ? atoi(getenv("WWHD_TRACE_INPUT_PHASE")) : 0;
+    // debug: NSMBU_TRACE_INPUT_PHASE=n logs n controller reads with the pass they happen in
+    static int n = getenv("NSMBU_TRACE_INPUT_PHASE") ? atoi(getenv("NSMBU_TRACE_INPUT_PHASE")) : 0;
     if (n > 0 && enabled()) {
         n--;
         LOG("[interp] %s read: logic_pass=%d hold=%d hold_next=%d", who, g_logic_pass, g_hold, g_hold_next);
@@ -1081,7 +1081,7 @@ const char* phase_name() { return !enabled() ? "interp off" : g_hold ? "IN-BETWE
 // buttons still change on full passes only, so every press reaches the 30 Hz processes and menus
 bool fresh_sticks() { return true60::enabled(); }
 bool repeat_input() {
-    static const bool off = getenv("WWHD_INTERP_NO_REPEAT") != nullptr;  // debug
+    static const bool off = getenv("NSMBU_INTERP_NO_REPEAT") != nullptr;  // debug
     return enabled() && g_hold_next && !off;
 }
 }  // namespace interp
@@ -1091,17 +1091,17 @@ bool repeat_input() {
 // sound started there would play a second time. Suppressed while the hold pass draws, and with true
 // 60 on the whole half pass: its executes are previews that the next full pass takes back and runs
 // again (true60.cpp), so every sound starts once, on the full pass of the 30 fps game's step.
-// debug: WWHD_SE_STATS=1 logs calls per second by frame phase every 5 s
-// debug: WWHD_SE_TRACE=path logs every start that is not suppressed: logic step, full pass (1/0),
+// debug: NSMBU_SE_STATS=1 logs calls per second by frame phase every 5 s
+// debug: NSMBU_SE_TRACE=path logs every start that is not suppressed: logic step, full pass (1/0),
 // wrapper index, r4 (the sound id for the seStart wrappers), caller (true60 comparisons)
 static void se_trace(int fn, Cpu* c) {
-    static FILE* f = getenv("WWHD_SE_TRACE") ? fopen(getenv("WWHD_SE_TRACE"), "w") : nullptr;
+    static FILE* f = getenv("NSMBU_SE_TRACE") ? fopen(getenv("NSMBU_SE_TRACE"), "w") : nullptr;
     if (!f || interp::g_hold) return;
     fprintf(f, "%llu %d %d %08X %08X\n", (unsigned long long)interp::g_logic_steps, interp::g_hold ? 0 : 1, fn, c->r[4], c->lr);
     fflush(f);
 }
 static void se_stat(int fn) {
-    static const bool on = getenv("WWHD_SE_STATS") != nullptr;
+    static const bool on = getenv("NSMBU_SE_STATS") != nullptr;
     if (!on) return;
     static uint32_t n[7][4];
     int ph = !interp::enabled() ? 0 : interp::g_hold ? 1 : interp::g_logic_pass ? 2 : 3;
@@ -1150,7 +1150,7 @@ extern "C" void hook_025E1B44(Cpu* c) {
 }
 extern "C" void hook_02027754(Cpu* c) { if (!interp::g_cam_blended) f_02027754_orig(c); }
 
-// WWHD's audio frame callback (020315CC, from the same frame-callback table as the per-frame
+// NSMBU's audio frame callback (020315CC, from the same frame-callback table as the per-frame
 // function) advances the sound engine one game step (JAIZelBasic::gframeProcess: sequences, effect
 // processing). The frame loop calls it every displayed frame, so at 60 fps the engine ran at double
 // rate: sequences such as the waves triggered twice as often and overlapped. Once per logic step.

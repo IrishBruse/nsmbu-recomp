@@ -14,7 +14,7 @@ The recompiler and the native runtime stay.
 
 The Wind Waker executable does not stay.
 
-The Wind Waker readme is in [docs/upstream-wwhd-readme.md](docs/upstream-wwhd-readme.md).
+The Wind Waker readme is in [docs/upstream-nsmbu-readme.md](docs/upstream-nsmbu-readme.md).
 
 Port notes are in [docs/nsmbu.md](docs/nsmbu.md).
 

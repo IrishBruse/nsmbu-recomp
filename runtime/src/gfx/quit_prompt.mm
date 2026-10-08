@@ -7,8 +7,8 @@
 // Before that (boot, title screen, file select) and in test runs nothing asks (quit_prompt.h decides).
 // Closing the GamePad window still only hides it.
 //
-// Test aids: WWHD_TEST_QUIT_ANSWER=quit|cancel|save shows the prompt also in scripted runs and answers
-// it after 1.5 s; WWHD_TEST_CLOSE_TV_AT=frame closes the TV window (its close button) at that frame.
+// Test aids: NSMBU_TEST_QUIT_ANSWER=quit|cancel|save shows the prompt also in scripted runs and answers
+// it after 1.5 s; NSMBU_TEST_CLOSE_TV_AT=frame closes the TV window (its close button) at that frame.
 #import <AppKit/AppKit.h>
 
 #include <cstdlib>
@@ -174,7 +174,7 @@ void install_quit_prompt(NSWindow* tv) {
     g_tv = tv;
     tv.delegate = d;
     NSApp.delegate = d;
-    if (const char* e = getenv("WWHD_TEST_CLOSE_TV_AT")) {
+    if (const char* e = getenv("NSMBU_TEST_CLOSE_TV_AT")) {
         uint64_t at = strtoull(e, nullptr, 10);
         [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer* t) {
             if (render::frame_count() < at) return;

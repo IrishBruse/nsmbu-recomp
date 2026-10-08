@@ -1,10 +1,10 @@
-// End-to-end test of wwhd-extract on synthetic Cemu Wii U archives (.wua, ZArchive format) written
+// End-to-end test of nsmbu-extract on synthetic Cemu Wii U archives (.wua, ZArchive format) written
 // here by a minimal ZArchive writer (zstd-compressed and stored 64 KiB blocks, offset records, name
 // table, breadth-first file tree, SHA-256 footer, as the reference writer lays them out), with
 // made-up title folders and made-up file contents (no game data): listing, title selection,
 // extraction byte for byte, and the error codes for a missing title and damaged archives.
 //
-// usage: wua_test WWHD_EXTRACT_EXE WORKDIR      (run by ctest as "extract_wua")
+// usage: wua_test NSMBU_EXTRACT_EXE WORKDIR      (run by ctest as "extract_wua")
 #include "crypto.h"
 
 #include <zstd.h>
@@ -222,7 +222,7 @@ struct FileSpec {
 
 int main(int argc, char** argv) {
     if (argc != 3) {
-        fprintf(stderr, "usage: wua_test WWHD_EXTRACT_EXE WORKDIR\n");
+        fprintf(stderr, "usage: wua_test NSMBU_EXTRACT_EXE WORKDIR\n");
         return 2;
     }
     fs::path exe = fs::absolute(argv[1]), work = fs::absolute(argv[2]);
@@ -423,6 +423,6 @@ int main(int argc, char** argv) {
     }
 
     printf(failures ? "%d FAILED\n" : "all passed\n", failures);
-    if (!failures && !getenv("WWHD_KEEP_TEST")) fs::remove_all(work);
+    if (!failures && !getenv("NSMBU_KEEP_TEST")) fs::remove_all(work);
     return failures ? 1 : 0;
 }

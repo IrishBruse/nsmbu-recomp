@@ -5,7 +5,7 @@
 // go in the TV window (display_plan, display.h), the automatic overlay and the mapping of clicks on
 // the GamePad picture inside the TV window to GamePad touches.
 //
-// Modes (WWHD_DRC_MODE at start, not saved):
+// Modes (NSMBU_DRC_MODE at start, not saved):
 //   window   the GamePad picture in its own window (hosts with a GamePad window)
 //   pip      picture-in-picture: the GamePad picture in a corner of the TV window
 //   auto     picture-in-picture for a few seconds when the GamePad picture changes a lot
@@ -43,16 +43,16 @@ int find_name(const char* const* names, int n, const char* s, int def);  // inde
 double display_now();  // seconds, monotonic (the automatic overlay's clock)
 bool drc_mode_offered(int m);  // window: the host has a GamePad window
 // start-up overrides for tests, after the saved options were read (not saved):
-// WWHD_DRC_MODE, WWHD_DRC_PIP=br:0.25[:0.85], WWHD_SCALE_FILTER
+// NSMBU_DRC_MODE, NSMBU_DRC_PIP=br:0.25[:0.85], NSMBU_SCALE_FILTER
 void display_env_overrides();
 // Full screen is remembered: the TV window starts as it was left (the hosts save tvFullScreen when it
 // enters or leaves full screen, display.plist / settings.ini). Whether to switch it to full screen at
-// start: WWHD_FULLSCREEN=0|1 overrides the saved state for this start (a session started with it does
-// not save its full-screen state: display_fullscreen_env); test runs (WWHD_NO_HOST_INPUT) switch only
-// with WWHD_FULLSCREEN=1 and hidden windows never do. Logs the decision.
+// start: NSMBU_FULLSCREEN=0|1 overrides the saved state for this start (a session started with it does
+// not save its full-screen state: display_fullscreen_env); test runs (NSMBU_NO_HOST_INPUT) switch only
+// with NSMBU_FULLSCREEN=1 and hidden windows never do. Logs the decision.
 bool display_start_fullscreen(bool saved, bool hidden_windows);
-bool display_fullscreen_env();  // WWHD_FULLSCREEN is set
-// debug: WWHD_TEST_DRC_MODE=3400:gamepad,3600:pip switches the mode at those frames (as the settings
+bool display_fullscreen_env();  // NSMBU_FULLSCREEN is set
+// debug: NSMBU_TEST_DRC_MODE=3400:gamepad,3600:pip switches the mode at those frames (as the settings
 // overlay does); the mode to switch to at this frame, -1 for none (host main thread)
 int display_test_mode(uint64_t frame);
 
@@ -77,7 +77,7 @@ bool overlay_hit(float nx, float ny, float* tx, float* ty, bool clamp_outside = 
 // overlay's text prompt places itself on it)
 bool main_picture(float* x, float* y, float* w, float* h);
 
-// Touch screens (Android; WWHD_VIEW_BUTTON=1 elsewhere for tests): a button in the TV window's top
+// Touch screens (Android; NSMBU_VIEW_BUTTON=1 elsewhere for tests): a button in the TV window's top
 // left corner. A tap cycles the views offered there (picture-in-picture, GamePad only, TV only);
 // what a long press does is the host's (Android: 60 fps on / off).
 bool view_button_enabled();

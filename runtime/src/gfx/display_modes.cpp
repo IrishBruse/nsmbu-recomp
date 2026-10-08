@@ -3,19 +3,19 @@
 // the hosts show and hide their windows, read their mouse and save the options.
 //
 // Debug / test environment (both hosts):
-//   WWHD_DRC_MODE=window|pip|auto|off|gamepad   GamePad screen mode at start (not saved)
-//   WWHD_DRC_PIP=br:0.25[:0.85]          overlay corner (tl, tr, bl, br), size (fraction of the TV picture
+//   NSMBU_DRC_MODE=window|pip|auto|off|gamepad   GamePad screen mode at start (not saved)
+//   NSMBU_DRC_PIP=br:0.25[:0.85]          overlay corner (tl, tr, bl, br), size (fraction of the TV picture
 //                                        width) and opacity at start (not saved)
-//   WWHD_SCALE_FILTER=smooth|sharp|integer
-//   WWHD_SIM_SCREEN=3024x1964            lay the TV picture out for a target of that size (present dumps and
+//   NSMBU_SCALE_FILTER=smooth|sharp|integer
+//   NSMBU_SIM_SCREEN=3024x1964            lay the TV picture out for a target of that size (present dumps and
 //                                        touch mapping), e.g. to check a full-screen layout without going full screen
-//   WWHD_TEST_TOUCH=3400-3410:0.9:0.85   a mouse press at (x, y) in the TV window (0..1 from top left) during
+//   NSMBU_TEST_TOUCH=3400-3410:0.9:0.85   a mouse press at (x, y) in the TV window (0..1 from top left) during
 //                                        TV frames 3400..3410; mapped through the overlay like a real click
-//   WWHD_DRC_AUTO=0.12:4                 automatic mode: changed-area threshold and hold time in seconds
-//   WWHD_DRC_AUTO_LOG=1                  log the automatic mode's change measurements
-//   WWHD_TEST_DRC_MODE=3400:gamepad,3600:pip   switch the mode at those TV frames (as the settings overlay)
-//   WWHD_VIEW_BUTTON=0|1                 the touch screens' view button (on by default on Android only)
-//   WWHD_FULLSCREEN=0|1                  the TV window starts in full screen (1) or windowed (0), instead of as it
+//   NSMBU_DRC_AUTO=0.12:4                 automatic mode: changed-area threshold and hold time in seconds
+//   NSMBU_DRC_AUTO_LOG=1                  log the automatic mode's change measurements
+//   NSMBU_TEST_DRC_MODE=3400:gamepad,3600:pip   switch the mode at those TV frames (as the settings overlay)
+//   NSMBU_VIEW_BUTTON=0|1                 the touch screens' view button (on by default on Android only)
+//   NSMBU_FULLSCREEN=0|1                  the TV window starts in full screen (1) or windowed (0), instead of as it
 //                                        was left (that session's full screen is not saved; 1 takes over the screen!)
 #include "display_modes.h"
 
@@ -73,8 +73,8 @@ bool drc_mode_offered(int m) {
 }
 
 void display_env_overrides() {
-    if (const char* e = getenv("WWHD_DRC_MODE")) g_mode = find_name(kModeNames, kDrcModeCount, e, g_mode);
-    if (const char* e = getenv("WWHD_DRC_PIP")) {
+    if (const char* e = getenv("NSMBU_DRC_MODE")) g_mode = find_name(kModeNames, kDrcModeCount, e, g_mode);
+    if (const char* e = getenv("NSMBU_DRC_PIP")) {
         char c[8] = {};
         float sz = g_pip_size, op = g_pip_opacity;
         if (sscanf(e, "%2[a-z]:%f:%f", c, &sz, &op) >= 1) {
@@ -83,23 +83,23 @@ void display_env_overrides() {
             g_pip_opacity = std::clamp(op, 0.2f, 1.0f);
         }
     }
-    if (const char* e = getenv("WWHD_SCALE_FILTER")) g_filter = find_name(kFilterNames, 3, e, g_filter);
+    if (const char* e = getenv("NSMBU_SCALE_FILTER")) g_filter = find_name(kFilterNames, 3, e, g_filter);
 }
 
 bool display_fullscreen_env() {
-    const char* e = getenv("WWHD_FULLSCREEN");
+    const char* e = getenv("NSMBU_FULLSCREEN");
     return e && *e;
 }
 bool display_start_fullscreen(bool saved, bool hidden_windows) {
     const bool env = display_fullscreen_env();
-    const bool on = env ? atoi(getenv("WWHD_FULLSCREEN")) != 0 : saved;
-    const char* why = env ? "WWHD_FULLSCREEN" : "as it was left";
+    const bool on = env ? atoi(getenv("NSMBU_FULLSCREEN")) != 0 : saved;
+    const char* why = env ? "NSMBU_FULLSCREEN" : "as it was left";
     if (!on) {
-        LOG("[display] TV window starts windowed (%s)", env ? "WWHD_FULLSCREEN=0" : "as it was left");
+        LOG("[display] TV window starts windowed (%s)", env ? "NSMBU_FULLSCREEN=0" : "as it was left");
         return false;
     }
-    // test runs: never take over the user's screen unless asked for with WWHD_FULLSCREEN=1
-    const bool test = getenv("WWHD_NO_HOST_INPUT") != nullptr;
+    // test runs: never take over the user's screen unless asked for with NSMBU_FULLSCREEN=1
+    const bool test = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
     const bool apply = !hidden_windows && (!test || env);
     LOG("[display] TV window starts in full screen (%s)%s", why,
         apply ? "" : hidden_windows ? "; hidden windows: not switched" : "; test run: not switched");
@@ -110,7 +110,7 @@ int display_test_mode(uint64_t frame) {
     struct Switch { uint64_t at; int mode; };
     static const std::vector<Switch> script = [] {
         std::vector<Switch> v;
-        if (const char* e = getenv("WWHD_TEST_DRC_MODE")) {
+        if (const char* e = getenv("NSMBU_TEST_DRC_MODE")) {
             unsigned long long at; char name[16]; int n;
             while (sscanf(e, "%llu:%15[a-z]%n", &at, name, &n) == 2) {
                 v.push_back({at, find_name(kModeNames, kDrcModeCount, name, -1)});
@@ -197,7 +197,7 @@ Box display_layout(float dw, float dh, float tw, float th) { return layout(dw, d
 static bool sim_screen(float* w, float* h) {
     static float sw = 0, sh = 0;
     static bool parsed = [] {
-        if (const char* e = getenv("WWHD_SIM_SCREEN")) sscanf(e, "%fx%f", &sw, &sh);
+        if (const char* e = getenv("NSMBU_SIM_SCREEN")) sscanf(e, "%fx%f", &sw, &sh);
         return true;
     }();
     (void)parsed;
@@ -230,7 +230,7 @@ bool main_picture(float* x, float* y, float* w, float* h) {
 // ---------------------------------------------------------------- view button (touch screens)
 bool view_button_enabled() {
     static const bool on = [] {
-        const char* e = getenv("WWHD_VIEW_BUTTON");
+        const char* e = getenv("NSMBU_VIEW_BUTTON");
 #ifdef __ANDROID__
         return !e || atoi(e) != 0;
 #else
@@ -278,11 +278,11 @@ void display_auto_signature(const std::vector<float>& cur_in, const std::vector<
     if (g_mode != kDrcAuto) { prev.clear(); return; }
     static float thresh = 0.12f, hold = 4.0f;
     static bool parsed = [] {
-        if (const char* e = getenv("WWHD_DRC_AUTO")) sscanf(e, "%f:%f", &thresh, &hold);
+        if (const char* e = getenv("NSMBU_DRC_AUTO")) sscanf(e, "%f:%f", &thresh, &hold);
         return true;
     }();
     (void)parsed;
-    static const bool log = getenv("WWHD_DRC_AUTO_LOG") != nullptr;
+    static const bool log = getenv("NSMBU_DRC_AUTO_LOG") != nullptr;
     std::vector<float> cur = cur_in;
     if (cur.size() != kSigN) return;
     float mean = 0, mirror_diff = 1;
@@ -326,7 +326,7 @@ struct TestTouch { uint64_t from, to; float x, y; };
 static void test_touch(uint64_t frame) {
     static const std::vector<TestTouch> script = [] {
         std::vector<TestTouch> v;
-        if (const char* e = getenv("WWHD_TEST_TOUCH")) {
+        if (const char* e = getenv("NSMBU_TEST_TOUCH")) {
             unsigned long long a, b; float x, y; int n;
             while (sscanf(e, "%llu-%llu:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
                 v.push_back({a, b, x, y});

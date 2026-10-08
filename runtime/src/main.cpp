@@ -39,10 +39,10 @@
 namespace interp { void set_mode(int); }
 #endif
 
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
 namespace gfxvk { int renderer_smoke_test(); }
 #endif
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
 int gfx_headstart_warm();  // gfx/shader_headstart.mm
 #endif
 
@@ -224,10 +224,10 @@ static void apply_portable_mode() {
         setenv(k, v.c_str(), 0);
 #endif
     };
-    set("WWHD_STATE_DIR", u + "/states");
+    set("NSMBU_STATE_DIR", u + "/states");
 #ifdef __APPLE__
-    set("WWHD_DISPLAY_SETTINGS", u + "/display.plist");
-    set("WWHD_SHADER_CACHE", u + "/shaders.bin");
+    set("NSMBU_DISPLAY_SETTINGS", u + "/display.plist");
+    set("NSMBU_SHADER_CACHE", u + "/shaders.bin");
 #endif
 }
 
@@ -263,11 +263,11 @@ int main(int argc, char** argv) {
         setenv("XDG_CONFIG_HOME", (std::string(dir) + "/config").c_str(), 1);
         // draw batching (the default everywhere since; kept explicit) and the CPU paths
         // (default_vulkan_cpu_paths) are on; env.txt can turn any off
-        setenv("WWHD_VK_DRAW_BATCH", "2048", 0);
+        setenv("NSMBU_VK_DRAW_BATCH", "2048", 0);
         // 60 fps (frame interpolation) is on unless chosen otherwise (settings.ini, read when the
         // renderer starts); platform/perf_hint.cpp pauses it where the phone cannot keep up
-        if (!getenv("WWHD_INTERP") && !getenv("WWHD_TRUE60")) interp::set_mode(1);
-        // env.txt there: one NAME=value per line (the WWHD_ options of the README); # comments
+        if (!getenv("NSMBU_INTERP") && !getenv("NSMBU_TRUE60")) interp::set_mode(1);
+        // env.txt there: one NAME=value per line (the NSMBU_ options of the README); # comments
         if (FILE* f = fopen("env.txt", "r")) {
             char line[512];
             while (fgets(line, sizeof line, f)) {
@@ -283,7 +283,7 @@ int main(int argc, char** argv) {
     }
 #endif
     bool warm_shaders = false;
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
     bool renderer_smoke = false;
 #endif
     for (int i = 1; i < argc; i++) {
@@ -291,17 +291,17 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--save") && i + 1 < argc) config::save_dir = argv[++i];
         else if (!strcmp(argv[i], "--trace")) g_trace_hle = true;
         else if (!strcmp(argv[i], "--warm-shaders")) warm_shaders = true;
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
         else if (!strcmp(argv[i], "--renderer-smoke")) renderer_smoke = true;
 #endif
     }
     install_crash_handler();
     // which build on which system: also in crash logs (their last log lines)
     LOG("[boot] Wind Waker HD %s (%s), %s", build::version(), build::commit(), reporthdr::os_description().c_str());
-    // test aid: WWHD_TEST_HOST_CRASH=1 crashes inside a system library (strlen of a bad pointer), so
+    // test aid: NSMBU_TEST_HOST_CRASH=1 crashes inside a system library (strlen of a bad pointer), so
     // the crash log's module names can be checked (CTest crash_log_module, runtime/tools/crash_log_test.cmake)
-    if (getenv("WWHD_TEST_HOST_CRASH")) {
-        LOG("[boot] WWHD_TEST_HOST_CRASH: crashing on purpose in the C library");
+    if (getenv("NSMBU_TEST_HOST_CRASH")) {
+        LOG("[boot] NSMBU_TEST_HOST_CRASH: crashing on purpose in the C library");
         size_t (*volatile len)(const char*) = strlen;
 #ifndef _WIN32
         // the C library's own strlen: zig links its own copy into the executable (Linux releases)
@@ -309,9 +309,9 @@ int main(int argc, char** argv) {
 #endif
         LOG("%zu", len((const char*)(uintptr_t)16));
     }
-    // Metal or Vulkan: --renderer=, WWHD_RENDERER_RUNTIME, Graphics > Renderer (gfx/renderer.h)
+    // Metal or Vulkan: --renderer=, NSMBU_RENDERER_RUNTIME, Graphics > Renderer (gfx/renderer.h)
     render::choose(argc, argv);
-#ifdef WWHD_HAS_VULKAN
+#ifdef NSMBU_HAS_VULKAN
     if(renderer_smoke) {
         // GPU self-test of the Vulkan renderer (no game files): always Vulkan, no fallback
         int result = 1;
@@ -373,7 +373,7 @@ int main(int argc, char** argv) {
     mods::cemu::set_vulkan(render::active()==render::Api::Vulkan);
     if (warm_shaders) {
         // compile the shader head start once (fills the macOS Metal shader cache), then quit
-#ifdef WWHD_HAS_METAL
+#ifdef NSMBU_HAS_METAL
         if (render::active() == render::Api::Metal) return gfx_headstart_warm();
 #endif
         fprintf(stderr, "--warm-shaders fills the Metal shader cache; the %s renderer compiles shaders on first use.\n",

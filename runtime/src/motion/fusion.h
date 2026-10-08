@@ -4,7 +4,7 @@
 //
 // Plain C++ (no SDL, no sockets), unit-tested in runtime/tools/motion_test.cpp.
 //
-// How the game reads it (docs/gyro.md): WWHD's first-person camera (dCamera_c::CalcSubjectAngle) only uses
+// How the game reads it (docs/gyro.md): NSMBU's first-person camera (dCamera_c::CalcSubjectAngle) only uses
 // the change of the GamePad's direction matrix from one frame to the next, R = Cᵀ·M with C the previous
 // frame's matrix: yaw input (R[2][0] − R[1][0])·30, pitch input R[2][1]·30, both used like a right-stick
 // value. R is the turn in the GamePad's own frame, so the port does not mirror the controller's pose: each

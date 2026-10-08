@@ -1,6 +1,6 @@
 // Camera mods: direct right-stick camera, mouse camera, first person on R3 / mouse wheel.
 //
-// How the game turns the camera with the right stick (WWHD, measured and read from the code):
+// How the game turns the camera with the right stick (NSMBU, measured and read from the code):
 // pushing the stick puts the player camera into its manual mode (dCamera_c::nextMode: stick value
 // above 0.3 and not pushed up), run by dCamera_c::manualCamera (0250FDC8). Per logic step it
 //   1. shapes |stick x| with a bezier curve (024F6F9C) into a target turning speed,
@@ -82,9 +82,9 @@ uint32_t link_proc() {
 }
 bool aiming_item(uint32_t p) { return p == 0x76 || (p >= 0x80 && p <= 0x8D) || p == 0x94 || p == 0x95; }
 
-// test aid: WWHD_TEST_MOUSE=2-3:5:0,... moves the mouse by (dx, dy) points per logic step from 2 s
+// test aid: NSMBU_TEST_MOUSE=2-3:5:0,... moves the mouse by (dx, dy) points per logic step from 2 s
 // to 3 s of game time (full logic steps / 30, from boot);
-// WWHD_TEST_WHEEL=4.0:1,... scrolls by dy at that time.
+// NSMBU_TEST_WHEEL=4.0:1,... scrolls by dy at that time.
 struct TimedMouse { double from, to; float dx, dy; };
 std::vector<TimedMouse> parse_mouse(const char* var, bool range) {
     std::vector<TimedMouse> v;
@@ -102,8 +102,8 @@ std::vector<TimedMouse> parse_mouse(const char* var, bool range) {
     return v;
 }
 void inject_test_mouse() {
-    static const std::vector<TimedMouse> moves = parse_mouse("WWHD_TEST_MOUSE", true);
-    static const std::vector<TimedMouse> wheels = parse_mouse("WWHD_TEST_WHEEL", false);
+    static const std::vector<TimedMouse> moves = parse_mouse("NSMBU_TEST_MOUSE", true);
+    static const std::vector<TimedMouse> wheels = parse_mouse("NSMBU_TEST_WHEEL", false);
     static uint64_t last = ~0ull;
     if (moves.empty() && wheels.empty()) return;
     uint64_t s = step();
@@ -115,7 +115,7 @@ void inject_test_mouse() {
     for (auto& w : wheels)
         if (t >= w.from && t < w.from + 1.0 / 30.0) mouse_wheel(w.dy);
 }
-// test aid: WWHD_TEST_GOTO=t:x:z:x:z... from game time t (s), steers Link with the left stick through
+// test aid: NSMBU_TEST_GOTO=t:x:z:x:z... from game time t (s), steers Link with the left stick through
 // the world points (x, z) in turn (closed loop on his heading, stick-direction independent of the
 // camera); after the last point the stick is released. Used to walk to doors in measurements.
 void test_goto(input::PadState& s) {
@@ -125,7 +125,7 @@ void test_goto(input::PadState& s) {
     static float phi = 0;  // stick direction, radians clockwise from up
     static uint64_t last = ~0ull;
     if (t0 < 0) {
-        const char* e = getenv("WWHD_TEST_GOTO");
+        const char* e = getenv("NSMBU_TEST_GOTO");
         if (!e) { t0 = 1e30; return; }
         t0 = atof(e);
         for (const char* p = strchr(e, ':'); p; p = strchr(p + 1, ':')) pts.push_back((float)atof(p + 1));
@@ -163,7 +163,7 @@ void test_goto(input::PadState& s) {
     s.ly = std::cos(phi);
 }
 bool test_mouse() {
-    static const bool on = getenv("WWHD_TEST_MOUSE") != nullptr;
+    static const bool on = getenv("NSMBU_TEST_MOUSE") != nullptr;
     return on;
 }
 }  // namespace

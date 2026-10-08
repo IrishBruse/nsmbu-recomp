@@ -67,7 +67,7 @@ struct VertexSnapshotHistory {
   }
 };
 
-// Vertex window snapshots (WWHD_VK_VERTEX_COPY_WINDOW): one entry per binding for a reservation of
+// Vertex window snapshots (NSMBU_VK_VERTEX_COPY_WINDOW): one entry per binding for a reservation of
 // which only [begin, begin + length) is copied. The same rule: reuse compares the CPU copy of the
 // window, never the mapped slice.
 template<class Slice>

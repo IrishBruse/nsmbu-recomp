@@ -84,7 +84,7 @@ def _title(tid, version, files=10, size=1000):
 
 
 class ArchiveTitles(unittest.TestCase):
-    """Which title of a Cemu archive (.wua) is used (info as wwhd-extract --title 0005000010143500 info prints it)."""
+    """Which title of a Cemu archive (.wua) is used (info as nsmbu-extract --title 0005000010143500 info prints it)."""
 
     BASE, UPDATE = _title("0005000010143500", 0), _title("0005000e10143500", 16)
 
@@ -187,15 +187,15 @@ class GameVersion(unittest.TestCase):
             with self.assertRaisesRegex(setup.SetupError, "cannot read"):
                 setup.check_game_version(d)
 
-    @unittest.skipUnless(os.environ.get("WWHD_GAME_DIR"), "WWHD_GAME_DIR (your own extracted game) not set")
+    @unittest.skipUnless(os.environ.get("NSMBU_GAME_DIR"), "NSMBU_GAME_DIR (your own extracted game) not set")
     def test_real_game(self):
         setup.SUPPORTED_RPX_SHA256 = self.saved
-        setup.check_game_version(os.environ["WWHD_GAME_DIR"])  # read only
+        setup.check_game_version(os.environ["NSMBU_GAME_DIR"])  # read only
 
 
 class Recipe(unittest.TestCase):
     def test_substitution(self):
-        m = {"sdk": "/p/sdk", "gamecode": "/w/libgamecode.a", "out": "/d/bin/wwhd"}
+        m = {"sdk": "/p/sdk", "gamecode": "/w/libgamecode.a", "out": "/d/bin/nsmbu"}
         self.assertEqual(setup.sub("{sdk}/obj/a.o", m), "/p/sdk/obj/a.o")
         self.assertEqual(setup.sub("-I{sdk}/include", m), "-I/p/sdk/include")
         self.assertEqual(setup.sub("{gamecode}", m), "/w/libgamecode.a")
@@ -405,7 +405,7 @@ class LanguageSources(unittest.TestCase):
             self.assertEqual(os.listdir(os.path.join(data, "game-lang")), [])  # nothing left behind
 
     def test_image_and_archive_take_only_language_files(self):
-        """The extractor is asked for the language files only (wwhd-extract --only), for the right title."""
+        """The extractor is asked for the language files only (nsmbu-extract --only), for the right title."""
         calls = []
 
         def fake_extract(image, keys, out, title=None, only=None):

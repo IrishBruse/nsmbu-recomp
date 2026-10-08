@@ -18,19 +18,19 @@ inline bool gameplay_stage(const std::string& stage) { return !stage.empty() && 
 using Env = const char* (*)(const char*);
 inline bool env_on(const char* v) { return v && *v && strcmp(v, "0") != 0; }
 
-// test and headless runs never ask: hidden windows, scripted runs (WWHD_NO_HOST_INPUT), a quit at a
-// frame (WWHD_EXIT_AT_FRAME), the controls window self-test; WWHD_QUIT_PROMPT=0 turns it off
+// test and headless runs never ask: hidden windows, scripted runs (NSMBU_NO_HOST_INPUT), a quit at a
+// frame (NSMBU_EXIT_AT_FRAME), the controls window self-test; NSMBU_QUIT_PROMPT=0 turns it off
 inline bool suppressed(Env env) {
-    const char* opt = env("WWHD_QUIT_PROMPT");
-    return env_on(env("WWHD_HIDDEN_WINDOWS")) || env_on(env("WWHD_EXIT_AT_FRAME")) || env("WWHD_NO_HOST_INPUT") ||
-           env("WWHD_CONTROLS_SELFTEST") || (opt && !env_on(opt));
+    const char* opt = env("NSMBU_QUIT_PROMPT");
+    return env_on(env("NSMBU_HIDDEN_WINDOWS")) || env_on(env("NSMBU_EXIT_AT_FRAME")) || env("NSMBU_NO_HOST_INPUT") ||
+           env("NSMBU_CONTROLS_SELFTEST") || (opt && !env_on(opt));
 }
 
-// test aid: WWHD_TEST_QUIT_ANSWER=quit|cancel|save shows the prompt also in a scripted run and answers
+// test aid: NSMBU_TEST_QUIT_ANSWER=quit|cancel|save shows the prompt also in a scripted run and answers
 // it by itself after a moment
 enum class Answer { None, Quit, Cancel, SaveAndQuit };
 inline Answer test_answer(Env env) {
-    const char* v = env("WWHD_TEST_QUIT_ANSWER");
+    const char* v = env("NSMBU_TEST_QUIT_ANSWER");
     if (!v) return Answer::None;
     if (!strcmp(v, "quit")) return Answer::Quit;
     if (!strcmp(v, "cancel")) return Answer::Cancel;

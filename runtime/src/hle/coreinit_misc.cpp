@@ -98,19 +98,19 @@ static void report(const std::string& s) {
     LOG("[game] %s", t.c_str());
 }
 
-// Console language for UCReadSysConfig("cafe.language"): WWHD_LANGUAGE=<Wii U code> (0 ja, 1 en,
+// Console language for UCReadSysConfig("cafe.language"): NSMBU_LANGUAGE=<Wii U code> (0 ja, 1 en,
 // 2 fr, 3 de, 4 it, 5 es, 6 zh, 7 ko, 8 nl, 9 pt, 10 ru, 11 zh-TW), else the setting saved by the
 // settings overlay (Language tab, hostui "language"; read once at start). Unset, out of range or not
 // a number: English. A language the disc has no pack for (game_languages.h) becomes English (or the
 // disc's first language without English), as the USA game itself does with one it doesn't know.
-// WWHD_LANGUAGE_REGION=eu|jp (else the saved "language_region") takes the language from a language
+// NSMBU_LANGUAGE_REGION=eu|jp (else the saved "language_region") takes the language from a language
 // source of that region (game_lang::source_packs(), docs/language-packs.md) when it has that
 // language; language_region.cpp then tells the game that region.
 static uint32_t console_language() {
     static const uint32_t lang = [] {
-        const char* why = "WWHD_LANGUAGE";
+        const char* why = "NSMBU_LANGUAGE";
         std::string saved;
-        const char* e = getenv("WWHD_LANGUAGE");
+        const char* e = getenv("NSMBU_LANGUAGE");
         if ((!e || !*e) && hostui::get("language", saved)) {
             e = saved.c_str();
             why = "saved setting";
@@ -126,10 +126,10 @@ static uint32_t console_language() {
                 LOG("[config] console language %ld (%s)", v, why);
             }
         }
-        // the region: WWHD_LANGUAGE_REGION, else (unless WWHD_LANGUAGE alone picked the language) the saved one
+        // the region: NSMBU_LANGUAGE_REGION, else (unless NSMBU_LANGUAGE alone picked the language) the saved one
         std::string region_text;
-        const char* env_language = getenv("WWHD_LANGUAGE");
-        if (const char* r = getenv("WWHD_LANGUAGE_REGION"); r && *r) region_text = r;
+        const char* env_language = getenv("NSMBU_LANGUAGE");
+        if (const char* r = getenv("NSMBU_LANGUAGE_REGION"); r && *r) region_text = r;
         else if ((!env_language || !*env_language) && !hostui::get("language_region", region_text)) region_text.clear();
         const int region = game_lang::region_from_code(region_text);
         const game_lang::Start s = game_lang::choose((int)v, region);
@@ -333,7 +333,7 @@ HLE(coreinit, UCReadSysConfig) {
         std::string name = mem::read_cstr(e);
         uint32_t size = ld32(e + 0x4C), data = ld32(e + 0x50);
         uint32_t value = 0;
-        if (name == "cafe.language") value = console_language();  // WWHD_LANGUAGE or saved, default English
+        if (name == "cafe.language") value = console_language();  // NSMBU_LANGUAGE or saved, default English
         else if (name == "cafe.cntry_reg") value = 49;   // USA
         else if (name == "cafe.eula_agree") value = 1;
         else if (name == "cafe.initial_launch") value = 2;

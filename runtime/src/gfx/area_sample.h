@@ -62,8 +62,8 @@ inline int rewrite(std::string& src, uint32_t units, bool msl) {
         if (!(units >> unit & 1)) continue;
         const std::string n = std::to_string(unit);
         const std::string from = msl ? "tex" + n + ".sample(samplr" + n + ", " : "texture(textureUnitPS" + n + ", ";
-        const std::string to = msl ? "wwhd_area_sample(tex" + n + ", samplr" + n + ", supportBuffer.tex" + n + "Scale, "
-                                   : "wwhdAreaSample(textureUnitPS" + n + ", uf_tex" + n + "Scale, ";
+        const std::string to = msl ? "nsmbu_area_sample(tex" + n + ", samplr" + n + ", supportBuffer.tex" + n + "Scale, "
+                                   : "nsmbuAreaSample(textureUnitPS" + n + ", uf_tex" + n + "Scale, ";
         for (size_t at = src.find(from); at != std::string::npos; at = src.find(from, at + to.size())) {
             src.replace(at, from.size(), to);
             count++;
@@ -72,7 +72,7 @@ inline int rewrite(std::string& src, uint32_t units, bool msl) {
     if (!count) return 0;
     static const char* const kMsl =
         "// area-sampled tap for upscaled render targets (runtime/src/gfx/area_sample.h)\n"
-        "static float4 wwhd_area_sample(texture2d<float> t, sampler s, float2 scale, float2 uv) {\n"
+        "static float4 nsmbu_area_sample(texture2d<float> t, sampler s, float2 scale, float2 uv) {\n"
         "    float2 k = ceil(scale - 0.001);\n"
         "    if (k.x <= 1.0 && k.y <= 1.0) return t.sample(s, uv);\n"
         "    float2 step = scale / (float2(t.get_width(), t.get_height()) * k);\n"
@@ -83,7 +83,7 @@ inline int rewrite(std::string& src, uint32_t units, bool msl) {
         "}\n";
     static const char* const kGlsl =
         "// area-sampled tap for upscaled render targets (runtime/src/gfx/area_sample.h)\n"
-        "vec4 wwhdAreaSample(sampler2D t, vec2 scale, vec2 uv) {\n"
+        "vec4 nsmbuAreaSample(sampler2D t, vec2 scale, vec2 uv) {\n"
         "    vec2 k = ceil(scale - 0.001);\n"
         "    if (k.x <= 1.0 && k.y <= 1.0) return texture(t, uv);\n"
         "    vec2 step = scale / (vec2(textureSize(t, 0)) * k);\n"

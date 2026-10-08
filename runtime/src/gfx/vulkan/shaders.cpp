@@ -148,8 +148,8 @@ void initialize_disk_cache() {
     diskInitialized=true;
     auto start=std::chrono::steady_clock::now();
     try {
-        const char* overridePath=getenv("WWHD_VK_SHADER_CACHE");
-        const char* general=getenv("WWHD_SHADER_CACHE");
+        const char* overridePath=getenv("NSMBU_VK_SHADER_CACHE");
+        const char* general=getenv("NSMBU_SHADER_CACHE");
         if((overridePath && !strcmp(overridePath,"0")) ||
            (!overridePath && general && !strcmp(general,"0"))) return;
         std::string dir=overridePath ? overridePath : host::config_dir()+"/shadercache/vulkan-shaders";
@@ -299,7 +299,7 @@ uint64_t variant_hash(const uint32_t* regs, bool vertex, const ProgramUse& use, 
     return hash_bytes(words.data(), count * sizeof(uint32_t), linkage ^ 0xC2B2AE3D27D4EB4Full);
 }
 // The key before the narrowing (all 18 units, all 54 samplers, render-target words): kept for
-// the verify mode (WWHD_VK_SHADER_KEY_VERIFY), which checks that the narrow key never gives one
+// the verify mode (NSMBU_VK_SHADER_KEY_VERIFY), which checks that the narrow key never gives one
 // shader to two of these keys that translate differently.
 uint64_t legacy_state_hash(const uint32_t* regs, uint64_t hash, bool vertex) {
     std::array<uint32_t,105+5*LATTE_NUM_MAX_TEX_UNITS> state;
@@ -443,10 +443,10 @@ void free_decompiler(LatteDecompilerShader* shader) {
     delete shader->strBuf_shaderSource;
     delete shader;
 }
-// WWHD_VK_SHADER_KEY_VERIFY=1 checks every distinct pre-narrowing key once; N > 1 checks one in N.
+// NSMBU_VK_SHADER_KEY_VERIFY=1 checks every distinct pre-narrowing key once; N > 1 checks one in N.
 uint32_t key_verify_rate() {
     static const uint32_t rate = [] {
-        const char* value = getenv("WWHD_VK_SHADER_KEY_VERIFY");
+        const char* value = getenv("NSMBU_VK_SHADER_KEY_VERIFY");
         if (!value || !*value) return 0u;
         long parsed = strtol(value, nullptr, 10);
         return parsed > 0 ? uint32_t(std::min<long>(parsed, 1 << 20)) : 0u;
@@ -662,7 +662,7 @@ LatteFetchShader* get_fetch_shader(const uint32_t* regs, uint64_t* keyOut, uint6
     ++stats.fetchLookups;
     if (keyOut) *keyOut = 0;
     static const bool memo = [] {
-        const char* e = std::getenv("WWHD_VK_FETCH_MEMO");
+        const char* e = std::getenv("NSMBU_VK_FETCH_MEMO");
         return e && !std::strcmp(e, "1");
     }();
     const bool cacheLast = memo && frame != ~uint64_t{0};
@@ -725,7 +725,7 @@ Shader* translate(const uint32_t* regs, bool vertex, LatteFetchShader* fetch, ui
     const uint64_t seed = base ^ (vertex ? fsKey * 31 : 0);
     ++stats.stateHashLookups;
     static const bool memoEnabled = [] {
-        const char* value = getenv("WWHD_VK_SHADER_STATE_MEMO");
+        const char* value = getenv("NSMBU_VK_SHADER_STATE_MEMO");
         return value && !strcmp(value,"1");
     }();
     uint64_t linkage;
