@@ -88,7 +88,7 @@ void save_and_quit() {
 void ask() {
     LOG("[quit] asking before quitting");
     NSAlert* a = [NSAlert new];
-    a.messageText = @"Quit Wind Waker HD?";
+    a.messageText = @"Quit New Super Mario Bros. U?";
     a.informativeText = [NSString stringWithFormat:@"Progress since your last in-game save is lost.\n\n"
                                                    @"Save State and Quit keeps it in save state slot %d (Save States menu), "
                                                    @"replacing what is there.",

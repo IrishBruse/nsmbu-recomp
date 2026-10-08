@@ -20,6 +20,7 @@
 #include <string>
 #include <thread>
 
+#include "app_title.h"
 #include "gfx/renderer.h"
 #include "mods/cemu_pack.h"
 #include "mods/content.h"
@@ -298,7 +299,7 @@ int main(int argc, char** argv) {
     }
     install_crash_handler();
     // which build on which system: also in crash logs (their last log lines)
-    LOG("[boot] Wind Waker HD %s (%s), %s", build::version(), build::commit(), reporthdr::os_description().c_str());
+    LOG("[boot] %s %s (%s), %s", app_title::kName, build::version(), build::commit(), reporthdr::os_description().c_str());
     // test aid: NSMBU_TEST_HOST_CRASH=1 crashes inside a system library (strlen of a bad pointer), so
     // the crash log's module names can be checked (CTest crash_log_module, runtime/tools/crash_log_test.cmake)
     if (getenv("NSMBU_TEST_HOST_CRASH")) {

@@ -2,7 +2,7 @@
 // rendering-path switches a report comes from, so reports from different versions and setups can't
 // be mixed up (issue #44). Two lines:
 //
-//   Wind Waker HD v0.2.5 (2ff030c), Windows 11 23H2 (build 22631.4317), AMD Radeon RX 6700 XT, driver 2.0.302, Vulkan 1.3.287
+//   New Super Mario Bros. U v0.2.5 (2ff030c), Windows 11 23H2 (build 22631.4317), AMD Radeon RX 6700 XT, driver 2.0.302, Vulkan 1.3.287
 //   performance report: renderer Vulkan, host SDL, 60 fps interpolation, internal scale 2.0x, buffer cache off; overrides: NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=0
 //
 // The formatting is pure (tested by runtime/tools/report_header_test.cpp); os_description() asks the
