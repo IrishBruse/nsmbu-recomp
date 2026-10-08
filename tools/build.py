@@ -7,15 +7,38 @@ import subprocess
 import sys
 import tempfile
 
-from just_debug import (
-    ROOT,
-    debug_compile_flags,
-    debug_link_flags,
-    extra_cmake_debug,
-    link_compile_commands,
-)
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 BUILD = os.path.join(ROOT, "build")
+
+
+def debug_compile_flags(install_flags, sanitizer=False):
+    flags = install_flags
+    if sanitizer:
+        flags = f"{flags} -fsanitize=address,undefined -fno-omit-frame-pointer"
+    return flags
+
+
+def debug_link_flags(link_dir, sanitizer=False):
+    flags = f"-L{link_dir}"
+    if sanitizer:
+        flags = f"{flags} -fsanitize=address,undefined"
+    return flags
+
+
+def link_compile_commands(build_dir):
+    src = os.path.join(build_dir, "compile_commands.json")
+    dst = os.path.join(ROOT, "compile_commands.json")
+    if os.path.isfile(src):
+        if os.path.islink(dst) or os.path.isfile(dst):
+            os.remove(dst)
+        os.symlink(os.path.relpath(src, ROOT), dst)
+
+
+def extra_cmake_debug(mods=False):
+    if mods:
+        return ["-DNSMBU_MODS_ENABLED=ON"]
+    return []
 
 
 def libstdcxx_libdir():

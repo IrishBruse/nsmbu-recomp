@@ -5,9 +5,16 @@ import shutil
 import subprocess
 import sys
 
-from just_debug import ROOT, apply_run_debug
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 BUILD = os.path.join(ROOT, "build")
+
+LAUNCH_DEBUG_ENV = {
+    "NSMBU_PROFILE": "1",
+    "NSMBU_VK_STATS": "1",
+    "NSMBU_SYNC_STATS": "1",
+    "NSMBU_CRASH_RECOVERY": "1",
+}
 
 
 def nsmbu_exe():
@@ -35,7 +42,9 @@ def main():
         sys.exit("missing game/; run: just extract")
     env = os.environ.copy()
     if use_debug_env:
-        apply_run_debug(env)
+        for key, value in LAUNCH_DEBUG_ENV.items():
+            if key not in env:
+                env[key] = value
     cmd = [exe, "--game", game]
     if args.trace:
         cmd.append("--trace")

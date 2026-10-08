@@ -13,23 +13,23 @@ build-release *args:
 build-sanitizer *args:
     python3 tools/build.py --sanitizer {{args}}
 
-run *args:
-    python3 tools/run.py {{args}}
+launch *args:
+    python3 tools/launch.py {{args}}
 
-run-release *args:
-    python3 tools/run.py --no-debug {{args}}
+launch-release *args:
+    python3 tools/launch.py --no-debug {{args}}
 
-run-trace *args:
-    python3 tools/run.py --trace {{args}}
+launch-trace *args:
+    python3 tools/launch.py --trace {{args}}
 
 gdb *args:
-    python3 tools/run.py --gdb {{args}}
+    python3 tools/launch.py --gdb {{args}}
 
 lldb *args:
-    python3 tools/run.py --lldb {{args}}
+    python3 tools/launch.py --lldb {{args}}
 
-debug *args:
-    just build {{args}} && just run {{args}}
+run *args:
+    just build {{args}} && just launch {{args}}
 
 recomp:
     python3 tools/recomp/recomp.py game/code/red-pro2.rpx build/gen

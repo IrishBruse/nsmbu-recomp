@@ -89,17 +89,15 @@ Otherwise it runs `stubgen.py` so the tree links without your RPX.
 Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
 `tools/build.py` adds the matching `-L` path when it finds `libstdc++.so` under `/usr/lib/gcc/`.
 
-`just run` starts `build/nsmbu` with `--game` set to `game/`, loads `env-debug.txt` and `env.txt` when present, and sets default debug env vars (`NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, `NSMBU_CRASH_RECOVERY`).
+`just launch` starts `build/nsmbu` with `--game` set to `game/` and sets default debug env vars (`NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, `NSMBU_CRASH_RECOVERY`) when they are not already set in the environment.
 
-Copy [`env-debug.example`](env-debug.example) to `env-debug.txt` to add more.
+`just launch-release` skips those defaults.
 
-`just run-release` skips those defaults.
-
-`just run-trace` passes `--trace` for HLE logging.
+`just launch-trace` passes `--trace` for HLE logging.
 
 `just gdb` and `just lldb` run the game under a debugger.
 
-`just debug` runs `just build` then `just run`.
+`just run` runs `just build` then `just launch`.
 
 `just recomp` runs `recomp.py` only.
 
