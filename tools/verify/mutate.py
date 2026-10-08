@@ -3,7 +3,7 @@
 
 usage: mutate.py UNIT [--n 300] [--max 400] [--seed 1]
 
-For every function body in the unit's candidate sources (from WWHD_FUNC to the next VERIFY),
+For every function body in the unit's candidate sources (from NSMBU_FUNC to the next VERIFY),
 make single-point mutants: change a literal, flip a comparison or logical operator, drop a
 statement, swap two adjacent statements, change a + to -. Each mutant is compiled into the
 unit and run with -n N generated inputs on its own function. A mutant that still passes is a
@@ -28,7 +28,7 @@ def bodies(text):
     between the previous VERIFY line and its own (inlined GameCube functions)"""
     out = []
     prev = 0
-    for m in re.finditer(r"WWHD_FUNC\(\s*0x([0-9A-Fa-f]{8})[^;]*;", text):
+    for m in re.finditer(r"NSMBU_FUNC\(\s*0x([0-9A-Fa-f]{8})[^;]*;", text):
         end = text.find("\nVERIFY(", m.end())
         end = end if end > 0 else len(text)
         # helpers: from the previous VERIFY line (or the first function definition) on
@@ -40,8 +40,8 @@ def bodies(text):
 
 def mutants(text, start, end):
     # blank out comments (keeping offsets) so mutations only hit code
-    # (and the WWHD_FUNC/VERIFY bookkeeping, which only names the function)
-    body = re.sub(r"/\*.*?\*/|//[^\n]*|WWHD_FUNC\([^;]*;|VERIFY\([^;]*;", lambda m: re.sub(r"[^\n]", " ", m.group(0)),
+    # (and the NSMBU_FUNC/VERIFY bookkeeping, which only names the function)
+    body = re.sub(r"/\*.*?\*/|//[^\n]*|NSMBU_FUNC\([^;]*;|VERIFY\([^;]*;", lambda m: re.sub(r"[^\n]", " ", m.group(0)),
                   text[start:end], flags=re.S)
     res = []
     for m in re.finditer(r"(?<![\w.])(\d+\.\d+f|\d+)(?![\w.x])", body):
@@ -66,10 +66,10 @@ def mutants(text, start, end):
     pos = start
     for ln in body.split("\n"):
         s = ln.strip()
-        if not s or s.startswith("#") or "/* 0x" in s or s.startswith(("VERIFY(", "WWHD_")):
+        if not s or s.startswith("#") or "/* 0x" in s or s.startswith(("VERIFY(", "NSMBU_")):
             pos += len(ln) + 1
             continue
-        if s.endswith(";") and not s.startswith(("return", "WWHD_FUNC", "gabi::Local", "//", "/*")) and "=" in s or \
+        if s.endswith(";") and not s.startswith(("return", "NSMBU_FUNC", "gabi::Local", "//", "/*")) and "=" in s or \
                 (s.endswith(";") and re.match(r"^[\w:>.\-]+\(.*\);$", s) and not s.startswith("return")):
             lines.append((pos, pos + len(ln)))
         pos += len(ln) + 1
@@ -101,7 +101,7 @@ def main():
     spec = os.path.join(HERE, "units", a.unit + ".txt")
     objs = [os.path.join(out, os.path.basename(s) + ".o") for s in [os.path.join(out, "unit.c"), "runtime/src/espresso_fp.c",
                                                                       "tools/verify/src/harness.cpp"] + srcs]
-    inc = ["-Iruntime/include", "-Itools/verify/include", "-Itools/verify/src", "-Iwwhd_src/include"]
+    inc = ["-Iruntime/include", "-Itools/verify/include", "-Itools/verify/src", "-Insmbu_src/include"]
     allm = []
     for src in srcs:
         text = open(os.path.join(ROOT, src)).read()

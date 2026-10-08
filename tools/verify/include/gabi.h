@@ -1,13 +1,13 @@
-/* gabi: what decompiled WWHD source is written against.
+/* gabi: what decompiled NSMBU source is written against.
  *
- * - Guest structures are described with their WWHD layout. Fields are `be<T>` (big-endian,
+ * - Guest structures are described with their NSMBU layout. Fields are `be<T>` (big-endian,
  *   accessed through the guest-memory functions below), pointers are `gptr<T>` (32-bit guest
  *   addresses). A `T*` in source is a token for a guest address (PPC_MEM_BASE + EA); it is never
  *   dereferenced directly, only through be<>/gptr<> members, so every access is visible to the
  *   harness.
  * - Calls to other guest functions go through `gabi::call<R>(addr, args...)` (PowerPC EABI:
  *   integers/pointers in r3..r10, floats in f1..f8, result in r3 or f1). Bindings with real
- *   names wrap these (see wwhd_src/include).
+ *   names wrap these (see nsmbu_src/include).
  * - Floating point follows the console as the recompiler models it: f32 arithmetic is IEEE
  *   single (exactly what fadds/fmuls/fdivs produce), and where GHS contracted a*b+c into
  *   fmadds the source must say so with gabi::fmadds() & co. (compile with -ffp-contract=off).
@@ -258,7 +258,7 @@ template <class R> constexpr RetKind ret_kind() {
 }
 
 /* Activation: a decompiled function runs its body only when entered from guest code. When
- * another decompiled function calls it directly (natural C++ call), WWHD_FUNC turns that call
+ * another decompiled function calls it directly (natural C++ call), NSMBU_FUNC turns that call
  * into a guest call to its address, so every function is tested in isolation and a native
  * build can route the call wherever that address is implemented. */
 struct Activation {
@@ -317,14 +317,14 @@ template <class C, class R, class... A> constexpr RetKind ret_of(R (C::*)(A...))
 #define GABI_CAT2(a, b) a##b
 #define GABI_CAT(a, b) GABI_CAT2(a, b)
 
-/* First statement of every decompiled function: its WWHD address, return type and arguments
+/* First statement of every decompiled function: its NSMBU address, return type and arguments
  * (with `this` first for methods). */
-#define WWHD_FUNC(addr, R, ...)                                                  \
+#define NSMBU_FUNC(addr, R, ...)                                                  \
     if (gabi::Activation::nested()) return gabi::call<R>(addr, __VA_ARGS__);   \
-    gabi::Activation wwhd_activation_
+    gabi::Activation nsmbu_activation_
 
 /* VERIFY(0x021E01B8, daMtoge_actionUp) / VERIFY(0x021DFF30, &daMtoge_c::calcMtx): this source
- * function implements the WWHD function at that address (registers it with the harness). */
+ * function implements the NSMBU function at that address (registers it with the harness). */
 #define VERIFY(addr, fn)                                                                        \
-    static gabi::Candidate GABI_CAT(wwhd_verify_, __LINE__)(addr, #fn,                         \
+    static gabi::Candidate GABI_CAT(nsmbu_verify_, __LINE__)(addr, #fn,                         \
         &decltype(gabi::entry_of(fn))::template run<fn>, gabi::ret_of(fn))

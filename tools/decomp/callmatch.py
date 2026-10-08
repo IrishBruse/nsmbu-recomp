@@ -1,7 +1,7 @@
 """Call-graph matching against the GameCube binary (BinDiff-style propagation).
 
 GameCube side: every call site has a relocation naming its target, so the call graph is exact and
-named. WWHD side: bl targets. Starting from trusted pairs, an unmatched WWHD function w and GameCube
+named. NSMBU side: bl targets. Starting from trusted pairs, an unmatched NSMBU function w and GameCube
 function g are paired when w is called by / calls functions already paired with g's callers /
 callees, and the pairing is the mutual best with a clear margin. Float/string tokens, size and call
 counts break ties. Repeats until no new pairs appear.
@@ -29,7 +29,7 @@ def build_graphs(G, W, wcallees):
 
 
 def propagate(G, W, wcallees, seeds, idf, rounds=20, log=print):
-    """seeds: {wwhd addr: gc mangled name}. Returns the grown mapping."""
+    """seeds: {nsmbu addr: gc mangled name}. Returns the grown mapping."""
     gkey, gcallees, gcallers, wcallers = build_graphs(G, W, wcallees)
     m = {w: g for w, g in seeds.items() if g in gkey}
     rev = {g: w for w, g in m.items()}

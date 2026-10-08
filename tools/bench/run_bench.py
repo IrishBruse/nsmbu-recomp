@@ -8,9 +8,9 @@ input. One game process at a time; it is stopped with TERM, then KILL, and check
 
 Example (two variants, interleaved A B B A ..., 6 runs each, 60 fps interpolation, Vulkan):
 
-  tools/bench/run_bench.py --binary build/wwhd --state-dir my_states --scene outset \\
+  tools/bench/run_bench.py --binary build/nsmbu --state-dir my_states --scene outset \\
       --fps 60 --renderer vulkan --runs 6 --out bench/sync \\
-      --variant base:WWHD_VK_LAZY_DRAW_DONE=0,WWHD_VK_ASYNC_PRESENT=0 --variant new:
+      --variant base:NSMBU_VK_LAZY_DRAW_DONE=0,NSMBU_VK_ASYNC_PRESENT=0 --variant new:
 
 Scenes (input is timed in game seconds from TV frame --origin, so 30 and 60 fps runs see the same
 input): outset = walk and look around on Outset Island (state slot 3 by default), windfall = walk
@@ -40,7 +40,7 @@ SCENES = {
 
 
 def other_games(own_pid=None):
-    """Running game executables (wwhd*) other than own_pid: the executable name, not the arguments
+    """Running game executables (nsmbu*) other than own_pid: the executable name, not the arguments
     (this script itself is started with --game)."""
     try:
         out = subprocess.run(["ps", "-Ao", "pid=,comm="], capture_output=True, text=True).stdout
@@ -49,7 +49,7 @@ def other_games(own_pid=None):
     found = []
     for line in out.splitlines():
         pid, _, comm = line.strip().partition(" ")
-        if os.path.basename(comm.strip()).startswith("wwhd") and (own_pid is None or int(pid) != own_pid):
+        if os.path.basename(comm.strip()).startswith("nsmbu") and (own_pid is None or int(pid) != own_pid):
             found.append(line.strip()[:160])
     return found
 
@@ -160,37 +160,37 @@ def run_once(args, variant, env_extra, index, out_dir):
     load_at, origin = args.load_frame, args.origin
     cache = os.path.abspath(args.cache_dir or os.path.join(out_dir, "cache"))
     os.makedirs(cache, exist_ok=True)
-    env = {k: v for k, v in os.environ.items() if not k.startswith("WWHD_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("NSMBU_")}
     press_from = args.press_from if args.press_from >= 0 else max(0, load_at - 300)
     presses = ",".join("%d-%d:8000" % (f, f + 8) for f in range(press_from, load_at, args.press_every))
     env.update({
-        "WWHD_NO_AUDIO": "1", "WWHD_NO_GAMEPAD": "1", "WWHD_NO_HOST_INPUT": "1",
-        "WWHD_SHADER_CACHE": os.path.join(cache, "shaders.bin"), "WWHD_VK_SHADER_CACHE": os.path.join(cache, "vkshaders"),
-        "WWHD_VK_PIPELINE_CACHE": os.path.join(cache, "vkpipelines.bin"),
-        "WWHD_DISPLAY_SETTINGS": os.path.join(run_dir, "display.plist"), "WWHD_SETTINGS": os.path.join(run_dir, "settings.ini"),
+        "NSMBU_NO_AUDIO": "1", "NSMBU_NO_GAMEPAD": "1", "NSMBU_NO_HOST_INPUT": "1",
+        "NSMBU_SHADER_CACHE": os.path.join(cache, "shaders.bin"), "NSMBU_VK_SHADER_CACHE": os.path.join(cache, "vkshaders"),
+        "NSMBU_VK_PIPELINE_CACHE": os.path.join(cache, "vkpipelines.bin"),
+        "NSMBU_DISPLAY_SETTINGS": os.path.join(run_dir, "display.plist"), "NSMBU_SETTINGS": os.path.join(run_dir, "settings.ini"),
         "XDG_CONFIG_HOME": os.path.join(run_dir, "config"),
-        "WWHD_PRESS": presses, "WWHD_STATE_DIR": os.path.abspath(args.state_dir), "WWHD_STATE_LOAD_AT": "%d:%d" % (load_at, slot),
-        "WWHD_TEST_ORIGIN": str(origin), "WWHD_TEST_END": str(args.seconds),
-        "WWHD_RENDERER_RUNTIME": args.renderer, "WWHD_PROFILE": "1",
+        "NSMBU_PRESS": presses, "NSMBU_STATE_DIR": os.path.abspath(args.state_dir), "NSMBU_STATE_LOAD_AT": "%d:%d" % (load_at, slot),
+        "NSMBU_TEST_ORIGIN": str(origin), "NSMBU_TEST_END": str(args.seconds),
+        "NSMBU_RENDERER_RUNTIME": args.renderer, "NSMBU_PROFILE": "1",
     })
     if not args.visible:
-        env["WWHD_HIDDEN_WINDOWS"] = "1"  # nothing pops up, but nothing is presented either
+        env["NSMBU_HIDDEN_WINDOWS"] = "1"  # nothing pops up, but nothing is presented either
     if stick:
-        env["WWHD_TEST_STICK"] = stick
+        env["NSMBU_TEST_STICK"] = stick
     if rstick:
-        env["WWHD_TEST_RSTICK"] = rstick
+        env["NSMBU_TEST_RSTICK"] = rstick
     if args.renderer == "vulkan":
-        env["WWHD_VK_CPU_ONLY_STATS"] = "1"
+        env["NSMBU_VK_CPU_ONLY_STATS"] = "1"
     if args.fps in ("60", "120", "240"):
-        env["WWHD_INTERP_AT_STEP"] = str(load_at + 60)
+        env["NSMBU_INTERP_AT_STEP"] = str(load_at + 60)
         if args.fps != "60":  # the rate, without switching interpolation on before the step above
-            env["WWHD_INTERP"], env["WWHD_INTERP_FPS"] = "0", args.fps
+            env["NSMBU_INTERP"], env["NSMBU_INTERP_FPS"] = "0", args.fps
     if args.display_hz is not None:
-        env["WWHD_DISPLAY_HZ"] = str(args.display_hz)
+        env["NSMBU_DISPLAY_HZ"] = str(args.display_hz)
     elif args.fps == "true60":
-        env["WWHD_TRUE60_AT_STEP"] = str(load_at + 60)
+        env["NSMBU_TRUE60_AT_STEP"] = str(load_at + 60)
     if args.uncapped:
-        env["WWHD_VK_UNCAPPED"] = "1"
+        env["NSMBU_VK_UNCAPPED"] = "1"
     env.update(env_extra)
     if args.gate:
         subprocess.run(args.gate, shell=True, check=False)  # e.g. wait for another benchmark to finish
@@ -248,20 +248,20 @@ def run_once(args, variant, env_extra, index, out_dir):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--binary", required=True, help="game executable (wwhd)")
+    p.add_argument("--binary", required=True, help="game executable (nsmbu)")
     p.add_argument("--game", default=os.path.join(REPO, "game"), help="extracted game folder (default: <repo>/game)")
     p.add_argument("--save", default=os.path.join(REPO, "save"), help="save folder, copied for every run (default: <repo>/save)")
     p.add_argument("--state-dir", required=True, help="folder with slot<N>.bin save states (read only)")
     p.add_argument("--scene", choices=sorted(SCENES), default="outset")
     p.add_argument("--slot", type=int, default=0, help="state slot (default: the scene's)")
     p.add_argument("--fps", choices=["30", "60", "120", "240", "true60"], default="30",
-                   help="60, 120, 240 = frame interpolation (120/240: paced unless WWHD_INTERP_PACED=0)")
-    p.add_argument("--display-hz", type=int, help="WWHD_DISPLAY_HZ: the display refresh rate frame interpolation is "
+                   help="60, 120, 240 = frame interpolation (120/240: paced unless NSMBU_INTERP_PACED=0)")
+    p.add_argument("--display-hz", type=int, help="NSMBU_DISPLAY_HZ: the display refresh rate frame interpolation is "
                    "capped to (0: no cap; default: the detected one, e.g. 120 on a ProMotion Mac)")
     p.add_argument("--renderer", choices=["vulkan", "metal"], default="vulkan")
     p.add_argument("--visible", action="store_true",
                    help="show the game windows (presentation, swapchain and vsync pacing are only exercised then)")
-    p.add_argument("--uncapped", action="store_true", help="WWHD_VK_UNCAPPED=1: throughput, not gameplay pacing")
+    p.add_argument("--uncapped", action="store_true", help="NSMBU_VK_UNCAPPED=1: throughput, not gameplay pacing")
     p.add_argument("--seconds", type=float, default=60, help="scenario length in game seconds after --origin")
     # the state load restores the whole game state, so it only needs the boot to have finished; A
     # presses from frame 120 skip the intro and title (validated 2026-10-07 at loads 360 and 600)

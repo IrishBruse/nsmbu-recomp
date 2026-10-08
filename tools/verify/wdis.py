@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Disassemble WWHD functions with names: wdis.py ADDR [ADDR...]  (whole functions, bl/b targets
+"""Disassemble NSMBU functions with names: wdis.py ADDR [ADDR...]  (whole functions, bl/b targets
 named from build/names.tsv, float constants from .rodata shown)"""
 import os
 import re
@@ -16,7 +16,7 @@ from funcdb import GenIndex, load_names  # noqa: E402
 
 gen = GenIndex(os.path.join(ROOT, "build", "gen"))
 names, gc = load_names(os.path.join(ROOT, "build"))
-rpx = Rpx(os.path.join(ROOT, "game", "code", "cking.rpx"))
+rpx = Rpx(os.path.join(ROOT, "game", "code", "red-pro2.rpx"))
 secs = [s for s in rpx.sections if s.name in (".rodata", ".data") and s.data]
 
 

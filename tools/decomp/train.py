@@ -6,7 +6,7 @@ matched functions; in a third of the examples the true function is removed so th
 when to say 'none of these'. Prints the weights to paste into match2.Matcher.WEIGHTS and a
 cross-validated precision table.
 
-Usage: train.py names.tsv cking.rpx tww
+Usage: train.py names.tsv red-pro2.rpx tww
 """
 import bisect
 import random
@@ -109,14 +109,14 @@ def main():
         pass
     import os
     if os.environ.get("TRAIN_FROM"):
-        # wider truth: an earlier run's high-confidence pairs (wwhd_to_gc.tsv), excluding the legacy stage
+        # wider truth: an earlier run's high-confidence pairs (nsmbu_to_gc.tsv), excluding the legacy stage
         for line in list(open(os.environ["TRAIN_FROM"]))[1:]:
             p = line.split("\t")
             if p[5] in ("graph", "tu", "vtable") and int(p[0], 16) not in m.M:
                 ids = g.byname.get(p[1])
                 if ids:
                     m.add(int(p[0], 16), m.canon[ids[0]], p[5])
-    # skip wrappers whose callee was inlined in WWHD (the body is the callee's; ambiguous label)
+    # skip wrappers whose callee was inlined in NSMBU (the body is the callee's; ambiguous label)
     truth = {a: c for a, c in m.M.items() if m.w.size[a] >= 24 and m.w.size[a] <= 3 * m.g.funcs[c].size + 64}
     print("truth pairs", len(truth))
     rnd = random.Random(7)

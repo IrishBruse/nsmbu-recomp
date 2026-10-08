@@ -1,6 +1,6 @@
-"""WWHD data addresses of GameCube globals, learned from matched function pairs (match2.learn_data).
+"""NSMBU data addresses of GameCube globals, learned from matched function pairs (match2.learn_data).
 
-Usage: datamap.py wwhd_to_gc.tsv cking.rpx tww [regex] > data_map.tsv
+Usage: datamap.py nsmbu_to_gc.tsv red-pro2.rpx tww [regex] > data_map.tsv
 """
 import re
 import sys
@@ -28,7 +28,7 @@ def main():
     by = defaultdict(list)
     for addr, sym in m.amap.items():
         by[sym].append(addr)
-    print("gc_symbol\twwhd_addresses (lowest = likely base)")
+    print("gc_symbol\tnsmbu_addresses (lowest = likely base)")
     for sym in sorted(by):
         if pat and not pat.search(sym):
             continue

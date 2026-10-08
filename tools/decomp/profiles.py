@@ -1,8 +1,8 @@
-"""Actor profiles: WWHD's g_profile_* structures matched to the decompilation's by process name.
+"""Actor profiles: NSMBU's g_profile_* structures matched to the decompilation's by process name.
 
 Each actor registers {..., proc name (s16 at +0x08), ..., actor method table (+0x24)}; the method
-table holds Create, Delete, Execute, IsDelete, Draw. Same layout in WWHD, so the process name links
-a WWHD profile to the decompiled actor, and its five entries name five functions.
+table holds Create, Delete, Execute, IsDelete, Draw. Same layout in NSMBU, so the process name links
+a NSMBU profile to the decompiled actor, and its five entries name five functions.
 """
 import os
 import re
@@ -47,7 +47,7 @@ def decomp_profiles(tww):
     return out
 
 
-def wwhd_profiles(x):
+def nsmbu_profiles(x):
     """list of (profile address, proc name, [5 function addresses])"""
     r = x.p.rpx
     ptr = {}
@@ -75,20 +75,20 @@ if __name__ == "__main__":
     from xref import Xref
     x = Xref(sys.argv[1])
     dp = decomp_profiles(sys.argv[2])
-    wp = wwhd_profiles(x)
+    wp = nsmbu_profiles(x)
     hit = [p for p in wp if p[1] in dp]
-    print("decomp profiles", len(dp), "WWHD profiles", len(wp), "same proc name", len(hit))
+    print("decomp profiles", len(dp), "NSMBU profiles", len(wp), "same proc name", len(hit))
     for base, pn, tbl in hit[:5]:
         print(hex(base), hex(pn), dp[pn][0], ["%08X %s" % (a, n) for a, n in zip(tbl, dp[pn][1])])
 
 
 def match_profiles(x, tww, named):
-    """WWHD profile -> decompiled actor. `named`: address -> (name, file) from earlier stages.
+    """NSMBU profile -> decompiled actor. `named`: address -> (name, file) from earlier stages.
     Process names shift between the versions (actors added/removed), so the shift is learned from
     profiles whose functions are already named, and applied where the nearest anchors on both sides
     agree."""
     dp = decomp_profiles(tww)
-    wp = wwhd_profiles(x)
+    wp = nsmbu_profiles(x)
     file2id = {}
     for pid, (f, _) in sorted(dp.items()):
         file2id.setdefault(f, pid)
