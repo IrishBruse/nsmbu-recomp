@@ -1067,3 +1067,14 @@ HLE(snd_core, AXSetVoiceRmtOn) {}
 HLE(snd_core, AXSetVoiceRmtIIR) {}
 HLE(snd_core, AXSetVoiceRmtIIRCoefs) {}
 HLE(snd_core, AXDecodeAdpcmData) { LOG("[ax] AXDecodeAdpcmData called (not implemented)"); }
+HLE(snd_core, AXRegisterCallback) {
+    std::lock_guard<std::mutex> lk(g_ax_mutex);
+    for (uint32_t& cb : g_app_frame_cb)
+        if (!cb) { cb = arg(c, 0); break; }
+    ret(c, 0);
+}
+HLE(snd_core, AXPrepareEfxData) { ret(c, 0); }
+HLE(snd_core, AIGetDMAStartAddr) { ret(c, 0); }
+HLE(snd_core, AIGetDMALength) { ret(c, 0); }
+HLE(snd_core, AI2GetDMAStartAddr) { ret(c, 0); }
+HLE(snd_core, AI2GetDMALength) { ret(c, 0); }
