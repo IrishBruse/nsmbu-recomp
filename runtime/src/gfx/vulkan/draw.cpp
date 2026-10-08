@@ -34,6 +34,100 @@ bool preparation_stats_enabled() {
   static const bool enabled=std::getenv("WWHD_VK_STATS")!=nullptr;
   return enabled;
 }
+VkImageView null_texture_view(E_DIM dim, bool depth) {
+  struct Slot {
+    VkImage image = VK_NULL_HANDLE;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
+    VkImageView view = VK_NULL_HANDLE;
+  };
+  static std::unordered_map<uint32_t, Slot> cache;
+  uint32_t key = uint32_t(dim) | (depth ? 0x100u : 0);
+  if (auto it = cache.find(key); it != cache.end()) return it->second.view;
+  VkImageType imageType = VK_IMAGE_TYPE_2D;
+  VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
+  uint32_t layers = 1;
+  VkImageCreateFlags flags = 0;
+  if (!depth) {
+    switch (dim) {
+    case E_DIM::DIM_1D:
+      imageType = VK_IMAGE_TYPE_1D;
+      viewType = VK_IMAGE_VIEW_TYPE_1D;
+      break;
+    case E_DIM::DIM_1D_ARRAY:
+      imageType = VK_IMAGE_TYPE_1D;
+      viewType = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+      break;
+    case E_DIM::DIM_3D:
+      imageType = VK_IMAGE_TYPE_3D;
+      viewType = VK_IMAGE_VIEW_TYPE_3D;
+      break;
+    case E_DIM::DIM_CUBEMAP:
+      viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+      layers = 6;
+      flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+      break;
+    case E_DIM::DIM_2D_ARRAY:
+    case E_DIM::DIM_2D_ARRAY_MSAA:
+      viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+      break;
+    default:
+      break;
+    }
+  }
+  VkFormat format = depth ? VK_FORMAT_D32_SFLOAT : VK_FORMAT_R8G8B8A8_UNORM;
+  VkImageAspectFlags aspect = depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+  Slot slot;
+  VkImageCreateInfo ci{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+  ci.flags = flags;
+  ci.imageType = imageType;
+  ci.format = format;
+  ci.extent = {1, 1, 1};
+  ci.mipLevels = 1;
+  ci.arrayLayers = layers;
+  ci.samples = VK_SAMPLE_COUNT_1_BIT;
+  ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+  ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  vk_check(vkCreateImage(R.device, &ci, nullptr, &slot.image), "null texture");
+  VkMemoryRequirements req;
+  vkGetImageMemoryRequirements(R.device, slot.image, &req);
+  VkMemoryAllocateInfo ai{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+  ai.allocationSize = req.size;
+  ai.memoryTypeIndex = memory_type(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  vk_check(vkAllocateMemory(R.device, &ai, nullptr, &slot.memory), "null texture memory");
+  vk_check(vkBindImageMemory(R.device, slot.image, slot.memory, 0), "null texture bind");
+  VkImageViewCreateInfo vi{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+  vi.image = slot.image;
+  vi.viewType = viewType;
+  vi.format = format;
+  vi.subresourceRange = {aspect, 0, 1, 0, layers};
+  vk_check(vkCreateImageView(R.device, &vi, nullptr, &slot.view), "null texture view");
+  VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+  barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = slot.image;
+  barrier.subresourceRange = {aspect, 0, 1, 0, layers};
+  barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  vkCmdPipelineBarrier(command_buffer(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+  VkImageSubresourceRange range{aspect, 0, 1, 0, layers};
+  if (depth) {
+    VkClearDepthStencilValue clear{1.f, 0};
+    vkCmdClearDepthStencilImage(command_buffer(), slot.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
+  } else {
+    VkClearColorValue clear{};
+    vkCmdClearColorImage(command_buffer(), slot.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
+  }
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  vkCmdPipelineBarrier(command_buffer(), VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+  LOG("[vulkan] unbound sampled texture uses a 1x1 stand-in");
+  cache.emplace(key, slot);
+  return slot.view;
+}
 // Bounded overlap: the default on every platform (measured on macOS and Windows); an explicit
 // zero/invalid WWHD_VK_DRAW_BATCH disables it.
 uint32_t parse_draw_batch(const char* text) {
@@ -1728,30 +1822,36 @@ StageResources bind_stage(const uint32_t *r, vk::Shader *sh,
       continue;
     auto *s = sampled_texture(r + texbase + unit * 7,
                               sh->dec->textureUsesDepthCompare[unit]);
-    if (!s)
-      throw std::runtime_error("missing sampled texture");
-    if (!sh->vertex && ao_hires_enabled() && aoPrivateSource &&
-        s->addr == aoPrivateSource && aoPrivateFrame == R.frame &&
-        (r[mmSQ_PGM_START_PS] << 8) == kOcclusionPS)
-      s = &aoPrivateColor;
-    upload_surface(s);
-    int scaleOffset = sh->uniforms.offset_texScale[unit];
-    if (scaleOffset >= 0 && size_t(scaleOffset) + 8 <= supportUniforms.size()) {
-      const float scale[] = {s->sx, s->sy};
-      memcpy(supportUniforms.data() + scaleOffset, scale, sizeof scale);
+    VkImageView sampledView = VK_NULL_HANDLE;
+    bool integerSampler = true;
+    bool allowAniso = false;
+    if (!s) {
+      sampledView = null_texture_view(sh->dec->textureUnitDim[unit], sh->dec->textureUsesDepthCompare[unit]);
+    } else {
+      if (!sh->vertex && ao_hires_enabled() && aoPrivateSource &&
+          s->addr == aoPrivateSource && aoPrivateFrame == R.frame &&
+          (r[mmSQ_PGM_START_PS] << 8) == kOcclusionPS)
+        s = &aoPrivateColor;
+      upload_surface(s);
+      int scaleOffset = sh->uniforms.offset_texScale[unit];
+      if (scaleOffset >= 0 && size_t(scaleOffset) + 8 <= supportUniforms.size()) {
+        const float scale[] = {s->sx, s->sy};
+        memcpy(supportUniforms.data() + scaleOffset, scale, sizeof scale);
+      }
+      bool aliases = depth && s->image == depth->image;
+      for (auto *color : colors)
+        if (color && s->image == color->image)
+          aliases = true;
+      sampledView = aliases ? feedback_view(s, r + texbase + unit * 7, sh->vertex, unit, feedbackProbe)
+                            : sampled_texture_view(s, r + texbase + unit * 7);
+      if (!aliases)
+        transition_image(s, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                         VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                         VK_ACCESS_SHADER_READ_BIT);
+      integerSampler = s->fmt.kind != FormatInfo::FLOAT;
+      allowAniso = !s->gpuWritten && s->mips > 1;
     }
-    bool aliases = depth && s->image == depth->image;
-    for (auto *color : colors)
-      if (color && s->image == color->image)
-        aliases = true;
-    VkImageView sampledView =
-        aliases ? feedback_view(s, r + texbase + unit * 7, sh->vertex, unit, feedbackProbe)
-                : sampled_texture_view(s, r + texbase + unit * 7);
-    if (!aliases)
-      transition_image(s, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                       VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                       VK_ACCESS_SHADER_READ_BIT);
     uint32_t samplerId = sh->dec->textureUnitSamplerAssignment[unit];
     if (samplerId >= 18)
       throw std::runtime_error("missing texture sampler");
@@ -1769,8 +1869,8 @@ StageResources bind_stage(const uint32_t *r, vk::Shader *sh,
       samplerWords = patchedSampler;
     }
     info = {sampler(samplerWords, sh->dec->textureUsesDepthCompare[unit],
-                   s->fmt.kind != FormatInfo::FLOAT,
-                   !s->gpuWritten && s->mips > 1),
+                   integerSampler,
+                   allowAniso),
                              sampledView,
                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
     auto &write = appendWrite(rankPlan.textures[unit]);
