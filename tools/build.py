@@ -7,7 +7,15 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from just_debug import (
+    ROOT,
+    debug_compile_flags,
+    debug_link_flags,
+    extra_cmake_debug,
+    link_compile_commands,
+)
+
+BUILD = os.path.join(ROOT, "build")
 
 
 def libstdcxx_libdir():
@@ -89,9 +97,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 4)
     parser.add_argument("--release", action="store_true")
+    parser.add_argument("--no-debug", action="store_true")
+    parser.add_argument("--sanitizer", action="store_true")
+    parser.add_argument("--mods", action="store_true")
     parser.add_argument("cmake_args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
-    build = os.path.join(ROOT, "build")
+    debug_build = not args.release and not args.no_debug
     ensure_gen_dir()
     libdir = libstdcxx_libdir()
     if not libdir:
@@ -102,35 +113,41 @@ def main():
     if not cc:
         sys.exit("build needs a working clang++ on PATH (clang-18 or clang)")
     install = " ".join(gcc_install_flags(libdir))
-    link_flags = f"-L{libdir}"
+    compile_flags = debug_compile_flags(install, args.sanitizer)
+    link_flags = debug_link_flags(libdir, args.sanitizer)
     cmake = [
         "cmake",
         "-S",
         ROOT,
         "-B",
-        build,
+        BUILD,
         f"-DCMAKE_C_COMPILER={cc}",
         f"-DCMAKE_CXX_COMPILER={cxx}",
-        f"-DCMAKE_C_FLAGS={install}",
-        f"-DCMAKE_CXX_FLAGS={install}",
+        f"-DCMAKE_C_FLAGS={compile_flags}",
+        f"-DCMAKE_CXX_FLAGS={compile_flags}",
         f"-DCMAKE_EXE_LINKER_FLAGS={link_flags}",
         f"-DCMAKE_SHARED_LINKER_FLAGS={link_flags}",
         f"-DCMAKE_MODULE_LINKER_FLAGS={link_flags}",
     ]
     if args.release:
         cmake.append("-DCMAKE_BUILD_TYPE=Release")
-    else:
+    elif debug_build:
         cmake.append("-DCMAKE_BUILD_TYPE=Debug")
+    else:
+        cmake.append("-DCMAKE_BUILD_TYPE=RelWithDebInfo")
     extra = list(args.cmake_args)
     if not any(a.startswith("-DNSMBU_BUNDLED_DEPS") for a in extra):
         cmake.append("-DNSMBU_BUNDLED_DEPS=ON")
+    cmake.extend(extra_cmake_debug(args.mods))
     cmake.extend(extra)
     subprocess.run(cmake, check=True, cwd=ROOT)
     subprocess.run(
-        ["cmake", "--build", build, "--target", "nsmbu", "-j", str(args.jobs)],
+        ["cmake", "--build", BUILD, "--target", "nsmbu", "-j", str(args.jobs)],
         check=True,
         cwd=ROOT,
     )
+    if debug_build:
+        link_compile_commands(BUILD)
 
 
 if __name__ == "__main__":

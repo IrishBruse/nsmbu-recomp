@@ -70,14 +70,34 @@ Git ignores that folder except `disc/.gitkeep`.
 
 `just extract` reads that folder and writes `game/`.
 
-`just build` configures `build/` with Clang and builds the `nsmbu` target.
+`just build` configures `build/` in **Debug**, links `compile_commands.json` at the repo root, and builds `nsmbu`.
 
-If `build/gen` is missing, `just build` runs `stubgen.py` there so the tree links without your RPX.
+If `game/code/red-pro2.rpx` exists, `just build` runs `recomp.py` into `build/gen` when the RPX is newer than the generated code.
+
+Otherwise it runs `stubgen.py` so the tree links without your RPX.
+
+`just build-release` uses **Release** with no debug symlink.
+
+`just build-sanitizer` adds AddressSanitizer and UBSan.
+
+`just build --mods` passes `-DNSMBU_MODS_ENABLED=ON`.
 
 Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
 `tools/build.py` adds the matching `-L` path when it finds `libstdc++.so` under `/usr/lib/gcc/`.
 
-`just run` runs `build/nsmbu` with `--game` set to `game/`.
+`just run` starts `build/nsmbu` with `--game` set to `game/`, loads `env-debug.txt` and `env.txt` when present, and sets default debug env vars (`NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, `NSMBU_CRASH_RECOVERY`).
+
+Copy [`env-debug.example`](env-debug.example) to `env-debug.txt` to add more.
+
+`just run-release` skips those defaults.
+
+`just run-trace` passes `--trace` for HLE logging.
+
+`just gdb` and `just lldb` run the game under a debugger.
+
+`just debug` runs `just build` then `just run`.
+
+`just recomp` runs `recomp.py` only.
 
 Built-in mods, the mod manager, and cheats are off in this port (`mods::mods_enabled()` is false unless you build with `-DNSMBU_MODS_ENABLED`).
 

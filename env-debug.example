@@ -1,0 +1,7 @@
+# Optional: copy to env-debug.txt in the repo root.
+# just run loads env-debug.txt and env.txt before starting the game.
+# Lines here override the defaults from tools/just_debug.py.
+
+# NSMBU_VK_CPU_ONLY_STATS=1
+# NSMBU_UNCAPPED=1
+# NSMBU_FULL_SAVE_STATES=1
