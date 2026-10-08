@@ -61,7 +61,7 @@ class Paths(unittest.TestCase):
             os.makedirs(os.path.join(d, "code"))
             os.makedirs(os.path.join(d, "content"))
             os.makedirs(os.path.join(d, "meta"))
-            open(os.path.join(d, "code", "cking.rpx"), "wb").close()
+            open(os.path.join(d, "code", "red-pro2.rpx"), "wb").close()
             with open(os.path.join(d, "meta", "meta.xml"), "w") as f:
                 f.write('<menu><title_id type="hexBinary" length="8">0005000010143500</title_id></menu>')
             self.assertTrue(setup.valid_game_folder(d))
@@ -75,7 +75,7 @@ class Titles(unittest.TestCase):
     def test_other_regions(self):
         with self.assertRaisesRegex(setup.SetupError, "Europe"):
             setup.check_title("0005000010143600")
-        with self.assertRaisesRegex(setup.SetupError, "not The Wind Waker HD"):
+        with self.assertRaisesRegex(setup.SetupError, "not New Super Mario Bros. U"):
             setup.check_title("000500001010ec00")
 
 
@@ -84,7 +84,7 @@ def _title(tid, version, files=10, size=1000):
 
 
 class ArchiveTitles(unittest.TestCase):
-    """Which title of a Cemu archive (.wua) is used (info as wwhd-extract --title 0005000010143500 info prints it)."""
+    """Which title of a Cemu archive (.wua) is used (info as nsmbu-extract --title 0005000010143500 info prints it)."""
 
     BASE, UPDATE = _title("0005000010143500", 0), _title("0005000e10143500", 16)
 
@@ -102,7 +102,7 @@ class ArchiveTitles(unittest.TestCase):
         folder, notes = setup.archive_choice(self.info([self.UPDATE, self.BASE, _title("0005000c10143500", 3)], self.BASE))
         self.assertEqual(folder, "0005000010143500_v0")
         self.assertEqual(len(notes), 2)
-        self.assertIn("the update for The Wind Waker HD (USA), version 16", notes[0])
+        self.assertIn("the update for New Super Mario Bros. U (USA), version 16", notes[0])
         self.assertIn("version 0", notes[0])
         self.assertIn("downloadable content", notes[1])
 
@@ -115,7 +115,7 @@ class ArchiveTitles(unittest.TestCase):
             setup.archive_choice(self.info([_title("0005000010143600", 0), _title("0005000e10143600", 16)]))
 
     def test_other_game(self):
-        with self.assertRaisesRegex(setup.SetupError, "does not contain The Wind Waker HD.*title 00050000-1010EC00"):
+        with self.assertRaisesRegex(setup.SetupError, "does not contain New Super Mario Bros. U.*title 00050000-1010EC00"):
             setup.archive_choice(self.info([_title("000500001010ec00", 0)]))
         with self.assertRaisesRegex(setup.SetupError, "no Wii U titles"):
             setup.archive_choice(self.info([]))
@@ -126,8 +126,8 @@ class ArchiveTitles(unittest.TestCase):
             setup.archive_choice(self.info([v2], v2))
 
     def test_title_desc(self):
-        self.assertEqual(setup.title_desc("0005000010143500", 0), "The Wind Waker HD (USA), version 0")
-        self.assertEqual(setup.title_desc("0005000E10143400"), "the update for The Wind Waker HD (Japan)")
+        self.assertEqual(setup.title_desc("0005000010143500", 0), "New Super Mario Bros. U (USA), version 0")
+        self.assertEqual(setup.title_desc("0005000E10143400"), "the update for New Super Mario Bros. U (Japan)")
 
     def test_plan(self):
         self.assertEqual(setup.plan_steps("archive"), ["archive", "compiler", "extract", "translate", "compile", "app"])
@@ -135,11 +135,11 @@ class ArchiveTitles(unittest.TestCase):
 
 
 class GameVersion(unittest.TestCase):
-    """code/cking.rpx must be the file the port is built for (USA v0); synthetic files, made-up bytes."""
+    """code/red-pro2.rpx must be the file the port is built for (USA v0); synthetic files, made-up bytes."""
 
     def make(self, d, rpx=b"made-up rpx", app_tid="0005000010143500", app_ver="0000"):
         os.makedirs(os.path.join(d, "code"), exist_ok=True)
-        with open(os.path.join(d, "code", "cking.rpx"), "wb") as f:
+        with open(os.path.join(d, "code", "red-pro2.rpx"), "wb") as f:
             f.write(rpx)
         with open(os.path.join(d, "code", "app.xml"), "w") as f:
             f.write('<app><title_id type="hexBinary" length="8">%s</title_id>\n'
@@ -179,7 +179,7 @@ class GameVersion(unittest.TestCase):
     def test_other_region(self):
         with tempfile.TemporaryDirectory() as d:
             self.make(d, rpx=b"eu", app_tid="0005000010143600")
-            with self.assertRaisesRegex(setup.SetupError, "The Wind Waker HD \\(Europe\\)"):
+            with self.assertRaisesRegex(setup.SetupError, "New Super Mario Bros. U \\(Europe\\)"):
                 setup.check_game_version(d)
 
     def test_missing(self):
@@ -187,15 +187,15 @@ class GameVersion(unittest.TestCase):
             with self.assertRaisesRegex(setup.SetupError, "cannot read"):
                 setup.check_game_version(d)
 
-    @unittest.skipUnless(os.environ.get("WWHD_GAME_DIR"), "WWHD_GAME_DIR (your own extracted game) not set")
+    @unittest.skipUnless(os.environ.get("NSMBU_GAME_DIR"), "NSMBU_GAME_DIR (your own extracted game) not set")
     def test_real_game(self):
         setup.SUPPORTED_RPX_SHA256 = self.saved
-        setup.check_game_version(os.environ["WWHD_GAME_DIR"])  # read only
+        setup.check_game_version(os.environ["NSMBU_GAME_DIR"])  # read only
 
 
 class Recipe(unittest.TestCase):
     def test_substitution(self):
-        m = {"sdk": "/p/sdk", "gamecode": "/w/libgamecode.a", "out": "/d/bin/wwhd"}
+        m = {"sdk": "/p/sdk", "gamecode": "/w/libgamecode.a", "out": "/d/bin/nsmbu"}
         self.assertEqual(setup.sub("{sdk}/obj/a.o", m), "/p/sdk/obj/a.o")
         self.assertEqual(setup.sub("-I{sdk}/include", m), "-I/p/sdk/include")
         self.assertEqual(setup.sub("{gamecode}", m), "/w/libgamecode.a")
@@ -245,7 +245,7 @@ class NoScriptHost(unittest.TestCase):
         self.assertTrue(os.path.isdir(setup.win_known_folder(0x02)))
         self.assertTrue(os.path.isdir(setup.win_known_folder(0x10)))
         with tempfile.TemporaryDirectory() as d:
-            link = os.path.join(d, "Wind Waker HD test.lnk")
+            link = os.path.join(d, "NSMBU test.lnk")
             setup.win_shortcut(link, sys.executable, "--game game --save save", d, sys.executable)
             with open(link, "rb") as f:
                 head = f.read(20)
@@ -273,7 +273,7 @@ class BundledPython(unittest.TestCase):
 
     def test_guard_rejects_other_files(self):
         with tempfile.TemporaryDirectory() as d:
-            py = os.path.join(d, "WindWakerHD-x", "tools", "python")
+            py = os.path.join(d, "NSMBU-x", "tools", "python")
             os.makedirs(py)
             with open(os.path.join(py, "python.exe"), "wb") as f:
                 f.write(b"MZ not the real one")
@@ -348,7 +348,7 @@ class LanguageSources(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             src, data = os.path.join(d, "eur"), os.path.join(d, "data")
             _game_folder(src, "0005000010143600", EU_PACKS + ["permanent_2d_EuRussian.pack"],
-                         extra=[("code/cking.rpx", b"synthetic code"), ("content/Common/Pack/permanent_3d.pack", b"SARC 3d"),
+                         extra=[("code/red-pro2.rpx", b"synthetic code"), ("content/Common/Pack/permanent_3d.pack", b"SARC 3d"),
                                 ("content/Common/Layout/Title_00.szs", b"synthetic")])
             os.makedirs(data)
             (m,) = setup.add_language_source(("folder", src), data)
@@ -405,7 +405,7 @@ class LanguageSources(unittest.TestCase):
             self.assertEqual(os.listdir(os.path.join(data, "game-lang")), [])  # nothing left behind
 
     def test_image_and_archive_take_only_language_files(self):
-        """The extractor is asked for the language files only (wwhd-extract --only), for the right title."""
+        """The extractor is asked for the language files only (nsmbu-extract --only), for the right title."""
         calls = []
 
         def fake_extract(image, keys, out, title=None, only=None):
