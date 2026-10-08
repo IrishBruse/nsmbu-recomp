@@ -1,7 +1,9 @@
-# game data (copyrighted, user-supplied); no trailing slash, so a symlinked game/ is ignored too
-/game
-game.wux
-game.key
+# game/ — dump, keys, extracted code/, content/, meta/; game/README.md stays in git
+/game/*
+!/game/README.md
+/game/game.wux
+/game/game.key
+/game/common.key
 *.rpx
 # upstream reference checkout
 /cemu/
@@ -26,6 +28,7 @@ captures/
 *.key
 *.wud
 *.wux
+*.7z
 *.iso
 *.rvz
 template.bin
@@ -41,3 +44,6 @@ headstart.bin
 /wwhd_src/
 # local coordination board
 /task.md
+
+# Reference repos and data
+references/
