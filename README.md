@@ -6,8 +6,6 @@ NSMBU is a Wii U game on Cafe OS and GX2.
 
 The recompiler and native runtime stay.
 
-Wind Waker HD launcher names do not stay.
-
 This repository does not contain a disc image, a title key, or recompiled game code.
 
 Game files stay on your machine.

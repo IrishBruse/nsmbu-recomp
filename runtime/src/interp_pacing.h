@@ -5,7 +5,7 @@
 // A logic step S -> S+1 is drawn in n + 1 passes: the logic pass (phase 0) and hold passes 1..n.
 // Hold passes 1..n-1 are blended like the logic pass; hold pass n, the record pass, draws S+1
 // exactly and records it as the "before" of the next step's blended frames. n is the step's number
-// of in-between frames: fps / 30 - 1 at most (1 at 60 fps, 3 at 120, 7 at 240).
+// of in-between frames above the 60 fps game rate (1 at 120 fps, 2 at 165 fps, 3 at 240 fps).
 #pragma once
 #include <algorithm>
 #include <cmath>
@@ -53,17 +53,17 @@ inline float pass_fraction(int phase, int n, bool exact) {
     return phase < n ? float(phase + 1) / float(n + 1) : 1.0f;
 }
 
-// Frame rates frame interpolation offers: 60, 120, 240 (anything else rounds down to one of them)
-inline int valid_fps(int f) { return f >= 240 ? 240 : f >= 120 ? 120 : 60; }
+// Frame rates the menu offers: 60, 120, 165, 240 (anything else rounds down to one of them)
+inline int valid_fps(int f) { return f >= 240 ? 240 : f >= 165 ? 165 : f >= 120 ? 120 : 60; }
 
 // The frame rate drawn for a chosen one on a display with refresh rate hz (0: unknown) when
 // presenting waits for the display's vsync: the highest offered rate the display can show (a
-// 144 Hz display gets 120, a 90 Hz one 60), never below 60. Without vsync, or with the rate unknown,
-// the chosen rate.
+// 165 Hz display gets 165, a 144 Hz one 120, a 90 Hz one 60), never below 60. Without vsync, or
+// with the rate unknown, the chosen rate.
 inline int cap_fps(int fps, int hz, bool vsync) {
     fps = valid_fps(fps);
     if (!vsync || hz <= 0) return fps;
-    const int shown = hz >= 238 ? 240 : hz >= 118 ? 120 : 60;  // (119.88 Hz and 239.76 Hz modes count)
+    const int shown = hz >= 238 ? 240 : hz >= 163 ? 165 : hz >= 118 ? 120 : 60;
     return std::min(fps, shown);
 }
 

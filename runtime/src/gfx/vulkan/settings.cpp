@@ -61,8 +61,16 @@ bool graphics_hotkey(char k,bool activate) {
     GraphicsFeature f;
     switch(k) {
     case 'R': if(activate) { constexpr float scales[]={1,1.5f,2,3}; float cur=requested_res_scale(); unsigned next=0; for(unsigned i=0;i<4;++i) if(cur<scales[i]-0.01f) { next=i; break; } set_res_scale(scales[next]); } return true;
-    case '6': if(activate) interp::toggle_fps(60); return true;  // 60 fps frame interpolation on/off
-    case '7': if(activate) interp::set_mode(interp::mode()==2?0:2); return true;
+    case '6': if(activate) interp::set_mode(0); return true;
+    case '7': if(activate) {
+        static const int order[] = {60, 120, 165, 240};
+        const int cur = interp::mode() == 1 ? interp::fps() : 60;
+        int next = 120;
+        for (int i = 0; i < 4; i++) if (order[i] == cur) next = order[(i + 1) % 4];
+        if (next == 60) interp::set_mode(0);
+        else { interp::set_fps(next); interp::set_mode(1); }
+        return true;
+    } return true;
     case 'O': f=GraphicsFeature::AO; break;
     case 'M': f=GraphicsFeature::AOHires; break;
     case 'N': f=GraphicsFeature::Anisotropy; break;

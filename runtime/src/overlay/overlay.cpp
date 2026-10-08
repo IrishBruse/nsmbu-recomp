@@ -550,18 +550,19 @@ void tab_graphics() {
     }
     heading("Frame rate");
     int m = interp::mode(), f = interp::fps();
-    if (radio("30 fps (original)", m == 0)) post_changed([] { interp::set_mode(0); });
-    for (int r : {60, 120, 240}) {
-        ImGui::SameLine();
+    for (int r : {60, 120, 165, 240}) {
+        if (r != 60) ImGui::SameLine();
         char label[16];
         snprintf(label, sizeof label, "%d fps", r);
-        if (radio(label, m == 1 && f == r)) post_changed([r] { interp::set_fps(r); interp::set_mode(1); });
+        const bool on = r == 60 ? m != 1 : m == 1 && f == r;
+        if (radio(label, on)) post_changed([r] {
+            if (r == 60) interp::set_mode(0);
+            else { interp::set_fps(r); interp::set_mode(1); }
+        });
     }
-    help("60, 120 and 240 fps: frame interpolation. The game logic keeps its 30 steps a second, and the\n"
-         "frames in between are drawn blended (1 in-between frame per step at 60 fps, 3 at 120 fps,\n"
-         "7 at 240 fps). The display shows at most its refresh rate: higher choices draw that many.");
-    if (radio("True 60 (experimental)", m == 2)) post_changed([] { interp::set_mode(2); });
-    help("True 60 runs the game logic at 60 steps per second");
+    help("60 fps is the game rate.\n"
+         "120, 165 and 240 fps are the higher rates. The game logic stays at 60 steps a second.\n"
+         "The display shows at most its refresh rate.");
     // the display's refresh rate, and what the chosen rate draws on it (interp::output_fps)
     if (const int hz = interp::display_hz(); hz > 0) {
         const int out = interp::output_fps();
@@ -580,15 +581,15 @@ void tab_graphics() {
             post_changed([paced] { interp::set_paced_interpolation(paced); });
         help("When the computer cannot draw all frames, skip in-between frames instead of slowing the\n"
              "whole game down. The performance overlay shows how many are drawn.\n"
-             "Saved separately for 60 fps (off by default) and 120/240 fps (on by default).");
+             "Saved for 120, 165 and 240 fps.");
     }
     // debug only, not saved (gx2::uncapped)
     bool unc;
     if (check("Uncapped (debug: the game runs too fast)", gx2::uncapped(), &unc)) hostui::post([unc] { gx2::set_uncapped(unc); });
     help("Debug only, to see how many frames a second this computer can draw: no frame limit and no\n"
          "vsync. The game counts frames, so it runs faster than normal. The frame rate is in the window\n"
-         "title and the performance overlay. Not saved. (With frame interpolation and Keep game speed\n"
-         "on, the game logic still keeps 30 steps a second.)");
+         "title and the performance overlay. Not saved. (With a higher frame rate and Keep game speed\n"
+         "on, the game logic still keeps 60 steps a second.)");
 
     heading("Internal resolution");
     static const float scales[] = {1.0f, 1.5f, 2.0f, 3.0f};
@@ -669,7 +670,7 @@ void tab_graphics() {
         h.gpu = render::device();
         h.renderer = render::vulkan() ? "Vulkan" : "Metal";
         h.host = hostui::name();
-        h.fps = interp::mode() == 2 ? "true 60 fps" : interp::mode() == 1 ? "60 fps interpolation" : "30 fps";
+        h.fps = interp::mode_name();
         h.scale = hostui::res_scale();
 #ifdef NSMBU_HAS_VULKAN
         if (render::vulkan()) {
