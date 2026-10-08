@@ -73,9 +73,9 @@ jobs:
       - name: Build runtime (Release, Metal) against placeholder guest code
         run: |
           python3 tools/recomp/stubgen.py build/gen-stub
-          cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DWWHD_VERSION="$VERSION" -DWWHD_RENDERER=METAL \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DGEN_DIR="$PWD/build/gen-stub" -DWWHD_SETUP_GUI=ON \
-            -DWWHD_BUNDLED_ZSTD=ON
+          cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DNSMBU_VERSION="$VERSION" -DNSMBU_RENDERER=METAL \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DGEN_DIR="$PWD/build/gen-stub" -DNSMBU_SETUP_GUI=ON \
+            -DNSMBU_BUNDLED_ZSTD=ON
           cmake --build build/rel
 
       - name: Unit tests
@@ -86,7 +86,7 @@ jobs:
       - name: Package
         run: |
           python3 tools/release/package.py --build build/rel --platform macos-arm64 --version "$VERSION" \
-            --out dist --toolchain xcode-clt --setup-gui build/rel/wwhd-setup
+            --out dist --toolchain xcode-clt --setup-gui build/rel/nsmbu-setup
 
       - name: Guard (no game code, game files or keys)
         run: python3 tools/release/guard.py dist/*.zip
@@ -94,14 +94,14 @@ jobs:
       - name: Installer self-test (unzipped release, placeholder code)
         run: |
           mkdir -p "$RUNNER_TEMP/unz" && cd "$RUNNER_TEMP/unz" && unzip -q "$GITHUB_WORKSPACE"/dist/*.zip
-          cd WindWakerHD-*
+          cd NSMBU-*
           bash "./tools/Setup in Terminal.command" --yes --no-launch --gen-dir "$GITHUB_WORKSPACE/build/gen-stub" \
             --data-dir "$RUNNER_TEMP/data"
-          "$RUNNER_TEMP/data/bin/wwhd" --game "$RUNNER_TEMP/nogame" > run.log 2>&1 || true
+          "$RUNNER_TEMP/data/bin/nsmbu" --game "$RUNNER_TEMP/nogame" > run.log 2>&1 || true
           cat run.log
           grep -q "cannot load" run.log
           # the graphical installer: starts setup.py through the launcher and renders its first screen
-          SDL_VIDEO_DRIVER=offscreen "./Wind Waker HD.app/Contents/MacOS/wind-waker-hd" --self-test \
+          SDL_VIDEO_DRIVER=offscreen "./NSMBU.app/Contents/MacOS/nsmbu-launcher" --self-test \
             --screenshots "$RUNNER_TEMP" --data-dir "$RUNNER_TEMP/data"
           mkdir -p "$GITHUB_WORKSPACE/gui-shots" && cp "$RUNNER_TEMP"/selftest-*.png "$GITHUB_WORKSPACE/gui-shots/"
 
@@ -192,10 +192,10 @@ jobs:
       - name: Build runtime (Release, Vulkan + SDL3) with zig against placeholder guest code
         run: |
           python3 tools/recomp/stubgen.py build/gen-stub
-          cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DWWHD_VERSION="$VERSION" -DGEN_DIR="$PWD/build/gen-stub" \
+          cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DNSMBU_VERSION="$VERSION" -DGEN_DIR="$PWD/build/gen-stub" \
             -DCMAKE_C_COMPILER="$ZBIN/zcc" -DCMAKE_CXX_COMPILER="$ZBIN/zcxx" \
             -DCMAKE_AR="$ZBIN/zar" -DCMAKE_RANLIB="$ZBIN/zranlib" \
-            -DWWHD_BUNDLED_DEPS=ON -DCMAKE_PREFIX_PATH="$HOME/sdl3" -DWWHD_SETUP_GUI=ON \
+            -DNSMBU_BUNDLED_DEPS=ON -DCMAKE_PREFIX_PATH="$HOME/sdl3" -DNSMBU_SETUP_GUI=ON \
             -DVulkan_INCLUDE_DIR="$HOME/vulkan/include" \
             -DVulkan_LIBRARY="/usr/lib/$ARCH-linux-gnu/libvulkan.so.1"
           cmake --build build/rel
@@ -209,7 +209,7 @@ jobs:
       - name: Package
         run: |
           python3 tools/release/package.py --build build/rel --platform "linux-$ARCH" --version "$VERSION" \
-            --out dist --toolchain "$TOOLCHAIN" --setup-gui build/rel/wwhd-setup \
+            --out dist --toolchain "$TOOLCHAIN" --setup-gui build/rel/nsmbu-setup \
             --runtime-file "$HOME/sdl3/lib/libSDL3.so.0" \
             --linkonly-lib "/usr/lib/$ARCH-linux-gnu/libvulkan.so.1" \
             --license "SDL3 (zlib)=$PWD/SDL3-3.4.18/LICENSE.txt" \
@@ -225,25 +225,25 @@ jobs:
       - name: Installer self-test (unzipped release, placeholder code, toolchain download)
         run: |
           mkdir -p "$RUNNER_TEMP/unz" && cd "$RUNNER_TEMP/unz" && unzip -q "$GITHUB_WORKSPACE"/dist/*.zip
-          cd WindWakerHD-*
+          cd NSMBU-*
           ./tools/setup-in-terminal.sh --yes --no-launch --gen-dir "$GITHUB_WORKSPACE/build/gen-stub" --data-dir "$RUNNER_TEMP/data"
           # the right architecture: the game the installer linked and the program a player starts
           want=$([ "$ARCH" = aarch64 ] && echo "ARM aarch64" || echo "x86-64")
-          file "$RUNNER_TEMP/data/bin/wwhd" ./wind-waker-hd
-          file "$RUNNER_TEMP/data/bin/wwhd" | grep -q "$want"
-          file ./wind-waker-hd | grep -q "$want"
-          ldd "$RUNNER_TEMP/data/bin/wwhd"
-          "$RUNNER_TEMP/data/bin/wwhd" --game "$RUNNER_TEMP/nogame" > run.log 2>&1 || true
+          file "$RUNNER_TEMP/data/bin/nsmbu" ./nsmbu-launcher
+          file "$RUNNER_TEMP/data/bin/nsmbu" | grep -q "$want"
+          file ./nsmbu-launcher | grep -q "$want"
+          ldd "$RUNNER_TEMP/data/bin/nsmbu"
+          "$RUNNER_TEMP/data/bin/nsmbu" --game "$RUNNER_TEMP/nogame" > run.log 2>&1 || true
           cat run.log
           grep -q "cannot load" run.log
-          ldd ./wind-waker-hd
-          SDL_VIDEO_DRIVER=offscreen ./wind-waker-hd --self-test --data-dir "$RUNNER_TEMP/data"
+          ldd ./nsmbu-launcher
+          SDL_VIDEO_DRIVER=offscreen ./nsmbu-launcher --self-test --data-dir "$RUNNER_TEMP/data"
 
       - name: Renderer smoke test of the installed executable (lavapipe)
         # the 22.04 runner's Mesa is old; a failure here is reported but does not block the release
         continue-on-error: true
         run: |
-          xvfb-run -a -s "-screen 0 1920x1080x24" "$RUNNER_TEMP/data/bin/wwhd" --renderer-smoke 2>&1 | tee smoke.log
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$RUNNER_TEMP/data/bin/nsmbu" --renderer-smoke 2>&1 | tee smoke.log
           grep -q "PASS" smoke.log
 
       - uses: actions/upload-artifact@v4
@@ -292,11 +292,11 @@ jobs:
       - name: Build runtime (Release, Vulkan + SDL3) with llvm-mingw against placeholder guest code
         run: |
           python tools/recomp/stubgen.py build/gen-stub
-          cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DWWHD_VERSION="$VERSION" -DGEN_DIR="$(cygpath -m "$PWD/build/gen-stub")" \
+          cmake -S . -B build/rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DNSMBU_VERSION="$VERSION" -DGEN_DIR="$(cygpath -m "$PWD/build/gen-stub")" \
             -DCMAKE_C_COMPILER="$LLVM_MINGW/bin/x86_64-w64-mingw32-clang.exe" \
             -DCMAKE_CXX_COMPILER="$LLVM_MINGW/bin/x86_64-w64-mingw32-clang++.exe" \
             -DCMAKE_RC_COMPILER="$LLVM_MINGW/bin/x86_64-w64-mingw32-windres.exe" \
-            -DCMAKE_EXE_LINKER_FLAGS=-static -DWWHD_BUNDLED_DEPS=ON -DWWHD_SETUP_GUI=ON \
+            -DCMAKE_EXE_LINKER_FLAGS=-static -DNSMBU_BUNDLED_DEPS=ON -DNSMBU_SETUP_GUI=ON \
             -DVulkan_INCLUDE_DIR="$VULKAN_DIR/include" -DVulkan_LIBRARY="$VULKAN_DIR/libvulkan-1.a"
           ninja -C build/rel -d keeprsp
 
@@ -320,7 +320,7 @@ jobs:
         run: |
           W="$(cygpath -m "$PWD")"  # native Windows Python cannot open /d/a/... paths
           python tools/release/package.py --build build/rel --platform windows-x86_64 --version "$VERSION" \
-            --out dist --toolchain llvm-mingw-20260922 --setup-gui build/rel/wwhd-setup.exe \
+            --out dist --toolchain llvm-mingw-20260922 --setup-gui build/rel/nsmbu-setup.exe \
             --windows-python "$WIN_PY_ZIP" \
             --runtime-file build/rel/SDL3.dll \
             --license "SDL3 (zlib)=$W/build/rel/_deps/sdl3-src/LICENSE.txt" \
@@ -340,20 +340,20 @@ jobs:
           New-Item -ItemType Directory -Force -Path $unz | Out-Null
           Expand-Archive -Path (Get-ChildItem dist\*.zip).FullName -DestinationPath $unz
           $pkg = (Get-ChildItem $unz -Directory)[0].FullName
-          "WWHD_PKG=$pkg" >> $env:GITHUB_ENV
-          "WWHD_DATA_DIR=$(Join-Path $env:RUNNER_TEMP 'data')" >> $env:GITHUB_ENV
+          "NSMBU_PKG=$pkg" >> $env:GITHUB_ENV
+          "NSMBU_DATA_DIR=$(Join-Path $env:RUNNER_TEMP 'data')" >> $env:GITHUB_ENV
           # no script host in the Windows release (antivirus false positives, issue #58)
           if (Get-ChildItem $pkg -Recurse -Include *.ps1, *.vbs, *.js, *.hta) { throw "a script file is in the release" }
-          $bytes = [IO.File]::ReadAllBytes((Join-Path $pkg 'Wind Waker HD.exe'))
+          $bytes = [IO.File]::ReadAllBytes((Join-Path $pkg 'NSMBU.exe'))
           foreach ($enc in [Text.Encoding]::ASCII, [Text.Encoding]::Unicode) {
             foreach ($word in 'powershell', 'ExecutionPolicy', 'Unblock-File') {
-              if ($enc.GetString($bytes).IndexOf($word, [StringComparison]::OrdinalIgnoreCase) -ge 0) { throw "Wind Waker HD.exe contains '$word'" }
+              if ($enc.GetString($bytes).IndexOf($word, [StringComparison]::OrdinalIgnoreCase) -ge 0) { throw "NSMBU.exe contains '$word'" }
             }
           }
           # no download code: no network library among its imports (import names are ASCII)
           $ascii = [Text.Encoding]::ASCII.GetString($bytes)
           foreach ($dll in 'winhttp.dll', 'wininet.dll', 'urlmon.dll', 'ws2_32.dll', 'bcrypt.dll') {
-            if ($ascii.IndexOf($dll, [StringComparison]::OrdinalIgnoreCase) -ge 0) { throw "Wind Waker HD.exe imports $dll" }
+            if ($ascii.IndexOf($dll, [StringComparison]::OrdinalIgnoreCase) -ge 0) { throw "NSMBU.exe imports $dll" }
           }
           # the bundled Python is the official one, unmodified: its programs and DLLs keep the PSF signature
           foreach ($f in 'python.exe', 'pythonw.exe', 'python3.dll', 'python313.dll') {
@@ -363,11 +363,11 @@ jobs:
               throw "tools\python\$f does not carry a valid PSF signature"
             }
           }
-          # version information, a manifest and no debug sections (cmake/WindowsResources.cmake, WWHD_STRIP_RELEASE)
-          foreach ($f in 'Wind Waker HD.exe', 'tools\bin\wwhd-extract.exe') {
+          # version information, a manifest and no debug sections (cmake/WindowsResources.cmake, NSMBU_STRIP_RELEASE)
+          foreach ($f in 'NSMBU.exe', 'tools\bin\nsmbu-extract.exe') {
             $p = Join-Path $pkg $f
             $vi = (Get-Item $p).VersionInfo
-            if ($vi.ProductName -ne 'Wind Waker HD Recomp' -or $vi.CompanyName -ne 'ZeldaWWHDRecomp') { throw "$f has no version information" }
+            if ($vi.ProductName -ne 'NSMBU Recomp' -or $vi.CompanyName -ne 'NSMBURecomp') { throw "$f has no version information" }
             "$f`: $($vi.FileDescription), $($vi.ProductVersion), $($vi.OriginalFilename)"
             $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($p))
             if ($text.IndexOf('.debug_info') -ge 0) { throw "$f still has debug sections" }
@@ -375,20 +375,20 @@ jobs:
           }
 
       - name: Installer self-test, setup in a console window (bundled Python, toolchain download)
-        # the .bat as a player starts it (it runs "Wind Waker HD.exe --console-setup"); no input
+        # the .bat as a player starts it (it runs "NSMBU.exe --console-setup"); no input
         shell: cmd
         run: |
-          call "%WWHD_PKG%\tools\Setup in a console window.bat" --yes --no-launch --gen-dir "%GITHUB_WORKSPACE%\build\gen-stub" --data-dir "%WWHD_DATA_DIR%" < NUL
+          call "%NSMBU_PKG%\tools\Setup in a console window.bat" --yes --no-launch --gen-dir "%GITHUB_WORKSPACE%\build\gen-stub" --data-dir "%NSMBU_DATA_DIR%" < NUL
           if errorlevel 1 exit /b 1
 
       - name: Installer self-test (unzipped release, placeholder code)
         shell: pwsh
         run: |
-          $pkg = $env:WWHD_PKG
-          $data = $env:WWHD_DATA_DIR
+          $pkg = $env:NSMBU_PKG
+          $data = $env:NSMBU_DATA_DIR
           if (Test-Path (Join-Path $data 'python')) { throw "the setup downloaded a Python (it should use tools\python)" }
           if (-not (Test-Path (Join-Path $data 'install.json'))) { throw "the console setup did not finish" }
-          $exe = Join-Path $data 'bin\wwhd.exe'
+          $exe = Join-Path $data 'bin\nsmbu.exe'
           if (-not (Test-Path (Join-Path $data 'bin\SDL3.dll'))) { throw "SDL3.dll was not installed" }
           # no game files: the executable must start and stop with "cannot load ..." (abort() may leave
           # an error-reporting process around, so do not wait forever)
@@ -399,19 +399,19 @@ jobs:
           if (-not (Select-String -Path run.log, out.log -Pattern 'cannot load' -Quiet)) { throw "the installed executable did not start" }
           # the graphical installer (GUI subsystem: wait for it explicitly)
           $env:SDL_VIDEO_DRIVER = 'offscreen'
-          $g = Start-Process -FilePath (Join-Path $pkg 'Wind Waker HD.exe') `
+          $g = Start-Process -FilePath (Join-Path $pkg 'NSMBU.exe') `
             -ArgumentList '--self-test', '--data-dir', $data -PassThru
           $null = $g.Handle  # keeps the process handle so ExitCode is available after it exits
           if (-not $g.WaitForExit(600000)) { $g.Kill(); throw "the setup program did not finish its self-test" }
           if ($g.ExitCode -ne 0) { throw "setup program self-test failed ($($g.ExitCode))" }
           # the window on a fresh data folder: setup.py starts with the bundled Python, nothing is downloaded
-          $env:WWHD_DATA_DIR = Join-Path $env:RUNNER_TEMP 'data-gui'
-          $g = Start-Process -FilePath (Join-Path $pkg 'Wind Waker HD.exe') `
-            -ArgumentList '--self-test', '--data-dir', $env:WWHD_DATA_DIR -PassThru
+          $env:NSMBU_DATA_DIR = Join-Path $env:RUNNER_TEMP 'data-gui'
+          $g = Start-Process -FilePath (Join-Path $pkg 'NSMBU.exe') `
+            -ArgumentList '--self-test', '--data-dir', $env:NSMBU_DATA_DIR -PassThru
           $null = $g.Handle
           if (-not $g.WaitForExit(600000)) { $g.Kill(); throw "the setup program did not finish its self-test (fresh data folder)" }
           if ($g.ExitCode -ne 0) { throw "setup program self-test on a fresh data folder failed ($($g.ExitCode))" }
-          if (Test-Path (Join-Path $env:WWHD_DATA_DIR 'python')) { throw "the window downloaded a Python" }
+          if (Test-Path (Join-Path $env:NSMBU_DATA_DIR 'python')) { throw "the window downloaded a Python" }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -419,7 +419,7 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
-  # Uploads every release zip and the Windows "Wind Waker HD.exe" to VirusTotal and writes the results to the
+  # Uploads every release zip and the Windows "NSMBU.exe" to VirusTotal and writes the results to the
   # job summary and vt-report.json; on a published release the vt-notes job adds them to the release. It never
   # fails the release; the publish job does not wait for it. Without the VT_API_KEY secret it only says so.
   virustotal:
@@ -443,7 +443,7 @@ jobs:
         run: |
           if [ -n "$VT_API_KEY" ]; then echo "::add-mask::$VT_API_KEY"; fi
           files=(dist/*.zip)
-          for z in dist/*windows*.zip; do [ -f "$z" ] && files+=("$z:Wind Waker HD.exe"); done
+          for z in dist/*windows*.zip; do [ -f "$z" ] && files+=("$z:NSMBU.exe"); done
           python3 tools/release/virustotal.py --out vt-report.json --summary "$GITHUB_STEP_SUMMARY" --timeout 600 "${files[@]}"
 
       - uses: actions/upload-artifact@v4

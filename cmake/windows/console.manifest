@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!-- Windows application manifest of the console programs (wwhd-extract.exe): no elevation, Windows 10/11. -->
+<!-- Windows application manifest of the console programs (nsmbu-extract.exe): no elevation, Windows 10/11. -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
