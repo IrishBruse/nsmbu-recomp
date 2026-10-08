@@ -4,14 +4,14 @@
 #include <cstdint>
 
 namespace interp {
-int mode();                 // 0 off (30 fps), 1 frame interpolation (at fps()), 2 true 60
+int mode();                 // 0 is 60 fps, 1 draws at fps()
 void set_mode(int m);
-int fps();                  // frame interpolation's chosen frame rate: 60, 120 or 240
+int fps();                  // 60, 120, 165 or 240
 void set_fps(int f);
-void toggle_fps(int f);     // frame interpolation at f on, or off if it is on at f (menus, the 6 key)
-const char* mode_name();    // "30 fps", "60 fps", "120 fps", "240 fps", "true 60"; "240 fps (120 shown)" when capped
+void toggle_fps(int f);     // that rate on, or 60 fps if it is on already
+const char* mode_name();    // "60 fps", "120 fps", "165 fps", "240 fps"; "240 fps (165 shown)" when capped
 int output_fps();           // the rate frame interpolation draws: fps() capped to the display
-int frames_per_step();      // frames drawn per 30 Hz logic step: 1, 2, 4 or 8
+int frames_per_step();      // frames drawn per 60 fps step: 1, 2, 3 or 4
 
 // "Keep game speed": in-between frames that do not fit are skipped instead of slowing the game down;
 // one setting for 60 fps and one for 120/240 fps
