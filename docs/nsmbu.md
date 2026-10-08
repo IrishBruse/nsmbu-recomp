@@ -63,13 +63,16 @@ The upstream built-in mods and cheats are removed.
 
 ## Game files
 
-Put your dump as `game.wux` and its title key as `game.key` in the repository root.
+User files live under `game/`:
 
-Put the Wii U common key in `common.key` or set `WIIU_COMMON_KEY`.
+- `game/game.wux` — disc image
+- `game/game.key` — title key next to the image
+- `game/common.key` — common key (or `WIIU_COMMON_KEY`)
+- `game/code/`, `game/content/`, `game/meta/` — output of `just extract`
 
-Git ignores those files and everything under `game/`.
+`.gitignore` ignores all of `game/` except `game/README.md` (layout and steps for this folder).
 
-`just extract` reads `game.wux` and writes into `game/`.
+`just extract` reads `game/game.wux` and writes into the same folder tree.
 
 `just build` configures `build/` in **Debug**, links `compile_commands.json` at the repo root, and builds `nsmbu`.
 

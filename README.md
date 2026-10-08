@@ -24,12 +24,17 @@ This repository does not contain a disc image, a title key, or recompiled game c
 
 ## Game dump
 
-Put your `.wux` dump as `game.wux` and its title key as `game.key` in the repository root.
+Keep everything in `game/`:
 
-Put the Wii U common key in `common.key` in the repository root, or set `WIIU_COMMON_KEY`.
+| File | Purpose |
+|------|---------|
+| `game/game.wux` | Your `.wux` disc image |
+| `game/game.key` | Title key for that image (16 bytes or 32 hex digits) |
+| `game/common.key` | Wii U common key from your console (or set `WIIU_COMMON_KEY`) |
+| `game/code/`, `game/content/`, `game/meta/` | Filled by `just extract` |
 
-Git ignores `game.wux`, `game.key`, `common.key`, and the extracted tree in `game/`.
+`.gitignore` ignores `game/` except [game/README.md](game/README.md), which describes this layout.
 
 Run `just extract`.
 
-That command reads `game.wux` and writes `game/code/`, `game/content/`, and `game/meta/`.
+That command reads `game/game.wux` and writes the `code/`, `content/`, and `meta/` folders under `game/`.
