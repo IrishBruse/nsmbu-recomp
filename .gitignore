@@ -2,9 +2,7 @@
 /game
 game.wux
 game.key
-# disc image and keys.txt; .gitkeep stays in git
-/disc/**
-!/disc/.gitkeep
+common.key
 *.rpx
 # upstream reference checkout
 /cemu/
@@ -45,3 +43,6 @@ headstart.bin
 /nsmbu_src/
 # local coordination board
 /task.md
+
+# Reference repos and data
+references/

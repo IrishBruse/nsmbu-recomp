@@ -32,6 +32,7 @@ struct FormatInfo {
 
 // isDepth: the surface is used as a depth buffer (selects depth pixel formats)
 FormatInfo format_info(uint32_t gx2Format, bool isDepth);
+FormatInfo cpu_copy_format(uint32_t gx2Format);
 
 // convert one row of `count` texels (or blocks) from guest layout to host layout
 void convert_row(Convert c, const uint8_t* src, uint8_t* dst, uint32_t count);

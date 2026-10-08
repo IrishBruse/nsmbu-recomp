@@ -82,6 +82,10 @@ FormatInfo format_info(uint32_t fmt, bool isDepth) {
     return f;
 }
 
+FormatInfo cpu_copy_format(uint32_t gx2Format) {
+    return format_info(gx2Format, false);
+}
+
 static inline uint8_t ex5(uint32_t v) { return (uint8_t)((v << 3) | (v >> 2)); }
 static inline uint8_t ex6(uint32_t v) { return (uint8_t)((v << 2) | (v >> 4)); }
 static inline uint8_t ex4(uint32_t v) { return (uint8_t)((v << 4) | v); }

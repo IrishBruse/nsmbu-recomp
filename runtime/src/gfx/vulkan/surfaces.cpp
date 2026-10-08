@@ -1223,8 +1223,8 @@ void copy_surface_impl(uint32_t srcAddr,uint32_t srcMip,uint32_t srcSlice,uint32
         write_back_linear_copy(dst,dstSlice,d,dbase,dstMip,dstSlice,cw,ch);
         return;
     }
-    auto sf=format_info(uint32_t(s->format.value()),bool(uint32_t(s->format.value())&0x800));
-    auto df=format_info(uint32_t(d->format.value()),bool(uint32_t(d->format.value())&0x800));
+    auto sf=cpu_copy_format(uint32_t(s->format.value()));
+    auto df=cpu_copy_format(uint32_t(d->format.value()));
     if(sf.pixel==VK_FORMAT_UNDEFINED||df.pixel==VK_FORMAT_UNDEFINED||sf.bytesPerBlock!=df.bytesPerBlock||sf.compressed!=df.compressed)
         throw std::runtime_error("Unsupported CPU GX2CopySurface format layout");
     LatteAddrLib::AddrSurfaceInfo_OUT si{},di{};

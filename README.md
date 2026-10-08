@@ -22,14 +22,14 @@ Game files stay on your machine.
 
 This repository does not contain a disc image, a title key, or recompiled game code.
 
-## Disc image
+## Game dump
 
-Put your disc image and `keys.txt` in `disc/`.
+Put your `.wux` dump as `game.wux` and its title key as `game.key` in the repository root.
 
-Git ignores everything in that folder except `disc/.gitkeep`.
+Put the Wii U common key in `common.key` in the repository root, or set `WIIU_COMMON_KEY`.
+
+Git ignores `game.wux`, `game.key`, `common.key`, and the extracted tree in `game/`.
 
 Run `just extract`.
 
-That command reads the `.wux` and `keys.txt` in `disc/`.
-
-It writes the game into `game/`.
+That command reads `game.wux` and writes `game/code/`, `game/content/`, and `game/meta/`.
