@@ -847,6 +847,14 @@ static bool has_extension(const std::vector<VkExtensionProperties> &es,
   return std::any_of(es.begin(), es.end(),
                      [&](auto &e) { return !strcmp(e.extensionName, name); });
 }
+static bool drc_vsync_shared() {
+  return R.tv.window && R.tv.visible.load() && R.drc.window && R.drc.visible.load();
+}
+static int present_mode_without_second_vsync(unsigned offered) {
+  if (offered & (1u << kPresentMailbox)) return kPresentMailbox;
+  if (offered & (1u << kPresentImmediate)) return kPresentImmediate;
+  return kPresentFifo;
+}
 static void make_swapchain(Screen &s) {
   vk_check(vkDeviceWaitIdle(R.device), "resize device idle");
   VkSurfaceCapabilitiesKHR caps;
@@ -970,14 +978,17 @@ static void make_swapchain(Screen &s) {
       offeredNames += std::string(offeredNames.empty() ? "" : ", ") + present_mode_name(m);
     }
   if (&s == &R.tv) set_present_modes_offered(offered);
-  const int wanted = effective_present_mode();
-  const int chosen = offered >> wanted & 1 ? wanted : kPresentFifo;
+  const int setting = effective_present_mode();
+  const bool share = &s == &R.drc && setting == kPresentFifo && drc_vsync_shared();
+  const int wanted = share ? present_mode_without_second_vsync(offered) : setting;
+  const int chosen = offered & (1u << wanted) ? wanted : kPresentFifo;
   ci.presentMode = kModes[chosen];
-  if (chosen != s.presentMode || wanted != s.presentWanted)
+  if (chosen != s.presentMode || setting != s.presentWanted || share != s.presentShared)
     LOG("[vulkan] %s present mode %s (available: %s)%s", &s == &R.tv ? "TV" : "GamePad", present_mode_name(chosen),
         offeredNames.c_str(), chosen != wanted ? " - the requested mode is not offered" : "");
   s.presentMode = chosen;
-  s.presentWanted = wanted;
+  s.presentWanted = setting;
+  s.presentShared = share;
   // frame interpolation caps 120/240 fps to the display's refresh rate only when presenting waits
   // for it (interp::output_fps)
   if (&s == &R.tv) interp::set_present_vsync(chosen == kPresentFifo);
@@ -1078,9 +1089,9 @@ static void present(Screen &s) {
       return;
   }
 #endif
-  // Presentation changed (settings overlay): a new swapchain, as for a resize (also for a window that
-  // is not shown right now, so the next frame it shows uses the new mode)
-  if (s.window && s.swapchain && s.presentWanted != effective_present_mode())
+  const int setting = effective_present_mode();
+  const bool share = &s == &R.drc && setting == kPresentFifo && drc_vsync_shared();
+  if (s.window && s.swapchain && (s.presentWanted != setting || s.presentShared != share))
     make_swapchain(s);
   if (!s.window || !s.visible || s.width <= 0 || s.height <= 0 || !s.scan ||
       !s.scan->image)
@@ -2089,7 +2100,7 @@ void init() {
   if (!getenv("NSMBU_NO_GAMEPAD")) {
     // made hidden: the GamePad screen mode (load_saved_options below) shows it in window mode only;
     // the other modes draw the GamePad picture into the TV window (gfx/display_modes.h)
-    R.drc.window = SDL_CreateWindow("GamePad — Vulkan", 854, 480, windowFlags | SDL_WINDOW_HIDDEN);
+    R.drc.window = SDL_CreateWindow("GamePad - Vulkan", 854, 480, windowFlags | SDL_WINDOW_HIDDEN);
     if (!R.drc.window)
       throw std::runtime_error(SDL_GetError());
     R.drc.visible = false;
@@ -2444,9 +2455,9 @@ void run_main_loop() {
           "%s - %.0f fps%s%s | %gx%s",
           app_title::kVulkan,
           double(frames - titleFrames) / elapsed,
-          mode ? " · " : "", mode ? interp::mode_name() : "",
-          double(requested_res_scale()), fxaa_enabled() ? " · FXAA" : "");
-      if (gx2::uncapped()) std::strncat(title, " · UNCAPPED (debug)", sizeof title - std::strlen(title) - 1);
+          mode ? " | " : "", mode ? interp::mode_name() : "",
+          double(requested_res_scale()), fxaa_enabled() ? " | FXAA" : "");
+      if (gx2::uncapped()) std::strncat(title, " | UNCAPPED (debug)", sizeof title - std::strlen(title) - 1);
       SDL_SetWindowTitle(R.tv.window, title);
       titleFrames = frames;
       titleTime = now;
