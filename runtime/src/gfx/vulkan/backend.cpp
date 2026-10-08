@@ -4,6 +4,7 @@
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 #define VK_USE_PLATFORM_METAL_EXT  // VK_EXT_metal_surface: AppKit views' CAMetalLayers
 #endif
+#include "app_title.h"
 #include "backend.h"
 #include "buffer_cache.h"
 #include "render_prof.h"
@@ -2078,7 +2079,7 @@ void init() {
   const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE |
                                       (hidden_windows() ? SDL_WINDOW_HIDDEN : 0);
 #endif
-  R.tv.window = SDL_CreateWindow("Wind Waker HD — Vulkan", 1280, 720, windowFlags);
+  R.tv.window = SDL_CreateWindow(app_title::kVulkan, 1280, 720, windowFlags);
   if (!R.tv.window)
     throw std::runtime_error(SDL_GetError());
 #ifdef __ANDROID__
@@ -2440,7 +2441,8 @@ void run_main_loop() {
       char title[160];
       int mode = interp::mode();
       std::snprintf(title, sizeof title,
-          "The Legend of Zelda: The Wind Waker HD (Vulkan) — %.0f fps%s%s · %gx%s",
+          "%s - %.0f fps%s%s | %gx%s",
+          app_title::kVulkan,
           double(frames - titleFrames) / elapsed,
           mode ? " · " : "", mode ? interp::mode_name() : "",
           double(requested_res_scale()), fxaa_enabled() ? " · FXAA" : "");

@@ -2,6 +2,7 @@
 // In-game settings overlay: the Dear ImGui user interface (see overlay.h). The renderers draw the
 // resulting ImDrawData (gfx/overlay_metal.mm, gfx/vulkan/overlay.cpp); the hosts feed input and apply
 // changes on their main thread (hostui.h).
+#include "app_title.h"
 #include "overlay.h"
 
 #include <algorithm>
@@ -1369,7 +1370,7 @@ void tab_about() {
              game_lang::name(U.language));
     }
     heading("About");
-    ImGui::Text("The Legend of Zelda: The Wind Waker HD - native port (%s host, %s renderer)", hostui::name(),
+    ImGui::Text("%s - native port (%s host, %s renderer)", app_title::kName, hostui::name(),
                 render::api_name(render::active()));
 #ifdef __APPLE__
     note("Settings overlay: F1 (Fn+F1 on most Mac keyboards), Cmd+, or Settings... in the app menu, or hold Select / "
@@ -1426,7 +1427,7 @@ void settings_window() {
         ImGui::SetNextWindowFocus();  // keyboard / controller navigation starts in the menu
         U.just_opened = false;
     }
-    if (ImGui::Begin("Wind Waker HD  -  Settings", &open, fl)) {
+    if (ImGui::Begin(app_title::kSettings, &open, fl)) {
         // L / R on a controller switch tabs
         if (U.cap_action < 0 && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
             if (controller_pressed(input_map::kPadLB)) U.select_tab = (U.tab + kTabs - 1) % kTabs;

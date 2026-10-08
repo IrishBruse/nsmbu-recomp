@@ -1,4 +1,5 @@
 // Renderer selection, start-up with fallback, and restart (see renderer.h).
+#include "app_title.h"
 #include "renderer.h"
 
 #include <atomic>
@@ -163,7 +164,7 @@ void init() {
         const std::string text = std::string("The ") + api_name(b->api) + " renderer could not start.\n\n" + g_reason;
         const char* hidden = getenv("NSMBU_HIDDEN_WINDOWS");  // test runs: nothing pops up
         if (!hidden || !*hidden || !strcmp(hidden, "0"))
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Wind Waker HD", text.c_str(), nullptr);
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, app_title::kName, text.c_str(), nullptr);
         fflush(stderr);
         _Exit(1);
 #else
