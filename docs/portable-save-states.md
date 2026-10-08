@@ -64,7 +64,7 @@ turns it into a `cking.sav`.
 A UTF-8 text file of `key = value` lines (`runtime/src/portable_state.h`):
 
 - header: `format` (1), `title_id` and `title_version` (from `meta/meta.xml`), `game_hash` (a hash
-  of `cking.rpx`, to tell executables apart; not its contents), `runtime` (version and commit),
+  of `red-pro2.rpx`, to tell executables apart; not its contents), `runtime` (version and commit),
   `created`, `file_slot` (Quest Log 0–2), `player_name`;
 - place: `stage`, `start_point`, `start_room`, `layer` (how the stage was entered), `room` (Link's
   room), `link_pos`, `link_angle_y` (shape angle), `link_proc`, `on_ship` (Link rides the boat),

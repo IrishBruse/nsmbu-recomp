@@ -11,7 +11,7 @@
 //   auto     picture-in-picture for a few seconds when the GamePad picture changes a lot
 //   off      not shown (the game keeps drawing it)
 //   gamepad  only the GamePad picture, fitted to the TV window, like a Wii U played without a TV
-//            (Wind Waker HD's Off-TV Play, Minus, puts the game itself on it); a click or touch on
+//            (Off-TV Play puts the game on the GamePad window); a click or touch on
 //            it touches the GamePad
 #pragma once
 #include <atomic>

@@ -318,8 +318,8 @@ enabled packs and duplicate shader variants are rejected. Both imported presets
 and changes to an enabled pack are checked before saving the profile.
 
 Primary format reference: [Cemu graphics pack documentation](https://github.com/cemu-project/cemu_graphic_packs/wiki/How-to-create-Graphic-Packs).
-Compatibility was checked against the public [NSMBU Resolution pack](https://github.com/cemu-project/cemu_graphic_packs/tree/master/Resolutions/WindWakerHD_Resolution)
-and [NSMBU Contrasty pack](https://github.com/cemu-project/cemu_graphic_packs/tree/master/Enhancements/WindWakerHD_Contrasty);
+Compatibility was checked against the public [NSMBU Resolution pack](https://github.com/cemu-project/cemu_graphic_packs/tree/master/Resolutions/NSMBU_Resolution)
+and [NSMBU Contrasty pack](https://github.com/cemu-project/cemu_graphic_packs/tree/master/Enhancements/NSMBU_Contrasty);
 their sources are not part of the repository, and the host tests use synthetic
 fixtures only. This covers the tested adapter paths, not universal Cemu
 graphics-pack compatibility or the visual accuracy of every preset.

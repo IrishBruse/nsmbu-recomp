@@ -1,5 +1,5 @@
 #!/bin/sh
-# Wind Waker HD setup in a terminal (Linux): the fallback for the wind-waker-hd program next to tools/.
+# NSMBU setup in a terminal (Linux): the fallback for the nsmbu-launcher program next to tools/.
 cd "$(dirname "$0")/.." || exit 1
 DIR="$(pwd)"
 export PYTHONDONTWRITEBYTECODE=1

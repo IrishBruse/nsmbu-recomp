@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write weak stubs for Wind Waker guest functions the runtime still names.
+"""Write weak stubs for legacy guest functions the runtime still names.
 
 usage: guest_stubs.py OUT.c
 

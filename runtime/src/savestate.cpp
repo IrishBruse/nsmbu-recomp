@@ -99,7 +99,7 @@ struct Header {
     uint64_t created;       // unix time
     char area[32];          // stage name
     uint8_t build[16];      // LC_UUID of the executable that wrote it (informational)
-    uint64_t game_id;       // hash of cking.rpx
+    uint64_t game_id;       // hash of red-pro2.rpx
     uint32_t cpu_size;      // sizeof(Cpu)
     uint32_t blocks;        // compressed blocks that follow
     uint64_t raw_size;      // payload bytes

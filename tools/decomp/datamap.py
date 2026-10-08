@@ -1,6 +1,6 @@
 """NSMBU data addresses of GameCube globals, learned from matched function pairs (match2.learn_data).
 
-Usage: datamap.py nsmbu_to_gc.tsv cking.rpx tww [regex] > data_map.tsv
+Usage: datamap.py nsmbu_to_gc.tsv red-pro2.rpx tww [regex] > data_map.tsv
 """
 import re
 import sys

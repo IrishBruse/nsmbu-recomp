@@ -1,4 +1,4 @@
-"""Match NSMBU (cking.rpx) functions to GameCube decompilation functions.
+"""Match NSMBU (red-pro2.rpx) functions to GameCube decompilation functions.
 
 Evidence, strongest first:
   asserts   (file, condition) pairs shared with the decompilation's JUT_ASSERTs
@@ -6,7 +6,7 @@ Evidence, strongest first:
 Every candidate must also agree with the source file of its NSMBU neighbourhood: functions of one
 translation unit sit together in the executable, and many reference their own file name.
 
-Usage: match.py game/code/cking.rpx tww out.tsv
+Usage: match.py game/code/red-pro2.rpx tww out.tsv
 """
 import bisect
 import re

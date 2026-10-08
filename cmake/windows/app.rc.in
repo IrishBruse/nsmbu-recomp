@@ -15,15 +15,15 @@ BEGIN
   BEGIN
     BLOCK "040904b0"
     BEGIN
-      VALUE "CompanyName", "ZeldaWWHDRecomp"
+      VALUE "CompanyName", "NSMBURecomp"
       VALUE "FileDescription", "@NSMBU_RC_DESCRIPTION@"
       VALUE "FileVersion", "@NSMBU_RC_VERSION_STRING@"
       VALUE "InternalName", "@NSMBU_RC_INTERNAL@"
-      VALUE "LegalCopyright", "ZeldaWWHDRecomp contributors. Source code under the Mozilla Public License 2.0."
+      VALUE "LegalCopyright", "NSMBURecomp contributors. Source code under the Mozilla Public License 2.0."
       VALUE "OriginalFilename", "@NSMBU_RC_ORIGINAL@"
-      VALUE "ProductName", "Wind Waker HD Recomp"
+      VALUE "ProductName", "NSMBU Recomp"
       VALUE "ProductVersion", "@NSMBU_RC_VERSION_STRING@"
-      VALUE "Comments", "Native PC port; contains no game files or game code. https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp"
+      VALUE "Comments", "Native PC port; contains no game files or game code. https://github.com/nsmbu/nsmbu-recomp"
     END
   END
   BLOCK "VarFileInfo"

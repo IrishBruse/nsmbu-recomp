@@ -251,7 +251,7 @@ int main(int argc, char** argv) {
     // game partition files
     PartitionBuilder gm;
     gm.hash_modes = {0, 2};
-    gm.files = {{"code/cking.rpx", pattern(100000, 1), 0},
+    gm.files = {{"code/red-pro2.rpx", pattern(100000, 1), 0},
                 {"code/app.xml", pattern(37, 2), 0},
                 {"meta/meta.xml", pattern(0, 3), 0},
                 {"content/Audiores/big.bin", pattern(0xFC00 * 2 + 1234, 4), 1},

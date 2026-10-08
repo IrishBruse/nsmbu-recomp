@@ -17,7 +17,7 @@ You need the USA game (installed as usual) **and** your own dump of the European
 key, a Cemu `.wua` archive or an extracted folder.
 
 ```
-setup.py --language-source "Wind Waker HD (EUR).wux" --language-disc-key eur.key --common-key common.key
+setup.py --language-source "NSMBU (EUR).wux" --language-disc-key eur.key --common-key common.key
 setup.py --language-source nsmbu-eur.wua
 setup.py --language-source /path/to/extracted/eur-game
 setup.py --remove-language-source EU

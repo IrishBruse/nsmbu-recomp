@@ -6,7 +6,7 @@ matched functions; in a third of the examples the true function is removed so th
 when to say 'none of these'. Prints the weights to paste into match2.Matcher.WEIGHTS and a
 cross-validated precision table.
 
-Usage: train.py names.tsv cking.rpx tww
+Usage: train.py names.tsv red-pro2.rpx tww
 """
 import bisect
 import random

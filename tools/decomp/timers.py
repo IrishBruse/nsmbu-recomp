@@ -2,7 +2,7 @@
 an actor's Execute, in the GameCube build. With the NSMBU counterpart when the function is matched:
 the NSMBU decrement sites of the matched function are paired with the GameCube ones in order.
 
-Usage: timers.py nsmbu_to_gc.tsv cking.rpx tww > timers.tsv
+Usage: timers.py nsmbu_to_gc.tsv red-pro2.rpx tww > timers.tsv
 """
 import re
 import sys

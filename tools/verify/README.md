@@ -1,6 +1,6 @@
 # tools/verify: verified decompilation of NSMBU
 
-Readable C++ for NSMBU (`cking.rpx`) functions whose **behaviour is checked against the
+Readable C++ for NSMBU (`red-pro2.rpx`) functions whose **behaviour is checked against the
 recompiled original** (`build/gen`), function by function, without running the game.
 
 - Our own code lives here: the harness, unit generator, recording taps (`runtime/src/verify_tap.cpp`)
@@ -12,7 +12,7 @@ recompiled original** (`build/gen`), function by function, without running the g
 ## Quick start
 
 ```sh
-python3 tools/recomp/recomp.py game/code/cking.rpx build/gen        # once
+python3 tools/recomp/recomp.py game/code/red-pro2.rpx build/gen        # once
 python3 tools/verify/verify.py d_a_kamome -n 3000 -rec ../rec1      # build + run a unit
 python3 tools/verify/mutate.py d_a_kamome --n 1000 --max 500        # how sensitive is it?
 python3 tools/verify/wdis.py 021861D4                               # disassembly with names

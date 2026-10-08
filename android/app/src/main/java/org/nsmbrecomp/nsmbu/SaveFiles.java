@@ -58,7 +58,7 @@ final class SaveFiles {
         }
     }
 
-    // where the Wind Waker HD save (user/cking.sav) is in the zip: "" at the top, "folder/" inside one
+    // where the NSMBU save (user/cking.sav) is in the zip: "" at the top, "folder/" inside one
     // top folder (a zipped save/ folder), null when there is none
     static String saveRoot(InputStream in) throws IOException {
         try (ZipInputStream zip = new ZipInputStream(in)) {

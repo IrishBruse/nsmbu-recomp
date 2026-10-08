@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wind Waker HD (native PC port): first-run setup, repair and update.
+"""NSMBU (native PC port): first-run setup, repair and update.
 
 The release contains no game files. This program builds the game on your machine from your own
 disc dump:
@@ -64,7 +64,7 @@ IS_MAC = sys.platform == "darwin"
 IS_WIN = sys.platform.startswith("win")
 IS_LINUX = not IS_MAC and not IS_WIN
 EXE_SUFFIX = ".exe" if IS_WIN else ""
-APP_NAME = "Wind Waker HD"
+APP_NAME = "NSMBU"
 TITLE_IDS = {
     "0005000010143500": "USA",
     "0005000010143600": "Europe",
@@ -75,7 +75,7 @@ SUPPORTED_TITLE = "0005000010143500"
 # the code of this version of the game: version 0, the disc and eShop release. Its update
 # (0005000E-10143500) brings other code, and its data files go with that code.
 SUPPORTED_VERSION = 0
-# SHA-256 of code/cking.rpx of that version (The Wind Waker HD, USA, 00050000-10143500, v0). A checksum
+# SHA-256 of code/red-pro2.rpx of that version (New Super Mario Bros. U, USA, 00050000-10143500, v0). A checksum
 # only: it identifies the file the port is built for and contains nothing of it (64 hex digits;
 # tools/release/guard.py flags only 32-digit, key-shaped strings). Every source is checked against
 # it before the code is translated (check_game_version).
@@ -669,16 +669,16 @@ def check_title(title_id):
     if title_id != SUPPORTED_TITLE:
         region = TITLE_IDS.get(title_id)
         if region:
-            raise SetupError("this is the %s version of The Wind Waker HD (title %s). The port supports the USA "
+            raise SetupError("this is the %s version of New Super Mario Bros. U (title %s). The port supports the USA "
                              "version (00050000-10143500) only for now." % (region, title_id))
-        raise SetupError("this disc is not The Wind Waker HD (title id %s)" % title_id)
+        raise SetupError("this disc is not New Super Mario Bros. U (title id %s)" % title_id)
 
 
 def title_desc(tid, version=None):
-    """'The Wind Waker HD (USA), version 0', 'the update for The Wind Waker HD (USA), version 16', ..."""
+    """'New Super Mario Bros. U (USA), version 0', 'the update for New Super Mario Bros. U (USA), version 16', ..."""
     tid = tid.lower()
     region = TITLE_IDS.get("00050000" + tid[8:])
-    name = "The Wind Waker HD (%s)" % region if region else "title %s-%s" % (tid[:8].upper(), tid[8:].upper())
+    name = "New Super Mario Bros. U (%s)" % region if region else "title %s-%s" % (tid[:8].upper(), tid[8:].upper())
     kind = tid[:8]
     v = "" if version is None else ", version %d" % version
     if kind == "0005000e":
@@ -728,15 +728,15 @@ def archive_choice(info):
                 except SetupError as e:
                     raise SetupError("this archive contains %s" % str(e)[len("this is "):])
         if any(t["id"] == "0005000e" + SUPPORTED_TITLE[8:] for t in titles):
-            raise SetupError("this archive contains only the update for The Wind Waker HD (USA), not the game itself "
+            raise SetupError("this archive contains only the update for New Super Mario Bros. U (USA), not the game itself "
                              "(title 00050000-10143500). In Cemu, make the archive with the game included "
                              "(it contains: %s)." % found)
-        raise SetupError("this archive does not contain The Wind Waker HD (USA), title 00050000-10143500 "
+        raise SetupError("this archive does not contain New Super Mario Bros. U (USA), title 00050000-10143500 "
                          "(it contains: %s)." % found)
     version = int(info.get("version", -1))
     if version != SUPPORTED_VERSION:
-        raise SetupError("the game in this archive is version %d; the port is built for version %d of The Wind Waker "
-                         "HD (USA), the disc and eShop release (folder %s)." % (version, SUPPORTED_VERSION, info["selected"]))
+        raise SetupError("the game in this archive is version %d; the port is built for version %d of New Super Mario "
+                         "Bros. U (USA), the disc and eShop release (folder %s)." % (version, SUPPORTED_VERSION, info["selected"]))
     notes = []
     for t in titles:
         if t["folder"] == info["selected"]:
@@ -795,9 +795,9 @@ GAME_VERSION_FIX = ("Use the game's own files: a disc image (.wud/.wux), a Cemu 
 
 
 def check_game_version(path):
-    """Raises SetupError unless code/cking.rpx is the one the port is built for (USA, version 0). The
+    """Raises SetupError unless code/red-pro2.rpx is the one the port is built for (USA, version 0). The
     translated code and its hooks are made for exactly that file, so this runs before translating."""
-    rpx = os.path.join(path, "code", "cking.rpx")
+    rpx = os.path.join(path, "code", "red-pro2.rpx")
     try:
         digest = file_sha256(rpx)
     except OSError as e:
@@ -807,21 +807,21 @@ def check_game_version(path):
     tid, ver = code_title_version(path)
     update = "0005000e" + SUPPORTED_TITLE[8:]
     if tid and tid not in (SUPPORTED_TITLE, update):
-        found = "the game code (code/cking.rpx) is from %s (title %s-%s)" % (title_desc(tid, ver), tid[:8].upper(),
+        found = "the game code (code/red-pro2.rpx) is from %s (title %s-%s)" % (title_desc(tid, ver), tid[:8].upper(),
                                                                             tid[8:].upper())
     elif tid == update or ver:
-        found = ("the game code (code/cking.rpx) is %s (per the folder's app.xml/meta.xml): this looks like the "
+        found = ("the game code (code/red-pro2.rpx) is %s (per the folder's app.xml/meta.xml): this looks like the "
                  "game with an update merged in" % ("version %d of the game" % ver if ver else "from the update"))
     else:
-        found = ("the game code (code/cking.rpx) is not the expected file (SHA-256 %s...): not version 0 of the USA "
+        found = ("the game code (code/red-pro2.rpx) is not the expected file (SHA-256 %s...): not version 0 of the USA "
                  "game, or a modified or damaged copy" % digest[:16])
-    LOG.write("cking.rpx SHA-256 %s, expected %s" % (digest, SUPPORTED_RPX_SHA256))
-    raise SetupError("%s. The port needs The Wind Waker HD (USA), title 00050000-10143500, version 0 (the disc or "
+    LOG.write("red-pro2.rpx SHA-256 %s, expected %s" % (digest, SUPPORTED_RPX_SHA256))
+    raise SetupError("%s. The port needs New Super Mario Bros. U (USA), title 00050000-10143500, version 0 (the disc or "
                      "eShop release, without the update). %s" % (found, GAME_VERSION_FIX))
 
 
 def valid_game_folder(path):
-    return (os.path.isfile(os.path.join(path, "code", "cking.rpx")) and os.path.isdir(os.path.join(path, "content"))
+    return (os.path.isfile(os.path.join(path, "code", "red-pro2.rpx")) and os.path.isdir(os.path.join(path, "content"))
             and os.path.isfile(os.path.join(path, "meta", "meta.xml")))
 
 
@@ -897,7 +897,7 @@ def extract_game(image, keys, info, data_dir, title=None):
         raise SetupError("not enough free disk space in %s: %s needed" % (data_dir, human(need)))
     run_extract(image, keys, tmp, title)
     if not valid_game_folder(tmp):
-        raise SetupError("the extracted files are incomplete (no code/cking.rpx)")
+        raise SetupError("the extracted files are incomplete (no code/red-pro2.rpx)")
     try:
         check_game_version(tmp)
     except SetupError:
@@ -990,7 +990,7 @@ def replace_dir(new, dst):
 
 LANGUAGE_SOURCE_TITLES = {"0005000010143600": "EU", "0005000010143400": "JP"}
 LANGUAGE_SOURCE_FILES = ["content/Common/Pack/permanent_2d_*.pack", "meta/meta.xml"]
-# the packs the game knows per region (cking.rpx, 0x1048DD4C) and their languages
+# the packs the game knows per region (red-pro2.rpx, 0x1048DD4C) and their languages
 LANGUAGE_PACKS = {
     "EU": {"permanent_2d_euenglish.pack": "English", "permanent_2d_eufrench.pack": "French",
            "permanent_2d_eugerman.pack": "German", "permanent_2d_euitalian.pack": "Italian",
@@ -1016,7 +1016,7 @@ def language_source_region(title_id):
     if tid[:8] in ("0005000e", "0005000c") and ("00050000" + tid[8:]) in TITLE_IDS:
         raise SetupError("this is %s, not the game itself: a language source is the European or Japanese game "
                          "(title 00050000-10143600 or 00050000-10143400)" % title_desc(tid))
-    raise SetupError("this is not the European or Japanese version of The Wind Waker HD (title %s); a language source "
+    raise SetupError("this is not the European or Japanese version of New Super Mario Bros. U (title %s); a language source "
                      "is title 00050000-10143600 (Europe) or 00050000-10143400 (Japan)" % (tid or "unknown"))
 
 
@@ -1131,7 +1131,7 @@ def add_language_source(source, data_dir, keys=None, info=None):
             found = ", ".join("%s (%s)" % (title_desc(t["id"], t["version"]), t["folder"]) for t in ainfo.get("titles", []))
             for t in ainfo.get("titles", []):
                 language_source_region(t["id"])  # raises with the reason (the USA game, an update...)
-            raise SetupError("this archive contains no European or Japanese Wind Waker HD (it contains: %s)"
+            raise SetupError("this archive contains no European or Japanese NSMBU (it contains: %s)"
                              % (found or "no Wii U titles"))
         out = []
         for t in titles:
@@ -1182,7 +1182,7 @@ def language_source_kind(path):
 
 def recompile(game_dir, gen_dir):
     shutil.rmtree(gen_dir, ignore_errors=True)
-    rpx = os.path.join(game_dir, "code", "cking.rpx")
+    rpx = os.path.join(game_dir, "code", "red-pro2.rpx")
     out = run_logged([sys.executable, os.path.join(PKG, "tools", "recomp", "recomp.py"), rpx, gen_dir],
                      what="translating the game code")
     n = len(glob.glob(os.path.join(gen_dir, "code_*.c")))
@@ -1298,7 +1298,7 @@ def link_game(tc, manifest, objs, work, out_exe):
 
 
 def mac_app(app_path, exe_src, data_dir, version):
-    """~/Applications/Wind Waker HD.app: the game binary plus a launcher that points it at the data folder."""
+    """~/Applications/NSMBU.app: the game binary plus a launcher that points it at the data folder."""
     tmp = app_path + ".tmp"
     shutil.rmtree(tmp, ignore_errors=True)
     macos = os.path.join(tmp, "Contents", "MacOS")
@@ -1306,7 +1306,7 @@ def mac_app(app_path, exe_src, data_dir, version):
     shutil.copy2(exe_src, os.path.join(macos, "nsmbu"))
     launcher = os.path.join(macos, "launch")
     with open(launcher, "w") as f:
-        f.write('#!/bin/sh\n# written by the Wind Waker HD setup\ncd "%s" || exit 1\nexec "$(dirname "$0")/nsmbu" '
+        f.write('#!/bin/sh\n# written by the NSMBU setup\ncd "%s" || exit 1\nexec "$(dirname "$0")/nsmbu" '
                 '--game game --save save "$@"\n' % data_dir.replace('"', '\\"'))
     os.chmod(launcher, 0o755)
     plist = """<?xml version="1.0" encoding="UTF-8"?>
@@ -1376,13 +1376,13 @@ def write_game_icon(data_dir, ico):
 def linux_launchers(data_dir, exe):
     play = os.path.join(data_dir, "play.sh")
     with open(play, "w") as f:
-        f.write('#!/bin/sh\n# written by the Wind Waker HD setup\ncd "%s" || exit 1\nexec "%s" --game game --save save "$@"\n'
+        f.write('#!/bin/sh\n# written by the NSMBU setup\ncd "%s" || exit 1\nexec "%s" --game game --save save "$@"\n'
                 % (data_dir, exe))
     os.chmod(play, 0o755)
     apps = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "applications")
     os.makedirs(apps, exist_ok=True)
     with open(os.path.join(apps, "nsmbu.desktop"), "w") as f:
-        f.write("[Desktop Entry]\nType=Application\nName=%s\nComment=The Wind Waker HD, native PC port\n"
+        f.write("[Desktop Entry]\nType=Application\nName=%s\nComment=New Super Mario Bros. U, native PC port\n"
                 "Exec=\"%s\"\nPath=%s\nTerminal=false\nCategories=Game;\n" % (APP_NAME, play, data_dir))
         icon = write_game_icon(data_dir, ico=False)
         if icon:
@@ -1419,7 +1419,7 @@ def launch(state, data_dir):
 # portable release: the launcher, an optional shortcut, the compiler download
 
 
-LAUNCHER = {"darwin": "Wind Waker HD.app", "win32": "Wind Waker HD.exe"}.get(sys.platform, "wind-waker-hd")
+LAUNCHER = {"darwin": "NSMBU.app", "win32": "NSMBU.exe"}.get(sys.platform, "nsmbu-launcher")
 
 
 def create_shortcut():
@@ -1479,30 +1479,23 @@ def have_save(data_dir):
 
 
 def import_save(kind, path, data_dir, replace=False):
-    """Copies an HD save (a folder with cking.sav, or cking.sav itself) or converts a GameCube save
-    (.gci, tools/savegame/gc2hd.py) into save/user/. An existing save is only replaced when asked,
-    and then first moved to save/user.backup-<time>. Returns a message."""
+    """Copies a Wii U save (a folder with cking.sav, or cking.sav itself) into save/user/. An existing
+    save is only replaced when asked, and then first moved to save/user.backup-<time>. Returns a message."""
     user = save_user_dir(data_dir)
     if have_save(data_dir) and not replace:
         raise SetupError("a save already exists in %s" % user)
+    if kind != "hd":
+        raise SetupError("unknown save import kind %r" % kind)
     tmp = os.path.join(data_dir, "save-import.tmp")
     shutil.rmtree(tmp, ignore_errors=True)
     os.makedirs(tmp)
     try:
-        if kind == "gc":
-            if not os.path.isfile(path) or not path.lower().endswith(".gci"):
-                raise SetupError("choose a GameCube save file (.gci)")
-            out = run_logged([sys.executable, os.path.join(PKG, "tools", "savegame", "gc2hd.py"), path, "-o", tmp],
-                             what="converting the GameCube save")
-            if not os.path.isfile(os.path.join(tmp, "cking.sav")):
-                raise SetupError("the GameCube save could not be converted:\n" + out.strip()[-500:])
-        else:
-            src = os.path.dirname(path) if os.path.isfile(path) else path
-            savs = [f for f in os.listdir(src) if f.endswith(".sav")] if os.path.isdir(src) else []
-            if "cking.sav" not in savs:
-                raise SetupError("no cking.sav in %s" % src)
-            for f in savs:
-                shutil.copy2(os.path.join(src, f), os.path.join(tmp, f))
+        src = os.path.dirname(path) if os.path.isfile(path) else path
+        savs = [f for f in os.listdir(src) if f.endswith(".sav")] if os.path.isdir(src) else []
+        if "cking.sav" not in savs:
+            raise SetupError("no cking.sav in %s" % src)
+        for f in savs:
+            shutil.copy2(os.path.join(src, f), os.path.join(tmp, f))
         backup = None
         if os.path.isdir(user) and os.listdir(user):
             backup = user + ".backup-" + time.strftime("%Y%m%d-%H%M%S")
@@ -1513,8 +1506,6 @@ def import_save(kind, path, data_dir, replace=False):
         shutil.rmtree(tmp, ignore_errors=True)
     n = len([f for f in os.listdir(user) if f.endswith(".sav")])
     msg = "Copied %d save file%s to %s" % (n, "" if n == 1 else "s", user)
-    if kind == "gc":
-        msg = "Converted the GameCube save to %s" % os.path.join(user, "cking.sav")
     if backup:
         msg += " (the previous save is in %s)" % backup
     say("  " + msg)
@@ -1595,9 +1586,8 @@ def maybe_import_save(ui, data_dir):
         say("  Your existing save in %s is kept." % user)
         return
     options = ["no, start with a new save",
-               "a Wind Waker HD save (a folder with cking.sav, e.g. from Cemu or a Wii U)",
-               "a GameCube Wind Waker save (.gci, converted to HD)",
-               "copy saves and settings from another Wind Waker HD folder"]
+               "an NSMBU save (a folder with cking.sav, e.g. from Cemu or a Wii U)",
+               "copy saves and settings from another NSMBU folder"]
     legacy = PORTABLE and any(import_sources())
     if legacy:
         options.append("copy saves and settings from my earlier installation (copied, not moved)")
@@ -1605,15 +1595,12 @@ def maybe_import_save(ui, data_dir):
     if i == 0:
         return
     try:
-        if i == 3:
-            import_existing(data_dir, ui.pick_path("Choose the other Wind Waker HD folder", folder=True))
-        elif i == 4:
+        if i == 2:
+            import_existing(data_dir, ui.pick_path("Choose the other NSMBU folder", folder=True))
+        elif i == 3:
             import_existing(data_dir)
         elif i == 1:
             import_save("hd", ui.pick_path("Choose the folder that contains cking.sav", folder=True), data_dir)
-        else:
-            import_save("gc", ui.pick_path("Choose the GameCube save (.gci)",
-                                           filetypes=[("GameCube save (*.gci)", "*.gci")]), data_dir)
     except SetupError as e:
         say("  Save not imported: %s (you can copy it to %s later)" % (e, user))
 
@@ -1759,7 +1746,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
         if keys is None or info is None:
             keys, info = check_keys(source[1])
         check_title(info.get("title_id", ""))
-        say("  OK: The Wind Waker HD (USA), %s files, %s" % (info.get("files"), human(int(info.get("bytes", 0)))))
+        say("  OK: New Super Mario Bros. U (USA), %s files, %s" % (info.get("files"), human(int(info.get("bytes", 0)))))
     elif kind == "archive":
         begin("archive")
         if not os.path.isfile(source[1]):
@@ -1776,7 +1763,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
     elif kind == "folder":
         begin("folder")
         if not valid_game_folder(source[1]):
-            raise SetupError("%s is not an extracted game folder (needs code/cking.rpx, content/, meta/meta.xml)" % source[1])
+            raise SetupError("%s is not an extracted game folder (needs code/red-pro2.rpx, content/, meta/meta.xml)" % source[1])
         tid = game_folder_title(source[1])
         if tid:
             check_title(tid)
@@ -1901,7 +1888,7 @@ def run_language_source(args, ui, data_dir, path):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Wind Waker HD setup", formatter_class=argparse.RawDescriptionHelpFormatter,
+    ap = argparse.ArgumentParser(description="NSMBU setup", formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog=__doc__)
     ap.add_argument("--image", help="disc image (.wux or .wud; a .wua is taken as --archive)")
     ap.add_argument("--archive", help="Cemu Wii U archive (.wua): no keys needed")
@@ -1959,7 +1946,7 @@ def main():
 def run(args, ui):
     ctx = Ctx(args)
     version, data_dir, game_dir = ctx.version, ctx.data_dir, ctx.game_dir
-    say("The Legend of Zelda: The Wind Waker HD - native PC port, setup %s" % version)
+    say("New Super Mario Bros. U - native PC port, setup %s" % version)
     say("This release contains no game files. Setup builds the game from your own dump of the game.")
     say("Install folder: %s" % data_dir)
     state = ctx.state()
@@ -2007,7 +1994,7 @@ def run(args, ui):
             if i == 4:
                 return 0
             if i == 3:
-                p = ui.pick_path("Choose your European or Japanese Wind Waker HD (.wux/.wud disc image, .wua Cemu "
+                p = ui.pick_path("Choose your European or Japanese NSMBU (.wux/.wud disc image, .wua Cemu "
                                  "archive or extracted folder)")
                 run_language_source(args, ui, data_dir, p)
                 return 0
@@ -2029,8 +2016,8 @@ def run(args, ui):
                                                  "a Cemu Wii U archive (.wua; no keys needed)",
                                                  "an already extracted game folder (with code, content and meta folders)"])
             if i in (0, 1):
-                p = ui.pick_path("Choose your Wind Waker HD disc image (.wux or .wud)" if i == 0 else
-                                 "Choose your Wind Waker HD Cemu archive (.wua)",
+                p = ui.pick_path("Choose your NSMBU disc image (.wux or .wud)" if i == 0 else
+                                 "Choose your NSMBU Cemu archive (.wua)",
                                  filetypes=[("Wii U disc image (*.wux;*.wud)", "*.wux;*.wud")] if i == 0 else
                                  [("Cemu Wii U archive (*.wua)", "*.wua")])
                 # the file decides: a .wua chosen as a disc image is still an archive
@@ -2043,7 +2030,7 @@ def run(args, ui):
                     if valid_game_folder(os.path.dirname(p)):
                         p = os.path.dirname(p)
                         break
-                    say("  That folder does not contain code/cking.rpx, content and meta/meta.xml.")
+                    say("  That folder does not contain code/red-pro2.rpx, content and meta/meta.xml.")
                 source = ("folder", p)
 
     state = install(ctx, source, ui=ui, check_keys=lambda image: get_disc_keys(image, ui, args))
@@ -2167,7 +2154,7 @@ def gui_main(args):
                 check_game_version(folder)
             except SetupError as e:
                 return fail(req, "wrong_version", str(e)[0].upper() + str(e)[1:])
-            return reply(req, kind="folder", path=folder, title="The Wind Waker HD (USA)", in_place=PORTABLE,
+            return reply(req, kind="folder", path=folder, title="New Super Mario Bros. U (USA)", in_place=PORTABLE,
                          bytes=folder_size(folder))
         if not os.path.isfile(p):
             return fail(req, "invalid", "File not found.")

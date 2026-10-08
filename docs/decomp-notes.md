@@ -1,7 +1,7 @@
 # NSMBU ↔ GameCube decompilation: findings
 
-Function names for NSMBU (`cking.rpx`) come from
-`python3 tools/decomp/match.py game/code/cking.rpx tww build/names.tsv` (about 1 minute). Needs
+Function names for NSMBU (`red-pro2.rpx`) come from
+`python3 tools/decomp/match.py game/code/red-pro2.rpx tww build/names.tsv` (about 1 minute). Needs
 `tww/` (zeldaret/tww) built from your own GameCube disc image (`tww/build/GZLE01`). Outputs (all
 in git-ignored `build/`):
 
@@ -798,7 +798,7 @@ runtime).
 
 ## Gameplay mods
 
-The Wind Waker camera, wall-climb, quick-door, fast-scene, and cheat mods are removed.
+The upstream camera, wall-climb, quick-door, fast-scene, and cheat mods are removed.
 The package manager remains.
 `hooks_mods.txt` and `hooks_climb.txt` are removed.
 

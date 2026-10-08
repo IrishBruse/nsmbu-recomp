@@ -231,13 +231,13 @@ int main(int argc, char** argv) {
     std::string x = q(exe);
 
     // base game (USA), its update, a DLC-style title and a stray file at the top
-    std::vector<FileSpec> base = {{"code/cking.rpx", pattern(100000, 1)},
+    std::vector<FileSpec> base = {{"code/red-pro2.rpx", pattern(100000, 1)},
                                   {"code/app.xml", pattern(37, 2)},
                                   {"meta/meta.xml", pattern(300, 3)},
                                   {"content/Audiores/big.bin", mixed(2 * 1024 * 1024 + 1234, 4)},  // > 16 blocks
                                   {"content/empty.bin", {}},
                                   {"content/a/b/c/deep.bin", pattern(70000, 5)}};
-    std::vector<FileSpec> update = {{"code/cking.rpx", pattern(100004, 11)},
+    std::vector<FileSpec> update = {{"code/red-pro2.rpx", pattern(100004, 11)},
                                     {"content/patched.bin", pattern(5000, 12)},
                                     {"meta/meta.xml", pattern(10, 13)}};
     ZWriter w;
@@ -340,7 +340,7 @@ int main(int argc, char** argv) {
         expect(run(x + " extract " + q(wua) + " " + q(work / "out_multi") + " 2> " + q(work / "e_multi.txt")) == 10,
                "several titles and no --title -> exit 10");
         ZWriter none;
-        none.add("code/cking.rpx", pattern(10, 1));
+        none.add("code/red-pro2.rpx", pattern(10, 1));
         write_file(work / "none.wua", none.finish());
         expect(run(x + " info " + q(work / "none.wua") + " > " + q(work / "o.txt") + " 2> " + q(work / "e_none.txt")) == 10,
                "no title folders -> exit 10");
@@ -353,7 +353,7 @@ int main(int argc, char** argv) {
                                       {"content/Common/Pack/permanent_2d_EuFrench.pack", pattern(500, 32)},
                                       {"meta/meta.xml", pattern(300, 3)}};
         for (auto& f : want) eu.add("0005000010143600_v0/" + f.path, f.data);
-        eu.add("0005000010143600_v0/code/cking.rpx", pattern(1000, 33));
+        eu.add("0005000010143600_v0/code/red-pro2.rpx", pattern(1000, 33));
         eu.add("0005000010143600_v0/content/Common/Pack/permanent_3d.pack", pattern(600, 34));
         write_file(work / "eu_lang.wua", eu.finish());
         expect(run(x + " --title 0005000010143600 --only CONTENT/Common/Pack/permanent_2d_*.pack --only meta/meta.xml "
@@ -413,7 +413,7 @@ int main(int argc, char** argv) {
 
         // a ".." name inside the title folder
         ZWriter evil;
-        evil.add("0005000010143500_v0/code/cking.rpx", pattern(10, 1));
+        evil.add("0005000010143500_v0/code/red-pro2.rpx", pattern(10, 1));
         evil.add("0005000010143500_v0/../escape.bin", pattern(10, 2));
         write_file(work / "evil.wua", evil.finish());
         expect(run(x + " --title 0005000010143500 extract " + q(work / "evil.wua") + " " + q(work / "out_evil") + " 2> " +

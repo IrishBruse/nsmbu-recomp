@@ -1,4 +1,4 @@
-// Wind Waker HD: the program a release starts (SDL3 + Dear ImGui).
+// NSMBU: the program a release starts (SDL3 + Dear ImGui).
 //
 // The release contains no game code, so the first start prepares the game once (choose the dump,
 // keys for a disc image, then extract/translate/compile); later starts launch the built game directly, without a
@@ -7,7 +7,7 @@
 //
 // Only a front end. Everything the installation does (keys, extraction, recompiling, compiling,
 // the app, save import) is tools/installer/setup.py, which this program runs as a child process
-// through the release's own launcher ("Install Wind Waker HD.command" or install.sh; they also fetch Python
+// through the release's own launcher ("Install NSMBU.command" or install.sh; they also fetch Python
 // where needed) or, on Windows, directly with the embeddable Python the release ships in tools\python
 // (console_setup_win.cpp), with --gui-protocol: JSON lines on the child's stdout (events) and stdin (requests).
 // See tools/installer/README.md.
@@ -326,7 +326,7 @@ static bool run_quick(const std::vector<std::string>& args) {
 
 static std::string g_exe, g_game_dir, g_data_dir;  // set when the game is ready to start
 
-// Replaces this process with the game (macOS, Linux; the Dock keeps showing "Wind Waker HD") or starts
+// Replaces this process with the game (macOS, Linux; the Dock keeps showing "NSMBU") or starts
 // it and returns (Windows). The game runs in the data folder (its crash logs go to data/captures).
 static bool launch_game() {
     std::string save = g_data_dir + "/save";
@@ -439,7 +439,7 @@ struct App {
     bool exec_game = false;                                  // start the game when the window has closed
 
     // save import
-    int save_kind = 0;  // 0 none, 1 HD folder, 2 GameCube .gci, 3 earlier installation, 4 another folder
+    int save_kind = 0;  // 0 none, 1 HD folder, 2 earlier installation, 3 another folder
     std::string save_path, save_msg;
     bool confirm_replace = false;
 
@@ -493,7 +493,7 @@ static int request(const std::string& cmd, const std::string& fields) {
     if (!A.child.send(json))
         fail("The setup process is not running any more (request \"" + cmd + "\" could not be sent" +
                  (A.child.exited ? ", it ended with exit code " + std::to_string(A.child.exit_code) : std::string()) + ").",
-             "Open Wind Waker HD again; finished steps are kept. If it happens again, click \"Copy log\" and attach the "
+             "Open NSMBU again; finished steps are kept. If it happens again, click \"Copy log\" and attach the "
              "log to a bug report.");
     return id;
 }
@@ -824,9 +824,9 @@ static void handle_reply(const J& ev) {
         if (A.source_kind == "archive")  // setup.py says which title is used and why
             A.probe_msg = ev.str("message");
         else if (A.source_kind == "folder")
-            A.probe_msg = ev.boolean("in_place") ? "Extracted game folder: The Wind Waker HD (USA). It is used where it is; "
+            A.probe_msg = ev.boolean("in_place") ? "Extracted game folder: New Super Mario Bros. U (USA). It is used where it is; "
                                                    "nothing is copied."
-                                                 : "Extracted game folder: The Wind Waker HD (USA)";
+                                                 : "Extracted game folder: New Super Mario Bros. U (USA)";
         else
             A.probe_msg = "Wii U disc image. The game files are extracted from it into this folder (about 1.7 GB).";
     } else if (cmd == "check_keys") {
@@ -920,8 +920,8 @@ static void handle_event(const J& ev) {
     } else if (e == "reply") {
         handle_reply(ev);
     } else if (e == "fatal") {
-        fail(ev.str("message"), A.log_path.empty() ? "Fix what the message says and open Wind Waker HD again."
-                                                   : "Fix what the message says and open Wind Waker HD again. The setup log is " +
+        fail(ev.str("message"), A.log_path.empty() ? "Fix what the message says and open NSMBU again."
+                                                   : "Fix what the message says and open NSMBU again. The setup log is " +
                                                          A.log_path + ".");
     }
 }
@@ -965,7 +965,7 @@ static void pump_child() {
         std::string code = "exit code " + std::to_string(A.child.exit_code);
         if (A.hello)
             fail("The setup process (tools/installer/setup.py) ended unexpectedly (" + code + ").",
-                 "Open Wind Waker HD again; finished steps are kept. The last lines it wrote are below" +
+                 "Open NSMBU again; finished steps are kept. The last lines it wrote are below" +
                      (A.log_path.empty() ? std::string(".") : ", its full log is " + A.log_path + ".") +
                      " If it happens again, click \"Copy log\" and attach the log to a bug report.");
         else
@@ -1006,7 +1006,7 @@ static void log_pane(float height) {
 }
 
 static void screen_starting() {
-    page_header("Wind Waker HD");
+    page_header("NSMBU");
     ImGui::Spacing();
     mark(1);
     ImGui::TextUnformatted("Preparing the installer...");
@@ -1044,11 +1044,11 @@ static void screen_clt() {
 static std::string home_folder() { return A.portable && !A.package.empty() ? A.package : A.data_dir; }
 
 static void screen_welcome() {
-    page_header("Welcome", "The Legend of Zelda: The Wind Waker HD, native PC port " + A.version);
+    page_header("Welcome", "New Super Mario Bros. U, native PC port " + A.version);
     if (A.portable) {
         ImGui::TextWrapped("The first start prepares the game once: it reads your own dump of the game and builds it for "
                            "this computer (about two minutes). Releases never contain game code, so this happens here, "
-                           "once. After that, starting Wind Waker HD starts the game directly.");
+                           "once. After that, starting NSMBU starts the game directly.");
     } else {
         ImGui::TextWrapped("This installer builds the game on your computer from your own dump of the game. The "
                            "download contains no game files, no game code and no keys.");
@@ -1056,7 +1056,7 @@ static void screen_welcome() {
     ImGui::Spacing();
     ImGui::TextUnformatted("You need:");
     ImGui::Bullet();
-    ImGui::TextWrapped("your Wind Waker HD (USA): a disc image (.wud/.wux), a Cemu archive (.wua), or an extracted "
+    ImGui::TextWrapped("your NSMBU (USA): a disc image (.wud/.wux), a Cemu archive (.wua), or an extracted "
                        "folder (code, content, meta);");
     ImGui::Bullet();
     ImGui::TextWrapped("for a disc image, its disc key and the Wii U common key (from your console). A Cemu archive "
@@ -1090,7 +1090,7 @@ static void screen_welcome() {
 
 static void screen_menu() {
     bool update = A.installed_version != A.version;
-    page_header(A.portable ? "Wind Waker HD" : "Wind Waker HD is installed",
+    page_header(A.portable ? "NSMBU" : "NSMBU is installed",
                 update ? "Prepared with " + A.installed_version + ". This release: " + A.version + "."
                        : "Version " + A.version + ", in " + home_folder());
     float w = 520;
@@ -1281,41 +1281,33 @@ static void screen_error() {
 
 static void send_import(bool replace) {
     std::string r = replace ? ",\"replace\":true" : "";
-    if (A.save_kind == 3) request("import_existing", r.empty() ? "" : r.substr(1));
-    else if (A.save_kind == 4) request("import_existing", "\"path\":" + jstr(A.save_path) + r);
-    else request("import_save", std::string("\"kind\":") + (A.save_kind == 2 ? "\"gc\"" : "\"hd\"") + ",\"path\":" +
-                                    jstr(A.save_path) + r);
+    if (A.save_kind == 2) request("import_existing", r.empty() ? "" : r.substr(1));
+    else if (A.save_kind == 3) request("import_existing", "\"path\":" + jstr(A.save_path) + r);
+    else request("import_save", std::string("\"kind\":\"hd\",\"path\":") + jstr(A.save_path) + r);
 }
 
 static void screen_save() {
     page_header("Your save (optional)", "Use a save you already have, or start a new game.");
-    static const SDL_DialogFileFilter gci[] = {{"GameCube save (.gci)", "gci"}, {"All files", "*"}};
     if (A.save_exists) colored(MUTED, "A save is already installed. Importing replaces it; the current save is backed up first.");
     int kind = A.save_kind;
+    if (kind == 4) kind = 3;
+    else if (kind == 3 && !A.legacy) kind = 1;
     radio("Start with a new save", &kind, 0);
-    radio("Wind Waker HD save (a folder with cking.sav, from Cemu or a Wii U)", &kind, 1);
+    radio("NSMBU save (a folder with cking.sav, from Cemu or a Wii U)", &kind, 1);
     if (A.save_kind == 1) {
         ImGui::Indent();
         if (button("Choose folder...##hd")) choose_folder("save");
         if (!A.save_path.empty()) ImGui::SameLine(), ImGui::TextUnformatted(base_name(A.save_path).c_str());
         ImGui::Unindent();
     }
-    radio("GameCube Wind Waker save (.gci), converted to HD", &kind, 2);
-    if (A.legacy) radio("Copy saves and settings from my earlier installation (copied, not moved)", &kind, 3);
-    radio("Copy saves and settings from another Wind Waker HD folder", &kind, 4);
+    if (A.legacy) radio("Copy saves and settings from my earlier installation (copied, not moved)", &kind, 2);
+    radio("Copy saves and settings from another NSMBU folder", &kind, 3);
     set_save_kind(kind);
-    if (A.save_kind == 2) {
-        ImGui::Indent();
-        if (button("Choose .gci file...##gc")) choose_file("save", gci, 2);
-        if (!A.save_path.empty()) ImGui::SameLine(), ImGui::TextUnformatted(base_name(A.save_path).c_str());
-        muted("Items, progress, songs and charts are carried over (tools/savegame/gc2hd.py).");
-        ImGui::Unindent();
-    }
-    if (A.save_kind == 4) {
+    if (A.save_kind == 3) {
         ImGui::Indent();
         if (button("Choose folder...##other")) choose_folder("save");
         if (!A.save_path.empty()) ImGui::SameLine(), ImGui::TextUnformatted(base_name(A.save_path).c_str());
-        muted("The folder of an earlier Wind Waker HD release (it has a data folder).");
+        muted("The folder of an earlier NSMBU release (it has a data folder).");
         ImGui::Unindent();
     }
     if (!A.save_msg.empty()) colored(BAD, A.save_msg);
@@ -1334,7 +1326,7 @@ static void screen_save() {
         if (button("Keep my save", ImVec2(160, 0))) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
-    bool can = A.save_kind == 0 || A.save_kind == 3 || !A.save_path.empty();
+    bool can = A.save_kind == 0 || A.save_kind == 2 || !A.save_path.empty();
     int b = footer({A.save_kind == 0 ? "Continue" : "Import"}, 0, (can && !busy()) ? 0 : 1);
     if (b == 0) {
         if (A.save_kind == 0) go(Screen::Done);
@@ -1345,11 +1337,11 @@ static void screen_save() {
 static void screen_done() {
     page_header("Ready to play");
     mark(2);
-    ImGui::TextWrapped(A.portable ? "The game is prepared." : "The Wind Waker HD is installed.");
+    ImGui::TextWrapped(A.portable ? "The game is prepared." : "New Super Mario Bros. U is installed.");
     ImGui::Spacing();
     if (A.portable) {
         muted("Everything is in " + home_folder() + ".");
-        muted("To play, start Wind Waker HD again: it starts the game directly. To repair, update or change the "
+        muted("To play, start NSMBU again: it starts the game directly. To repair, update or change the "
 #ifdef __linux__
               "game, start it with --setup (or use the shortcut's Setup action)."
 #else
@@ -1360,7 +1352,7 @@ static void screen_done() {
 #ifdef __APPLE__
         if (!A.result_app.empty()) muted("The game: " + A.result_app + " (also in Launchpad and Spotlight).");
 #elif defined(_WIN32)
-        muted("The game: Start menu and desktop shortcut \"Wind Waker HD\".");
+        muted("The game: Start menu and desktop shortcut \"NSMBU\".");
 #else
         muted("The game: your applications menu, or " + A.data_dir + "/play.sh.");
 #endif
@@ -1376,11 +1368,11 @@ static void screen_done() {
         }
         checkbox(
 #if defined(__APPLE__)
-            "Add Wind Waker HD to my Applications folder (a link)",
+            "Add NSMBU to my Applications folder (a link)",
 #elif defined(_WIN32)
-            "Add Wind Waker HD to the Start menu",
+            "Add NSMBU to the Start menu",
 #else
-            "Add Wind Waker HD to my applications menu",
+            "Add NSMBU to my applications menu",
 #endif
             &A.opt_shortcut);
         muted("Off by default: then nothing is written outside this folder.");
@@ -1438,7 +1430,7 @@ struct PackageSearch {
 
 #ifdef __APPLE__
 // A downloaded (quarantined) app opened from Finder runs from a random read-only copy ("App Translocation",
-// /private/var/folders/.../AppTranslocation/<id>/d/Wind Waker HD.app) that contains only the app, not
+// /private/var/folders/.../AppTranslocation/<id>/d/NSMBU.app) that contains only the app, not
 // the release folder around it. Security.framework says where the original is.
 //
 // Ask about the bundle itself: SecTranslocateCreateOriginalPathForURL fails for paths that do not exist,
@@ -1530,32 +1522,32 @@ static void fail_no_package(const PackageSearch& r) {
     if (folder.size() > 1 && (folder.back() == '/' || folder.back() == '\\')) folder.pop_back();
 #ifdef __APPLE__
     if (r.translocated && !r.original_known) {
-        fail("macOS started Wind Waker HD from a temporary read-only copy (App Translocation, because the downloaded "
+        fail("macOS started NSMBU from a temporary read-only copy (App Translocation, because the downloaded "
              "folder is still marked as quarantined), and did not say where the original is, so the release folder "
              "around the app cannot be found.",
-             "In Finder, drag \"Wind Waker HD.app\" out of the unzipped folder (for example onto the Desktop) and back "
+             "In Finder, drag \"NSMBU.app\" out of the unzipped folder (for example onto the Desktop) and back "
              "into the same folder, then open it again: an app moved with Finder is started where it is. Or, in "
              "Terminal: xattr -dr com.apple.quarantine followed by the path of the unzipped folder. Keep the app in "
              "that folder: it needs tools/, sdk/ and portable.txt next to it.");
         return;
     }
     if (r.err == EPERM || r.err == EACCES) {
-        fail("macOS did not let Wind Waker HD read its release folder " + folder + " (checking " + r.checked + ": " +
+        fail("macOS did not let NSMBU read its release folder " + folder + " (checking " + r.checked + ": " +
                  r.error + ").",
              "If you answered \"Don't Allow\" when macOS asked about access to a folder (Downloads, Desktop, "
-             "Documents, an external drive), allow Wind Waker HD in System Settings > Privacy & Security > Files and "
+             "Documents, an external drive), allow NSMBU in System Settings > Privacy & Security > Files and "
              "Folders, or move the whole unzipped folder to another place (for example your home folder or a Games "
              "folder) and open the app from there.",
              folder);
         return;
     }
-    fail("Wind Waker HD could not find its release files: " + r.checked + " is missing (" + r.error + ").",
-         "Keep \"Wind Waker HD.app\" inside the unzipped release folder, next to tools/, sdk/ and portable.txt. If you "
+    fail("NSMBU could not find its release files: " + r.checked + " is missing (" + r.error + ").",
+         "Keep \"NSMBU.app\" inside the unzipped release folder, next to tools/, sdk/ and portable.txt. If you "
          "moved only the app (for example into Applications), move it back; to keep the game somewhere else, move "
          "the whole folder.",
          folder);
 #else
-    fail("Wind Waker HD could not find its release files: " + r.checked + " is missing or unreadable (" + r.error + ").",
+    fail("NSMBU could not find its release files: " + r.checked + " is missing or unreadable (" + r.error + ").",
          "Keep this program inside the unzipped release folder, next to tools/, sdk/ and portable.txt. To keep the "
          "game somewhere else, move the whole folder; if files are missing, unzip the release again.",
          folder);
@@ -1591,7 +1583,7 @@ static bool check_writable(const std::string& data) {
     fail("The release folder cannot be written to: " + what + " failed (" + err + "). Setup keeps the game, saves "
          "and settings in " + data + ".",
          "Copy the whole unzipped folder to a place you can write to (for example your home folder or a Games "
-         "folder; not a disk image, a read-only drive or another user's folder) and open Wind Waker HD from there.",
+         "folder; not a disk image, a read-only drive or another user's folder) and open NSMBU from there.",
          A.pkg);
     return false;
 }
@@ -1610,13 +1602,13 @@ static std::string fatal_log_file() {
     const char* home = SDL_getenv("HOME");
     std::string dir = std::string(home ? home : "/tmp") + "/Library/Logs";
     if (!home || !SDL_CreateDirectory(dir.c_str())) dir = "/tmp";
-    return dir + "/Wind Waker HD setup.log";
+    return dir + "/NSMBU setup.log";
 #elif defined(_WIN32)
     const char* t = SDL_getenv("TEMP");
-    return std::string(t ? t : ".") + "\\Wind Waker HD setup.log";
+    return std::string(t ? t : ".") + "\\NSMBU setup.log";
 #else
     const char* t = SDL_getenv("TMPDIR");
-    return std::string(t && *t ? t : "/tmp") + "/wind-waker-hd-setup.log";
+    return std::string(t && *t ? t : "/tmp") + "/nsmbu-setup-log.log";
 #endif
 }
 
@@ -1635,7 +1627,7 @@ static void fail(const std::string& what, const std::string& todo, const std::st
         if (SDL_GetCurrentTime(&t) && SDL_TimeToDateTime(t, &dt, true))
             snprintf(when, sizeof when, "%04d-%02d-%02d %02d:%02d:%02d", dt.year, dt.month, dt.day, dt.hour, dt.minute,
                      dt.second);
-        std::string text = std::string("==== ") + when + " Wind Waker HD" + (A.version.empty() ? "" : " " + A.version) +
+        std::string text = std::string("==== ") + when + " NSMBU" + (A.version.empty() ? "" : " " + A.version) +
                            ": setup could not continue\n" +
                            what + "\nWhat to do: " + todo + "\n";
         const char* bp = SDL_GetBasePath();
@@ -1665,8 +1657,8 @@ static void start_child() {
     // the official embeddable Python shipped in the release (tools\python; no download, no script host)
     if (!have_bundled_python(A.pkg)) {
         fail("Setup could not start: " + bundled_python(A.pkg) + " is missing.",
-             "The release is incomplete: unzip it again (the whole zip, keeping its folders) and start Wind Waker "
-             "HD.exe from the unzipped folder.",
+             "The release is incomplete: unzip it again (the whole zip, keeping its folders) and start NSMBU.exe "
+             "from the unzipped folder.",
              A.pkg);
         return;
     }
@@ -1694,7 +1686,7 @@ static void start_child() {
 //   {"screen": "keys", "set": {"common_mode": "file", "common_key_file": "..."}, "when_step": "compile",
 //    "idle": true, "shot": "03-keys.png", "click": "Check keys and install"}
 // "set" fields: source (as if chosen in the dialog), disc_key_file, common_key_file, common_mode
-// (file|paste), save_kind (none|hd|gc|legacy|other), save_path, open_details (true). Screenshots are PNG files
+// (file|paste), save_kind (none|hd|legacy|other), save_path, open_details (true). Screenshots are PNG files
 // of the window. The run ends (exit 0) after the last step, or with exit 2 on a 45-minute timeout.
 
 
@@ -1727,7 +1719,7 @@ static void automation_frame() {
             else if (k == "common_key_file") set_common_key_file(v);
             else if (k == "common_mode") set_common_mode(v == "paste" ? 1 : 0);
             else if (k == "save_kind")
-                set_save_kind(v == "hd" ? 1 : v == "gc" ? 2 : v == "legacy" ? 3 : v == "other" ? 4 : 0);
+                set_save_kind(v == "hd" ? 1 : v == "legacy" ? 2 : v == "other" ? 3 : 0);
             else if (k == "save_path") set_save_path(v);
             else if (k == "open_details") details_open = true;
         }
@@ -1778,7 +1770,7 @@ static bool game_ready(const std::string& pkg, const std::vector<std::string>& p
     };
     std::string exe = resolve(st.str("exe")), game = resolve(st.str("game_dir"));
     if (exe.empty() || game.empty() || !SDL_GetPathInfo(exe.c_str(), &info) ||
-        !SDL_GetPathInfo((game + "/code/cking.rpx").c_str(), &info))
+        !SDL_GetPathInfo((game + "/code/red-pro2.rpx").c_str(), &info))
         return false;
     g_exe = exe, g_game_dir = game, g_data_dir = data;
     return true;
@@ -1817,7 +1809,7 @@ int main(int argc, char** argv) {
         if (!pkg.empty() && game_ready(pkg, A.passthru) && launch_game()) return 0;
     }
 
-    SDL_SetHint(SDL_HINT_APP_NAME, "Wind Waker HD");
+    SDL_SetHint(SDL_HINT_APP_NAME, "NSMBU");
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("SDL_Init: %s", SDL_GetError());
         return 1;
@@ -1828,7 +1820,7 @@ int main(int argc, char** argv) {
     if (scale <= 0) scale = 1.0f;
     {
         SDL_PropertiesID wp = SDL_CreateProperties();
-        SDL_SetStringProperty(wp, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "Wind Waker HD");
+        SDL_SetStringProperty(wp, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "NSMBU");
         SDL_SetNumberProperty(wp, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, (int)(960 * scale));
         SDL_SetNumberProperty(wp, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, (int)(640 * scale));
         SDL_SetNumberProperty(wp, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER,
@@ -1866,7 +1858,7 @@ int main(int argc, char** argv) {
     A.pkg = found.pkg;
     if (!A.pkg.empty()) {
         A.version = package_version();
-        if (!A.version.empty()) SDL_SetWindowTitle(g_window, ("Wind Waker HD " + A.version).c_str());
+        if (!A.version.empty()) SDL_SetWindowTitle(g_window, ("NSMBU " + A.version).c_str());
         if (found.translocated)
             addlog("macOS started a temporary copy of the app (App Translocation); the release folder is " + A.pkg);
     }
@@ -1992,7 +1984,7 @@ int main(int argc, char** argv) {
     SDL_DestroyWindow(g_window);
     SDL_Quit();
     if (A.exec_game && !launch_game()) {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Wind Waker HD", ("Could not start " + g_exe).c_str(), nullptr);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "NSMBU", ("Could not start " + g_exe).c_str(), nullptr);
         return 1;
     }
     return A.exit_code;

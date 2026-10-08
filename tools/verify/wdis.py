@@ -16,7 +16,7 @@ from funcdb import GenIndex, load_names  # noqa: E402
 
 gen = GenIndex(os.path.join(ROOT, "build", "gen"))
 names, gc = load_names(os.path.join(ROOT, "build"))
-rpx = Rpx(os.path.join(ROOT, "game", "code", "cking.rpx"))
+rpx = Rpx(os.path.join(ROOT, "game", "code", "red-pro2.rpx"))
 secs = [s for s in rpx.sections if s.name in (".rodata", ".data") and s.data]
 
 

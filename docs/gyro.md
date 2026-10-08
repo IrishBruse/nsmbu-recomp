@@ -1,7 +1,7 @@
 # Gyro aiming
 
-On the Wii U, Wind Waker HD lets you aim in first person by moving the GamePad: the bow, hookshot,
-boomerang, telescope, Picto Box, grappling hook and the plain first-person look (R3) all use it.
+On the Wii U, games can read the GamePad gyro for aiming and similar motion input.
+This port maps that motion to a **virtual GamePad** when the game asks for it.
 The port has no GamePad, so it turns a **virtual GamePad** with one of these sources:
 
 | Source | What it uses |

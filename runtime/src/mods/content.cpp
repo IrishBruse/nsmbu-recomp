@@ -15,7 +15,7 @@ std::atomic<bool> present{false};
 std::string lower(std::string s){for(char& c:s)if(c>='A'&&c<='Z')c+= 'a'-'A';return s;}
 void require(bool ok,const char* reason){if(!ok)throw std::runtime_error(reason);}
 }
-// The 2D language packs the game names (Common/Pack/permanent_2d_<Us|Eu|Jp><Language>.pack, cking.rpx
+// The 2D language packs the game names (Common/Pack/permanent_2d_<Us|Eu|Jp><Language>.pack, red-pro2.rpx
 // 0x1048DD4C) and its other packs. A fan translation is usually one of the language packs.
 const char* const kLanguagePacks[]={"permanent_2d_usenglish.pack","permanent_2d_usfrench.pack","permanent_2d_usspanish.pack",
     "permanent_2d_euenglish.pack","permanent_2d_eufrench.pack","permanent_2d_eugerman.pack","permanent_2d_euitalian.pack",

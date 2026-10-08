@@ -202,7 +202,7 @@ std::string write(const State& s, std::string& why) {
         }
     std::string o;
     auto kv = [&](const char* k, const std::string& v) { o += std::string(k) + " = " + v + "\n"; };
-    o += "# Wind Waker HD portable save state: progress and position only (no game code or game data).\n";
+    o += "# NSMBU portable save state: progress and position only (no game code or game data).\n";
     o += "# Attach it to a bug report together with your cking.sav. Load: copy it into the states folder\n";
     o += "# as slotN.wwstate and load slot N, or start with NSMBU_PORTABLE_LOAD=<this file>.\n";
     kv("format", std::to_string(s.format));

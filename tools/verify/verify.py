@@ -26,7 +26,7 @@ def build(unit):
     out = os.path.join(ROOT, "build", "verify", unit)
     image = os.path.join(ROOT, "build", "verify", "image.bin")
     if not os.path.exists(image):
-        sh([sys.executable, os.path.join(HERE, "mkimage.py"), "game/code/cking.rpx", image])
+        sh([sys.executable, os.path.join(HERE, "mkimage.py"), "game/code/red-pro2.rpx", image])
     sh([sys.executable, os.path.join(HERE, "mkunit.py"), unit, "--root", ROOT])
     srcs = []
     for line in open(os.path.join(HERE, "units", unit + ".txt")):

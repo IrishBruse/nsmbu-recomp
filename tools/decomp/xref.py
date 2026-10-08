@@ -1,4 +1,4 @@
-"""Cross references in cking.rpx: which strings and data each function references.
+"""Cross references in red-pro2.rpx: which strings and data each function references.
 
 The relocation table records every instruction that forms a data address (lis/addi pairs as
 ADDR16_HA/LO), so string references per function are exact, not heuristic.

@@ -2,7 +2,7 @@
 
 ## How to use (players)
 
-Bring your GameCube Wind Waker progress to Wind Waker HD:
+Bring your GameCube Wind Waker progress to NSMBU:
 
 1. Export the save from your memory card as a `.gci` file (Dolphin: Tools › Memory Card
    Manager › Export; a real card: GCMM, Swiss or similar). USA (GZLE01) and Japanese (GZLJ01)

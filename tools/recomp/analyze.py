@@ -76,7 +76,7 @@ class Program:
                     self.call_targets.add(t)
         entries |= self.call_targets
         # address-taken code (vtables, pointer-to-member constants, function
-        # pointers, constructor tables). Analysis of cking.rpx showed no switch
+        # pointers, constructor tables). Analysis of red-pro2.rpx showed no switch
         # jump tables in data, so every referenced code address is a function entry.
         self.addr_taken = set(self.code_refs)
         self.find_jump_tables()

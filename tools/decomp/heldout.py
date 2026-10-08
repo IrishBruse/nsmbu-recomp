@@ -4,7 +4,7 @@ Trusted pairs (assert, profile and strings evidence from match.py) are split at 
 is hidden, the matcher runs from the rest, and every hidden function it names is checked against
 the hidden name. Reports precision/recall per evidence tag.
 
-Usage: heldout.py names.tsv cking.rpx tww [fraction] [seed]
+Usage: heldout.py names.tsv red-pro2.rpx tww [fraction] [seed]
 """
 import random
 import sys

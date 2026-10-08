@@ -1,6 +1,6 @@
 # How this port works, and how it differs from emulating with Cemu
 
-Cemu and this port run the same game binary (`cking.rpx`) on a Mac. Cemu emulates the Wii U well
+Cemu and this port run the same game binary (`red-pro2.rpx`) on a Mac. Cemu emulates the Wii U well
 enough to run the original code as if it were on the console. This port translates the game's code
 into a native macOS program ahead of time and replaces everything around it (operating system,
 graphics, audio, input) with native implementations of the APIs the game calls.

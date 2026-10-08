@@ -5,7 +5,7 @@ report. Monitor only: it never fails (exit status 0 on every error) and changes 
 usage: virustotal.py --out vt-report.json [--summary FILE] [--timeout SECONDS] FILE|ZIP:MEMBER ...
 
 FILE is uploaded as it is; ZIP:MEMBER uploads one member of a zip (the first whose path ends with MEMBER,
-e.g. "dist/x-windows-x86_64.zip:Wind Waker HD.exe"). The API key comes from the environment (VT_API_KEY)
+e.g. "dist/x-windows-x86_64.zip:NSMBU.exe"). The API key comes from the environment (VT_API_KEY)
 only; it is sent as the x-apikey header and never printed. Requests are spaced for the free tier (4 per
 minute). Files over 32 MB go through /files/upload_url, as the API requires.
 """

@@ -48,19 +48,18 @@ The public headers in `headers/` match NSMBU v1.3.0.
 
 Each function comment in those headers has a guest address.
 
-## What is still Wind Waker
+## Fork leftovers
 
-These parts still describe Wind Waker HD.
+These parts still need NSMBU-specific work.
 
-Do not treat them as NSMBU behaviour.
-
-- `tools/recomp/nsmbu_hooks/` holds Wind Waker function addresses.
+- `tools/recomp/nsmbu_hooks/` holds upstream guest addresses.
   The recompiler does not load that directory.
-  A hook address from Wind Waker is a different function in NSMBU.
-- Save tools under `tools/savegame/` read `cking.sav`.
-- Language packs and many mods follow Wind Waker file names.
-- `CMakeLists.txt` still uses the Wind Waker project name.
-  The build fails until `build/gen/code_*.c` exists.
+  A hook address from the upstream game is a different function in NSMBU.
+- Language packs and many mods still follow upstream Cemu pack folder names.
+- `runtime/src/nsmbu_guest_stubs.c` holds weak stubs for symbols the runtime still names from upstream.
+  Regenerate with `python3 tools/recomp/guest_stubs.py`.
+
+The upstream built-in mods and cheats are removed.
 
 ## Game files
 
@@ -100,7 +99,6 @@ Copy [`env-debug.example`](env-debug.example) to `env-debug.txt` to add more.
 `just recomp` runs `recomp.py` only.
 
 The package manager is off in this port (`mods::mods_enabled()` is false unless you build with `-DNSMBU_MODS_ENABLED`).
-The Wind Waker built-in mods and cheats are removed.
 
 Put an extracted game you own in `game/`.
 
@@ -126,16 +124,10 @@ cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
 ```
 
-`runtime/src/nsmbu_guest_stubs.c` holds a weak stub for each Wind Waker function the runtime still names.
-
-Regenerate it with `python3 tools/recomp/guest_stubs.py`.
-
-The NSMBU executable does not call those functions.
+The NSMBU executable does not call the guest stub symbols.
 
 A generated game function with the same name replaces the stub.
 
-The first run will miss Cafe OS imports that Wind Waker never calls.
+The first run will miss Cafe OS imports the upstream title never called.
 
 Add those imports in `runtime/src/hle/` after the recompiler report lists them.
-
-`build/gen/imports.json` is that list.

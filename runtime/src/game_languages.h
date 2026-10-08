@@ -2,7 +2,7 @@
 // language sources (docs/language-packs.md): text, fonts and 2D layouts of a European or Japanese
 // disc the player also owns, played with the USA game code.
 //
-// The game (cking.rpx) names nine 2D packs, Common/Pack/permanent_2d_<Region><Language>.pack:
+// The game (red-pro2.rpx) names nine 2D packs, Common/Pack/permanent_2d_<Region><Language>.pack:
 // JpJapanese, UsEnglish, UsFrench, UsSpanish, EuEnglish, EuFrench, EuGerman, EuItalian, EuSpanish (a
 // table at 0x1048DD4C, filled by 0x02613710). It picks one by the region and the language of its
 // system setting object (0x101F4BAC: +0x10 region, Wii U region bits 1 Japan / 2 USA / 4 Europe; +0x14

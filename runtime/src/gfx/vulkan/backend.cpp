@@ -2024,7 +2024,7 @@ static bool hidden_windows() {
   return hidden;
 }
 // The game's own icon on the windows (title bar, taskbar): meta/iconTex.tga of the game folder, an
-// uncompressed 32-bit TGA (128x128 in Wind Waker HD). Nothing happens without it.
+// uncompressed 32-bit TGA (128x128 in NSMBU). Nothing happens without it.
 static void set_window_icons() {
   FILE *f = std::fopen((config::game_dir + "/meta/iconTex.tga").c_str(), "rb");
   if (!f)

@@ -6,7 +6,7 @@ listed in order on both sides and aligned (same access width/kind scores, gaps a
 aligned pair votes GC offset -> NSMBU offset; the majority wins. Field names come from the
 decompilation headers' /* 0x... */ offset comments.
 
-Usage: layout.py nsmbu_to_gc.tsv cking.rpx tww Class [Class...]
+Usage: layout.py nsmbu_to_gc.tsv red-pro2.rpx tww Class [Class...]
 """
 import os
 import re

@@ -40,7 +40,7 @@ set_source_files_properties(${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp ${IMGUI_DI
 if(WIN32)
   # Windows: --console-setup and the bundled Python (tools\python; no download code in this program)
   target_sources(nsmbu-setup PRIVATE tools/installer/gui/console_setup_win.cpp)
-  nsmbu_windows_resources(nsmbu-setup "Wind Waker HD setup and launcher" "Wind Waker HD.exe" gui)
+  nsmbu_windows_resources(nsmbu-setup "NSMBU setup and launcher" "NSMBU.exe" gui)
   if(NSMBU_STRIP_RELEASE)
     target_link_options(nsmbu-setup PRIVATE ${NSMBU_STRIP_RELEASE})
   endif()
@@ -49,6 +49,6 @@ if(APPLE)
   target_link_libraries(nsmbu-setup PRIVATE "-framework CoreGraphics")  # Shift held at start: the setup
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  # the release puts the program (wind-waker-hd) at the top of the folder and SDL3 in sdk/runtime
+  # the release puts the program (nsmbu-launcher) at the top of the folder and SDL3 in sdk/runtime
   set_target_properties(nsmbu-setup PROPERTIES INSTALL_RPATH "\$ORIGIN/sdk/runtime;\$ORIGIN" BUILD_WITH_INSTALL_RPATH TRUE)
 endif()

@@ -11,7 +11,7 @@ Usage:
   shaderprep.py build    [OUT] [--template T] [--max N]          head start from the game files + template
                          [--no-pipelines]                        (default OUT: game/shadercache/headstart.bin)
 
-Where the shaders are (Wind Waker HD, USA):
+Where the shaders are (NSMBU, USA):
   - SHARCFB archives ("BAHS" = byte-swapped "SHAB", AGL binary shader archive, version 9, little-endian
     header): standalone in content/Common/Shaders/{Prim,particle,render_buffer}/*.sharcfb, inside the AGL
     resource SARCs (content/Cafe/Common/agl_resource_cafe*.sarc) and inside many Yaz0-compressed SARC
