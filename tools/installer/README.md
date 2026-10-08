@@ -57,7 +57,7 @@ over its stdin/stdout. Screens: welcome (or, when installed: play / update / rep
 import saves or settings / open the folder), choose the disc image, Cemu archive or game folder (native file dialogs), keys
 (disc images only: disc key found next to the image or chosen; common key as a file or pasted into a hidden field), installation
 (a bar per step, an overall bar, the log under "Details"), optional save import (an HD `cking.sav`
-folder, a GameCube `.gci` converted with `tools/savegame/gc2hd.py`, or the saves and settings of an
+folder, or the saves and settings of an
 earlier installation or another release folder, copied), done (Play, Open folder, Quit; in a portable
 release also: remove the downloaded compiler, add a shortcut), and error screens with Retry and Copy
 log. On macOS it first checks for Apple's Command
@@ -73,8 +73,8 @@ the bundle itself: those functions fail for paths that do not exist, such as `Co
 are not translocated. Before the setup starts, the data folder is checked for writing (a disk image, a
 read-only drive). Every "Setup could not continue" screen says what failed (path, operation, error
 text) and what to do, offers to show the folder involved, and appends the same text to
-`data/setup-window.log` (or, when there is no writable release folder, `~/Library/Logs/Wind Waker HD
-setup.log` on macOS, `%TEMP%\Wind Waker HD setup.log` on Windows, `$TMPDIR/wind-waker-hd-setup.log`
+`data/setup-window.log` (or, when there is no writable release folder, `~/Library/Logs/NSMBU
+setup.log` on macOS, `%TEMP%\NSMBU setup.log` on Windows, `$TMPDIR/nsmbu-setup-log.log`
 on Linux).
 
 Build: `-DNSMBU_SETUP_GUI=ON` adds the `nsmbu-setup` target (`cmake/SetupGui.cmake`). SDL3 is linked

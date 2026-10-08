@@ -439,7 +439,7 @@ struct App {
     bool exec_game = false;                                  // start the game when the window has closed
 
     // save import
-    int save_kind = 0;  // 0 none, 1 HD folder, 2 GameCube .gci, 3 earlier installation, 4 another folder
+    int save_kind = 0;  // 0 none, 1 HD folder, 2 earlier installation, 3 another folder
     std::string save_path, save_msg;
     bool confirm_replace = false;
 
@@ -1281,17 +1281,17 @@ static void screen_error() {
 
 static void send_import(bool replace) {
     std::string r = replace ? ",\"replace\":true" : "";
-    if (A.save_kind == 3) request("import_existing", r.empty() ? "" : r.substr(1));
-    else if (A.save_kind == 4) request("import_existing", "\"path\":" + jstr(A.save_path) + r);
-    else request("import_save", std::string("\"kind\":") + (A.save_kind == 2 ? "\"gc\"" : "\"hd\"") + ",\"path\":" +
-                                    jstr(A.save_path) + r);
+    if (A.save_kind == 2) request("import_existing", r.empty() ? "" : r.substr(1));
+    else if (A.save_kind == 3) request("import_existing", "\"path\":" + jstr(A.save_path) + r);
+    else request("import_save", std::string("\"kind\":\"hd\",\"path\":") + jstr(A.save_path) + r);
 }
 
 static void screen_save() {
     page_header("Your save (optional)", "Use a save you already have, or start a new game.");
-    static const SDL_DialogFileFilter gci[] = {{"GameCube save (.gci)", "gci"}, {"All files", "*"}};
     if (A.save_exists) colored(MUTED, "A save is already installed. Importing replaces it; the current save is backed up first.");
     int kind = A.save_kind;
+    if (kind == 4) kind = 3;
+    else if (kind == 3 && !A.legacy) kind = 1;
     radio("Start with a new save", &kind, 0);
     radio("NSMBU save (a folder with cking.sav, from Cemu or a Wii U)", &kind, 1);
     if (A.save_kind == 1) {
@@ -1300,18 +1300,10 @@ static void screen_save() {
         if (!A.save_path.empty()) ImGui::SameLine(), ImGui::TextUnformatted(base_name(A.save_path).c_str());
         ImGui::Unindent();
     }
-    radio("GameCube Wind Waker save (.gci), converted to HD", &kind, 2);
-    if (A.legacy) radio("Copy saves and settings from my earlier installation (copied, not moved)", &kind, 3);
-    radio("Copy saves and settings from another Wind Waker HD folder", &kind, 4);
+    if (A.legacy) radio("Copy saves and settings from my earlier installation (copied, not moved)", &kind, 2);
+    radio("Copy saves and settings from another NSMBU folder", &kind, 3);
     set_save_kind(kind);
-    if (A.save_kind == 2) {
-        ImGui::Indent();
-        if (button("Choose .gci file...##gc")) choose_file("save", gci, 2);
-        if (!A.save_path.empty()) ImGui::SameLine(), ImGui::TextUnformatted(base_name(A.save_path).c_str());
-        muted("Items, progress, songs and charts are carried over (tools/savegame/gc2hd.py).");
-        ImGui::Unindent();
-    }
-    if (A.save_kind == 4) {
+    if (A.save_kind == 3) {
         ImGui::Indent();
         if (button("Choose folder...##other")) choose_folder("save");
         if (!A.save_path.empty()) ImGui::SameLine(), ImGui::TextUnformatted(base_name(A.save_path).c_str());
@@ -1334,7 +1326,7 @@ static void screen_save() {
         if (button("Keep my save", ImVec2(160, 0))) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
-    bool can = A.save_kind == 0 || A.save_kind == 3 || !A.save_path.empty();
+    bool can = A.save_kind == 0 || A.save_kind == 2 || !A.save_path.empty();
     int b = footer({A.save_kind == 0 ? "Continue" : "Import"}, 0, (can && !busy()) ? 0 : 1);
     if (b == 0) {
         if (A.save_kind == 0) go(Screen::Done);
@@ -1616,7 +1608,7 @@ static std::string fatal_log_file() {
     return std::string(t ? t : ".") + "\\NSMBU setup.log";
 #else
     const char* t = SDL_getenv("TMPDIR");
-    return std::string(t && *t ? t : "/tmp") + "/wind-waker-hd-setup.log";
+    return std::string(t && *t ? t : "/tmp") + "/nsmbu-setup-log.log";
 #endif
 }
 
@@ -1665,8 +1657,8 @@ static void start_child() {
     // the official embeddable Python shipped in the release (tools\python; no download, no script host)
     if (!have_bundled_python(A.pkg)) {
         fail("Setup could not start: " + bundled_python(A.pkg) + " is missing.",
-             "The release is incomplete: unzip it again (the whole zip, keeping its folders) and start Wind Waker "
-             "HD.exe from the unzipped folder.",
+             "The release is incomplete: unzip it again (the whole zip, keeping its folders) and start NSMBU.exe "
+             "from the unzipped folder.",
              A.pkg);
         return;
     }
@@ -1694,7 +1686,7 @@ static void start_child() {
 //   {"screen": "keys", "set": {"common_mode": "file", "common_key_file": "..."}, "when_step": "compile",
 //    "idle": true, "shot": "03-keys.png", "click": "Check keys and install"}
 // "set" fields: source (as if chosen in the dialog), disc_key_file, common_key_file, common_mode
-// (file|paste), save_kind (none|hd|gc|legacy|other), save_path, open_details (true). Screenshots are PNG files
+// (file|paste), save_kind (none|hd|legacy|other), save_path, open_details (true). Screenshots are PNG files
 // of the window. The run ends (exit 0) after the last step, or with exit 2 on a 45-minute timeout.
 
 
@@ -1727,7 +1719,7 @@ static void automation_frame() {
             else if (k == "common_key_file") set_common_key_file(v);
             else if (k == "common_mode") set_common_mode(v == "paste" ? 1 : 0);
             else if (k == "save_kind")
-                set_save_kind(v == "hd" ? 1 : v == "gc" ? 2 : v == "legacy" ? 3 : v == "other" ? 4 : 0);
+                set_save_kind(v == "hd" ? 1 : v == "legacy" ? 2 : v == "other" ? 3 : 0);
             else if (k == "save_path") set_save_path(v);
             else if (k == "open_details") details_open = true;
         }
