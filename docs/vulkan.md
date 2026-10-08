@@ -27,7 +27,7 @@ rendering. `NSMBU_VK_FORCE_INIT_FAIL=1` forces this path for testing.
 Both renderers use the same AppKit host (`gfx/display.mm`, `menu.mm`, `input.mm`,
 `controls_ui.mm`, `mods/mouse.mm`): TV and GamePad windows, full screen, GamePad screen modes
 (separate window, picture-in-picture, automatic), scaling filters, aspect ratio, the Controls window,
-the Gameplay mods including the mouse camera, save states, 60 fps / true 60. Vulkan presents into
+save states, 60 fps / true 60. Vulkan presents into
 the windows' views through a `CAMetalLayer` and `VK_EXT_metal_surface`; `display_plan()` gives it the
 same layout as the Metal composition (picture rectangle, GamePad overlay with frame and opacity,
 filter), and `gfx/vulkan/present.cpp` draws it. The TV window title starts with the renderer in use.
@@ -40,9 +40,8 @@ filter), and `gfx/vulkan/present.cpp` draws it. The TV window title starts with 
 | Aspect ratio (16:10, 21:9, 32:9, match window) | yes | yes |
 | 60 fps interpolation, true 60 | yes | yes |
 | Save states (menu, Shift+F1..F5 / F1..F5) | yes | yes (a state loads with either renderer) |
-| Controls window, keyboard, game controllers, mouse camera, mods | yes | yes |
-| Climb mod stamina wheel | yes | yes (ported shader; not yet seen in a test run) |
-| Frame dumps `WWHD_DUMP_FRAMES`, `WWHD_DUMP_PRESENT` | yes | yes |
+| Controls window, keyboard, game controllers, mods | yes | yes |
+| Frame dumps `NSMBU_DUMP_FRAMES`, `NSMBU_DUMP_PRESENT` | yes | yes |
 | Capture frame (P) | pictures + draw log | pictures only (no draw log) |
 | Shader head start (`--warm-shaders`) | yes | no (Vulkan keeps its own SPIR-V / pipeline caches) |
 

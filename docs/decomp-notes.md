@@ -796,31 +796,13 @@ Tried without gain: raising the file-window cap from 400 to 1,000 candidates (+0
 runtime).
 
 
-## Gameplay mods (runtime/src/mods/, Gameplay menu)
+## Gameplay mods
 
-All off by default; hooks in `tools/recomp/hooks_mods.txt`. Test switches `WWHD_MOD_*`, traces
-`WWHD_MODS_TRACE`, test aids `WWHD_TEST_RSTICK` / `WWHD_RSTICK`, `WWHD_TEST_MOUSE`,
-`WWHD_TEST_WHEEL`, `WWHD_TEST_GOTO`, `WWHD_TEST_DOOR_DELETE` (see the sources).
+The upstream camera, wall-climb, quick-door, fast-scene, and cheat mods are removed.
+The package manager remains.
+`hooks_mods.txt` and `hooks_climb.txt` are removed.
 
-| WWHD | What | Used for |
-|---|---|---|
-| `0250FDC8` `dCamera_c::manualCamera` | right-stick camera: bezier-shaped stick → `cLib_chaseF` on the turning speed `this+0x154` (+0.25/step) → yaw += speed × 0.92 × f25 (param, 8) → drawn U/V smoothed (≈0.66) | sites `@02510448`/`@025104A0` (speed), `@0251053C` (f28 = vertical rate), `@02510EA0`/`@02510EE4` (V/U smoothing) |
-| `025071FC` `dCamera_c::subjectCamera` | first-person camera | mouse → right stick (rate) |
-| `0252A684` `dDoor_info_c::getDemoAction`, `021C0078` `daMbdoor_c::getDemoAction` | door event cut (action table: 16 = TALK) | quick doors |
-| `101F36CC` | `l_fopOvlpM_overlap[0]` (request: `+0x20` task) | fast scene changes |
-| `101F3A1C` | `g_fpcDtTg_Queue` (delete tags: `+8` next, `+0xC` process, `+0x18` timer; `fpcDtTg_Do` `025DDE44`) | quick doors leave deletion out of the extra steps (issue #61, `runtime/src/mods/turbo_steps.h`) |
-| `101F3328` | `g_fopAcTg_Queue` (actor tags: `+8` next, `+0xC` actor; `fopAcIt_Executor` `025D51DC`) | test aid `WWHD_TEST_DOOR_DELETE` |
-| `101F5088` | game pad state (sead controller): `+0x124` held, `+0x18` pressed, `+0x1C` released, `+0x40` hold counter, `+0x130/0x134` main stick, `+0x138/0x13C` right stick | cleared triggers in extra steps |
-| `daPy_lk_c+0x68D9` | `mReadyItemBtn` (0 X, 1 Y, 2 R; from `itemTrigger` `023EAB40`) | left click while aiming |
-
-Measured (Outset, copy of the user's save): the original right-stick camera ramps 0.48, 1.13, 1.84 …
-to 7.36°/step over 10 steps and eases out over 4 steps plus a tail; the direct camera turns
-7.36°/step × stick × speed from the first step and stops on release (same in interpolation and true
-60, 30 steps/s: 220.8°/s at full deflection). Link's house door, A press → control inside: 170
-frames; quick doors 78; fast scene changes 166; both 74 (the ≈34-frame wait for the new scene's
-archives is not shortened).
-
-## Aspect ratio (runtime/src/aspect.cpp, Graphics menu "Aspect ratio", `WWHD_ASPECT`)
+## Aspect ratio (runtime/src/aspect.cpp, Graphics menu "Aspect ratio", `NSMBU_ASPECT`)
 
 The game draws a 16:9 screen of 1280x720 guest pixels. Other aspect ratios keep the guest sizes and
 change three things.
