@@ -6,14 +6,14 @@
         android:enabled="true"
         android:shortcutShortLabel="@string/save_export">
         <intent android:action="android.intent.action.VIEW"
-            android:targetPackage="org.wwhdrecomp.wwhd"
-            android:targetClass="org.wwhdrecomp.wwhd.ExportSaveActivity" />
+            android:targetPackage="org.nsmbrecomp.nsmbu"
+            android:targetClass="org.nsmbrecomp.nsmbu.ExportSaveActivity" />
     </shortcut>
     <shortcut android:shortcutId="import_save"
         android:enabled="true"
         android:shortcutShortLabel="@string/save_import">
         <intent android:action="android.intent.action.VIEW"
-            android:targetPackage="org.wwhdrecomp.wwhd"
-            android:targetClass="org.wwhdrecomp.wwhd.ImportSaveActivity" />
+            android:targetPackage="org.nsmbrecomp.nsmbu"
+            android:targetClass="org.nsmbrecomp.nsmbu.ImportSaveActivity" />
     </shortcut>
 </shortcuts>

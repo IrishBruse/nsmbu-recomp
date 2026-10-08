@@ -5,10 +5,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <include domain="external" path="save/" />
-        <include domain="external" path="config/wwhd/settings.ini" />
+        <include domain="external" path="config/nsmbu/settings.ini" />
     </cloud-backup>
     <device-transfer>
         <include domain="external" path="save/" />
-        <include domain="external" path="config/wwhd/settings.ini" />
+        <include domain="external" path="config/nsmbu/settings.ini" />
     </device-transfer>
 </data-extraction-rules>
