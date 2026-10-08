@@ -255,16 +255,16 @@ if(NSMBU_SETUP_GUI)
 endif()
 
 # recomp mod-manager preferences and catalogue (standalone host stubs)
-add_executable(mod_manager_test runtime/tools/mod_manager_test.cpp runtime/src/mods/manager.cpp)
+add_executable(mod_manager_test runtime/tools/mod_manager_test.cpp runtime/src/mods/manager.cpp runtime/src/mods/enabled.cpp)
 target_include_directories(mod_manager_test PRIVATE runtime/src)
-target_compile_options(mod_manager_test PRIVATE -UNDEBUG)
+target_compile_options(mod_manager_test PRIVATE -UNDEBUG -DNSMBU_MODS_ENABLED)
 
 # External native package fixture and isolated lifecycle/integration tests.
 add_library(mod_fixture MODULE runtime/tools/mod_fixture.cpp)
 target_include_directories(mod_fixture PRIVATE runtime/include)
-add_executable(mod_package_test runtime/tools/mod_package_test.cpp runtime/src/mods/manager.cpp runtime/src/mods/packages.cpp runtime/src/mods/mod_archive.cpp runtime/src/mods/content.cpp runtime/src/mods/cemu_pack.cpp)
+add_executable(mod_package_test runtime/tools/mod_package_test.cpp runtime/src/mods/manager.cpp runtime/src/mods/enabled.cpp runtime/src/mods/packages.cpp runtime/src/mods/mod_archive.cpp runtime/src/mods/content.cpp runtime/src/mods/cemu_pack.cpp)
 target_include_directories(mod_package_test PRIVATE runtime/src runtime/include)
-target_compile_options(mod_package_test PRIVATE -UNDEBUG)
+target_compile_options(mod_package_test PRIVATE -UNDEBUG -DNSMBU_MODS_ENABLED)
 target_link_libraries(mod_package_test PRIVATE ZLIB::ZLIB Threads::Threads ${CMAKE_DL_LIBS})
 
 # Synthetic integration tests call the real guest filesystem HLE handlers.

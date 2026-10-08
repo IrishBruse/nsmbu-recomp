@@ -12,6 +12,8 @@ namespace input { struct PadState; }
 
 namespace mods {
 
+bool mods_enabled();
+
 // ---- switches (menu + env) ----
 bool direct_camera();
 void set_direct_camera(bool on);

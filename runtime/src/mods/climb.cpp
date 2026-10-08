@@ -29,6 +29,7 @@
 // - True 60 (key 7): the climbing procedures (0x3D-0x40) are not in true60's 60 Hz list, so they
 //   stay at 30 Hz; stamina is counted per original step (true60::dt()).
 #include "mods/climb.h"
+#include "mods.h"
 
 #include <algorithm>
 #include <atomic>
@@ -111,8 +112,9 @@ bool b_held() { return (input::read().buttons & input::kB) != 0; }
 }  // namespace
 
 namespace mods {
-bool climb_enabled() { return g_on.load(std::memory_order_relaxed); }
+bool climb_enabled() { return mods_enabled() && g_on.load(std::memory_order_relaxed); }
 void set_climb_enabled(bool on) {
+    if (!mods_enabled()) return;
     g_on = on;
     LOG("[climb] climb any wall %s", on ? "on" : "off");
 }

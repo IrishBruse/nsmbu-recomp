@@ -917,6 +917,11 @@ void package_controls() {
 }
 
 void tab_mods() {
+    if (!mods::mods_enabled()) {
+        heading("Mods");
+        note("Mods are disabled in this build.");
+        return;
+    }
     bool v;
     heading("Mod manager");
     note("Built-in mods are part of this recomp build. Your choices are saved; all start off by default.");

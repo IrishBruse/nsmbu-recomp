@@ -39,7 +39,7 @@ const Entry* find(std::string_view id) {
     return nullptr;
 }
 void load_saved() {
-    if (!player_preferences()) return;
+    if (!mods::mods_enabled() || !player_preferences()) return;
     for (const auto& entry : catalogue) {
         // An explicitly supplied zero also overrides a saved enabled preference.
         if (std::getenv(entry.startup_env)) continue;
@@ -60,6 +60,7 @@ void load_saved() {
     number("mod.mouse-camera.sensitivity", "NSMBU_MOD_MOUSE_SENS", .08f, .3f, set_mouse_sensitivity);
 }
 bool set_enabled(std::string_view id, bool on) {
+    if (!mods::mods_enabled()) return false;
     const auto* entry = find(id);
     if (!entry) return false;
     if (entry->enabled() != on) entry->apply(on);

@@ -70,6 +70,17 @@ Git ignores that folder except `disc/.gitkeep`.
 
 `just extract` reads that folder and writes `game/`.
 
+`just build` configures `build/` with Clang and builds the `nsmbu` target.
+
+If `build/gen` is missing, `just build` runs `stubgen.py` there so the tree links without your RPX.
+
+Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
+`tools/build.py` adds the matching `-L` path when it finds `libstdc++.so` under `/usr/lib/gcc/`.
+
+`just run` runs `build/nsmbu` with `--game` set to `game/`.
+
+Built-in mods, the mod manager, and cheats are off in this port (`mods::mods_enabled()` is false unless you build with `-DNSMBU_MODS_ENABLED`).
+
 Put an extracted game you own in `game/`.
 
 The layout is `game/code/`, `game/content/`, and `game/meta/`.

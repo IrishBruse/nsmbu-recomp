@@ -127,15 +127,20 @@ std::atomic<int> g_pending{parse_env("NSMBU_CHEAT", {{"items", kCheatItems}, {"s
 std::atomic<int> g_infinite{parse_env("NSMBU_CHEAT_INFINITE", {{"health", kInfHealth}, {"magic", kInfMagic}, {"ammo", kInfAmmo}})};
 }  // namespace
 
-void request_cheat(int which) { g_pending |= which; }
-bool infinite(int which) { return g_infinite.load(std::memory_order_relaxed) & which; }
+void request_cheat(int which) {
+    if (!mods_enabled()) return;
+    g_pending |= which;
+}
+bool infinite(int which) { return mods_enabled() && (g_infinite.load(std::memory_order_relaxed) & which); }
 void set_infinite(int which, bool on) {
+    if (!mods_enabled()) return;
     if (on) g_infinite |= which;
     else g_infinite &= ~which;
     LOG("[cheats] infinite %s %s", which == kInfHealth ? "health" : which == kInfMagic ? "magic" : "ammo", on ? "on" : "off");
 }
 
 void cheats_service() {
+    if (!mods_enabled()) return;
     int inf = g_infinite.load(std::memory_order_relaxed);
     if (!g_pending.load(std::memory_order_relaxed) && !inf) return;
     uint32_t s = save_addr();
