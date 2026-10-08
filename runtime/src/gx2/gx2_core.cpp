@@ -898,6 +898,7 @@ HLE(gx2, GX2CalcDRCSize) {
 
 // ---------------------------------------------------------------- misc queries
 HLE(gx2, GX2TempGetGPUVersion) { ret(c, 2); }
+HLE(gx2, GX2GetLastFrame) {}
 HLE(gx2, GX2CalcGeometryShaderInputRingBufferSize) { ret(c, arg(c, 0) * 4 * 0x1000); }
 HLE(gx2, GX2CalcGeometryShaderOutputRingBufferSize) { ret(c, arg(c, 0) * 4 * 0x1000); }
 HLE(gx2, GX2CalcFetchShaderSizeEx) {

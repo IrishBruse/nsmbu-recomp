@@ -18,6 +18,16 @@ HLE(nn_act, Finalize__Q2_2nn3actFv) { ret(c, kResultOk); }
 HLE(nn_act, GetSlotNo__Q2_2nn3actFv) { ret(c, 1); }
 HLE(nn_act, GetPrincipalId__Q2_2nn3actFv) { ret(c, 0); }
 HLE(nn_act, GetParentalControlSlotNoEx__Q2_2nn3actFPUcUc) { st8(arg(c, 0), 1); ret(c, kResultOk); }
+HLE(nn_act, IsSlotOccupied__Q2_2nn3actFUc) { ret(c, arg(c, 0) == 1 ? 1 : 0); }
+HLE(nn_act, GetNumOfAccounts__Q2_2nn3actFv) { ret(c, 1); }
+HLE(nn_act, GetMiiEx__Q2_2nn3actFP12FFLStoreDataUc) {
+    if (arg(c, 0)) memset(mem::ptr(arg(c, 0)), 0, 96);
+    ret(c, kResultFail);
+}
+HLE(nn_act, GetTransferableIdEx__Q2_2nn3actFPULUiUc) {
+    if (arg(c, 0)) st64(arg(c, 0), 1);
+    ret(c, kResultOk);
+}
 
 // ---- nn_ac (network connection)
 HLE(nn_ac, Initialize__Q2_2nn2acFv) { ret(c, kResultOk); }
@@ -41,6 +51,19 @@ HLE(nn_boss, Initialize__Q3_2nn4boss4TaskFPCcUi) { ret(c, kResultFail); }
 HLE(nn_boss, IsRegistered__Q3_2nn4boss4TaskCFv) { ret(c, 0); }
 HLE(nn_boss, Register__Q3_2nn4boss4TaskFRQ3_2nn4boss11TaskSetting) { ret(c, kResultFail); }
 HLE(nn_boss, StartScheduling__Q3_2nn4boss4TaskFb) { ret(c, kResultFail); }
+HLE(nn_boss, Run__Q3_2nn4boss4TaskFb) { ret(c, kResultFail); }
+HLE(nn_boss, Unregister__Q3_2nn4boss4TaskFv) { ret(c, kResultFail); }
+HLE(nn_boss, UpdateLifeTimeSec__Q3_2nn4boss4TaskFL) { ret(c, kResultFail); }
+HLE(nn_boss, __ct__Q3_2nn4boss10TaskResultFQ2_2nn6Result) { ret(c, arg(c, 0)); }
+HLE(nn_boss, ErrorCode__Q3_2nn4boss10TaskResultCFv) { ret(c, 0); }
+HLE(nn_boss, __ct__Q3_2nn4boss15NbdlTaskSettingFv) { ret(c, arg(c, 0)); }
+HLE(nn_boss, __dt__Q3_2nn4boss15NbdlTaskSettingFv) {}
+HLE(nn_boss, Initialize__Q3_2nn4boss15NbdlTaskSettingFPCcLT1) { ret(c, kResultFail); }
+HLE(nn_boss, __ct__Q3_2nn4boss7TitleIDFUL) { ret(c, arg(c, 0)); }
+HLE(nn_boss, __ct__Q3_2nn4boss5TitleFUiQ3_2nn4boss7TitleID) { ret(c, arg(c, 0)); }
+HLE(nn_boss, __dt__Q3_2nn4boss5TitleFv) {}
+HLE(nn_boss, GetOptoutFlag__Q3_2nn4boss5TitleCFv) { ret(c, 1); }
+HLE(nn_boss, SetOptoutFlag__Q3_2nn4boss5TitleFb) { ret(c, kResultOk); }
 
 // ---- nn_olv (Miiverse)
 HLE(nn_olv, Initialize__Q2_2nn3olvFPCQ3_2nn3olv15InitializeParam) { ret(c, kResultFail); }
@@ -196,3 +219,5 @@ HLE(vpadbase, VPADBASEGetHeadphoneStatus) { ret(c, 0); }
 // ---- sysapp
 HLE(sysapp, SYSLaunchSettings) { ret(c, 0); }
 HLE(sysapp, SYSLaunchAccount) { ret(c, 0); }
+HLE(sysapp, SYSSwitchToSyncControllerOnHBM) {}
+HLE(sysapp, _SYSGetSystemApplicationTitleId) { ret64(c, 0); }

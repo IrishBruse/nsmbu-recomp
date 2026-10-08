@@ -309,6 +309,18 @@ HLE(coreinit, __gh_set_errno) {}
 
 HLE(coreinit, exit) { LOG("[game] exit(%d)", (int)arg(c, 0)); std::exit((int)arg(c, 0)); }
 HLE(coreinit, _Exit) { LOG("[game] _Exit(%d)", (int)arg(c, 0)); std::_Exit((int)arg(c, 0)); }
+HLE(coreinit, __PPCExit) { LOG("[game] __PPCExit"); std::exit(0); }
+
+HLE(coreinit, OSGetMainCoreId) { ret(c, 1); }
+HLE(coreinit, OSEnforceInorderIO) { __atomic_thread_fence(__ATOMIC_SEQ_CST); }
+HLE(coreinit, OSDriver_Register) { ret(c, 0); }
+HLE(coreinit, OSReadRegister16) { ret(c, 0); }
+HLE(coreinit, OSWriteRegister16) {}
+HLE(coreinit, __OSReadRegister32Ex) { ret(c, 0); }
+HLE(coreinit, __OSWriteRegister32Ex) {}
+HLE(coreinit, bspGetHardwareVersion) { ret(c, 0); }
+HLE(coreinit, IMGetTimeBeforeAPD) { if (arg(c, 0)) st32(arg(c, 0), 0x7FFFFFFF); ret(c, 0); }
+HLE(coreinit, IMIsAPDEnabledBySysSettings) { if (arg(c, 0)) st32(arg(c, 0), 0); ret(c, 0); }
 
 // ---------------------------------------------------------------- UC (system settings)
 // UCSysConfig entries are 0x54 bytes: name[64], access u32, dataType u32, error s32, dataSize u32, dataPtr u32
