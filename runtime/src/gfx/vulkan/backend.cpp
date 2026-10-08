@@ -1269,8 +1269,6 @@ void copy_to_scan(uint32_t cb, uint32_t target) {
     create_surface_image(d, false);
   }
   resample(src, s.scan.get(), 1);
-  if (target & 1)
-    draw_mod_overlay(*s.scan);  // HUD of gameplay mods (stamina wheel), as the Metal renderer
   mark_gpu_written(s.scan.get());
 }
 // debug: NSMBU_DUMP_FRAMES=100,300 writes the TV image of those frames to frame_<n>.png (and

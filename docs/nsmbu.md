@@ -99,7 +99,8 @@ Copy [`env-debug.example`](env-debug.example) to `env-debug.txt` to add more.
 
 `just recomp` runs `recomp.py` only.
 
-Built-in mods, the mod manager, and cheats are off in this port (`mods::mods_enabled()` is false unless you build with `-DNSMBU_MODS_ENABLED`).
+The package manager is off in this port (`mods::mods_enabled()` is false unless you build with `-DNSMBU_MODS_ENABLED`).
+The Wind Waker built-in mods and cheats are removed.
 
 Put an extracted game you own in `game/`.
 

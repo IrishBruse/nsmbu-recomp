@@ -794,8 +794,6 @@ static void after_pass(int phase) {
 }
 }  // namespace interp
 
-namespace mods { void cheats_service(); }  // mods/cheats.cpp
-
 // debug: NSMBU_INTERP_PASS_STATS=1 adds to the 300-step log the main thread's CPU time per pass
 // (thread CPU time, so waits for the vsync and the GPU are left out): logic passes, blended hold
 // passes and record passes - the cost of each in-between frame at 120/240 fps
@@ -838,7 +836,6 @@ extern "C" void hook_0203593C(Cpu* c) {
     using namespace interp;
     fx_pass_start();
     ss::service(c);  // save states: exact values are back in guest memory, all other threads idle
-    mods::cheats_service();
     g_passes++;
     // test aid: NSMBU_INTERP_AT_STEP=n switches interpolation on after n frames
     static uint64_t passes = 0;
@@ -1034,13 +1031,10 @@ static bool skip(int bit) {
     return interp::g_hold && !(run & bit);
 }
 static bool g_in_execute = false;  // inside fpcEx_Handler (actor Execute): logic, not drawing
-namespace mods { void after_execute(Cpu* c, uint32_t execute_fn); }  // mods/turbo.cpp
 extern "C" void hook_025DE788(Cpu* c) {
     if (skip(1) && !true60::enabled()) return;  // true 60: the per-process gate decides (true60.cpp)
     g_in_execute = true;
-    uint32_t execute_fn = c->r[3];
     f_025DE788_orig(c);
-    mods::after_execute(c, execute_fn);  // quick doors / fast scene changes: extra steps (full passes only)
     if (!interp::g_hold_frame) mods::packages::frame(interp::g_logic_steps);
     g_in_execute = false;
 }

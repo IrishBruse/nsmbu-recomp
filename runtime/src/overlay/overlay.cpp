@@ -33,9 +33,7 @@ namespace gfxvk { bool buffer_cache_enabled(); }  // gfx/vulkan/buffer_cache.h
 #endif
 #include "../input.h"
 #include "../input_map.h"
-#include "../mods/climb.h"
 #include "../mods/mods.h"
-#include "../mods/manager.h"
 #include "../mods/packages.h"
 #include "../motion/motion.h"
 #include "../platform/keycodes.h"
@@ -923,86 +921,9 @@ void tab_mods() {
         note("Mods are disabled in this build.");
         return;
     }
-    bool v;
     heading("Mod manager");
-    note("Built-in mods are part of this recomp build. Your choices are saved; all start off by default.");
-    static ImGuiTextFilter search;
-    search.Draw("Search mods", 260);
-    static bool only_enabled = false;
-    ImGui::SameLine();
-    ImGui::Checkbox("Enabled only", &only_enabled);
-    unsigned enabled = 0;
-    for (const auto& entry : mods::manager::entries()) if (entry.enabled()) ++enabled;
-    ImGui::Text("%u of %zu enabled", enabled, mods::manager::entries().size());
-    ImGui::SameLine();
-    if (ImGui::Button("Disable all mods")) hostui::post([] { mods::packages::disable_all(); });
-    static std::string selected = "direct-camera";
-    if (ImGui::BeginTable("mod_catalogue", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("Mods", ImGuiTableColumnFlags_WidthStretch, 1);
-        ImGui::TableSetupColumn("Details", ImGuiTableColumnFlags_WidthStretch, 1.2f);
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn();
-        unsigned shown = 0;
-        for (const auto& entry : mods::manager::entries()) {
-            bool on = entry.enabled();
-            if (only_enabled && !on) continue;
-            std::string searchable = std::string(entry.name)+" "+entry.category+" "+entry.description;
-            if (!search.PassFilter(searchable.c_str())) continue;
-            ++shown;
-            ImGui::PushID(entry.id);
-            if (ImGui::Checkbox("##enabled", &on)) {
-                std::string id = entry.id;
-                hostui::post([id, on] { mods::manager::set_enabled(id, on); });
-            }
-            ImGui::SameLine();
-            if (ImGui::Selectable(entry.name, selected == entry.id)) selected = entry.id;
-            ImGui::PopID();
-        }
-        if (!shown) note("No mods match your filter.");
-        ImGui::TableNextColumn();
-        if (const auto* entry = mods::manager::find(selected)) {
-            ImGui::TextUnformatted(entry->name);
-            note("%s · Built in · %s", entry->category, entry->enabled() ? "Enabled" : "Disabled");
-            ImGui::TextWrapped("%s", entry->description);
-            if (const char* override = std::getenv(entry->startup_env))
-                note("%s=%s overrides the saved choice at startup.", entry->startup_env, override);
-            if (entry->restart_required) note("Restart the game after changing this mod.");
-            if (selected == "direct-camera") {
-                float speed = mods::camera_speed();
-                if (ImGui::SliderFloat("Camera speed", &speed, .5f, 2.f, "%.2fx"))
-                    hostui::post([speed] { mods::set_camera_speed(speed); hostui::set("mod.direct-camera.speed", std::to_string(speed)); mods::packages::remember_option("direct-camera.speed", speed); });
-            } else if (selected == "mouse-camera") {
-                float sensitivity = mods::mouse_sensitivity();
-                if (ImGui::SliderFloat("Sensitivity", &sensitivity, .08f, .3f, "%.3f"))
-                    hostui::post([sensitivity] { mods::set_mouse_sensitivity(sensitivity); hostui::set("mod.mouse-camera.sensitivity", std::to_string(sensitivity)); mods::packages::remember_option("mouse-camera.sensitivity", sensitivity); });
-            }
-        }
-        ImGui::EndTable();
-    }
-    ImGui::Separator();
+    note("Installed packages start off. Enable a package to load it.");
     package_controls();
-    ImGui::Separator();
-    heading("Cheats (save in game to keep them)");
-    if (ImGui::Button("Give all items")) mods::request_cheat(mods::kCheatItems);
-    ImGui::SameLine();
-    if (ImGui::Button("Master Sword + Mirror Shield")) mods::request_cheat(mods::kCheatSword);
-    ImGui::SameLine();
-    if (ImGui::Button("20 hearts, double magic, 5000 rupees")) mods::request_cheat(mods::kCheatStats);
-    static const std::pair<const char*, int> inf[] = {{"Infinite health", mods::kInfHealth}, {"Infinite magic", mods::kInfMagic},
-                                                      {"Infinite arrows and bombs", mods::kInfAmmo}};
-    for (int i = 0; i < 3; i++) {
-        if (i) ImGui::SameLine(0, 24);
-        int bit = inf[i].second;
-        if (check(inf[i].first, mods::infinite(bit), &v)) hostui::post([bit, v] { mods::set_infinite(bit, v); });
-    }
-    heading("Story cheats (can break story events; use a spare save file)");
-    if (ImGui::Button("All songs")) mods::request_cheat(mods::kCheatSongs);
-    ImGui::SameLine();
-    if (ImGui::Button("All Triforce shards")) mods::request_cheat(mods::kCheatTriforce);
-    ImGui::SameLine();
-    if (ImGui::Button("Map, compass, boss key")) mods::request_cheat(mods::kCheatDungeon);
-    ImGui::SameLine();
-    if (ImGui::Button("Small key")) mods::request_cheat(mods::kCheatKey);
 }
 
 void start_capture(int a, int col) {
@@ -1180,8 +1101,7 @@ void gyro_window(bool& open) {
         ImGui::SliderFloat("Mouse: degrees per point", &g.mouse_degrees, 0.01f, 1.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
         help("How far one point of mouse movement turns the GamePad (before the sensitivity above). With Steam "
              "Input's gyro to mouse, tune this and Steam's own sensitivity together.");
-        note("While the game aims, the pointer is captured and the mouse turns the GamePad (the mouse camera mod "
-             "leaves it alone then).");
+        note("While the game aims, the pointer is captured and the mouse turns the GamePad.");
     }
     if (g.source == motion::kCemuhook) {
         static char host[256] = "";

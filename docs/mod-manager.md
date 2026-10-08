@@ -30,16 +30,15 @@ guide the design; any future reuse requires a separate license review.
 ## Player workflow
 
 Open the in-game settings overlay (F1, Fn+F1 on many Macs, Cmd+, or Settings in
-the menu) and select **Mods**. The searchable built-in catalogue manages the
-mods that are part of this build: direct camera, mouse camera, first-person
-shortcut, wall climbing, quick doors and fast scenes. Descriptions and options
-appear beside the selected entry. All defaults are off.
+the menu) and select **Mods**.
+The tab manages installed packages.
+There is no built-in gameplay catalogue and no cheat list.
 
 The Installed packages section accepts a local folder or `.nsmbumod` ZIP. Choose
 it with the file/folder picker, then press Install package. Installed packages
 start disabled; nothing from a package is loaded until you enable it. Enabling
-resolves required dependencies; missing versions, cycles, declared conflicts and
-overlapping settings presets produce an error. The details show metadata, status
+resolves required dependencies; missing versions, cycles and declared conflicts
+produce an error. The details show metadata, status
 and bool/number/string/enum options. String edits commit with Enter. Disable a
 package and wait for its next game update before updating or removing it.
 Reinstall the same ID while disabled to update; configuration is preserved by
@@ -62,7 +61,7 @@ package's library for this platform (the file named in `binaries`). It applies
 to every profile. Installing an update whose library differs asks again;
 removing a package forgets its confirmation. Only that one library is
 fingerprinted; anything the library itself loads from its folder is not.
-Built-in mods, settings presets, content mods and Cemu graphics packs never ask:
+Content mods and Cemu graphics packs never ask:
 they contain no native code, and the manager loads native code only through
 `kind: native` packages.
 
@@ -75,9 +74,13 @@ on it report that a dependency failed to load, as for any failed load. The
 manager API enforces this as well (`enable()` refuses unconfirmed native code;
 `unconfirmed_native()` and `confirm_native()` serve the dialog).
 
-Profiles save package toggles/configuration and built-in choices. Clone current
+Profiles save package toggles and configuration.
+An older `profiles.json` may still contain `builtins` and `builtin_options`.
+The loader ignores those keys.
+The next save removes them.
+Clone current
 creates another profile; select it in Active profile. Switch away before deleting
-a profile. Disable all covers both built-ins and external packages. Explicit
+a profile. Disable all covers installed packages. Explicit
 startup environment values, including zero, override saved choices at startup.
 
 Storage is `<host config directory>/ModManager`: `Mods/<id>/manifest.json` plus
@@ -125,13 +128,12 @@ Package manifest fields:
 | `game_id` | `nsmbu-usa` (the runtime also verifies its exact RPX entry) |
 | `author`, `description` | Optional display metadata |
 | `minimum_manager_version` | Optional three-part minimum |
-| `kind` | `native`, `settings`, `content` or `cemu` |
+| `kind` | `native`, `content` or `cemu`. `settings` is rejected: there are no built-in mods |
 | `abi_version`, `binaries` | Native ABI `1`; platform-to-relative-library map |
 | `content_dir` | Content package: relative folder holding game-relative replacement files |
 | `cemu_dir` | Cemu package: relative folder holding `rules.txt` and shader files (empty for the package root) |
-| `settings` | Settings preset: built-in IDs to booleans |
-| `dependencies` | Objects with `id` and optional `minimum_version`; `builtin:<id>` allowed |
-| `conflicts` | Package or `builtin:<id>` IDs |
+| `dependencies` | Objects with `id` and optional `minimum_version`. `builtin:<id>` is rejected |
+| `conflicts` | Package IDs. `builtin:<id>` is rejected |
 | `options` | Typed defaults and names; numeric min/max/step or enum choices |
 
 Platform keys include `macos-arm64`, `macos-x86_64`, `windows-x86_64`,
@@ -150,15 +152,16 @@ with the same permissions as the game: install only mods you trust.
 
 ## Validation
 
-The standalone `mod_manager` CTest checks defaults, saved settings, invalid
-values, explicit environment precedence, persistence and test isolation.
 `mod_packages` loads an independently compiled fixture library and exercises
 install, profiles, missing dependencies, live configuration, disable/unload and
 removal. It also checks the native confirmation: an unconfirmed library is not
 enabled or loaded, a confirmed one loads in a second process on the same storage
 without asking, a changed library asks again (also through a profile switch),
-removal forgets the confirmation, settings presets never ask, and the test aid
-applies without writing to `profiles.json`. The same test installs synthetic
+removal forgets the confirmation, and the test aid
+applies without writing to `profiles.json`.
+A package that names `builtin:` or a settings preset fails to install.
+The next profile save drops leftover `builtins` keys.
+The same test installs synthetic
 Cemu and content packs: legacy imports, loose `.pack` files, preset validation,
 replacement conflicts, the rejection of code, shader, rule and region mismatches,
 and the restart-only lifecycle; such packages never ask for a native confirmation.

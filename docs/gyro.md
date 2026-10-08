@@ -96,8 +96,9 @@ frame. Measured in R3 look (`NSMBU_TEST_GYRO`, Outset): a GamePad turn of 60° r
   controllers, the one that moves drives the GamePad (another takes over when it turns while the
   active one rests). Sensor timestamps that do not advance (a driver without them, a clock that
   stalls) fall back to the arrival times, so the motion never stops because of them. The mouse source
-  only takes movement while the game aims (first-person camera or an item aim, from
-  `mods/camera.cpp`); the pointer is captured then, and the mouse camera mod leaves the mouse alone.
+  only takes movement while the game aims.
+  `motion::set_aiming` records that state.
+  The pointer is captured then (`platform/mouse_sdl.cpp`, `mods/mouse.mm`).
 - `game_hooks.cpp` (`tools/recomp/hooks_gyro.txt`): in Pro Controller mode, while a source is on,
   `02618604` skips its mode-0 check, so the game reads the virtual GamePad's motion exactly as with
   the GamePad: same camera code, the in-game Gyro switch, its stick dead zone (now the Pro

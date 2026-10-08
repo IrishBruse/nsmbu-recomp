@@ -1,1 +1,0 @@
-# Wall-climb mod hooks disabled for the NSMBU port (Wind Waker addresses).
