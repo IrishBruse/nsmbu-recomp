@@ -12,6 +12,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "../runtime.h"
 #include "../write_watch.h"
@@ -47,9 +48,33 @@ std::mutex g_fs_mutex;
 std::unordered_map<uint32_t, OpenFile> g_files;
 std::unordered_map<uint32_t, OpenDir> g_dirs;
 uint32_t g_next_handle = 1;
+std::string g_cwd = "/vol/content";
+
+std::string normalize_abs(const std::string& p) {
+    std::vector<std::string> stack;
+    std::string cur;
+    for (size_t i = 0; i <= p.size(); i++) {
+        if (i == p.size() || p[i] == '/') {
+            if (cur == "..") {
+                if (!stack.empty()) stack.pop_back();
+            } else if (!cur.empty() && cur != ".") stack.push_back(cur);
+            cur.clear();
+        } else cur.push_back(p[i]);
+    }
+    std::string out;
+    for (const auto& s : stack) { out.push_back('/'); out += s; }
+    return out.empty() ? std::string("/") : out;
+}
+
+std::string with_cwd(const std::string& guest) {
+    if (guest.empty() || guest[0] == '/') return guest;
+    std::string base = g_cwd;
+    if (!base.empty() && base.back() != '/') base.push_back('/');
+    return base + guest;
+}
 
 std::string host_path_exact(const std::string& guest) {
-    std::string p = guest;
+    std::string p = with_cwd(guest);
     auto map = [&](const char* prefix, const std::string& root) -> bool {
         size_t n = strlen(prefix);
         if (p.compare(0, n, prefix) == 0) {
@@ -171,6 +196,27 @@ int32_t stat_path(const std::string& gpath, uint32_t out) {
     return FS_OK;
 }
 
+int32_t change_dir(const std::string& guest) {
+    std::string next = normalize_abs(with_cwd(guest));
+    struct stat st;
+    if (stat(host_path(next).c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) return FS_NOT_FOUND;
+    g_cwd = next;
+    return FS_OK;
+}
+
+uint32_t read_file_at(uint32_t handle, uint32_t dst, uint32_t size, uint32_t count, uint64_t pos) {
+    FILE* f = file(handle);
+    if (!f || size == 0) return 0;
+    if (host::file_seek(f, pos, SEEK_SET) != 0) return 0;
+    size_t n;
+    {
+        BlockingScope b;
+        wwatch::HostWrite w(dst, (uint32_t)std::min<uint64_t>((uint64_t)size * count, 0x100000000ull - dst));
+        n = fread(mem::ptr(dst), 1, (size_t)size * count, f);
+    }
+    return (uint32_t)(n / size);
+}
+
 int32_t open_dir(const std::string& gpath, uint32_t out_handle) {
     DIR* d = opendir(host_path(gpath).c_str());
     TRACE("[fs] opendir %s -> %s", gpath.c_str(), d ? "ok" : "not found");
@@ -195,7 +241,14 @@ HLE(coreinit, FSSetStateChangeNotification) {}
 HLE(coreinit, FSGetVolumeState) { ret(c, 1); }  // FS_VOLSTATE_READY
 HLE(coreinit, FSGetLastError) { ret(c, 0); }
 HLE(coreinit, FSGetLastErrorCodeForViewer) { ret(c, 0); }
-HLE(coreinit, FSGetCwd) { mem::write_cstr(arg(c, 2), "/vol/content", arg(c, 3)); ret(c, FS_OK); }
+HLE(coreinit, FSGetCwd) { mem::write_cstr(arg(c, 2), g_cwd.c_str(), arg(c, 3)); ret(c, FS_OK); }
+
+HLE(coreinit, FSChangeDir) { ret(c, change_dir(mem::read_cstr(arg(c, 2)))); }
+
+HLE(coreinit, FSReadFileWithPos) {
+    uint64_t pos = arg64(c, 8);
+    ret(c, read_file_at(arg(c, 7), arg(c, 2), arg(c, 3), arg(c, 4), pos));
+}
 
 HLE(coreinit, FSOpenFile) {
     ret(c, open_file(mem::read_cstr(arg(c, 2)), mem::read_cstr(arg(c, 3)), arg(c, 4)));
@@ -310,6 +363,18 @@ HLE(nn_save, SAVEOpenDir) {
     std::string gp = save_path(arg(c, 2), mem::read_cstr(arg(c, 3)));
     make_parent_dirs(host_path(gp) + "/");
     ret(c, open_dir(gp, arg(c, 4)));
+}
+HLE(nn_save, SAVEGetSharedDataTitlePath) {
+    std::string rel = mem::read_cstr(arg(c, 2));
+    std::string out = std::string("/vol/save/common") + (rel.empty() || rel[0] == '/' ? "" : "/") + rel;
+    mem::write_cstr(arg(c, 3), out.c_str(), arg(c, 4));
+    ret(c, 0);
+}
+HLE(nn_save, SAVEGetSharedSaveDataPath) {
+    std::string rel = mem::read_cstr(arg(c, 1));
+    std::string out = save_path(arg(c, 0), rel);
+    mem::write_cstr(arg(c, 2), out.c_str(), arg(c, 3));
+    ret(c, 0);
 }
 
 // ---------------------------------------------------------------- save states: open files

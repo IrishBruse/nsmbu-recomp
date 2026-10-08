@@ -1,5 +1,6 @@
 #include "ppc.h"
 
+__attribute__((weak)) void f_0200E240_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0200E240, 0); }
 __attribute__((weak)) void f_0200E6EC_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0200E6EC, 0); }
 __attribute__((weak)) void f_0200ECD4_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0200ECD4, 0); }
 __attribute__((weak)) void f_0200ED84_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0200ED84, 0); }
@@ -34,9 +35,18 @@ __attribute__((weak)) void f_0207A9A0_orig(Cpu* __restrict c) { ppc_unimplemente
 __attribute__((weak)) void f_0211D2F8_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0211D2F8, 0); }
 __attribute__((weak)) void f_021C0078_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x021C0078, 0); }
 __attribute__((weak)) void f_022ED850_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x022ED850, 0); }
+__attribute__((weak)) void f_023DBDD0_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023DBDD0, 0); }
+__attribute__((weak)) void f_023DC7AC_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023DC7AC, 0); }
 __attribute__((weak)) void f_023E3850_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023E3850, 0); }
+__attribute__((weak)) void f_023F695C_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023F695C, 0); }
+__attribute__((weak)) void f_023F7820_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023F7820, 0); }
+__attribute__((weak)) void f_023F81A4_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023F81A4, 0); }
+__attribute__((weak)) void f_023F8F80_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023F8F80, 0); }
+__attribute__((weak)) void f_023FA578_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023FA578, 0); }
+__attribute__((weak)) void f_023FB020_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023FB020, 0); }
 __attribute__((weak)) void f_023FB230_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023FB230, 0); }
 __attribute__((weak)) void f_023FBCEC_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023FBCEC, 0); }
+__attribute__((weak)) void f_023FD4E4_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x023FD4E4, 0); }
 __attribute__((weak)) void f_0240CDD0_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0240CDD0, 0); }
 __attribute__((weak)) void f_0240EBB0_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0240EBB0, 0); }
 __attribute__((weak)) void f_02416230_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x02416230, 0); }
@@ -53,6 +63,8 @@ __attribute__((weak)) void f_025071FC_orig(Cpu* __restrict c) { ppc_unimplemente
 __attribute__((weak)) void f_0250FDC8_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0250FDC8, 0); }
 __attribute__((weak)) void f_0251D864_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0251D864, 0); }
 __attribute__((weak)) void f_0252A684_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0252A684, 0); }
+__attribute__((weak)) void f_0253EC0C_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0253EC0C, 0); }
+__attribute__((weak)) void f_0253ED80_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0253ED80, 0); }
 __attribute__((weak)) void f_02548370_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x02548370, 0); }
 __attribute__((weak)) void f_0254C6C4_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0254C6C4, 0); }
 __attribute__((weak)) void f_02555D0C(Cpu* __restrict c) { ppc_unimplemented(c, 0x02555D0C, 0); }
@@ -79,6 +91,8 @@ __attribute__((weak)) void f_02593B10_orig(Cpu* __restrict c) { ppc_unimplemente
 __attribute__((weak)) void f_025A8148_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025A8148, 0); }
 __attribute__((weak)) void f_025AAE08_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025AAE08, 0); }
 __attribute__((weak)) void f_025AF8A0_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025AF8A0, 0); }
+__attribute__((weak)) void f_025B51DC_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025B51DC, 0); }
+__attribute__((weak)) void f_025B8AF4_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025B8AF4, 0); }
 __attribute__((weak)) void f_025C9948_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025C9948, 0); }
 __attribute__((weak)) void f_025CB6D4_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025CB6D4, 0); }
 __attribute__((weak)) void f_025D0994_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025D0994, 0); }
@@ -95,7 +109,9 @@ __attribute__((weak)) void f_025DE788_orig(Cpu* __restrict c) { ppc_unimplemente
 __attribute__((weak)) void f_025DF904_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025DF904, 0); }
 __attribute__((weak)) void f_025DF940(Cpu* __restrict c) { ppc_unimplemented(c, 0x025DF940, 0); }
 __attribute__((weak)) void f_025DF940_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025DF940, 0); }
+__attribute__((weak)) void f_025DFAB8_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025DFAB8, 0); }
 __attribute__((weak)) void f_025E0EE4_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025E0EE4, 0); }
+__attribute__((weak)) void f_025E14A8_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025E14A8, 0); }
 __attribute__((weak)) void f_025E1988_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025E1988, 0); }
 __attribute__((weak)) void f_025E19CC_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025E19CC, 0); }
 __attribute__((weak)) void f_025E1A04_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025E1A04, 0); }
@@ -105,6 +121,7 @@ __attribute__((weak)) void f_025E1AA4_orig(Cpu* __restrict c) { ppc_unimplemente
 __attribute__((weak)) void f_025E1B44_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025E1B44, 0); }
 __attribute__((weak)) void f_025E3EC8_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025E3EC8, 0); }
 __attribute__((weak)) void f_025EE048_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025EE048, 0); }
+__attribute__((weak)) void f_025F0658_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025F0658, 0); }
 __attribute__((weak)) void f_025F172C_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025F172C, 0); }
 __attribute__((weak)) void f_025F9448_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x025F9448, 0); }
 __attribute__((weak)) void f_02614F74_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x02614F74, 0); }
@@ -129,6 +146,7 @@ __attribute__((weak)) void f_027F4D5C_orig(Cpu* __restrict c) { ppc_unimplemente
 __attribute__((weak)) void f_027F5018_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x027F5018, 0); }
 __attribute__((weak)) void f_027F55FC_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x027F55FC, 0); }
 __attribute__((weak)) void f_0281FE40_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0281FE40, 0); }
+__attribute__((weak)) void f_02821448_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x02821448, 0); }
 __attribute__((weak)) void f_0282167C_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0282167C, 0); }
 __attribute__((weak)) void f_0286E8B4_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x0286E8B4, 0); }
 __attribute__((weak)) void f_028709E0_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x028709E0, 0); }

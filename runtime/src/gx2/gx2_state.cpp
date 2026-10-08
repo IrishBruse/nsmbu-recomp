@@ -164,6 +164,47 @@ HLE(gx2, GX2SetLineWidth) {
     set_reg(mmPA_SU_LINE_CNTL, w);
 }
 
+HLE(gx2, GX2SetCullOnlyControl) {
+    uint32 raw = gx2::regs()[REGADDR::PA_SU_SC_MODE_CNTL] & ~7u;
+    raw |= (arg(c, 1) & 1) | ((arg(c, 2) & 1) << 1) | ((arg(c, 0) & 1) << 2);
+    set_reg(REGADDR::PA_SU_SC_MODE_CNTL, raw);
+}
+HLE(gx2, GX2SetDepthOnlyControl) {
+    uint32 raw = gx2::regs()[REGADDR::DB_DEPTH_CONTROL];
+    raw &= ~((1u << 1) | (1u << 2) | (7u << 4));
+    if (arg(c, 0)) raw |= 1u << 1;
+    if (arg(c, 1)) raw |= 1u << 2;
+    raw |= (arg(c, 2) & 7) << 4;
+    set_reg(REGADDR::DB_DEPTH_CONTROL, raw);
+}
+HLE(gx2, GX2SetPolygonOffset) {
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_FRONT_OFFSET, gx2::fbits(fa(c, 0)));
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_FRONT_SCALE, gx2::fbits(fa(c, 1)));
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_BACK_OFFSET, gx2::fbits(fa(c, 2)));
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_BACK_SCALE, gx2::fbits(fa(c, 3)));
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_CLAMP, gx2::fbits(fa(c, 4)));
+}
+HLE(gx2, GX2SetPrimitiveRestartIndex) { set_reg(REGADDR::VGT_MULTI_PRIM_IB_RESET_INDX, arg(c, 0)); }
+HLE(gx2, GX2SetDefaultState) {
+    LATTE_CB_COLOR_CONTROL color;
+    color.set_SPECIAL_OP(LATTE_CB_COLOR_CONTROL::E_SPECIALOP::NORMAL);
+    color.set_BLEND_MASK(0xFF);
+    color.set_ROP(LATTE_CB_COLOR_CONTROL::E_LOGICOP::COPY);
+    set_reg(REGADDR::CB_COLOR_CONTROL, color.getRawValue());
+    set_reg(REGADDR::CB_BLEND0_CONTROL, 0);
+    set_reg(REGADDR::CB_TARGET_MASK, 0xF);
+    set_reg(REGADDR::DB_DEPTH_CONTROL, (1u << 1) | (1u << 2) | (1u << 4));
+    set_reg(REGADDR::PA_SU_SC_MODE_CNTL, 0);
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_FRONT_SCALE, 0);
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_FRONT_OFFSET, 0);
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_BACK_SCALE, 0);
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_BACK_OFFSET, 0);
+    set_reg(REGADDR::PA_SU_POLY_OFFSET_CLAMP, 0);
+    LATTE_PA_CL_CLIP_CNTL clip;
+    clip.set_DX_LINEAR_ATTR_CLIP_ENA(true);
+    set_reg(REGADDR::PA_CL_CLIP_CNTL, clip.getRawValue());
+}
+
 // ---------------------------------------------------------------- shader mode
 HLE(gx2, GX2SetShaderModeEx) {
     // (mode, gprsVS, stackVS, gprsGS, stackGS, gprsPS, stackPS)

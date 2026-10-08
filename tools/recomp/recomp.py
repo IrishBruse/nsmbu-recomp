@@ -165,7 +165,11 @@ class Recompiler:
 
     def imp_name(self, slot):
         lib, name, kind = self.imports[slot]
-        return "imp_%s_%s" % (c_ident(lib.replace(".rpl", "")), c_ident(name))
+        ident = c_ident(name)
+        lib_ident = c_ident(lib.replace(".rpl", ""))
+        if ident:
+            return "imp_%s_%s" % (lib_ident, ident)
+        return "imp_%s_%08X" % (lib_ident, slot)
 
     # --- emission ---
     def emit_function(self, start):

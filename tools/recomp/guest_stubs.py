@@ -15,6 +15,7 @@ import sys
 
 root = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 pat = re.compile(r"\bf_([0-9A-F]{8})(_orig)?\b")
+fence = re.compile(r"\bT60_FENCE_(?:LINK|ANY)\(([0-9A-F]{8})")
 
 
 def symbols():
@@ -24,8 +25,11 @@ def symbols():
             if path.endswith("wwhd_guest_stubs.c"):
                 continue
             with open(path, errors="replace") as f:
-                for addr, orig in pat.findall(f.read()):
-                    found.add("f_%s%s" % (addr, orig))
+                text = f.read()
+            for addr, orig in pat.findall(text):
+                found.add("f_%s%s" % (addr, orig))
+            for addr in fence.findall(text):
+                found.add("f_%s_orig" % addr)
     return sorted(found)
 
 

@@ -241,6 +241,15 @@ HLE(coreinit, MEMGetAllocatableSizeForFrmHeapEx) {
     TRACE("[mem] frm allocatable(heap=%08X) -> %X", arg(c, 0), r);
     ret(c, r);
 }
+HLE(coreinit, MEMFreeToFrmHeap) {
+    std::lock_guard<std::mutex> lk(g_mem_mutex);
+    auto it = g_frm.find(arg(c, 0));
+    if (it == g_frm.end()) return;
+    FrmHeap* h = it->second;
+    uint32_t mode = arg(c, 1);
+    if (mode & 1) h->head = h->start;
+    if (mode & 2) h->tail = h->end;
+}
 
 HLE(coreinit, MEMGetBaseHeapHandle) {
     // base heap slots: 0 = MEM1, 1 = MEM2 (default heap), 8 = foreground bucket
