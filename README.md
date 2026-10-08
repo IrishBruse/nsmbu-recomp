@@ -21,3 +21,15 @@ Port notes are in [docs/nsmbu.md](docs/nsmbu.md).
 Game files stay on your machine.
 
 This repository does not contain a disc image, a title key, or recompiled game code.
+
+## Disc image
+
+Put your disc image and `keys.txt` in `disc/`.
+
+Git ignores everything in that folder except `disc/.gitkeep`.
+
+Run `just extract`.
+
+That command reads the `.wux` and `keys.txt` in `disc/`.
+
+It writes the game into `game/`.

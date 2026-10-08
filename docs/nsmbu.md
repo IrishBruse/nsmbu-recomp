@@ -64,6 +64,12 @@ Do not treat them as NSMBU behaviour.
 
 ## Game files
 
+Put the disc image and `keys.txt` in `disc/`.
+
+Git ignores that folder except `disc/.gitkeep`.
+
+`just extract` reads that folder and writes `game/`.
+
 Put an extracted game you own in `game/`.
 
 The layout is `game/code/`, `game/content/`, and `game/meta/`.
@@ -87,6 +93,14 @@ python3 tools/recomp/recomp.py game/code/red-pro2.rpx build/gen
 cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
 ```
+
+`runtime/src/wwhd_guest_stubs.c` holds a weak stub for each Wind Waker function the runtime still names.
+
+Regenerate it with `python3 tools/recomp/guest_stubs.py`.
+
+The NSMBU executable does not call those functions.
+
+A generated game function with the same name replaces the stub.
 
 The first run will miss Cafe OS imports that Wind Waker never calls.
 

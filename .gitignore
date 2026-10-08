@@ -2,6 +2,9 @@
 /game
 game.wux
 game.key
+# disc image and keys.txt; .gitkeep stays in git
+/disc/**
+!/disc/.gitkeep
 *.rpx
 # upstream reference checkout
 /cemu/
