@@ -1071,6 +1071,7 @@ HLE(snd_core, AXRegisterCallback) {
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     for (uint32_t& cb : g_app_frame_cb)
         if (!cb) { cb = arg(c, 0); break; }
+    ret(c, 0);
 }
 HLE(snd_core, AXPrepareEfxData) { ret(c, 0); }
 HLE(snd_core, AIGetDMAStartAddr) { ret(c, 0); }
