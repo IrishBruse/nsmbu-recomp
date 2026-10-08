@@ -1,18 +1,18 @@
-# WWHD ↔ GameCube decompilation: findings
+# NSMBU ↔ GameCube decompilation: findings
 
-Function names for WWHD (`cking.rpx`) come from
-`python3 tools/decomp/match.py game/code/cking.rpx tww build/names.tsv` (about 1 minute). Needs
+Function names for NSMBU (`red-pro2.rpx`) come from
+`python3 tools/decomp/match.py game/code/red-pro2.rpx tww build/names.tsv` (about 1 minute). Needs
 `tww/` (zeldaret/tww) built from your own GameCube disc image (`tww/build/GZLE01`). Outputs (all
 in git-ignored `build/`):
 
 - `names.tsv`: address, name, source file, evidence, score (match probability for `graph`/`tu`).
-- `wwhd_to_gc.tsv`: WWHD address → GameCube mangled symbol, source file, module, GameCube
+- `nsmbu_to_gc.tsv`: NSMBU address → GameCube mangled symbol, source file, module, GameCube
   address, evidence, both sizes. Stage 2 (checking each function against the source) builds on it.
 - `coverage.tsv`: per translation unit, GameCube functions vs. matched.
 - `regions.tsv`: long unmatched stretches (HD-only code).
 
 Helper tools: `layout.py` (structure offsets, below), `timers.py` (frame timers, below),
-`datamap.py` (WWHD addresses of GameCube globals), `heldout.py` (precision test), `train.py`
+`datamap.py` (NSMBU addresses of GameCube globals), `heldout.py` (precision test), `train.py`
 (refits the pair-scoring model).
 
 ### Evidence and measured precision
@@ -27,7 +27,7 @@ Helper tools: `layout.py` (structure offsets, below), `timers.py` (frame timers,
 | `graph` | call-graph neighbourhood + content model, mutual best, p ≥ 0.6 | 3,732 | 97.1% (271/279); 94.3% strict |
 | `tu` | unmatched functions between matched functions of the same file, or between two files (alphabetical link order), same model, p ≥ 0.6 | 6,024 | 99.7% (998/1,001); 97.5% strict |
 | `tu-margin` | same windows, decided relative to the file's other unmatched functions (score ≥ −1.5, ≥ 2.0 above the runner-up), after the stages above converge | 755 | 96.8% (30/31) held-out; 98.8% (80/81) offline; **medium confidence** |
-| `dup`, `dup-graph`, `dup-file` | WWHD's per-file copies of inline functions: named only when that file's GameCube object has a copy of the same function | 40 | not measured (too few) |
+| `dup`, `dup-graph`, `dup-file` | NSMBU's per-file copies of inline functions: named only when that file's GameCube object has a copy of the same function | 40 | not measured (too few) |
 | `callgraph-legacy` | the first call-graph matcher, run last, only where nothing else matched | 785 | ~85–90% (older test); **lower confidence** |
 
 The content model scores a pair with 25 features. It is a conditional logit (`train.py`), fitted
@@ -36,8 +36,8 @@ Since round 2 it includes:
 - register-agnostic instruction shape (`shape.py`): opcode histogram cosine, opcode-bigram overlap,
   branch/loop/compare/float-op counts, with prologue/epilogue bookkeeping removed;
 - per-class field maps (`field_map`): GameCube field offsets accessed through `this` (or the first
-  pointer argument) are translated into WWHD offsets with maps learned from matched pairs (as in
-  `layout.py`; actor classes fall back to the fopAc_ac_c map) and compared with the WWHD accesses.
+  pointer argument) are translated into NSMBU offsets with maps learned from matched pairs (as in
+  `layout.py`; actor classes fall back to the fopAc_ac_c map) and compared with the NSMBU accesses.
 
 Cross-validated, it names 1,527 of 2,500 test pairs at p ≥ 0.7 with 97.6% precision.
 
@@ -45,7 +45,7 @@ How the held-out test works (`heldout.py`): trusted names (assert/strings/profil
 hidden at random, the matcher runs from the rest, and each hidden function it names again is
 checked. Round-2 figures are summed over five runs: three hide 50% of the `assert`/`strings` names
 (functions without table evidence, the harder case), two hide 50% of everything. "Strict" counts
-naming a wrapper after its own callee as wrong. In WWHD, an actor's `daXxx_Create` often has
+naming a wrapper after its own callee as wrong. In NSMBU, an actor's `daXxx_Create` often has
 `_create` inlined, so its body is the callee's. The "offline" `tu-margin` figure re-decides 2,714
 trusted pairs with each one hidden in turn and the rest known.
 
@@ -55,12 +55,12 @@ static-instance accessor, not `JAIZelBasic::seStart` (and not `__ptmf_scall`). T
 
 ### Structural facts used by the matcher
 
-- WWHD links translation units in **alphabetical order per directory** (`SSystem/c_*`,
+- NSMBU links translation units in **alphabetical order per directory** (`SSystem/c_*`,
   `JAZelAudio`, `d/` with the actors in `d/actor` sorted into it, `f_op`, `f_pc`, `m_Do`, ...,
   JSystem, `dolphin/mtx`). Each unit is contiguous. Function order inside a unit is often
   preserved (c_lib) but not always (d_camera).
 - Green Hills vtables: 8 bytes per slot (`delta:index` word, function pointer). A zero header slot
-  starts each table. Actor classes gained a virtual destructor in slot 0, so WWHD actor tables
+  starts each table. Actor classes gained a virtual destructor in slot 0, so NSMBU actor tables
   have one more slot than the GameCube ones. `028F036C` (`li r3,13; b ...`) is the
   pure-virtual stub.
 - Identical code folding is not done: a GHS build keeps a copy of each out-of-line inline
@@ -72,7 +72,7 @@ static-instance accessor, not `JAIZelBasic::seStart` (and not `__ptmf_scall`). T
 
 ## Camera (for frame interpolation)
 
-| WWHD | Function | Notes |
+| NSMBU | Function | Notes |
 |---|---|---|
 | `024FFA3C` | `camera_execute` | per logic tick |
 | `024FFC40` | `camera_draw` | builds the matrices each frame from `view.mLookat` (eye, center, up), `mFovy`, `mAspect`, `mNear`, `mFar`, `mBank` |
@@ -85,24 +85,24 @@ values; blending them between two ticks gives the in-between camera.
 
 ## Models
 
-| WWHD | Function | Notes |
+| NSMBU | Function | Notes |
 |---|---|---|
 | `025E2DE0` | `mDoExt_modelUpdateDL` | per-model update from actor Draw |
-| `027F4FE4` | `J3DModel::update` (structure) | 52 bytes: calls `calc` then `entry`; direct calls, no vtable in WWHD |
+| `027F4FE4` | `J3DModel::update` (structure) | 52 bytes: calls `calc` then `entry`; direct calls, no vtable in NSMBU |
 | `027F4D5C` | `J3DModel::calc` (structure) | joint/world matrices; called from actor Execute (e.g. `daBoko_c::execute`) |
 | `027F4F1C` | `J3DModel::entry` (structure) | |
 | `025E2BF4` → `027F55FC` → `027F53CC` → `027FDA54` | likely `viewCalc` → `calcDrawMtx` chain | world × view → draw matrices; to confirm |
 
 | `027F55FC` | `J3DModel::viewCalc` | world → view draw matrices (`027DE8A0`, per screen); from `025E2BF4` (mDoExt_modelEntryDL part) and `daShip_c` |
-| `027F5018` | J3DModel UBO update (WWHD) | job on the `update_ubo` thread: world matrices → uniform buffers, concurrent with the main thread's draw |
+| `027F5018` | J3DModel UBO update (NSMBU) | job on the `update_ubo` thread: world matrices → uniform buffers, concurrent with the main thread's draw |
 | `027F273C` | shape packet entry | stores `&world[joint]` for rigid shapes (called from `entry`) |
 
-Layout (WWHD J3DModel): `+0x2C` → joint matrix block (`+0x10` world matrices, 3x4 row-major,
+Layout (NSMBU J3DModel): `+0x2C` → joint matrix block (`+0x10` world matrices, 3x4 row-major,
 `+0x2C` u16 count), `+0xBC` base scale, `+0xC8` base transform (3x4), `+0x6C` draw-buffer index,
 `+0xAC` model data. The painter does not read the view-space draw matrices for skinned/rigid
 models seen so far; what reaches the screen is what `027F5018` copies from the world matrices.
 
-WWHD restructured J3DModel (Hexa Drive's HD renderer): the GameCube virtual calls are direct
+NSMBU restructured J3DModel (Hexa Drive's HD renderer): the GameCube virtual calls are direct
 calls here, so names must be confirmed by call structure rather than vtables.
 
 ## Interpolation (runtime/src/interp.cpp)
@@ -153,7 +153,7 @@ the blended camera. Models without a previous tick (spawned, teleported) use the
 
 ## True 60 fps (runtime/src/true60.cpp, true60_link.cpp)
 
-Link and the camera at 60 steps per second ("true 60", Graphics menu / key 7 / `WWHD_TRUE60=1`;
+Link and the camera at 60 steps per second ("true 60", Graphics menu / key 7 / `NSMBU_TRUE60=1`;
 exclusive with interpolation). Experimental, off by default.
 
 ### Design: the full pass is the 30 fps step, the half pass a preview
@@ -208,7 +208,7 @@ step in both 60 fps modes), Link's checkItemAction and playTextureAnime, J3DFram
 (key frames are found on full passes only), the world systems in the play scene's draw
 (site_025B00B0), particles.
 
-Converted, per group (`WWHD_TRUE60_GROUPS=+name,-name`, or a plain list; `all`, `none`):
+Converted, per group (`NSMBU_TRUE60_GROUPS=+name,-name`, or a plain list; `all`, `none`):
 
 | Group | Default | Contents |
 |---|---|---|
@@ -220,7 +220,7 @@ Converted, per group (`WWHD_TRUE60_GROUPS=+name,-name`, or a plain list; `all`, 
 
 Everything else (other Link procedures, swimming, the ship, enemies, NPCs, objects) stays at
 30 Hz and is drawn interpolated. Link drops to 30 Hz while moving collision carries him.
-`WWHD_TRUE60_LINK=list` (decimal/0x hex procedure numbers) overrides the procedure list for tests.
+`NSMBU_TRUE60_LINK=list` (decimal/0x hex procedure numbers) overrides the procedure list for tests.
 
 ### Gates (measured; scripted runs, 30 fps vs true 60 at every full step)
 
@@ -277,7 +277,7 @@ by drawing code are not.**
 
 ### Hooked functions and sites
 
-| WWHD | Function | Purpose |
+| NSMBU | Function | Purpose |
 |---|---|---|
 | `025DF940` | fpcM_Execute | per-process gate, step length, preview snapshot, random-number hold |
 | `025DF904` | fpcM_Draw | drawing process (no interpolation for 60 Hz processes); half-pass draw state of 30 Hz actors put back |
@@ -295,14 +295,14 @@ by drawing code are not.**
 | `024EF968` | dBgS::MoveBgCrrPos | Link riding moving collision: 30 Hz |
 | `02018D40` | cM3dGSph::SetC | NaN centre in a camera step: skipped, step undone |
 
-Debug aids: `WWHD_LINK_TRACE`, `WWHD_CAM_TRACE`, `WWHD_ACTOR_DUMP=path:FN|link:SIZE`,
-`WWHD_RNG_TRACE`, `WWHD_RND_LOG`, `WWHD_SE_TRACE`, `WWHD_PAD_TRACE`, `WWHD_CULLLOG`, `WWHD_TEVLOG`,
-`WWHD_LIGHT_TRACE`, `WWHD_WATCH_LINK` / `WWHD_WATCH_ADDR`, `WWHD_T60_MEMDIFF`, `WWHD_T60_REGIONLOG`,
-`WWHD_T60_DRAWWRITE`, `WWHD_T60_PAGEHASH`; test scenarios: `WWHD_TEST_ORIGIN_LOAD`, `WWHD_TEST_POKE`
-(e.g. `0.1:*101F84DC+2E:383B` equips sword and shield), `WWHD_TEST_MODES`, `WWHD_TEST_LOAD`,
-`WWHD_TEST_SCENECHANGE`, `WWHD_TEST_TOUCH`, `WWHD_SAVEINFO_DUMP`. All are inactive unless set.
+Debug aids: `NSMBU_LINK_TRACE`, `NSMBU_CAM_TRACE`, `NSMBU_ACTOR_DUMP=path:FN|link:SIZE`,
+`NSMBU_RNG_TRACE`, `NSMBU_RND_LOG`, `NSMBU_SE_TRACE`, `NSMBU_PAD_TRACE`, `NSMBU_CULLLOG`, `NSMBU_TEVLOG`,
+`NSMBU_LIGHT_TRACE`, `NSMBU_WATCH_LINK` / `NSMBU_WATCH_ADDR`, `NSMBU_T60_MEMDIFF`, `NSMBU_T60_REGIONLOG`,
+`NSMBU_T60_DRAWWRITE`, `NSMBU_T60_PAGEHASH`; test scenarios: `NSMBU_TEST_ORIGIN_LOAD`, `NSMBU_TEST_POKE`
+(e.g. `0.1:*101F84DC+2E:383B` equips sword and shield), `NSMBU_TEST_MODES`, `NSMBU_TEST_LOAD`,
+`NSMBU_TEST_SCENECHANGE`, `NSMBU_TEST_TOUCH`, `NSMBU_SAVEINFO_DUMP`. All are inactive unless set.
 
-### Layouts used (WWHD; generated code)
+### Layouts used (NSMBU; generated code)
 
 | Structure | Field | Offset | Evidence |
 |---|---|---|---|
@@ -319,7 +319,7 @@ Debug aids: `WWHD_LINK_TRACE`, `WWHD_CAM_TRACE`, `WWHD_ACTOR_DUMP=path:FN|link:S
 
 - **Global systems, about 1 week.**
   - *Particles at 60 Hz* (JPABaseEmitter calc/calcParticle/calcCreatePtcls: emission rate,
-    velocity, lifetime and key frames per dt; WWHD's JPA is partly restructured): 2–3 days. Today
+    velocity, lifetime and key frames per dt; NSMBU's JPA is partly restructured): 2–3 days. Today
     they step at 30 Hz without interpolation.
   - *World systems in the scene draw* (grass/tree/flower sway, magma, ice): 1–2 days. Today they
     are held at 30 Hz.
@@ -385,7 +385,7 @@ What this means for converting them:
 
 Most active files (score = primitive calls + 5 × counters + pos/speed stores):
 
-| File | Functions | Primitive calls (already scaled) | Inline step counters (WWHD offsets) | Pos/speed stores | Catalogued timers (field, WWHD offset) |
+| File | Functions | Primitive calls (already scaled) | Inline step counters (NSMBU offsets) | Pos/speed stores | Catalogued timers (field, NSMBU offset) |
 |---|---|---|---|---|---|
 | d_a_player_main.cpp | 786 | 246 | s16-0x3B0, s16+0x3FC, s16-0x424, s32+0x458, s16-0x5B60, s16-0x5B68, s16-0x5B6C, s16-0x652A… | 335 | m34D0 0x6916, m34D2 0x6918, m34D6 0x691C, m34DA 0x6920, m3526 0x6976, m355C 0x69… |
 | d_a_bpw.cpp | 32 | 225 | s16+0x562, s16+0x568, s16+0x57E, s16+0x59A, s16-0x59A | 131 | — |
@@ -432,7 +432,7 @@ by pinning all threads to one core: with one core the render thread runs late ev
     `*(*(prog+0x7c)+4)` with program 0's +0x7c = 0. Program array 21EFE28C (56 × 0x84, object 226FE868).
   - The first archive setup (027B8904) had filled +0x7c correctly (21F13190). The value was lost afterwards.
 - **Writer.** `gfx::copy_surface_impl`'s CPU re-tile path on the "GX2 render" thread wrote
-  21EFE300..21EFE4FF. Found with a write-protect watch (`WWHD_BOOTDBG_PROT=1`) and confirmed with `WWHD_COPYDBG=1`.
+  21EFE300..21EFE4FF. Found with a write-protect watch (`NSMBU_BOOTDBG_PROT=1`) and confirmed with `NSMBU_COPYDBG=1`.
 - **Cause.** agl's tile-mode conversion 027B5EEC (called from the Prepare Thread) does five things:
   1. allocates a temporary surface from the heap (here at 21EFE300, 0x200 bytes);
   2. calls `GX2CopySurface` (linear source → temporary, call site lr 027B5FD4);
@@ -447,11 +447,11 @@ by pinning all threads to one core: with one core the render thread runs late ev
 - **Fix.** `HLE(gx2, GX2CopySurface)` calls `render_sync` after queueing the copy, unless a display list is
   being recorded (display lists run when called). This applies to both backends.
   - Cost: about 50 syncs at boot (agl resource setup), in the first 5 s. None in steady gameplay or after
-    state loads in Outset, on the sea (Windfall pier) or in Dragon Roost Cavern (`WWHD_SYNC_STATS=1`, site
+    state loads in Outset, on the sea (Windfall pier) or in Dragon Roost Cavern (`NSMBU_SYNC_STATS=1`, site
     "CopySurface").
   - The per-sync ms cost is to be measured on an idle machine (TODO.md).
 - **Evidence (h6, 2026-10-06, strictly one boot at a time, load average 6 to 8 on 16 cores).**
-  - Stressed with `WWHD_GX2_DELAY_COPY` (the render thread stalls before each copy):
+  - Stressed with `NSMBU_GX2_DELAY_COPY` (the render thread stalls before each copy):
     - unfixed, 15 or 30 ms: 14 of 14 boots crash with the identical signature;
     - unfixed, 45 ms: 0 of 4 (the write then lands after the second loop's read);
     - fixed, 15 or 30 ms: 0 of 28.
@@ -459,22 +459,22 @@ by pinning all threads to one core: with one core the render thread runs late ev
     rate is too low to tell the two apart. Earlier rates were about 1 in 12 with 8 instances and 1 in 15 to
     1 in 88 with 2, and on Android with all threads on one core every boot crashed.
 - **Debug aids (all off by default).**
-  - `WWHD_GX2_DELAY_COPY=ms` (gx2_core.cpp): the regression repro.
-  - `WWHD_COPYDBG=1`: logs each GX2CopySurface issue (thread, lr, images) and each CPU-path execution (range,
+  - `NSMBU_GX2_DELAY_COPY=ms` (gx2_core.cpp): the regression repro.
+  - `NSMBU_COPYDBG=1`: logs each GX2CopySurface issue (thread, lr, images) and each CPU-path execution (range,
     time).
   - In true60_test.cpp:
-    - `WWHD_BOOTDBG=1` (02786520 / 027B8904 / 027B82B8 logs);
-    - `WWHD_BOOTDBG_SLOW=ms`;
-    - `WWHD_BOOTDBG_PROT=1` (write-protect the first program array's page and log the writing thread with a
+    - `NSMBU_BOOTDBG=1` (02786520 / 027B8904 / 027B82B8 logs);
+    - `NSMBU_BOOTDBG_SLOW=ms`;
+    - `NSMBU_BOOTDBG_PROT=1` (write-protect the first program array's page and log the writing thread with a
       backtrace);
-    - `WWHD_HEAPLOG=1`.
+    - `NSMBU_HEAPLOG=1`.
 
 ## Effects interpolation (runtime/src/interp_fx.cpp)
 
 Per-step work that the game runs from drawing code (so on hold passes too, i.e. twice per logic
 step with interpolation on) and how it is handled:
 
-| WWHD | What | Hold pass | Logic pass (halfway) |
+| NSMBU | What | Hold pass | Logic pass (halfway) |
 |---|---|---|---|
 | `025AF8A0` `dScnPly_Draw` | calls particle calc, grass/tree/wood/flower calc, `g_Counter.mTimer++` (`101FF560`, right after `025A8148`), Bgsp Move, dSnap | (see rows below) | |
 | `0282167C` `JPAEmitterManager::calc(group)` | particles (from `025A81A0` groups 0-6, `025A8148` 7-8, `025A81F8` 9-12) | skipped | particle position `+0x28` and size `+0x9C` halfway, restored at the next pass start |
@@ -493,7 +493,7 @@ Still run on hold passes from `dScnPly_Draw` (with true60.cpp's site_025B00B0): 
 (actor draws, grass/tree/wood/flower/magma draw, attention draw), `MassClear`, the menu particle
 calc (held back by the particle hook) and the HD call `0271DF30` (only when `+0xB64 == 2`).
 
-Particle fields (measured, WWHD = GameCube): `+0x8C` axis, `+0x98` scale out, `+0x9C/+0xA0` size,
+Particle fields (measured, NSMBU = GameCube): `+0x8C` axis, `+0x98` scale out, `+0x9C/+0xA0` size,
 `+0xAC` alpha, `+0xB0` alpha wave, `+0xB4` loop offset, `+0xB8` prim colour, `+0xBC` env colour,
 `+0xC0` rotation angle (u16), `+0xC2` rotation speed. Emitter: `+0x22C` global translation,
 `+0x238` global particle scale.
@@ -504,10 +504,10 @@ Layouts used:
   next). `JPABaseEmitter`: `+0x1AC` particles, `+0x1B8` children, `+0x194` tick. `JPABaseParticle`
   matches the GameCube layout up to 0xD0 (`+0x10` offset, `+0x1C` local, `+0x28` global position,
   `+0x34` velocity, `+0x78` age, `+0x8C` draw params (`+0x9C/+0xA0` size), `+0xC8` callback,
-  `+0xCC` status); WWHD adds a delay byte at `+0x10C`.
+  `+0xCC` status); NSMBU adds a delay byte at `+0x10C`.
 - Key animator: `*(this+0)` time block: `+0` frame, `+4` start, `+8` end, `+0x10` frame-mapping
   function (`027DA9E8` loop, `027DAAA0` clamp); `this+0x28` cached frame.
-- `J3DFrameCtrl` (no vtable in WWHD): `+0` rate, `+4` frame, `+8` start, `+0xA` end, `+0xE`
+- `J3DFrameCtrl` (no vtable in NSMBU): `+0` rate, `+4` frame, `+8` start, `+0xA` end, `+0xE`
   attribute, `+0xF` state. `mDoExt_baseAnm` starts with it; btk anm at `+0x68`, brk at `+0x10`.
 - `daSea_packet_c` (static instance `1046D8D0`): `+0x130` flat inter, `+0xF0` wave info
   (`+0x114` cur scale), `+0x1FC/+0x200` grid min x/z, `+0x20C` height table (65x65 f32),
@@ -532,7 +532,7 @@ actors use everywhere. "Evidence" is the matcher's tag (p = model probability). 
 steps/s the fraction needs `1-(1-s)^(1/2)`. `chase` moves by a fixed `step` per step, so it
 needs half the step.
 
-| GameCube | WWHD | Evidence | Source |
+| GameCube | NSMBU | Evidence | Source |
 |---|---|---|---|
 | `cLib_addCalc` | `0200ECD4` | graph (p=0.78) | src/SSystem/SComponent/c_lib.cpp:22 |
 | `cLib_addCalc2` | `0200ED84` | tu (p=0.99) | c_lib.cpp:56 |
@@ -552,13 +552,13 @@ needs half the step.
 | `cLib_chaseAngleS` | `0200F8D0` | graph (p=1.00) | c_lib.cpp:326 |
 | `cLib_calcTimer<T>` | one copy per actor TU; named: `<Uc>` `0207A9A0` (+1 copy), `<s>` `02055B64`, `<i>` `0211D2F8` (+1 copy), `<Us>` `0223556C`, `<Sc>` `0220CCB4` (legacy) | dup-graph / graph (p=1.00) / dup-graph / not named / callgraph-legacy | include/SSystem/SComponent/c_lib.h (template: `if (*t != 0) --*t`) |
 
-The c_lib unit keeps the GameCube function order in WWHD (`0200ECD4`–`0200FCD8`), which
+The c_lib unit keeps the GameCube function order in NSMBU (`0200ECD4`–`0200FCD8`), which
 cross-checks the names above. Many `cLib_calcTimer` calls are inlined by GHS, so timers also appear
 as plain decrements (see the catalogue below).
 
 ### Movement and per-step physics
 
-| GameCube | WWHD | Evidence | Source |
+| GameCube | NSMBU | Evidence | Source |
 |---|---|---|---|
 | `fopAcM_calcSpeed` (speedF + gravity → speed, clamps at maxFallSpeed) | `025D67A8` | graph (p=0.85) | src/f_op/f_op_actor_mng.cpp:454 |
 | `fopAcM_posMove` (pos += speed) | `025D6800` | graph (p=0.87) | f_op_actor_mng.cpp:469 |
@@ -574,14 +574,14 @@ as plain decrements (see the catalogue below).
 | `dBgS_Acch::SetGroundUpY` | `024F12A8` | callgraph-legacy | d_bg_s_acch.cpp:378 |
 | `daObj::posMoveF_*` (object physics: resist, grade, stream) | `02311AB8`, `023121C4`, `023123C0` | graph (p=0.65) / tu (p=0.65) / graph (p=0.65) | src/d/actor/d_a_obj.cpp |
 
-The fields involved are in fopAc_ac_c and moved by +0x11C in WWHD (see layouts): `speedF`
+The fields involved are in fopAc_ac_c and moved by +0x11C in NSMBU (see layouts): `speedF`
 0x254→**0x370**, `gravity` 0x258→**0x374**, `maxFallSpeed` 0x25C→**0x378**, `speed` (cXyz)
 0x220→**0x33C**, `current.pos` 0x1F8→**0x314**, `current.angle` 0x204→**0x320**, `shape_angle`
 0x20C→**0x328**, `old` 0x1E4→**0x300**.
 
 ### Animation frame advance
 
-| GameCube | WWHD | Evidence | Source |
+| GameCube | NSMBU | Evidence | Source |
 |---|---|---|---|
 | `J3DFrameCtrl::init` | `027F2BC0` | graph (p=0.83) | src/JSystem/J3DGraphAnimator/J3DAnimation.cpp:13 |
 | `J3DFrameCtrl::checkPass` | `027F2BF8` | graph (p=0.82) | J3DAnimation.cpp:24 |
@@ -596,7 +596,7 @@ The fields involved are in fopAc_ac_c and moved by +0x11C in WWHD (see layouts):
 | `daPy_lk_c::setFrameCtrl` (Link's per-anime rate) | `023DE788` | tu (p=0.79) | src/d/actor/d_a_player_main.cpp:2937 |
 
 Not identified: `mDoExt_McaMorf::calc(u16)` and `mDoExt_McaMorf2::calc(u16)`, the per-joint morf
-blend. They are J3DMtxCalc callbacks on GameCube, and WWHD restructured J3D. The candidates
+blend. They are J3DMtxCalc callbacks on GameCube, and NSMBU restructured J3D. The candidates
 `025E410C` (1448 bytes) and `025E46B4` sit between `mDoExt_MtxCalcOldFrame::initOldFrameMorf`
 and `setMorf` and use 0.5/1.5/1e-4 constants (quaternion blend), but are not confirmed. The
 J3D math they call (`JMAEulerToQuat`, `JMAQuatLerp`, `PSMTXQuat` on GameCube) lives at
@@ -604,7 +604,7 @@ J3D math they call (`JMAEulerToQuat`, `JMAQuatLerp`, `PSMTXQuat` on GameCube) li
 
 ### Particles
 
-| GameCube | WWHD | Evidence | Source |
+| GameCube | NSMBU | Evidence | Source |
 |---|---|---|---|
 | `JPAEmitterManager::calc` (all emitters, per step) | `0282167C` | tu (p=0.62) | src/JSystem/JParticle/JPAEmitterManager.cpp:84 |
 | `JPABaseEmitter::calc` | `0281FE40` | tu (p=0.97) | src/JSystem/JParticle/JPAEmitter.cpp:230 |
@@ -617,7 +617,7 @@ J3D math they call (`JMAEulerToQuat`, `JMAQuatLerp`, `PSMTXQuat` on GameCube) li
 
 ### Camera
 
-| GameCube | WWHD | Evidence | Source |
+| GameCube | NSMBU | Evidence | Source |
 |---|---|---|---|
 | `camera_execute` | `024FFA3C` | manual | src/d/d_camera.cpp:5426 |
 | `camera_draw` | `024FFC40` | manual | d_camera.cpp:5453 |
@@ -634,17 +634,17 @@ The camera's smoothing goes through the cLib_addCalc* family above and through `
 
 ### Events, demos, cutscene timelines
 
-| GameCube | WWHD | Evidence | Source |
+| GameCube | NSMBU | Evidence | Source |
 |---|---|---|---|
 | `dEvt_control_c::check` / `checkStart` / `order` | `0253FF34` / `0253FD1C` / `0253EC0C` | tu (p=0.89) / graph (p=0.91) / graph (p=0.90) | src/d/d_event.cpp |
 | `dEvent_manager_c::runProc` | `02544374` | callgraph-legacy | src/d/d_event_manager.cpp |
 | `dDemo_manager_c::create` (`mControl->forward(0)`) | `02528CEC` | callgraph-legacy | src/d/d_demo.cpp:659 |
-| `dDemo_manager_c::update` (`mControl->forward(1)`, `mFrame++`) | not identified, probably inlined into its caller in WWHD | | d_demo.cpp:695 |
+| `dDemo_manager_c::update` (`mControl->forward(1)`, `mFrame++`) | not identified, probably inlined into its caller in NSMBU | | d_demo.cpp:695 |
 | `JStudio::stb::TControl::forward` | not identified | | JSystem/JStudio |
 
 ### Global counters and the main loop
 
-| GameCube | WWHD | Evidence | Notes |
+| GameCube | NSMBU | Evidence | Notes |
 |---|---|---|---|
 | `cCt_Counter` | `0200E6EC` | manual | `g_Counter` is at **`101FF558`**: `mCounter0` +0 (always ++), `mCounter1` +4 (reset or ++), `mTimer` +8. Same logic as c_counter.cpp:12 |
 | `fpcM_Management` | `025DF948` | manual | runs every process (actor) step |
@@ -665,7 +665,7 @@ Many actors use `g_Counter.mCounter0` as a frame clock (for example `daBomb_c`, 
   `023FF6A0`, `draw` `02443EC4`. The full list is in `build/names.tsv`.
 - Camera: `d_camera.cpp` 87/176, `d_ev_camera.cpp` 28/46, `d_cam_param.cpp` 14/28.
 
-Key daPy_lk_c fields (GameCube → WWHD): `mCurProc` 0x31D8→0x65F0, `mStickDistance` 0x35B0→0x6A08,
+Key daPy_lk_c fields (GameCube → NSMBU): `mCurProc` 0x31D8→0x65F0, `mStickDistance` 0x35B0→0x6A08,
 `mNormalSpeed` 0x35BC→0x6A14, `mModeFlg` 0x3618→0x6A70, `mpSeAnmFrameCtrl` 0x363C→0x6A94,
 `mFrameCtrlUnder[2]` 0x302C→0x5898, `mEquipItem` 0x3560→0x69B0, `mTinkleHoverTimer`
 0x354C→0x699C, the timer union `m34D0..m34DA` 0x34D0→0x6916 (+0x3446). The fopAc_ac_c base fields
@@ -676,12 +676,12 @@ Key daPy_lk_c fields (GameCube → WWHD): `mCurProc` 0x31D8→0x65F0, `mStickDis
 `tools/decomp/timers.py` lists fields that are decremented by one (load, `addi -1`, store back)
 or passed to `cLib_calcTimer`. It covers code reachable from an actor's Execute (method table,
 `execute` methods, PTMF procedure tables of the same file) in the GameCube build. Each entry gets
-its WWHD offset when the matched WWHD function has the same number of decrement sites.
+its NSMBU offset when the matched NSMBU function has the same number of decrement sites.
 
-Current output (`build/timers.tsv`): 510 sites in 164 classes; 131 have a WWHD offset.
+Current output (`build/timers.tsv`): 510 sites in 164 classes; 131 have a NSMBU offset.
 Examples:
 
-| Class | Field (GameCube → WWHD) | Where |
+| Class | Field (GameCube → NSMBU) | Where |
 |---|---|---|
 | daPy_lk_c | `m34D0` 0x34D0→0x6916 (proc timer, 19 procs) | procAutoJump, procCutEA, procGuardSlip, procLadderMove, ... |
 | daPy_lk_c | `m34D2` 0x34D2→0x6918 | procFall, procAutoJump, procVomitJump |
@@ -696,15 +696,15 @@ Limits: timers updated through other patterns (`if (t) t--` through a temporary 
 through the cLib_calcTimer template with the address in a non-argument register) are missed.
 Free functions on `xxx_class*` count as that class.
 
-## Structure layouts (GameCube → WWHD)
+## Structure layouts (GameCube → NSMBU)
 
 `tools/decomp/layout.py` aligns the loads/stores through `this` (or the first argument) of every
-matched pair. Each aligned pair votes GameCube offset → WWHD offset. Field names come from the
+matched pair. Each aligned pair votes GameCube offset → NSMBU offset. Field names come from the
 `/* 0x... */` comments in the decompilation headers.
 
 **fopAc_ac_c** (3,942 pairs; all actors' base class):
 
-| GameCube | WWHD | Shift | Fields |
+| GameCube | NSMBU | Shift | Fields |
 |---|---|---|---|
 | 0x000–0x0C0 | same | 0 | leafdraw_class base; `actor_type` 0xC0 |
 | 0x0C4–0x10C | +4 | +0x4 | `actor_tag`; `draw_tag` 0xD8→0xDC; `heap` 0xF0→0xF4; `eventInfo` 0xF4→0xF8; `tevStr` 0x10C→0x110 |
@@ -742,7 +742,7 @@ layouts can't be measured this way.
 
 `build/coverage.tsv` has the per-file table. Totals (round 2):
 
-- WWHD: 39,698 functions (37,766 from the recompiler's discovery plus 1,932 tail-call-only
+- NSMBU: 39,698 functions (37,766 from the recompiler's discovery plus 1,932 tail-call-only
   functions). **13,991 are named (35%)**: 12,451 from stages measured at ≥ 97%, 755 `tu-margin`
   (medium) and 785 `callgraph-legacy` (lower). Round 1 had 12,271.
 - GameCube: 27,041 functions (weak copies merged); 13,844 matched (51.2%; round 1: 44.8%).
@@ -754,7 +754,7 @@ layouts can't be measured this way.
   - `0273B2D0`–`027EAC44`: Nintendo `sead`/`agl` (task manager, render layers, bloom, DOF,
     shadows, shader programs).
   - `02843374`–`028E8B04`: nw4f `lyt`/`font`/`snd`, ErrEula/swkbd wrappers, GX2 utilities.
-- That leaves ≈23,100 WWHD functions that may have a GameCube counterpart. **≈61% of them are
+- That leaves ≈23,100 NSMBU functions that may have a GameCube counterpart. **≈61% of them are
   named** (round 1: ≈51%). Of the ≈9,100 still unnamed there:
   - ≈4,200 are identical per-file copies of inline functions (destructors, collider virtuals,
     vector operators);
@@ -782,9 +782,9 @@ What blocks 80%:
   their file's constructor, and constructors reference many tables at once.
 - **Rewritten or replaced code on the GameCube side**: J3DGraphBase/Loader (0%), JKernel and
   JUtility (≈2%, replaced by sead), the Dolphin SDK/MSL/TRK (gone; Cafe OS), most of
-  `d_menu_*`/`d_meter`/`f_op_msg_mng`/JMessage (HD UI). These GameCube functions have no WWHD
+  `d_menu_*`/`d_meter`/`f_op_msg_mng`/JMessage (HD UI). These GameCube functions have no NSMBU
   counterpart to find, so the GameCube-side percentage is capped well below 80%.
-- **Absolute-score limit**: ≈10,500 unnamed WWHD functions score p < 0.1 against every
+- **Absolute-score limit**: ≈10,500 unnamed NSMBU functions score p < 0.1 against every
   candidate in their window. Their counterpart is outside the window (moved file, or a file with
   no anchor in a block that isn't alphabetical, like the JSystem libraries), already taken by
   a wrapper/inline twin, or absent.
@@ -827,7 +827,7 @@ change three things.
 
 **3D projection and culling** (all from the main camera, `camera_class` / `view_class`):
 
-| WWHD | What | Notes |
+| NSMBU | What | Notes |
 |---|---|---|
 | `1004AAF0` | `16/9` constant | only read by `camera_execute` (`024FFA94`) and `init_phase2` (`025020D8`); Cemu's resolution pack patches this one (plus `101417D0` and `10165898`, see below) |
 | `024FFA3C` | `camera_execute` | `view.mAspect` (+0xD8) = constant, every logic step (`@024FFA98`) |
@@ -848,7 +848,7 @@ switched one swap after the game's projection (the painter draws the previous pa
 
 **HD layouts (nw4f `nw::lyt`)**, found by the uniform uploads of the lyt shader:
 
-| WWHD | Function | Notes |
+| NSMBU | Function | Notes |
 |---|---|---|
 | `0272DB10` | layout layer projection setup | per `Layout`/`LayoutBack` layer: `sead::OrthoProjection` +0x610, +0x6BC (+-640 x +-360; fields near +0x94, far +0x98, top +0x9C, bottom +0xA0, left +0xA4, right +0xA8, dirty bytes +0/+1), `sead::PerspectiveProjection` +0x768 (fovy 40, aspect 16/9 = `101417D0`, set by `0274E04C`). The layer's DrawInfo (layer+0x548) keeps its own copy of the perspective matrix; changing these objects later has no effect. |
 | `02874038` | `nw::lyt::DrawInfo::LoadProjectionMtx` | `GX2SetVertexUniformReg(uProjection, 16, DrawInfo+0)` |

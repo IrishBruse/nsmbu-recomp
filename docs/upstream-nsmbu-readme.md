@@ -23,7 +23,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
 - **Fixed: grid pattern in contact shadows at higher internal resolutions** (issue #66). The game's
   shadow and ambient-occlusion blur now covers the same area as on the console at every resolution;
   1x is unchanged and there is no measurable speed cost. Shadow maps still scale with the internal
-  resolution for sharp shadows; `WWHD_SHADOW_FIX=1` keeps them at the console's 1024x1024 instead,
+  resolution for sharp shadows; `NSMBU_SHADOW_FIX=1` keeps them at the console's 1024x1024 instead,
   for soft edges that never shimmer (issue #67).
 - **More languages (experimental):** with your own dump of the European or Japanese game, the port can
   use its text, fonts and menus: German, Italian, British English, European French and Spanish, or
@@ -31,13 +31,13 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
 - **Fan translations as content mods**, including **Arabic and Hebrew** drawn right to left (issue #60),
   see [docs/mod-manager.md](docs/mod-manager.md) and [docs/rtl-text.md](docs/rtl-text.md).
 - **macOS: closing the TV window quits the game** (issue #65), as on Windows and Linux. During a game
-  it asks first: **Quit**, **Cancel** or **Save State and Quit**. `WWHD_QUIT_PROMPT=0` turns the
+  it asks first: **Quit**, **Cancel** or **Save State and Quit**. `NSMBU_QUIT_PROMPT=0` turns the
   question off.
 - **Faster on Linux and Steam Deck (Vulkan):** the guest buffer cache is now on by default on desktop
   Linux, as on macOS. It keeps unchanged vertex, index and uniform data on the GPU instead of copying it
   every frame, which removed a 20 fps lock in busy views on an RK3588 board (issue #50). If you see broken
-  or flickering geometry, start with `WWHD_VK_BUFFER_CACHE=0` and please report it. Windows and Android
-  stay opt-in (`WWHD_VK_BUFFER_CACHE=1`).
+  or flickering geometry, start with `NSMBU_VK_BUFFER_CACHE=0` and please report it. Windows and Android
+  stay opt-in (`NSMBU_VK_BUFFER_CACHE=1`).
 - **Save states are now small and can go into bug reports.** The **Save state** button (and
   Shift+F1–F5, the Save States menu) now writes a *portable* state, `slotN.wwstate`: a few KB with
   your progress (the same save data the game writes into `cking.sav`) and where Link stands (stage,
@@ -46,7 +46,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
   your `cking.sav`. Loading one puts that progress into the running game and takes Link there; it is
   not an exact snapshot (enemies, a running cutscene and other actors start fresh). The old full
   states (the whole running game, ~300 MB, contain game data: never share them) are still there for
-  debugging: Saves › *Full save states*, or `WWHD_FULL_SAVE_STATES=1`. Loading a slot loads either
+  debugging: Saves › *Full save states*, or `NSMBU_FULL_SAVE_STATES=1`. Loading a slot loads either
   kind; an older full state in a slot is kept and the Saves tab says so. A portable state can only be
   saved while you control Link (not during a cutscene or dialogue); one saved on the boat puts Link
   back on the boat. See [docs/portable-save-states.md](docs/portable-save-states.md).
@@ -101,7 +101,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
 - **"Uncapped" debug switch** (settings overlay → **Graphics**; not saved): no frame limit and no
   vsync, to see how many frames a second your computer can draw (window title and performance
   overlay). The game counts frames, so it runs faster than normal while it is on: not for playing.
-  Metal and Vulkan; `WWHD_UNCAPPED=1` turns it on at start.
+  Metal and Vulkan; `NSMBU_UNCAPPED=1` turns it on at start.
 - **Keep game speed recovers faster after a hitch** (all frame rates): one slow frame (a shader
   compile, a scene load) no longer turns the in-between frames off for several seconds.
 - **Android:** full-size occlusion depth is off by default (it halved the worst GPU waits on an
@@ -155,7 +155,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
   everywhere (8–14% less render-thread time), and on macOS vertex, index and uniform data the game
   does not change stay on the GPU instead of being copied again for every draw (another 6–17% less
   render-thread time and 43–64% less data uploaded per frame). Windows, Linux and Android players
-  can try that cache with `WWHD_VK_BUFFER_CACHE=1`; `docs/vulkan.md` ("Guest buffer cache") says
+  can try that cache with `NSMBU_VK_BUFFER_CACHE=1`; `docs/vulkan.md` ("Guest buffer cache") says
   what to report.
 - **Performance report** (settings overlay → **Graphics** → **Copy performance report**): copies a
   breakdown of the render thread's time per frame to the clipboard, for bug reports about speed.
@@ -168,7 +168,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
 
 - **Mod manager** (settings overlay → **Mods**): the built-in mods (direct and mouse camera,
   first-person shortcut, wall climbing, quick doors, fast scenes) in one searchable list, plus
-  **installable mod packages** from a folder or a `.wwhdmod` ZIP, with profiles, dependencies and
+  **installable mod packages** from a folder or a `.nsmbumod` ZIP, with profiles, dependencies and
   per-mod options. Everything starts off; nothing from a package loads until you enable it.
   - **Content mods** replace game files without touching your game folder.
   - **Cemu graphics packs** (`rules.txt`) can be imported, with their presets and resolution rules;
@@ -237,7 +237,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
 - **GamePad screen modes on Windows/Linux** (overlay → Display): separate window, picture-in-picture,
   automatic overlay, off, or GamePad only, as on macOS; clicks on the GamePad picture reach the game.
 - **Full screen is remembered on Windows/Linux too** (issue #43): the TV window starts as it was left,
-  in full screen or in a window, as the macOS app always did. `WWHD_FULLSCREEN=0|1` overrides it for
+  in full screen or in a window, as the macOS app always did. `NSMBU_FULLSCREEN=0|1` overrides it for
   one start.
 - **60 fps "Keep game speed"** (overlay → Graphics → Frame rate, PR #21 by rhemfur): skips in-between
   frames instead of slowing the game down when the machine can't draw 60 frames a second; off by
@@ -258,14 +258,14 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
   screen, closing the TV window quits (closing the GamePad window hides it), the name-entry text
   prompt works again (PR #14 by rhemfur), 1 ms timer resolution on Windows for smoother frame pacing
   (PR #12 by rhemfur), and a `--unwindlib=libgcc` build note for clang setups with libunwind.
-- **Console language**: `WWHD_LANGUAGE=<code>` (or the overlay's Language tab) picks the game's
+- **Console language**: `NSMBU_LANGUAGE=<code>` (or the overlay's Language tab) picks the game's
   language from those on the disc.
 - **Native Windows LLVM builds** (PR #17 by resadent): build with clang and Visual Studio's Windows
   SDK, without MSYS2 (missing dependencies are built from pinned sources); smoother Vulkan frame
   pacing on Windows via SDL's high-resolution sleeps.
 - **Vulkan presentation mode** (overlay → Graphics): *Vsync* (FIFO, default), *Low latency*
   (MAILBOX, where the driver offers it) or *Off* (IMMEDIATE); switches live and is remembered.
-  `WWHD_VK_PRESENT_MODE` overrides it.
+  `NSMBU_VK_PRESENT_MODE` overrides it.
 - **Faster Vulkan on Windows/Linux** (PR #18 by resadent): bounded draw batching and a higher
   game/render thread priority are now on by default, as on macOS.
 - **GameCube save converter** (`tools/savegame`): bring your GameCube save file into HD — see
@@ -276,11 +276,11 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
 - **Linux and Windows builds** (Vulkan renderer with an SDL3 host), with automatic CI builds for both.
   Fixes from the first Linux reports: game paths are resolved case-insensitively (the game asks for
   `Audiores`, the disc folder is `AudioRes`; this crashed the game right after startup), build fixes
-  for newer compilers, `WWHD_NO_GAMEPAD` only hides the GamePad window (`WWHD_NO_CONTROLLERS` turns
+  for newer compilers, `NSMBU_NO_GAMEPAD` only hides the GamePad window (`NSMBU_NO_CONTROLLERS` turns
   off controllers), and a hint where to type when the game asks for text.
 - **Crash logs and Crash Recovery**: every crash writes `captures/crash-<time>.log`. Crash Recovery
   (Save States menu, off by default) keeps automatic save states plus the recorded input, so a crash
-  can be reproduced with `WWHD_REPLAY=<n>`.
+  can be reproduced with `NSMBU_REPLAY=<n>`.
 - **`wudextract.py`**: the disc key file can be 16 raw bytes or 32 hex digits, with clear errors for
   a missing or non-matching key.
 - **True 60 (key 7, experimental)**: every 30 Hz step is now exactly the 30 fps game's step (game
@@ -316,7 +316,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
     else runs at 30 and is interpolated.
 - **Higher internal resolution** (1x / 1.5x / 2x / 3x, key R) and **edge smoothing** (FXAA, key 8).
 - **Save states**: a Save States menu with 5 slots (Shift+F1–F5 save, F1–F5 load), kept across
-  sessions in `~/Library/Application Support/wwhd/states/`.
+  sessions in `~/Library/Application Support/nsmbu/states/`.
 - **Controls window** (Input › Controls…): a drawing of the Wii U GamePad or Pro Controller; click
   a button to remap it to a key or a controller input, live feedback of pressed buttons and stick
   positions, conflict warnings.
@@ -426,8 +426,8 @@ The setup also runs in a terminal (the fallback): `tools/Setup in Terminal.comma
 and the interface between the window and `tools/installer/setup.py`:
 [tools/installer/README.md](tools/installer/README.md). Scripted use: `tools/installer/setup.py --help`.
 
-Source builds (below) are not portable: they keep using `~/Library/Application Support/wwhd`,
-`%APPDATA%\WWHD` or `~/.config/wwhd`, as before.
+Source builds (below) are not portable: they keep using `~/Library/Application Support/nsmbu`,
+`%APPDATA%\NSMBU` or `~/.config/nsmbu`, as before.
 
 ## Requirements (building from source)
 
@@ -436,10 +436,10 @@ Source builds (below) are not portable: they keep using `~/Library/Application S
 - macOS: Xcode command line tools (`xcode-select --install`)
 - zstd for the extractor's `.wua` support: a system one if installed (`brew install zstd`, `apt install
   libzstd-dev`; found through its CMake package or pkg-config), otherwise CMake downloads the pinned
-  source (`-DWWHD_BUNDLED_ZSTD=ON` always does, as release builds do)
+  source (`-DNSMBU_BUNDLED_ZSTD=ON` always does, as release builds do)
 - CMake 3.20 or newer
 - Python 3 with `pycryptodome` for `tools/wudextract.py` (`pip3 install pycryptodome`); the native
-  `wwhd-extract` built with the project (`build/cmake/wwhd-extract --help`) needs neither
+  `nsmbu-extract` built with the project (`build/cmake/nsmbu-extract --help`) needs neither
 - optional: `capstone` (`pip3 install capstone`) for the disassembler helper `tools/ppcdis.py`
 - optional, decompilation tools only: `ninja` and the requirements of the zeldaret/tww build
   (see below)
@@ -447,7 +447,7 @@ Source builds (below) are not portable: they keep using `~/Library/Application S
 You also need, from your own console and disc:
 
 - a disc image of The Wind Waker HD (USA) in `.wud` or `.wux` format (or a Cemu archive, `.wua`:
-  `build/cmake/wwhd-extract --title 0005000010143500 extract game.wua game`, no keys);
+  `build/cmake/nsmbu-extract --title 0005000010143500 extract game.wua game`, no keys);
 - its disc key (16 bytes) in a `.key` file next to the image, with the same base name;
 - the Wii U common key, either in a file `common.key` (16 raw bytes or 32 hex digits) next to
   the image or in the current directory, or in the `WIIU_COMMON_KEY` environment variable
@@ -459,7 +459,7 @@ None of these are included or will be provided.
 ## Building
 
 For the Vulkan renderer also: `brew install vulkan-headers vulkan-loader molten-vk glslang` (the
-build needs them; the app still runs with Metal on a Mac without them). `-DWWHD_RENDERER=METAL`
+build needs them; the app still runs with Metal on a Mac without them). `-DNSMBU_RENDERER=METAL`
 builds a Metal-only app without any Vulkan dependency.
 
 ```sh
@@ -471,7 +471,7 @@ python3 tools/wudextract.py game.wux extract game
 python3 tools/recomp/recomp.py game/code/cking.rpx build/gen
 
 # 3. build
-cmake -S . -B build/cmake && make -C build/cmake -j$(sysctl -n hw.ncpu) wwhd
+cmake -S . -B build/cmake && make -C build/cmake -j$(sysctl -n hw.ncpu) nsmbu
 ```
 
 ### Linux
@@ -485,7 +485,7 @@ sudo apt install clang cmake ninja-build zlib1g-dev liblz4-dev libvulkan-dev gls
 # SDL3 is not packaged in 24.04: build it from source (https://github.com/libsdl-org/SDL, release-3.2.x)
 cmake -S . -B build/linux -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build/linux
-./build/linux/wwhd --renderer-smoke     # checks the Vulkan renderer, no game files needed
+./build/linux/nsmbu --renderer-smoke     # checks the Vulkan renderer, no game files needed
 ```
 
 If linking fails with unwinder errors (missing `_Unwind_*` symbols or `-lunwind`), your clang is set up to
@@ -520,7 +520,7 @@ selectable; click it to touch), the automatic overlay, off, or the GamePad pictu
 window (click it to touch); **Ctrl+G** shows/hides it, and the choices are saved in `settings.ini`. The macOS menus (Graphics, Display, Input, Save States) don't exist in these builds
 yet; their settings are available as environment variables (below) and the number-key shortcuts.
 
-Settings, controls and save states live under `~/.config/wwhd` (or `$XDG_CONFIG_HOME/wwhd`).
+Settings, controls and save states live under `~/.config/nsmbu` (or `$XDG_CONFIG_HOME/nsmbu`).
 To check the build without the game, `python3 tools/recomp/stubgen.py build/gen-stub` writes
 placeholder guest code and `-DGEN_DIR=$PWD/build/gen-stub` builds against it (the result cannot
 run the game).
@@ -542,7 +542,7 @@ Run from PowerShell:
 cmake -S . -B build/windows -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
 cmake --build build/windows
 ctest --test-dir build/windows --output-on-failure
-./build/windows/wwhd.exe --renderer-smoke
+./build/windows/nsmbu.exe --renderer-smoke
 ```
 
 CMake uses installed native dependency packages where available and downloads pinned source
@@ -562,12 +562,12 @@ pacman -S mingw-w64-clang-x86_64-{clang,cmake,ninja,python,vulkan-headers,vulkan
 cmake -S . -B build/windows-msys2 -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
 cmake --build build/windows-msys2
 ctest --test-dir build/windows-msys2 --output-on-failure
-./build/windows-msys2/wwhd.exe --renderer-smoke   # checks the Vulkan renderer, no game files needed
+./build/windows-msys2/nsmbu.exe --renderer-smoke   # checks the Vulkan renderer, no game files needed
 ```
 
 Run it from the CLANG64 shell, or copy the DLLs it needs (`SDL3.dll`, `libc++.dll`,
-`libunwind.dll`, zlib) from `C:\msys64\clang64\bin` next to `wwhd.exe`; `vulkan-1.dll` comes with
-your GPU driver. Settings, controls and save states live in `%APPDATA%\WWHD`. Python for the
+`libunwind.dll`, zlib) from `C:\msys64\clang64\bin` next to `nsmbu.exe`; `vulkan-1.dll` comes with
+your GPU driver. Settings, controls and save states live in `%APPDATA%\NSMBU`. Python for the
 extraction and recompiler steps can be the MSYS2 one (`pip install pycryptodome`).
 
 For either method, use Release for gameplay performance. Microsoft's `cl.exe` compiler is not
@@ -589,7 +589,7 @@ You need:
 - a phone with arm64, Android 13 or newer and Vulkan 1.3;
 - **a game controller** (Bluetooth or USB). It is the GamePad's buttons and sticks; the touch
   screen is only the GamePad's touch screen (no on-screen buttons). Keyboards only type text
-  (`WWHD_ANDROID_KEYBOARD=1` in `env.txt` makes them a GamePad too);
+  (`NSMBU_ANDROID_KEYBOARD=1` in `env.txt` makes them a GamePad too);
 - on the computer: the Android SDK (platform 36, build tools 35.0.0), NDK 30.0.16248370, JDK 17
   or newer, CMake 3.20+ and Ninja, Python 3, and your own `build/gen` (steps 1 and 2 under
   Building).
@@ -603,10 +603,10 @@ cd android && ./gradlew assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-Start the app once: it creates `Android/data/org.wwhdrecomp.wwhd/files/` on the phone's storage
+Start the app once: it creates `Android/data/org.nsmbrecomp.nsmbu/files/` on the phone's storage
 (reachable over USB). Copy your extracted game there as `game/` (`code/`, `content/`, `meta/`);
-`save/` takes a save (`user/cking.sav`, the same layout as on the computer); `config/wwhd/` holds
-`settings.ini` and the shader caches; an optional `env.txt` takes `WWHD_` options, one `NAME=value`
+`save/` takes a save (`user/cking.sav`, the same layout as on the computer); `config/nsmbu/` holds
+`settings.ini` and the shader caches; an optional `env.txt` takes `NSMBU_` options, one `NAME=value`
 per line. Long-press the app icon to export or import the save as a zip.
 
 In the game, the button in the top left corner switches the view: a tap cycles TV with the GamePad
@@ -619,17 +619,17 @@ the graphics options.
 ## Playing
 
 ```sh
-./build/cmake/wwhd                 # options: --game DIR (default game), --save DIR (default save)
+./build/cmake/nsmbu                 # options: --game DIR (default game), --save DIR (default save)
 ```
 
-`--renderer=metal` or `--renderer=vulkan` (or `WWHD_RENDERER_RUNTIME=metal|vulkan`) overrides the
+`--renderer=metal` or `--renderer=vulkan` (or `NSMBU_RENDERER_RUNTIME=metal|vulkan`) overrides the
 saved renderer choice for one start.
 
 **Vulkan presentation** (settings overlay › Graphics › Presentation): *Vsync (smooth)* (FIFO, the
 default), *Low latency* (MAILBOX: the newest frame at each refresh, no tearing) or *Off (may tear)*
 (IMMEDIATE). Only modes the driver offers can be chosen (MoltenVK on macOS offers vsync and
 immediate, no mailbox); a change applies at once and is saved with the other graphics options.
-`WWHD_VK_PRESENT_MODE=fifo|mailbox|immediate` overrides it for one start (not saved). The log says
+`NSMBU_VK_PRESENT_MODE=fifo|mailbox|immediate` overrides it for one start (not saved). The log says
 which mode is in use and which the driver offers (`[vulkan] TV present mode fifo (available: …)`).
 
 Two windows open: the TV and the GamePad screen (map, items, menus). Click and drag in the
@@ -663,7 +663,7 @@ key, **A** types it, **B** deletes, **X** adds a space, **Y** is Shift (once, th
 switch between letters, accented letters and symbols (kana on a Japanese game), **ZL / ZR** move the
 caret, **Start** or the OK key confirms. The mouse clicks keys too; on Android the system keyboard
 also opens. The game gets no input while the window is open, and none after it closes until the
-button that confirmed is released. `WWHD_SWKBD_TEXT=<name>` answers automatically (test runs); only
+button that confirmed is released. `NSMBU_SWKBD_TEXT=<name>` answers automatically (test runs); only
 where the overlay can't show does the old prompt remain (the typed text in the window title on
 Windows/Linux, a dialog on macOS).
 
@@ -693,8 +693,8 @@ has a key, an alternate key and a controller binding); Esc cancels, right-click 
 buttons light up and the sticks show their deflection, so you can test the mapping; a key bound
 twice is marked with a warning. Changes apply immediately, also while playing. A dead zone for
 controller sticks and an option to invert the camera's up/down are at the bottom, with **Reset to
-Defaults…**. The mapping is saved to `~/Library/Application Support/WWHD/controls.json`
-(`WWHD_CONTROLS=<file>` uses another file); deleting it restores the defaults. The app's
+Defaults…**. The mapping is saved to `~/Library/Application Support/NSMBU/controls.json`
+(`NSMBU_CONTROLS=<file>` uses another file); deleting it restores the defaults. The app's
 single-key shortcuts (R, O, M, N, 6–9, P, F1–F5, F12) and Esc can't be bound.
 
 The **Graphics** menu in the menu bar switches fixes and enhancements while playing (the TV
@@ -704,7 +704,7 @@ cycles; the game renders at 1280x720, 2x renders at 2560x1440), edge smoothing (
 ambient-occlusion mode (**O** cycles), full-size occlusion depth (**M**), 16x anisotropic
 filtering (**N**), the aspect ratio, the renderer (Metal or Vulkan), and a frame capture for debugging (**P** or fn+F12, written to `captures/`;
 captures contain game imagery, so keep them to yourself). The Graphics choices are remembered
-between launches (macOS preferences; `defaults delete wwhd` resets them).
+between launches (macOS preferences; `defaults delete nsmbu` resets them).
 True 60 (**7**) computes Link and the camera at 60 Hz while the game state after every 30 Hz step
 stays bit-identical to the 30 fps game, except the random-number sequence, which drifts because
 drawing code draws random numbers too (later drops and ambient behaviour differ like in any other
@@ -721,7 +721,7 @@ file. Cheats edit the live save data; save in game to keep them.
 
 The **Save States** menu (and the Saves tab of the settings overlay) saves to one of 5 slots and
 loads it back (**Shift+F1–F5** save, **F2–F5** load; slot 1 loads from the F1 settings overlay);
-each slot shows its time and area. Slots are kept in `~/Library/Application Support/wwhd/states/`
+each slot shows its time and area. Slots are kept in `~/Library/Application Support/nsmbu/states/`
 and survive restarts. By default a slot holds a **portable state** (`slotN.wwstate`, a few KB):
 your progress and Link's place, no game data, safe to attach to bug reports. Loading one works
 once a Quest Log is being played (it waits until then): the progress is put into the game and Link
@@ -730,20 +730,20 @@ enemies, cutscenes and other actors start fresh. A portable state can only be sa
 control Link (not during cutscenes, dialogue or stage changes). A state from another Quest Log is
 loaded into the one being played, with a notice.
 **Full save states** (Save States menu or Saves tab, off by default, for debugging;
-`WWHD_FULL_SAVE_STATES=1`) save the whole running game instead (`slotN.bin`, about 270 MB) and
+`NSMBU_FULL_SAVE_STATES=1`) save the whole running game instead (`slotN.bin`, about 270 MB) and
 restore it exactly; they contain game code and data, **never share them**. A full state made by an
 incompatible build is refused. Loading a slot loads whichever kind it holds.
 
-**Crash Recovery** (Save States menu, off by default, or `WWHD_CRASH_RECOVERY=1`): every 2 minutes the
+**Crash Recovery** (Save States menu, off by default, or `NSMBU_CRASH_RECOVERY=1`): every 2 minutes the
 game is saved into one of three automatic states (`states/auto/`, about 260 MB each; the save
 freezes the game for about 0.1 s), and the controller input since the latest one is recorded. After a
-crash, the crash log names them, and `WWHD_REPLAY=<n> ./build/cmake/wwhd` loads automatic state n and
+crash, the crash log names them, and `NSMBU_REPLAY=<n> ./build/cmake/nsmbu` loads automatic state n and
 plays the recorded input back to reproduce the crash. Automatic states can also be loaded from the menu.
 
 Game controllers (Xbox, PlayStation, Switch Pro, MFi) work too; by default buttons map by
 position (the bottom face button is the Wii U's B), and they can be remapped in the Controls window.
 The **Input** menu switches whether keyboard and controllers act as the Wii U GamePad (default)
-or as a Wii U Pro Controller (`WWHD_PRO_CONTROLLER=1` starts in that mode); with the Pro
+or as a Wii U Pro Controller (`NSMBU_PRO_CONTROLLER=1` starts in that mode); with the Pro
 Controller, the GamePad window keeps its screen and touch input.
 When the game asks for text (e.g. your name), a macOS text field opens.
 
@@ -752,7 +752,7 @@ connected controllers that have one, which includes the Pro Controller's. A host
 single motor, so a GamePad rumble pattern plays as on/off (or half strength where it alternates),
 and the motors stay still while the settings overlay is open, while no game window has focus and
 once the app quits. **Controls > Rumble** in the settings overlay (F1) turns it off and is
-remembered (`WWHD_RUMBLE=0` starts with it off). The macOS app does not drive controller motors yet.
+remembered (`NSMBU_RUMBLE=0` starts with it off). The macOS app does not drive controller motors yet.
 
 **Gyro aiming** (settings overlay → **Controls** → **Gyro…**, off by default): in first person the
 game turns the camera when the GamePad moves. The port turns its virtual GamePad with a host
@@ -760,7 +760,7 @@ controller's gyro (SDL3; on the macOS app through GameController.framework), a C
 or the mouse (Steam Input "gyro to mouse": while the game aims, the pointer is captured and the mouse
 turns the GamePad); it works in GamePad and Pro Controller mode. The axis mode (player space, yaw or
 roll), sensitivity and invert per axis, a recalibrate button or key, and the Cemuhook server, port and
-slot are saved; `WWHD_GYRO=off|controller|cemuhook|mouse` overrides the source at start. Details,
+slot are saved; `NSMBU_GYRO=off|controller|cemuhook|mouse` overrides the source at start. Details,
 troubleshooting and what to test: `docs/gyro.md`.
 
 The **Display** menu: full screen for the TV window (**⌘F**, **⌃⌘F** or the green button; the
@@ -772,7 +772,7 @@ the GamePad picture changes a lot (a page or menu switches; **⌘G** keeps it up
 only* (the GamePad picture alone in the TV window, click it to touch; Minus in the game switches to
 Off-TV Play).
 **⌘G** shows/hides the GamePad screen in any mode. Window positions, full screen, these choices
-and the renderer are remembered in `~/Library/Application Support/wwhd/display.plist`
+and the renderer are remembered in `~/Library/Application Support/nsmbu/display.plist`
 (delete it to reset).
 
 Closing the TV window (its close button or **⌘W**) quits the game, as on Linux and Windows; closing
@@ -780,38 +780,38 @@ the GamePad window only hides it (**⌘G** brings it back). While a save file is
 the TV window or **⌘Q** first asks *Quit Wind Waker HD?*: **Quit**, **Cancel** (keep playing), or
 **Save State and Quit**, which writes save state slot 1 (Save States menu) and then quits. On the
 title screen and the file select, before a file is loaded, it quits without asking.
-`WWHD_QUIT_PROMPT=0` turns the question off; scripted and hidden test runs never ask.
+`NSMBU_QUIT_PROMPT=0` turns the question off; scripted and hidden test runs never ask.
 
 ## Notes
 
-- Shaders are translated on first use and cached in `~/Library/Caches/wwhd/shaders.bin`; later
+- Shaders are translated on first use and cached in `~/Library/Caches/nsmbu/shaders.bin`; later
   runs replay that cache at startup.
 - [docs/performance.md](docs/performance.md) covers how to profile the port, measured fixes and
   open performance leads.
-- Useful environment variables: `WWHD_NO_AUDIO=1`, `WWHD_NO_GAMEPAD=1` (no second window), `WWHD_NO_CONTROLLERS=1` (SDL builds: ignore host game controllers), `WWHD_LANGUAGE=<code>` (console language: 1 English, 2 French, 5 Spanish, … — the USA/Asia disc carries English, French and Spanish; a language the game doesn't contain starts in English; with `WWHD_LANGUAGE_REGION=eu` or `jp` from a language source, docs/language-packs.md), `WWHD_RTL=0` / `1` (right-to-left text for Arabic and Hebrew packs off / forced on, docs/rtl-text.md),
-  `WWHD_DRC_MODE=window|pip|auto|off|gamepad`, `WWHD_FULLSCREEN=0|1` (the TV window starts windowed / in
-  full screen this time instead of as it was left; that session's full screen is not remembered), `WWHD_ASPECT=16:9|window|16:10|21:9|32:9|<w:h>`,
-  `WWHD_AUDIO_VOLUME=0..1`, `WWHD_AUDIO_OUTPUT=auto|tv|gamepad` (the host plays the TV's sound, plus the GamePad's in Off-TV Play: auto; or only one of them), `WWHD_SHADER_CACHE=<file>|0`, `WWHD_AO_MODE=0..2`, `WWHD_AO_HIRES=0|1`, `WWHD_ANISO=0|1`, `WWHD_RES_SCALE=1|1.5|2|3`,
-  `WWHD_FXAA=0|1`, `WWHD_QUIT_PROMPT=0` (macOS: quit without asking, also during a game), `WWHD_INTERP=1`, `WWHD_INTERP_FPS=60|120|240` (frame interpolation at that rate),
-  `WWHD_INTERP_PACED=0|1`, `WWHD_TRUE60=1` (start values for the Graphics menu; they
-  override the remembered choices); `WWHD_DISPLAY_HZ=n` replaces the detected display refresh rate
-  that 120/240 fps are capped to (0: no cap); `WWHD_UNCAPPED=1` starts with the debug switch
+- Useful environment variables: `NSMBU_NO_AUDIO=1`, `NSMBU_NO_GAMEPAD=1` (no second window), `NSMBU_NO_CONTROLLERS=1` (SDL builds: ignore host game controllers), `NSMBU_LANGUAGE=<code>` (console language: 1 English, 2 French, 5 Spanish, … — the USA/Asia disc carries English, French and Spanish; a language the game doesn't contain starts in English; with `NSMBU_LANGUAGE_REGION=eu` or `jp` from a language source, docs/language-packs.md), `NSMBU_RTL=0` / `1` (right-to-left text for Arabic and Hebrew packs off / forced on, docs/rtl-text.md),
+  `NSMBU_DRC_MODE=window|pip|auto|off|gamepad`, `NSMBU_FULLSCREEN=0|1` (the TV window starts windowed / in
+  full screen this time instead of as it was left; that session's full screen is not remembered), `NSMBU_ASPECT=16:9|window|16:10|21:9|32:9|<w:h>`,
+  `NSMBU_AUDIO_VOLUME=0..1`, `NSMBU_AUDIO_OUTPUT=auto|tv|gamepad` (the host plays the TV's sound, plus the GamePad's in Off-TV Play: auto; or only one of them), `NSMBU_SHADER_CACHE=<file>|0`, `NSMBU_AO_MODE=0..2`, `NSMBU_AO_HIRES=0|1`, `NSMBU_ANISO=0|1`, `NSMBU_RES_SCALE=1|1.5|2|3`,
+  `NSMBU_FXAA=0|1`, `NSMBU_QUIT_PROMPT=0` (macOS: quit without asking, also during a game), `NSMBU_INTERP=1`, `NSMBU_INTERP_FPS=60|120|240` (frame interpolation at that rate),
+  `NSMBU_INTERP_PACED=0|1`, `NSMBU_TRUE60=1` (start values for the Graphics menu; they
+  override the remembered choices); `NSMBU_DISPLAY_HZ=n` replaces the detected display refresh rate
+  that 120/240 fps are capped to (0: no cap); `NSMBU_UNCAPPED=1` starts with the debug switch
   "Uncapped" on (no frame limit, no vsync; the game runs faster than real time);
-  `WWHD_SHADOW_FIX=1` keeps the shadow maps at the console's 1024x1024 at higher internal resolutions
+  `NSMBU_SHADOW_FIX=1` keeps the shadow maps at the console's 1024x1024 at higher internal resolutions
   (issue #67: soft, steady shadow edges as on the console; by default the maps scale with the internal
-  resolution, for sharper edges that can shimmer in places); `WWHD_SHADOW_SCALE=n` gives the shadow
-  maps their own resolution factor (overrides both); `WWHD_STATE_DIR=<dir>`
-  stores save states elsewhere; `WWHD_FULL_SAVE_STATES=0|1` full or portable save states for this
-  start; `WWHD_PORTABLE_LOAD=<file.wwstate>` loads that portable state (e.g. from a bug report) as
-  soon as a Quest Log is being played; `WWHD_RUMBLE=0|1` (SDL builds) start value for Controls > Rumble (overrides the remembered
-  choice); `WWHD_LOG_RUMBLE=1` logs the game's motor requests and what the motors do.
+  resolution, for sharper edges that can shimmer in places); `NSMBU_SHADOW_SCALE=n` gives the shadow
+  maps their own resolution factor (overrides both); `NSMBU_STATE_DIR=<dir>`
+  stores save states elsewhere; `NSMBU_FULL_SAVE_STATES=0|1` full or portable save states for this
+  start; `NSMBU_PORTABLE_LOAD=<file.wwstate>` loads that portable state (e.g. from a bug report) as
+  soon as a Quest Log is being played; `NSMBU_RUMBLE=0|1` (SDL builds) start value for Controls > Rumble (overrides the remembered
+  choice); `NSMBU_LOG_RUMBLE=1` logs the game's motor requests and what the motors do.
 - Crashes and game halts write `captures/crash-<time>.log` (crash address, registers, the guest call
   chain, a host backtrace and the last log lines; useful for bug reports, it contains only addresses,
   function names, the file names of the program's modules and log text). A crash address outside the
   game code names its module and offset (`in amdvlk64.dll+0x1A2A01`): a graphics driver, or an
   overlay's Vulkan layer; the log lists the Vulkan layers at start (`[vulkan] layers:`).
 - Debugging aids (frame/draw dumps, traces, scheduler statistics) are documented next to their
-  code: grep for `WWHD_` in `runtime/src`.
+  code: grep for `NSMBU_` in `runtime/src`.
 
 ## Optional: bring your GameCube save to HD
 
@@ -842,18 +842,18 @@ is recorded from your own play: play for a while (the further you get, the more 
 then
 
 ```sh
-python3 tools/shaderprep.py template ~/Library/Caches/wwhd/shaders.bin   # -> game/shadercache/template.bin
+python3 tools/shaderprep.py template ~/Library/Caches/nsmbu/shaders.bin   # -> game/shadercache/template.bin
 python3 tools/shaderprep.py build                                          # -> game/shadercache/headstart.bin
-./build/cmake/wwhd --warm-shaders    # optional: compile everything once to fill the macOS shader cache
+./build/cmake/nsmbu --warm-shaders    # optional: compile everything once to fill the macOS shader cache
 ```
 
 `--merge game/shadercache/template.bin` adds a later session to an existing template. The runtime
-picks up `game/shadercache/headstart.bin` automatically (`WWHD_HEADSTART=<file>|0` overrides it).
+picks up `game/shadercache/headstart.bin` automatically (`NSMBU_HEADSTART=<file>|0` overrides it).
 See the comment at the top of `tools/shaderprep.py` for the file formats.
 
 ## Optional: decompilation tools
 
-`tools/decomp/` names WWHD functions by matching them against the
+`tools/decomp/` names NSMBU functions by matching them against the
 [zeldaret/tww](https://github.com/zeldaret/tww) GameCube decompilation (CC0); the 60 fps features
 are built on those names (`tools/recomp/hooks.txt`, `runtime/src/interp*.cpp`, `runtime/src/true60*.cpp`).
 Findings are in `docs/decomp-notes.md`.
@@ -906,5 +906,5 @@ The Cemu archive (`.wua`) reader in `tools/wudextract/zarchive.cpp` is written f
 [ZArchive](https://github.com/Exzap/ZArchive) by Exzap (MIT No Attribution; nothing of it is
 vendored); [zstd](https://github.com/facebook/zstd) by Meta Platforms (BSD-3-Clause) decompresses
 it: release builds compile its pinned 1.5.7 release (URL + SHA-256 in `cmake/Zstd.cmake`) statically
-into `wwhd-extract` and include its license in `third-party-licenses/`; source builds use a system
+into `nsmbu-extract` and include its license in `third-party-licenses/`; source builds use a system
 zstd when there is one.

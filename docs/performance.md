@@ -24,12 +24,12 @@ optimizations have been adapted:
   see "Texture change detection" below; the sparse check is only the fallback.)
 
 Swapchains now prefer mailbox when advertised, with FIFO fallback. The existing
-override in **this** checkout is `WWHD_VK_PRESENT_MODE` (the other checkout uses
-`WWHD_VULKAN_PRESENT_MODE`). To test presentation throttling separately:
+override in **this** checkout is `NSMBU_VK_PRESENT_MODE` (the other checkout uses
+`NSMBU_VULKAN_PRESENT_MODE`). To test presentation throttling separately:
 
 ```powershell
-$env:WWHD_VK_PRESENT_MODE = 'immediate'
-./build/windows/wwhd.exe
+$env:NSMBU_VK_PRESENT_MODE = 'immediate'
+./build/windows/nsmbu.exe
 ```
 
 Immediate mode may tear. Remove the variable to restore mailbox/FIFO selection.
@@ -52,7 +52,7 @@ to fit its budget.
 
 Windows now enables the existing bounded 2,048-draw asynchronous batching by
 default, with a maximum of two mid-frame submissions. Explicit values of
-`WWHD_VK_DRAW_BATCH` and `WWHD_VK_DRAW_BATCH_CAP` retain their existing behavior.
+`NSMBU_VK_DRAW_BATCH` and `NSMBU_VK_DRAW_BATCH_CAP` retain their existing behavior.
 
 An isolated saved Outset scene at 3x resolution, AO mode 2, high-resolution AO
 and anisotropy compared the same native Release executable with batching enabled
@@ -85,16 +85,16 @@ Run a scripted session, then sample it with macOS `sample` (1 ms stacks for ever
 
 ```sh
 # copy the save and shader cache so the test can't touch your real ones
-cp -R save /tmp/wwhd-save; cp ~/Library/Caches/wwhd/shaders.bin /tmp/shaders.bin
-WWHD_SHADER_CACHE=/tmp/shaders.bin \
-WWHD_PRESS=600-610:8000,900-910:8000,1200-1210:8000,1500-1510:8000 \
-WWHD_STATE_LOAD_AT=1800:2 WWHD_DUMP_FRAMES=2400 \
-./build/cmake/wwhd --save /tmp/wwhd-save > run.log 2>&1 &
+cp -R save /tmp/nsmbu-save; cp ~/Library/Caches/nsmbu/shaders.bin /tmp/shaders.bin
+NSMBU_SHADER_CACHE=/tmp/shaders.bin \
+NSMBU_PRESS=600-610:8000,900-910:8000,1200-1210:8000,1500-1510:8000 \
+NSMBU_STATE_LOAD_AT=1800:2 NSMBU_DUMP_FRAMES=2400 \
+./build/cmake/nsmbu --save /tmp/nsmbu-save > run.log 2>&1 &
 sleep 45; sample $! 20 -file sample.txt; kill $!
 ```
 
-`WWHD_PRESS` presses A to get past the title screen, `WWHD_STATE_LOAD_AT=1800:2` loads save-state
-slot 2 at TV frame 1800, and `WWHD_DUMP_FRAMES=2400` writes `frame_2400.png` (in the working
+`NSMBU_PRESS` presses A to get past the title screen, `NSMBU_STATE_LOAD_AT=1800:2` loads save-state
+slot 2 at TV frame 1800, and `NSMBU_DUMP_FRAMES=2400` writes `frame_2400.png` (in the working
 directory) to check that the run still renders correctly. The "Sort by top of stack" section of
 `sample.txt` shows where the CPU time goes. `run.log` prints the shader and pipeline counts every
 few seconds.
@@ -106,9 +106,9 @@ and vsync pacing need) from a save state with scripted input, one game at a time
 of the save and its own caches and settings files. A/B variants run interleaved:
 
 ```sh
-tools/bench/run_bench.py --binary build/cmake/wwhd --state-dir my_states --scene outset \
+tools/bench/run_bench.py --binary build/cmake/nsmbu --state-dir my_states --scene outset \
     --fps 60 --renderer vulkan --runs 6 --out build/bench/sync \
-    --variant old:WWHD_VK_LAZY_DRAW_DONE=0,WWHD_VK_ASYNC_PRESENT=0 --variant new:
+    --variant old:NSMBU_VK_LAZY_DRAW_DONE=0,NSMBU_VK_ASYNC_PRESENT=0 --variant new:
 ```
 
 `--state-dir` holds `slot<N>.bin` files made with the game's save-state keys (outset: slot 3,
@@ -148,11 +148,11 @@ in-between frames drawn (paced), frames per step is interpolation's own count.
 - 240 fps is limited by the render thread on this machine: it needs 4.4–4.7 ms of CPU per frame,
   more than one 4.17 ms tick, so an in-between pass takes two ticks and the pacer plans 3–5 of the
   7 in-between frames (the game thread needs 3.8 ms per logic pass and 1.3 ms per in-between pass,
-  `WWHD_INTERP_PASS_STATS=1`). Uncapped, the same scene draws ~200 frames a second.
+  `NSMBU_INTERP_PASS_STATS=1`). Uncapped, the same scene draws ~200 frames a second.
 - Logic stays at 29.6–30.0 steps a second in every paced mode; unpaced 240 fps uncapped shows what
   pacing prevents (25.8).
 - Visible runs present at ~115 of 120 Hz (as 60 fps runs present at 59.85 of 60).
-- A camera trace (`WWHD_INTERP_CAM_TRACE`) at 240 fps shows the eye advancing in equal eighths of
+- A camera trace (`NSMBU_INTERP_CAM_TRACE`) at 240 fps shows the eye advancing in equal eighths of
   the step (t = 1/8 … 7/8, exact at t = 1) and steps re-planned with fewer in-between frames
   spaced at 1/7 etc.
 - 60 fps output is unchanged: TV frames 700–703 (exact and halfway frames) are bit-identical to
@@ -164,7 +164,7 @@ in-between frames drawn (paced), frames per step is interpolation's own count.
 
 Apple M3 Max, MoltenVK, Vulkan renderer, `tools/bench/run_bench.py`, Outset (slot 3) and Windfall
 (slot 2) saved scenes, 40 s of scripted walking, variants interleaved, medians [min..max] over 4-6
-runs per variant. "old" = `WWHD_VK_LAZY_DRAW_DONE=0 WWHD_VK_ASYNC_PRESENT=0` (the previous desktop
+runs per variant. "old" = `NSMBU_VK_LAZY_DRAW_DONE=0 NSMBU_VK_ASYNC_PRESENT=0` (the previous desktop
 behaviour: vkDeviceWaitIdle at every GX2DrawDone, a drained queue at every present).
 
 **Lazy DrawDone and asynchronous presentation** (visible windows):
@@ -237,7 +237,7 @@ CPU translation isn't the bottleneck on this machine; the renderer work matters 
 ### Both-renderer build crashed at the first shader with Homebrew boost installed
 
 With Metal and Vulkan in one app, `CMakeLists.txt` added Vulkan's and glslang's include directory
-(`/opt/homebrew/include`) to `wwhd` as a normal `-I` path, ahead of the vendored Cemu headers. With
+(`/opt/homebrew/include`) to `nsmbu` as a normal `-I` path, ahead of the vendored Cemu headers. With
 Homebrew's `boost` installed, `metal_draw.mm` compiled against Homebrew's `static_vector` while
 `cemu_latte` used the vendored one, so `LatteDecompilerShader` was 968 bytes on one side and 920 on
 the other, and the first translated shader read a garbage `strBuf_shaderSource` (both renderers
@@ -283,14 +283,14 @@ pass over the declarations and one over the sample calls, then builds the output
 
 The output must not change: the system Metal cache is keyed by the source, so any byte difference
 would recompile every shader. Old and new produce identical output for 4,292 shaders dumped from a
-play session (`WWHD_DUMP_SHADERS=1`), plus hand-written edge cases (nested calls, two-digit slots,
+play session (`NSMBU_DUMP_SHADERS=1`), plus hand-written edge cases (nested calls, two-digit slots,
 non-2D textures, unbalanced parentheses). The new version is 25× faster (301 ms → 12 ms for that
 set). In the 20 s run, memchr/memcmp under `compile_msl` dropped from ~670 samples to ~160.
 
 ### Render thread polled for compiles (`wait_compiled`)
 
 When a draw needs a shader or pipeline that's still compiling, the render thread waits up to 25 ms
-per frame (`WWHD_COMPILE_WAIT_MS`) before skipping the draw. It used to poll: `usleep(100)` plus a
+per frame (`NSMBU_COMPILE_WAIT_MS`) before skipping the draw. It used to poll: `usleep(100)` plus a
 clock read in a loop. Metal's completion handlers now publish the result through `compile_done`,
 which signals a condition variable that `wait_compiled` sleeps on until the result arrives or the
 time runs out.
@@ -310,7 +310,7 @@ With the Vulkan renderer on macOS, the game thread's vsync wait slept until 2 ms
 busy-waited the rest, because sleep timers wake late. Measured in game, they wake 0.25–1 ms late (rarely
 1.75 ms), so most of the 2 ms was spent spinning: ~1,700 samples, 15% of Vulkan's busy CPU. The window
 now follows the measured lateness: the largest of the last 120 wakes plus 250 µs, kept within
-0.5–2 ms; a wake past the vsync puts it straight back at 2 ms. `WWHD_VSYNC_SPIN_US=n` fixes the window.
+0.5–2 ms; a wake past the vsync puts it straight back at 2 ms. `NSMBU_VSYNC_SPIN_US=n` fixes the window.
 
 | Vulkan, same 20 s run | fixed 2 ms | adaptive |
 |---|---|---|
@@ -382,9 +382,9 @@ byte, every level, xxHash) only when a page carries a newer stamp, or when the g
 stamp comparison per page and no hashing. Kernel writes into guest memory (FSReadFile's `fread`)
 are bracketed with `wwatch::HostWrite`, since a protected page would make the read fail with EFAULT
 instead of faulting. The sampled check remains only for hosts where page protection is unavailable.
-The 300-frame `[gfx]` report (Metal) and the `[vulkan textures]` line (`WWHD_VK_CPU_ONLY_STATS=1`) show
+The 300-frame `[gfx]` report (Metal) and the `[vulkan textures]` line (`NSMBU_VK_CPU_ONLY_STATS=1`) show
 full checks, hashed bytes (Metal), uploads, page write faults and pages protected;
-`WWHD_LOG_TEXCHECK=1` (Metal) logs which textures were re-checked because of a write.
+`NSMBU_LOG_TEXCHECK=1` (Metal) logs which textures were re-checked because of a write.
 
 Cost, Outset beach (states slot 4, 45 s explore walk), render-thread CPU ms/frame, two runs each,
 devel vs this change. Indicative only: measured while the machine ran other long jobs (load 5-9 on

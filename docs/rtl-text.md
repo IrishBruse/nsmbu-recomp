@@ -17,7 +17,7 @@ the log says so:
 [rtl] right-to-left text on: the message font has 36 Arabic and 0 Hebrew letters, 117 Arabic letter forms, 0 lam-alef ligatures, 0 harakat (missing ones are not drawn)
 ```
 
-`WWHD_RTL=0` keeps it off, `WWHD_RTL=1` turns it on for any pack. For every other language the
+`NSMBU_RTL=0` keeps it off, `NSMBU_RTL=1` turns it on for any pack. For every other language the
 hooks pass straight through to the game's code, and even with an Arabic pack a text without
 right-to-left letters (a name, a number) is printed by the unchanged code.
 

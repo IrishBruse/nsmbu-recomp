@@ -12,7 +12,7 @@ Save states come in two kinds that share the five slots:
 | Exact | no (see below) | yes |
 
 Both live in the states folder (its path is shown in the Saves tab; releases keep it in `data/user`, builds from source
-use `~/Library/Application Support/wwhd/states/` on macOS and the configuration folder elsewhere; `WWHD_STATE_DIR` overrides it). Loading a slot loads whichever kind it holds (the newer file if it
+use `~/Library/Application Support/nsmbu/states/` on macOS and the configuration folder elsewhere; `NSMBU_STATE_DIR` overrides it). Loading a slot loads whichever kind it holds (the newer file if it
 holds both). Crash Recovery's automatic states are always full states.
 
 ## Choosing the kind
@@ -22,9 +22,9 @@ holds both). Crash Recovery's automatic states are always full states.
 - *Full save states (large, contain game data, don't share) – for debugging* in the Saves tab (or
   the Save States menu on macOS) switches Save to full states; the choice is kept in
   `states/full_save_states.cfg`.
-- `WWHD_FULL_SAVE_STATES=1` / `=0` decides for one start. The scripted-test variables
-  `WWHD_STATE_SAVE_AT`, `WWHD_STATE_LOAD_AT`, `WWHD_TEST_SAVE` and `WWHD_TEST_LOAD` keep using full
-  states (unless `WWHD_FULL_SAVE_STATES=0`).
+- `NSMBU_FULL_SAVE_STATES=1` / `=0` decides for one start. The scripted-test variables
+  `NSMBU_STATE_SAVE_AT`, `NSMBU_STATE_LOAD_AT`, `NSMBU_TEST_SAVE` and `NSMBU_TEST_LOAD` keep using full
+  states (unless `NSMBU_FULL_SAVE_STATES=0`).
 
 A slot can hold both kinds: saving one kind never deletes the other. The slot loads (and shows) the
 newer one; when a portable state is the newer one and an older full state (`slotN.bin`) is still
@@ -55,7 +55,7 @@ Loading is not affected.
 The Saves tab's **Copy save for bug report** copies the paths of the newest portable state and of
 `cking.sav`. The issue template asks for both. A developer loads a received state by copying it
 into the states folder as `slotN.wwstate` and loading slot N, or with
-`WWHD_PORTABLE_LOAD=<file>` (applied as soon as a Quest Log is being played). `tools/savegame/wwstate.py info <file>`
+`NSMBU_PORTABLE_LOAD=<file>` (applied as soon as a Quest Log is being played). `tools/savegame/wwstate.py info <file>`
 shows what a state holds (place, hearts, items, songs, ...) and `wwstate.py to-sav <file> -o <dir>`
 turns it into a `cking.sav`.
 
@@ -64,7 +64,7 @@ turns it into a `cking.sav`.
 A UTF-8 text file of `key = value` lines (`runtime/src/portable_state.h`):
 
 - header: `format` (1), `title_id` and `title_version` (from `meta/meta.xml`), `game_hash` (a hash
-  of `cking.rpx`, to tell executables apart; not its contents), `runtime` (version and commit),
+  of `red-pro2.rpx`, to tell executables apart; not its contents), `runtime` (version and commit),
   `created`, `file_slot` (Quest Log 0–2), `player_name`;
 - place: `stage`, `start_point`, `start_room`, `layer` (how the stage was entered), `room` (Link's
   room), `link_pos`, `link_angle_y` (shape angle), `link_proc`, `on_ship` (Link rides the boat),
@@ -126,7 +126,7 @@ there; `file_slot` only drives the notice above).
 
 ## Scenario test
 
-`runtime/tools/portable_state_scenario.py <wwhd> <game> <save> <workdir> [--boat-save <dir>]
+`runtime/tools/portable_state_scenario.py <nsmbu> <game> <save> <workdir> [--boat-save <dir>]
 [--event-save <dir>]` (headless, copies of the saves only): from a copy of a save, warps into
 Link's house (and, second case, stays on Outset), walks, saves a portable state; cold boot, changes
 the rupees, loads the state, saves again once Link has arrived, and compares stage, room, position,
