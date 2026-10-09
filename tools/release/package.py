@@ -74,7 +74,7 @@ MAC_SETUP_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>NSMBU</string>
   <key>CFBundleDisplayName</key><string>NSMBU</string>
-  <key>CFBundleIdentifier</key><string>io.github.zeldansmbrecomp.nsmbu</string>
+  <key>CFBundleIdentifier</key><string>io.github.nsmbrecomp.nsmbu</string>
   <key>CFBundleExecutable</key><string>nsmbu-launcher</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>%s</string>

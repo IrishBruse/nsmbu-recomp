@@ -55,12 +55,12 @@ Apply in this order.
 4. `WindWakerHD` to `NSMBU`
 5. `wind-waker-hd` to `nsmbu-launcher`
 6. `ZeldaWWHDRecomp` to `NSMBURecomp`
-7. `zeldawwhdrecomp` to `zeldansmbrecomp`
+7. `zeldawwhdrecomp` to `nsmbrecomp`
 8. `cking.rpx` to `red-pro2.rpx`
 9. `WWHD` to `NSMBU`
 10. `wwhd` to `nsmbu`
 
-The bundle id is `io.github.zeldansmbrecomp.nsmbu`.
+The bundle id is `io.github.nsmbrecomp.nsmbu`.
 
 Step 7 comes before step 10.
 

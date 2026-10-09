@@ -1371,7 +1371,7 @@ def mac_app(app_path, exe_src, data_dir, version):
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>%s</string>
   <key>CFBundleDisplayName</key><string>%s</string>
-  <key>CFBundleIdentifier</key><string>io.github.zeldansmbrecomp.nsmbu</string>
+  <key>CFBundleIdentifier</key><string>io.github.nsmbrecomp.nsmbu</string>
   <key>CFBundleExecutable</key><string>launch</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>%s</string>
