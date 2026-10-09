@@ -52,7 +52,7 @@ int main(){
  key(SDL_SCANCODE_K,false);assert(!(input::read().buttons&input::kA));
  key(SDL_SCANCODE_W,true);assert(input::read().ly==1);
  key(SDL_SCANCODE_D,true);assert(input::read().lx>0.7f&&input::read().lx<0.71f);
- key(SDL_SCANCODE_LSHIFT,true);assert(input::read().buttons&input::kZL);
+ key(SDL_SCANCODE_LSHIFT,true);assert(input::read().buttons&input::kY);
  SDL_Event focus{};focus.type=SDL_EVENT_WINDOW_FOCUS_LOST;input::handle_event(focus);assert(input::read().buttons==0&&input::read().lx==0);
  auto map=input_map::Mapping::defaults();map.keys[input_map::kA]={input_map::key_from_id("J"),input_map::kNoKey};map.keys[input_map::kB]={input_map::kNoKey,input_map::kNoKey};input_map::set_current(map,false);
  key(SDL_SCANCODE_J,true);assert(input::read().buttons==input::kA);

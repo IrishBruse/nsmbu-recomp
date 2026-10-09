@@ -112,10 +112,9 @@ Default keyboard layout:
 | K or Space | A |
 | J | B |
 | L | X |
-| I | Y |
+| Left Shift | Y |
 | Q / E | L / R |
-| Left Shift | ZL |
-| C | ZR |
+| Left Control | ZR |
 | Enter / Tab | + / − |
 | H | Home |
 | 1 2 3 4 | D-pad up / down / left / right |

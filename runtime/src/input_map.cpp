@@ -166,8 +166,8 @@ Mapping Mapping::defaults() {
     for (auto& k : m.keys) k.fill(kNoKey);
     m.pad.fill(kPadNone);
     auto key = [&](int a, int k0, int k1 = kNoKey) { m.keys[a] = {k0, k1}; };
-    key(kA, kVK_ANSI_K, kVK_Space); key(kB, kVK_ANSI_J); key(kX, kVK_ANSI_L); key(kY, kVK_ANSI_I);
-    key(kL, kVK_ANSI_Q); key(kR, kVK_ANSI_E); key(kZL, kVK_Shift); key(kZR, kVK_ANSI_C);
+    key(kA, kVK_ANSI_K, kVK_Space); key(kB, kVK_ANSI_J); key(kX, kVK_ANSI_L); key(kY, kVK_Shift);
+    key(kL, kVK_ANSI_Q); key(kR, kVK_ANSI_E); key(kZR, kVK_Control);
     key(kPlus, kVK_Return); key(kMinus, kVK_Tab); key(kHome, kVK_ANSI_H);
     key(kDUp, kVK_ANSI_1); key(kDDown, kVK_ANSI_2); key(kDLeft, kVK_ANSI_3); key(kDRight, kVK_ANSI_4);
     key(kStickLClick, kVK_ANSI_X); key(kStickRClick, kVK_ANSI_V);

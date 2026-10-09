@@ -31,8 +31,8 @@ static void test_defaults() {
     // the hard-coded keyboard layout this replaces
     struct { int code; uint32_t bit; } old[] = {
         {kVK_ANSI_K, input::kA}, {kVK_Space, input::kA}, {kVK_ANSI_J, input::kB}, {kVK_ANSI_L, input::kX},
-        {kVK_ANSI_I, input::kY}, {kVK_ANSI_Q, input::kL}, {kVK_ANSI_E, input::kR}, {kVK_Shift, input::kZL},
-        {kVK_ANSI_C, input::kZR}, {kVK_Return, input::kPlus}, {kVK_Tab, input::kMinus}, {kVK_ANSI_H, input::kHome},
+        {kVK_Shift, input::kY}, {kVK_ANSI_Q, input::kL}, {kVK_ANSI_E, input::kR},
+        {kVK_Control, input::kZR}, {kVK_Return, input::kPlus}, {kVK_Tab, input::kMinus}, {kVK_ANSI_H, input::kHome},
         {kVK_ANSI_1, input::kUp}, {kVK_ANSI_2, input::kDown}, {kVK_ANSI_3, input::kLeft}, {kVK_ANSI_4, input::kRight},
         {kVK_ANSI_X, input::kStickL}, {kVK_ANSI_V, input::kStickR},
     };
