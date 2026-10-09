@@ -15,6 +15,10 @@ there:
     libraries copied into sdk/ and libgamecode.a replaced by the player's own.
 
 Output: OUT_DIR/NSMBU-VERSION-NAME/ and OUT_DIR/NSMBU-VERSION-NAME.zip.
+
+The zip is the portable release (portable.txt). For the single-file Linux AppImage (issue #55) run
+tools/release/appimage.py on the folder this produced: it drops portable.txt, so the read-only mount
+sends every write to the per-user folders.
 """
 import argparse
 import hashlib
@@ -38,9 +42,13 @@ TOOL_FILES = [
     "tools/recomp/recomp.py",
     "tools/recomp/analyze.py",
     "tools/recomp/ppc2c.py",
+    "tools/recomp/builds.py",
+    "tools/guestmod/build_guest_mod.py",
+    "tools/guestmod/guestmod.py",
 ]
 INSTALLER_FILES = [
     "tools/installer/setup.py",
+    "tools/installer/code_mods.py",
     "tools/installer/toolchains.json",
     "tools/installer/README.md",
 ]
@@ -316,6 +324,13 @@ def make_zip(src_dir, zip_path):
                     z.writestr(info, f.read(), compresslevel=9)
 
 
+def copy_sdk_headers(pkg):
+    """Shared by every platform: public declarations use nsmbu/, never a game/ tree."""
+    shutil.copytree(os.path.join(ROOT, "runtime", "include"), os.path.join(pkg, "sdk", "include"))
+    shutil.copytree(os.path.join(ROOT, "runtime", "guest", "include"),
+                    os.path.join(pkg, "sdk", "guest", "include"))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", required=True)
@@ -342,7 +357,7 @@ def main():
 
     driver, link, nobj, nlib = build_link_recipe(build, pkg, a.linkonly_lib)
     cflags = gamecode_flags(build)
-    shutil.copytree(os.path.join(ROOT, "runtime", "include"), os.path.join(pkg, "sdk", "include"))
+    copy_sdk_headers(pkg)
     runtime_files = []
     for f in a.runtime_file:
         copy(f, os.path.join(pkg, "sdk", "runtime", os.path.basename(f)))
@@ -370,6 +385,11 @@ def main():
     for hp in sorted(os.listdir(os.path.join(ROOT, "tools", "recomp"))):
         if re.match(r"hooks.*\.txt$", hp):
             copy(os.path.join(ROOT, "tools", "recomp", hp), os.path.join(pkg, "tools", "recomp", hp))
+    # the address maps of the builds the port can be made from (tools/recomp/builds.py, docs/builds.md)
+    for bp in sorted(os.listdir(os.path.join(ROOT, "tools", "recomp", "builds"))):
+        if bp.endswith(".json"):
+            copy(os.path.join(ROOT, "tools", "recomp", "builds", bp),
+                 os.path.join(pkg, "tools", "recomp", "builds", bp))
     # the extractor must be self-contained: zstd from the pinned source, linked statically (cmake/Zstd.cmake)
     try:
         with open(os.path.join(build, "nsmbu-zstd.txt")) as f:

@@ -11,6 +11,9 @@
 #endif
 #include <ctime>
 #include <filesystem>
+#include "guest_addr.h"
+#include "mods/guest_mods.h"
+#include "mods/code_mods.h"
 #include "platform/host.h"
 #ifdef _WIN32
 #include <timeapi.h>
@@ -30,6 +33,7 @@
 #include "crash_addr.h"
 #include "build_info.h"
 #include "crashrec.h"
+#include "crash_context.h"
 #include "input.h"
 #include "mods/manager.h"
 #include "mods/mods.h"
@@ -57,13 +61,15 @@ void mem_init_data_imports(uint32_t alloc_slot, uint32_t alloc_ex_slot, uint32_t
 // captures/crash-<time>.log (registers, guest return chain, host backtrace, crash recovery's
 // automatic state, the last log lines). Only write() and preformatted text after the crash.
 static int g_crash_fd = -1;
-static void crash_out(int fd, const char* s, size_t n) {
+static void crash_raw(int fd, const char* s, size_t n) {
     if (write(2, s, n) < 0) {}
     if (fd >= 0 && write(fd, s, n) < 0) {}
 }
-static void crash_log_only(int fd, const char* s, size_t n) {
+static void crash_log_raw(int fd, const char* s, size_t n) {
     if (fd >= 0 && write(fd, s, n) < 0) {}
 }
+static void crash_out(int fd, const char* s, size_t n) { crash_context::redact(fd, {s,n}, crash_raw); }
+static void crash_log_only(int fd, const char* s, size_t n) { crash_context::redact(fd, {s,n}, crash_log_raw); }
 static void crash_handler(int sig, siginfo_t* si, void* uctx) {
     uintptr_t a = (uintptr_t)si->si_addr;
     uintptr_t base = (uintptr_t)PPC_MEM_BASE;
@@ -122,6 +128,7 @@ static void crash_handler(int sig, siginfo_t* si, void* uctx) {
         crash_out(fd, "\n", 1);
     }
     crash_addr::host_backtrace(fd, crash_out, uctx);
+    crash_context::note(fd, crash_out);
     crashrec::crash_note(fd, crash_out);
     if (fd >= 0) {
         crash_log_only(fd, "\n--- last log lines ---\n", 24);
@@ -155,11 +162,13 @@ static void install_crash_handler() {
 }
 
 #else
-static void win_crash_out(int fd, const char* s, size_t n) {
+static void win_crash_raw(int fd, const char* s, size_t n) {
     fwrite(s, 1, n, stderr);
     if (fd >= 0) _write(fd, s, (unsigned)n);
 }
-static void win_crash_log_only(int fd, const char* s, size_t n) { if (fd >= 0) _write(fd, s, (unsigned)n); }
+static void win_crash_log_raw(int fd, const char* s, size_t n) { if (fd >= 0) _write(fd, s, (unsigned)n); }
+static void win_crash_out(int fd, const char* s, size_t n) { crash_context::redact(fd, {s,n}, win_crash_raw); }
+static void win_crash_log_only(int fd, const char* s, size_t n) { crash_context::redact(fd, {s,n}, win_crash_log_raw); }
 static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
     auto code=ex->ExceptionRecord->ExceptionCode;
     std::error_code ec; std::filesystem::create_directories("captures",ec);
@@ -188,6 +197,7 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
     }
     if(Cpu* c=threads::current()){n=snprintf(buf,sizeof buf,"guest lr=%08X ctr=%08X\n",c->lr,c->ctr); win_crash_out(fd,buf,n);}
     crash_addr::host_backtrace(fd,win_crash_out,ex->ContextRecord);
+    crash_context::note(fd,win_crash_out);
     crashrec::crash_note(fd,win_crash_out);
     if(fd>=0){win_crash_log_only(fd,"\n--- last log lines ---\n",24); log_ring_write(fd,win_crash_log_only); _close(fd); fprintf(stderr,"[crash] wrote %s\n",path);}
     if(g_ppc_trace) { FILE* f=fopen("trace_dump.txt","w"); if(f){trace_dump(f,3000);fclose(f);} }
@@ -247,7 +257,59 @@ static void default_vulkan_cpu_paths() {
     }
 }
 
+// captures/nsmbu.log: the whole log of this run (the previous run's is kept as nsmbu-previous.log), so
+// players can attach it to an issue; on Windows the console output of the game is otherwise lost.
+// User paths are redacted as in crash logs. NSMBU_LOG_FILE=<path> writes elsewhere, =0 turns it off
+// (Android: off unless set; logcat has it). The file stops at 64 MiB.
+static int g_log_fd = -1;
+static size_t g_log_bytes = 0;
+static constexpr size_t kLogFileMax = 64u << 20;
+static void log_file_raw(int fd, const char* s, size_t n) {
+#ifdef _WIN32
+    if (fd >= 0) _write(fd, s, (unsigned)n);
+#else
+    if (fd >= 0 && write(fd, s, n) < 0) {}
+#endif
+}
+static void log_file_line(int fd, const char* s, size_t n) {
+    crash_context::redact(fd, {s, n}, log_file_raw);
+    if (n == 0 || s[n - 1] != '\n') log_file_raw(fd, "\n", 1);
+}
+static void log_file_sink(const char* s, size_t n) {
+    if (g_log_fd < 0 || g_log_bytes > kLogFileMax) return;
+    log_file_line(g_log_fd, s, n);
+    g_log_bytes += n + 1;
+    if (g_log_bytes > kLogFileMax) {
+        static const char note[] = "[log] the log file reached 64 MiB; later lines go to the console only\n";
+        log_file_raw(g_log_fd, note, sizeof note - 1);
+    }
+}
+static void start_log_file() {
+    const char* e = getenv("NSMBU_LOG_FILE");
+    if (e && !strcmp(e, "0")) return;
+#ifdef __ANDROID__
+    if (!e || !*e) return;
+#endif
+    std::string path = e && *e ? e : "captures/nsmbu.log";
+    std::error_code ec;
+    if (!(e && *e)) {
+        std::filesystem::create_directories("captures", ec);
+        std::filesystem::remove("captures/nsmbu-previous.log", ec);
+        std::filesystem::rename(path, "captures/nsmbu-previous.log", ec);
+    }
+#ifdef _WIN32
+    g_log_fd = _open(path.c_str(), _O_WRONLY | _O_CREAT | _O_TRUNC | _O_BINARY, _S_IREAD | _S_IWRITE);
+#else
+    g_log_fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+#endif
+    if (g_log_fd < 0) { LOG("[log] cannot write %s", path.c_str()); return; }
+    log_ring_write(g_log_fd, log_file_line);  // the lines logged before (only the boot so far)
+    log_set_sink(log_file_sink);
+    LOG("[log] writing %s", path.c_str());
+}
+
 int main(int argc, char** argv) {
+    mods::code::startup(argc, argv);
     apply_portable_mode();
     default_vulkan_cpu_paths();
 #ifdef _WIN32
@@ -297,7 +359,9 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--renderer-smoke")) renderer_smoke = true;
 #endif
     }
+    crash_context::initialize();
     install_crash_handler();
+    start_log_file();
     // which build on which system: also in crash logs (their last log lines)
     LOG("[boot] %s %s (%s), %s", app_title::kName, build::version(), build::commit(), reporthdr::os_description().c_str());
     // test aid: NSMBU_TEST_HOST_CRASH=1 crashes inside a system library (strlen of a bad pointer), so
@@ -333,6 +397,7 @@ int main(int argc, char** argv) {
     mods::manager::load_saved();
     mods::cemu::set_vulkan(render::requested()==render::Api::Vulkan);
     mods::content::set_game_root(config::game_dir);  // loose imports (fan translations) find their game path
+    mods::packages::set_code_mod_support(guestmods::hooks_built() && mods::code::enabled());
     mods::packages::initialize();
     mem::init();
     auto valid_mod_memory = [](uint32_t address, size_t size) {
@@ -358,10 +423,11 @@ int main(int argc, char** argv) {
     std::string rpx = config::rpx_path();
     if (!load_rpx(rpx, m)) fatal("cannot load %s", rpx.c_str());
     if (m.entry != g_recomp_entry_point) fatal("%s does not match the recompiled code", rpx.c_str());
-    LOG("[boot] loaded %s: entry %08X sda %08X sda2 %08X data end %08X", rpx.c_str(), m.entry, m.sda_base, m.sda2_base,
-        m.data_end);
+    LOG("[boot] loaded %s (%s build, title %s): entry %08X sda %08X sda2 %08X data end %08X", rpx.c_str(),
+        g_guest_build_name, g_guest_build_title_id, m.entry, m.sda_base, m.sda2_base, m.data_end);
 
     dispatch::init();
+    guestmods::init();  // trusted manager packages, before guest threads start
     init_data_imports();
     mem_setup_heaps(m.data_end);
     threads::init(m);

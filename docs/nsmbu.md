@@ -2,35 +2,25 @@
 
 ## Upstream base
 
-Use this commit when you rebase onto a newer Wind Waker HD recomp.
+Use this commit as the last Wind Waker HD recomp commit in this tree.
 
 Repository: https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp
 
 Branch: `main`
 
-Commit: `853d7b18c8c6703c5fc50c40cb923c1fb9503ecd`
+Commit: `defb89f21607345e2e97b2c145a071a3f362640c`
 
-Subject: `README: v0.2.8 notes, shorter language-source line`
+Subject: `Recompiler: mulli, mullw and neg without signed overflow in the generated C (#82)`
 
-Author date: Thu Oct 8 13:37:16 2026 +0200
-
-Local `main` points at that commit.
+Author date: Fri Oct 9 11:22:57 2026 +0200
 
 The remote name in this clone is `upstream`.
 
 The archived Wind Waker HD readme is [upstream-wwhd-readme.md](upstream-wwhd-readme.md).
 
-This clone is shallow.
+The next update is one merge, not a rebase.
 
-It stores that commit only.
-
-Fetch the full history before a rebase.
-
-```bash
-git fetch --unshallow upstream
-git fetch upstream main
-git rebase --onto upstream/main 853d7b18c8c6703c5fc50c40cb923c1fb9503ecd
-```
+Follow `.cursor/skills/upstream-merge/SKILL.md`.
 
 ## What you can reuse
 

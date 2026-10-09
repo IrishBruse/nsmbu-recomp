@@ -4,6 +4,10 @@
 // changes on their main thread (hostui.h).
 #include "app_title.h"
 #include "overlay.h"
+#include "perf_average.h"
+#ifdef __ANDROID__
+#include "android_telemetry.h"
+#endif
 
 #include <algorithm>
 #include <cstdarg>
@@ -21,12 +25,16 @@
 
 #include "imgui.h"
 #include "hostui.h"
+#include "../mods/code_mods.h"
 #include "controls_view.h"
 #include "text_entry.h"
 #include "../aspect.h"
 #include "../crashrec.h"
 #include "../game_languages.h"
 #include "../gfx/renderer.h"
+#ifdef __ANDROID__
+#include "../gfx/vulkan/android_driver.h"
+#endif
 #ifdef NSMBU_HAS_VULKAN
 #include "../gfx/vulkan/settings.h"
 namespace gfxvk { bool buffer_cache_enabled(); }  // gfx/vulkan/buffer_cache.h
@@ -41,6 +49,7 @@ namespace gfxvk { bool buffer_cache_enabled(); }  // gfx/vulkan/buffer_cache.h
 #include "../interp.h"
 #include "../runtime.h"
 #include "../savestate.h"
+#include "../screenshot.h"
 #include "../render_prof.h"
 #include "../build_info.h"
 #include "../report_header.h"
@@ -55,6 +64,7 @@ double now_s() { return std::chrono::duration<double>(clock::now().time_since_ep
 
 std::atomic<bool> g_open{false};
 std::atomic<bool> g_perf{false};
+PerfAverage g_average;
 std::atomic<float> g_density{1.0f};
 std::atomic<bool> g_wait_release{false};  // just closed: the game sees no buttons until all are released
 std::atomic<double> g_last_frame{0};      // frame() ran (alive(): the game's text prompt can show)
@@ -460,6 +470,7 @@ void tab_saves() {
             if (!s.used) ImGui::TextDisabled("empty");
             else {
                 std::string d = s.when + (s.area.empty() ? "" : "  -  " + s.area);
+                if (!s.controller.empty()) d += "  -  " + s.controller;
                 if (!s.portable) d += "  (full)";
                 if (!s.compatible) d += "  (incompatible)";
                 ImGui::TextUnformatted(d.c_str());
@@ -509,6 +520,31 @@ void tab_saves() {
     help(ss::full_states_forced() ? "Set by NSMBU_FULL_SAVE_STATES or a test variable for this start."
                                   : "Saves the whole running game instead (about 300 MB per slot), exactly as it is. "
                                     "These files contain game code and data: never attach them to a bug report.");
+    heading("Screenshots");
+    {
+        // the Screenshot binding (Controls tab): its keys and controller input
+        const input_map::Mapping m = input_map::current();
+        std::string keys;
+        for (int k : m.keys[input_map::kScreenshot])
+            if (k != input_map::kNoKey) keys += (keys.empty() ? "" : " or ") + input_map::key_label(k);
+        if (m.pad[input_map::kScreenshot] != input_map::kPadNone)
+            keys += (keys.empty() ? "controller " : " or controller ") + std::string(input_map::pad_short_label(m.pad[input_map::kScreenshot]));
+        if (keys.empty()) note("Screenshot is not bound: set a key in the Controls tab (Screenshot).");
+        else note("%s in game saves the TV picture as a PNG at the internal resolution, without this menu (change the key in Controls).", keys.c_str());
+    }
+    bool gp;
+    if (check("Also save the GamePad screen (while it is shown)", screenshot::gamepad_too(), &gp))
+        hostui::post([gp] { screenshot::set_gamepad_too(gp); });
+    help("A second file, ..._GamePad.png, while the GamePad picture is on screen (its window or the overlay in the TV picture).");
+    if (hostui::can_open_folder()) {
+        if (ImGui::Button("Open screenshots folder")) {
+            std::string d = screenshot::dir();
+            hostui::post([d] { hostui::open_folder(d); });
+        }
+        ImGui::SameLine();
+    }
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", screenshot::dir().c_str());
     heading("Crash Recovery");
     bool on;
     if (check("Crash Recovery (automatic state every few minutes)", crashrec::enabled(), &on)) crashrec::set_enabled(on);
@@ -532,6 +568,25 @@ void tab_saves() {
 }
 
 void tab_graphics() {
+#ifdef __ANDROID__
+    heading("GPU driver (Snapdragon / Adreno)");
+    note("Active: %s", gfxvk::drivers::active_name().c_str());
+    auto driver_action = [](auto fn) { hostui::post([fn] { try { fn(); } catch (const std::exception& e) { LOG("[vulkan driver] %s", e.what()); } }); };
+    if (ImGui::Button("Install driver ZIP...")) driver_action([] { gfxvk::drivers::request_install(); });
+    auto selected = gfxvk::drivers::selection();
+    if (radio("System driver", selected.empty())) driver_action([] { gfxvk::drivers::select(""); });
+    for (const auto& driver : gfxvk::drivers::installed()) {
+        ImGui::PushID(driver.id.c_str());
+        auto id = driver.id;
+        if (radio((driver.name + " " + driver.version).c_str(), selected == id))
+            driver_action([id] { gfxvk::drivers::select(id); });
+        ImGui::SameLine();
+        if (ImGui::Button("Remove")) driver_action([id] { gfxvk::drivers::remove(id); });
+        ImGui::PopID();
+    }
+    note("%s", gfxvk::drivers::message().c_str());
+    help("Driver changes take effect on restart. An unfinished first 120-frame probe selects the system driver on the next start.");
+#endif
     if (render::can_choose()) {
         heading("Renderer (takes effect after a restart)");
         for (render::Api a : {render::Api::Metal, render::Api::Vulkan}) {
@@ -577,11 +632,16 @@ void tab_graphics() {
     }
     if (m == 1) {
         bool paced;
-        if (check("Keep game speed", interp::paced_interpolation(), &paced, !getenv("NSMBU_INTERP_PACED")))
+        if (check("Keep game speed (recommended)", interp::paced_interpolation(), &paced, !getenv("NSMBU_INTERP_PACED")))
             post_changed([paced] { interp::set_paced_interpolation(paced); });
         help("When the computer cannot draw all frames, skip in-between frames instead of slowing the\n"
              "whole game down. The performance overlay shows how many are drawn.\n"
+             "Off: every logic step waits for all of its frames, so if the frame target is not reached\n"
+             "(e.g. 120/165/240 fps at a high internal resolution) the whole game runs in slow motion.\n"
              "Saved for 120, 165 and 240 fps.");
+        if (!interp::paced_interpolation())
+            note("Off: if this computer cannot reach %d fps, the whole game slows down (the performance\n"
+                 "overlay then shows fewer than 30 logic steps/s). Turn it on to keep the game's speed.", interp::fps());
     }
     // debug only, not saved (gx2::uncapped)
     bool unc;
@@ -610,6 +670,15 @@ void tab_graphics() {
 
     heading("Effects");
     bool v;
+    float bloom = render::bloom_strength() * 100.0f;
+    ImGui::SetNextItemWidth(260);
+    if (ImGui::SliderFloat("Bloom strength", &bloom, 0.0f, 200.0f, "%.0f%%", ImGuiSliderFlags_AlwaysClamp))
+        post_changed([bloom] { render::set_bloom_strength(bloom / 100.0f); });
+    ImGui::SameLine();
+    if (ImGui::Button("Off##bloom")) post_changed([] { render::set_bloom_strength(0.0f); });
+    ImGui::SameLine();
+    if (ImGui::Button("Default##bloom")) post_changed([] { render::set_bloom_strength(1.0f); });
+    help("Glow around bright areas. 100% matches the original game; 0% turns bloom off. Applies immediately.");
     const bool ao_ok = render::feature_available(render::kFeatureAO);
     static const char* const ao[] = {"AO: original", "AO: centre fix", "AO: centre + noise fix"};
     for (int i = 0; i < 3; i++) {
@@ -658,6 +727,7 @@ void tab_graphics() {
 #endif
     heading("Overlay");
     if (check("Performance overlay (FPS, frame time)", perf_shown(), &v)) set_perf_shown(v);
+    if (ImGui::Button("Reset performance averages")) g_average.reset();
     // the render-thread profiler's latest report (render_prof.h), for performance bug reports
     static double copiedAt = -10;
     if (ImGui::Button("Copy performance report")) {
@@ -790,7 +860,11 @@ void native_confirm_dialog(NativeConfirm& c, std::string& error) {
     if (accept) {
         bool ok = true;
         for (const auto& [id, name] : c.native) ok = ok && confirm_native(id, error);
-        if (ok) enable(c.id, true, error);
+        if (ok) {
+            if(needs_code_mod_support(c.id)) {
+                mods::code::request(true,c.id);
+            } else enable(c.id, true, error);
+        }
     }
     if (answered) {
         c = NativeConfirm{};
@@ -847,7 +921,13 @@ void package_controls() {
     });
     ImGui::SetNextItemWidth(-140);
     ImGui::InputText("Package path", source, sizeof source);
-    if (ImGui::Button("Install package")) install(source, error);
+    bool install_now=ImGui::Button("Install package");
+    static const char* test_install=g_no_host?getenv("NSMBU_TEST_MOD_INSTALL"):nullptr;
+    if(test_install){snprintf(source,sizeof source,"%s",test_install);test_install=nullptr;install_now=true;}
+    if(install_now) {
+        std::string installed_id;
+        if(install(source,error,&installed_id)&&needs_code_mod_support(installed_id))mods::code::request(true);
+    }
     ImGui::SameLine();
     if (ImGui::Button("Refresh packages")) refresh(error);
     auto path = directory();
@@ -862,16 +942,20 @@ void package_controls() {
         if (test_enable && mod.id == test_enable) { toggled = on = true; test_enable = nullptr; }
         if (toggled) {
             auto native = on ? unconfirmed_native(mod.id) : decltype(unconfirmed_native(mod.id)){};
-            if (native.empty()) enable(mod.id, on, error);
+            if (native.empty()) {
+                if(on&&needs_code_mod_support(mod.id)) {
+                    mods::code::request(true,mod.id);
+                } else enable(mod.id, on, error);
+            }
             else confirm = {mod.id, mod.name, std::move(native), true};
         }
         ImGui::SameLine();
         if (installed.size() == 1) ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         bool expanded = ImGui::TreeNode("details", "%s · %s", mod.name.c_str(), mod.version.c_str());
         if (expanded) {
-            note("%s · %s", mod.kind == "native" ? "Native mod" : mod.kind == "cemu" ? "Cemu graphics / shader pack" : mod.kind == "content" ? "Model / texture / UI replacement" : "Built-in settings preset",
+            note("%s · %s", mod.kind == "native" ? "Native mod" : mod.kind == "guest" ? "Guest mod" : mod.kind == "cemu" ? "Cemu graphics / shader pack" : mod.kind == "content" ? "Model / texture / UI replacement" : "Built-in settings preset",
                  mod.pending_restart ? "Restart required" : mod.active ? "Active" : mod.enabled ? "Waiting for game update" : "Disabled");
-            if (mod.kind == "native" && mod.compatible)
+            if ((mod.kind == "native" || mod.kind == "guest") && mod.compatible)
                 note(mod.native_confirmed ? "Runs native code with the game's permissions (you confirmed this version)."
                                           : "Runs native code with the game's permissions. Enabling it asks you to confirm first.");
             if (!mod.author.empty()) note("By %s", mod.author.c_str());
@@ -914,6 +998,39 @@ void package_controls() {
         ImGui::PopID();
     }
     native_confirm_dialog(confirm, error);
+}
+
+void code_mod_dialog() {
+    auto status=mods::code::status();
+    if(!status.requested)return;
+    // Explicit test acceptance drives the same offer/rebuild path in an isolated,
+    // input-free run. The normal native-code trust check still runs first.
+    static bool test_accepted=false;
+    if(g_no_host&&getenv("NSMBU_TEST_CODE_MOD_REBUILD")&&!test_accepted&&!status.building&&!status.ready) {
+        test_accepted=true;mods::code::begin();
+    }
+    ImGui::OpenPopup("Rebuild code-mod support");
+    if(ImGui::BeginPopupModal("Rebuild code-mod support",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
+        if(status.ready) {
+            ImGui::TextWrapped("Game code is ready. Restart the game to apply the change.");
+            if(!status.error.empty())ImGui::TextWrapped("%s",status.error.c_str());
+            if(ImGui::Button("Restart now"))hostui::post([] {std::string error;if(!mods::code::restart(error))fprintf(stderr,"[code mods] %s\n",error.c_str());});
+            ImGui::SameLine();
+            if(ImGui::Button("Later")){mods::code::dismiss();ImGui::CloseCurrentPopup();}
+        } else if(status.building) {
+            ImGui::TextUnformatted(status.stage.c_str());
+            if(status.total)ImGui::ProgressBar(float(status.done)/status.total,ImVec2(360,0));
+            if(ImGui::Button("Cancel rebuild"))mods::code::cancel();
+        } else {
+            if(status.target)ImGui::TextWrapped("This mod needs code-mod support. Enable it now?");
+            ImGui::TextWrapped("Code mods need the game code to be rebuilt %s mod support, about 5 minutes. Rebuild now?",status.target?"with":"without");
+            if(!status.error.empty())ImGui::TextWrapped("%s",status.error.c_str());
+            if(ImGui::Button("Rebuild now"))mods::code::begin();
+            ImGui::SameLine();
+            if(ImGui::Button("Cancel")){mods::code::dismiss();ImGui::CloseCurrentPopup();}
+        }
+        ImGui::EndPopup();
+    }
 }
 
 void tab_mods() {
@@ -1164,6 +1281,28 @@ void tab_controls() {
                     ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x);
     ImGui::Checkbox("List view", &U.list_view);
     help("A plain table of all inputs instead of the controller drawing");
+    // face-button preset (issue #78): which host face buttons drive A/B/X/Y
+    const input_map::FaceLayout fl = input_map::face_layout(m);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Face buttons");
+    ImGui::SameLine();
+    if (radio(input_map::face_layout_label(input_map::FaceLayout::kPosition), fl == input_map::FaceLayout::kPosition)) {
+        input_map::apply_face_layout(m, input_map::FaceLayout::kPosition);
+        input_map::set_current(m);
+    }
+    ImGui::SameLine();
+    if (radio(input_map::face_layout_label(input_map::FaceLayout::kLabels), fl == input_map::FaceLayout::kLabels)) {
+        input_map::apply_face_layout(m, input_map::FaceLayout::kLabels);
+        input_map::set_current(m);
+    }
+    help("How the controller's face buttons drive the Wii U's A/B/X/Y. By position: the bottom "
+         "button is B (Nintendo layout). By label: the button named A is A — on an Xbox pad that "
+         "makes A accept/act and B go back (issue #78). Only these four bindings are rewritten; "
+         "keyboard keys and the other inputs stay as they are.");
+    if (fl == input_map::FaceLayout::kCustom) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(custom)");
+    }
     // status line: capture prompt > note > hovered input > duplicates > help
     std::string status;
     ImVec4 sc(0.70f, 0.78f, 0.84f, 1.0f);
@@ -1400,6 +1539,23 @@ void perf_window(bool menu_open) {
                           ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoInputs;
     if (ImGui::Begin("##perf", nullptr, fl)) {
         ImGui::Text("%.0f fps   %.1f ms (worst %.1f)", U.fps, sum / 120.0f, worst);
+        ImGui::Text("Average %.1f fps   %.1f logic steps/s", g_average.fps, g_average.logic);
+        {
+            // slow motion: frame interpolation without Keep game speed below its frame target
+            static double t0 = 0; static uint64_t s0 = 0; static double rate = 30;
+            if (t0 == 0 || t - t0 < 0) { t0 = t; s0 = interp::executed_steps(); }
+            else if (t - t0 >= 2.0) { rate = (double)(interp::executed_steps() - s0) / (t - t0); t0 = t; s0 = interp::executed_steps(); }
+            if (interp::mode() == 1 && !interp::paced_interpolation() && rate > 1 && rate < 26)
+                ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "Slow motion: %.0f of 30 logic steps/s. Turn on Keep game speed", rate);
+        }
+#ifdef __ANDROID__
+        static AndroidTelemetry telemetry;
+        static double next_read = 0;
+        if (t >= next_read) { telemetry.read(); next_read = t + 2; }
+        if (telemetry.busy >= 0) ImGui::Text("GPU busy %.0f%%", telemetry.busy);
+        for (const auto& [name, value] : telemetry.temperatures)
+            ImGui::Text("%s %.1f C", name.c_str(), value);
+#endif
         ImGui::PlotLines("##ft", U.frame_ms, 120, U.frame_i, nullptr, 0.0f, 50.0f, ImVec2(220, 36));
         ImGui::TextDisabled("%s  %gx  %s", render::api_name(render::active()), hostui::res_scale(), interp::mode_name());
         if (float share = interp::paced_drawn_share(); share >= 0)
@@ -1430,6 +1586,7 @@ void settings_window() {
             if (controller_pressed(input_map::kPadLB)) U.select_tab = (U.tab + kTabs - 1) % kTabs;
             if (controller_pressed(input_map::kPadRB)) U.select_tab = (U.tab + 1) % kTabs;
         }
+        code_mod_dialog();
         if (ImGui::BeginTabBar("tabs", ImGuiTabBarFlags_FittingPolicyShrink)) {
             for (int i = 0; i < kTabs; i++) {
                 ImGuiTabItemFlags f = U.select_tab == i ? ImGuiTabItemFlags_SetSelected : 0;
@@ -1583,6 +1740,8 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
     }
     U.last_present = t;
     g_last_frame = t;
+    g_average.sample(t, gx2::flips_presented(), interp::executed_steps(), int(render::active()),
+                     interp::mode(), interp::fps(), hostui::res_scale());
     read_controller();
     // the game's text prompt shows unless the menu is open over it (the menu has the input then)
     const bool open = is_open(), perf = perf_shown(), text = !open && text_entry::active();

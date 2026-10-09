@@ -126,7 +126,7 @@ See [docs/gyro.md](docs/gyro.md).
 
 ## Developers
 
-The tree starts from [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) commit `853d7b18c8c6703c5fc50c40cb923c1fb9503ecd`.
+The tree starts from [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) commit `defb89f21607345e2e97b2c145a071a3f362640c`.
 
 These commands are for a source checkout.
 Players use a [release](#install).
