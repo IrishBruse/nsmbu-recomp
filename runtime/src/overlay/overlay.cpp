@@ -2,6 +2,7 @@
 // In-game settings overlay: the Dear ImGui user interface (see overlay.h). The renderers draw the
 // resulting ImDrawData (gfx/overlay_metal.mm, gfx/vulkan/overlay.cpp); the hosts feed input and apply
 // changes on their main thread (hostui.h).
+#include "app_title.h"
 #include "overlay.h"
 
 #include <algorithm>
@@ -549,9 +550,8 @@ void tab_graphics() {
     }
     heading("Frame rate");
     int m = interp::mode(), f = interp::fps();
-    if (radio("30 fps (original)", m == 0)) post_changed([] { interp::set_mode(0); });
-    for (int r : {60, 120, 240}) {
-        ImGui::SameLine();
+    for (int r : {60, 120, 165, 240}) {
+        if (r != 60) ImGui::SameLine();
         char label[16];
         snprintf(label, sizeof label, "%d fps", r);
         const bool on = r == 60 ? m != 1 : m == 1 && f == r;
@@ -560,11 +560,9 @@ void tab_graphics() {
             else { interp::set_fps(r); interp::set_mode(1); }
         });
     }
-    help("60, 120 and 240 fps: frame interpolation. The game logic keeps its 30 steps a second, and the\n"
-         "frames in between are drawn blended (1 in-between frame per step at 60 fps, 3 at 120 fps,\n"
-         "7 at 240 fps). The display shows at most its refresh rate: higher choices draw that many.");
-    if (radio("True 60 (experimental)", m == 2)) post_changed([] { interp::set_mode(2); });
-    help("True 60 runs the game logic at 60 steps per second");
+    help("60 fps is the game rate.\n"
+         "120, 165 and 240 fps are the higher rates. The game logic stays at 60 steps a second.\n"
+         "The display shows at most its refresh rate.");
     // the display's refresh rate, and what the chosen rate draws on it (interp::output_fps)
     if (const int hz = interp::display_hz(); hz > 0) {
         const int out = interp::output_fps();
@@ -583,7 +581,7 @@ void tab_graphics() {
             post_changed([paced] { interp::set_paced_interpolation(paced); });
         help("When the computer cannot draw all frames, skip in-between frames instead of slowing the\n"
              "whole game down. The performance overlay shows how many are drawn.\n"
-             "Saved separately for 60 fps (off by default) and 120/240 fps (on by default).");
+             "Saved for 120, 165 and 240 fps.");
     }
     // debug only, not saved (gx2::uncapped)
     bool unc;
@@ -1369,7 +1367,7 @@ void tab_about() {
              game_lang::name(U.language));
     }
     heading("About");
-    ImGui::Text("The Legend of Zelda: The Wind Waker HD - native port (%s host, %s renderer)", hostui::name(),
+    ImGui::Text("%s - native port (%s host, %s renderer)", app_title::kName, hostui::name(),
                 render::api_name(render::active()));
 #ifdef __APPLE__
     note("Settings overlay: F1 (Fn+F1 on most Mac keyboards), Cmd+, or Settings... in the app menu, or hold Select / "
@@ -1426,7 +1424,7 @@ void settings_window() {
         ImGui::SetNextWindowFocus();  // keyboard / controller navigation starts in the menu
         U.just_opened = false;
     }
-    if (ImGui::Begin("Wind Waker HD  -  Settings", &open, fl)) {
+    if (ImGui::Begin(app_title::kSettings, &open, fl)) {
         // L / R on a controller switch tabs
         if (U.cap_action < 0 && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
             if (controller_pressed(input_map::kPadLB)) U.select_tab = (U.tab + kTabs - 1) % kTabs;

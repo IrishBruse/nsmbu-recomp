@@ -151,6 +151,8 @@ void log_ring_write(int fd, void (*out)(int, const char*, size_t));
 
 // ---- configuration ----
 namespace config {
-extern std::string game_dir;   // extracted game root (contains code/, content/, meta/)
-extern std::string save_dir;   // host directory for save data
+extern std::string game_dir;
+extern std::string save_dir;
+inline constexpr const char kRpxName[] = "red-pro2.rpx";
+inline std::string rpx_path() { return game_dir + "/code/" + kRpxName; }
 }

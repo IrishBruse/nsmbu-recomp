@@ -98,7 +98,9 @@ static void test_cap() {
     CHECK(cap_fps(120, 60, true) == 60);
     CHECK(cap_fps(120, 144, true) == 120);
     CHECK(cap_fps(240, 144, true) == 120);
-    CHECK(cap_fps(240, 165, true) == 120);
+    CHECK(cap_fps(240, 165, true) == 165);
+    CHECK(cap_fps(165, 165, true) == 165);
+    CHECK(cap_fps(165, 144, true) == 120);
     CHECK(cap_fps(240, 240, true) == 240);
     CHECK(cap_fps(240, 239, true) == 240);  // 239.76 Hz modes
     CHECK(cap_fps(120, 119, true) == 120);  // 119.88 Hz

@@ -120,27 +120,31 @@ void set_display_hz(int hz) {
 void set_present_vsync(bool on) {
     if (g_present_vsync.exchange(on) != on) LOG("[interp] presentation %s the display's vsync", on ? "waits for" : "does not wait for");
 }
-// in-between frames per logic step of the current mode (true 60: its one half pass)
-int in_between() { return interp_on() ? output_fps() / 30 - 1 : true60::enabled() ? 1 : 0; }
-// frames drawn per logic step: 1 (30 fps), 2 (60 fps, true 60), 4 (120 fps), 8 (240 fps)
+int in_between() {
+    if (!interp_on()) return 0;
+    const int out = output_fps();
+    if (out >= 240) return 3;
+    if (out >= 165) return 2;
+    if (out >= 120) return 1;
+    return 0;
+}
 int frames_per_step() { return in_between() + 1; }
-static const char* fps_name(int f) { return f == 240 ? "240 fps" : f == 120 ? "120 fps" : "60 fps"; }
+static const char* fps_name(int f) { return f >= 240 ? "240 fps" : f >= 165 ? "165 fps" : f >= 120 ? "120 fps" : "60 fps"; }
 void set_enabled(bool v) {
+    if (v && fps() <= 60) v = false;
     if (v) true60::set_enabled(false);
     g_on = v;
-    LOG("[interp] frame interpolation %s", v ? (fps() == 240 ? "on (240 fps)" : fps() == 120 ? "on (120 fps)" : "on (60 fps)") : "off");
+    LOG("[interp] frame interpolation %s", v ? fps_name(fps()) : "off");
 }
 void set_fps(int f) {
     f = valid_fps(f);
     if (g_fps.exchange(f) != f && interp_on()) LOG("[interp] frame interpolation at %s", fps_name(f));
 }
-// the 60 fps mode: 0 off, 1 frame interpolation (at fps()), 2 true 60 (game logic at 60 steps per second)
-int mode() { return true60::enabled() ? 2 : interp_on() ? 1 : 0; }
+int mode() { return interp_on() && fps() > 60 ? 1 : 0; }
 void set_mode(int m) {
     g_on = false;
     true60::set_enabled(false);
     if (m == 1) set_enabled(true);
-    if (m == 2) true60::set_enabled(true);
 }
 // menus and the 6 key: frame interpolation at f on, or off if it is on at f already
 void toggle_fps(int f) {
@@ -151,20 +155,20 @@ void toggle_fps(int f) {
     set_fps(f);
     set_mode(1);
 }
-// the frame rate shown in titles and the overlay: "30 fps", "60 fps", "120 fps", "240 fps", "true 60"
-// (with the rate capped to the display: "240 fps (120 shown)")
 const char* mode_name() {
-    if (mode() != 1) return mode() == 2 ? "true 60" : "30 fps";
+    if (mode() != 1) return "60 fps";
     const int f = fps(), out = output_fps();
-    if (out < f) return f == 240 ? (out == 120 ? "240 fps (120 shown)" : "240 fps (60 shown)") : "120 fps (60 shown)";
-    return fps_name(f);
+    if (out >= f) return fps_name(f);
+    if (f >= 240 && out >= 165) return "240 fps (165 shown)";
+    if (f >= 240 && out >= 120) return "240 fps (120 shown)";
+    if (f >= 240) return "240 fps (60 shown)";
+    if (f >= 165 && out >= 120) return "165 fps (120 shown)";
+    if (f >= 165) return "165 fps (60 shown)";
+    return "120 fps (60 shown)";
 }
 
-// GX2SetSwapInterval: N+1 paints per logic step. At 60 fps the interval is halved; at 120/240 fps
-// the virtual vsync itself ticks 2/4 times as fast (vsync_rate(), gx2_core.cpp) and the interval is
-// halved in those ticks, so every mode keeps the formula (and 30/60 fps their exact timing).
-uint32_t effective_swap_interval(uint32_t game) { return enabled() ? std::max<uint32_t>(1, game / 2) : game; }
-int vsync_rate() { return interp_on() ? frames_per_step() / 2 : 1; }
+uint32_t effective_swap_interval(uint32_t game) { return game; }
+int vsync_rate() { return 1; }
 
 namespace {
 constexpr uint32_t kEye = 0xDC, kCenter = 0xE8, kUp = 0xF4, kFovy = 0xD4, kBank = 0x100;

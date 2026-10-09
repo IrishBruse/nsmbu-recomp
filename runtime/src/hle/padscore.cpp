@@ -97,3 +97,9 @@ HLE(padscore, KPADReadEx) {
     if (err) st32(err, kKpadErrNone);
     ret(c, 1);
 }
+
+HLE(padscore, KPADDisableDPD) {}
+HLE(padscore, WENCGetEncodeData) { ret(c, (uint32_t)kWpadErrNoController); }
+HLE(padscore, WPADGetSpeakerVolume) { ret(c, 0); }
+HLE(padscore, WPADResetAutoSleepTimeCount) {}
+HLE(padscore, WPADSetAutoSleepTime) {}
