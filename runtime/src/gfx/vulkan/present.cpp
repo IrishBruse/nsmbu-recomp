@@ -87,8 +87,7 @@ PresentParams present_params(bool aa,int filter,float scale,bool sourceLinear,bo
  return {aa?1:0,sourceLinear==targetLinear?0:targetLinear?1:2,
   filter==0||scale<=1?1:filter==1?scale:1e4f,scale<1?1/scale:1};
 }
-// pipeline kinds: the scaled picture (opaque / with opacity), a filled rectangle, the mod HUD
-enum Kind : uint32_t { kImage, kImageBlend, kSolid, kHud };
+enum Kind : uint32_t { kImage, kImageBlend, kSolid };
 struct ScreenResources { bool drawable=false,captureTransfer=false; std::vector<VkImageView> views; };
 struct PresentCapture {
  std::string path;
@@ -161,7 +160,7 @@ VkPipeline pipeline(VkFormat format,Kind kind=kImage) {
  if(auto it=resources.pipelines.find(key);it!=resources.pipelines.end())return it->second;
  VkShaderModule vs=VK_NULL_HANDLE,fs=VK_NULL_HANDLE;VkPipeline result=VK_NULL_HANDLE;
  try {
-  vs=module(vertexSource,true);fs=module(kind==kSolid?solidSource:kind==kHud?hudSource:fragmentSource,false);
+  vs=module(vertexSource,true);fs=module(kind==kSolid?solidSource:fragmentSource,false);
   VkPipelineShaderStageCreateInfo stages[2]{};
   for(int i=0;i<2;++i){stages[i].sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;stages[i].stage=i?VK_SHADER_STAGE_FRAGMENT_BIT:VK_SHADER_STAGE_VERTEX_BIT;stages[i].module=i?fs:vs;stages[i].pName="main";}
   VkPipelineVertexInputStateCreateInfo vi{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
@@ -175,11 +174,6 @@ VkPipeline pipeline(VkFormat format,Kind kind=kImage) {
    blend.blendEnable=VK_TRUE;blend.colorBlendOp=blend.alphaBlendOp=VK_BLEND_OP_ADD;
    blend.srcColorBlendFactor=blend.srcAlphaBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA;
    blend.dstColorBlendFactor=blend.dstAlphaBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-  } else if(kind==kHud) {
-   // premultiplied colour; the image keeps its alpha
-   blend.blendEnable=VK_TRUE;blend.colorBlendOp=blend.alphaBlendOp=VK_BLEND_OP_ADD;
-   blend.srcColorBlendFactor=VK_BLEND_FACTOR_ONE;blend.dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-   blend.srcAlphaBlendFactor=VK_BLEND_FACTOR_ZERO;blend.dstAlphaBlendFactor=VK_BLEND_FACTOR_ONE;
   }
   VkPipelineColorBlendStateCreateInfo bs{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};bs.attachmentCount=1;bs.pAttachments=&blend;
   VkDynamicState states[]={VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR};VkPipelineDynamicStateCreateInfo ds{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};ds.dynamicStateCount=2;ds.pDynamicStates=states;
