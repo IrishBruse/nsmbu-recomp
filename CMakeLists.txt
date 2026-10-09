@@ -131,6 +131,18 @@ endif()
 file(GLOB RUNTIME_SOURCES CONFIGURE_DEPENDS runtime/src/*.cpp runtime/src/*.c runtime/src/hle/*.cpp runtime/src/mods/*.cpp runtime/src/motion/*.cpp
                                             runtime/src/overlay/*.cpp)
 list(APPEND RUNTIME_SOURCES runtime/src/platform/perf_hint.cpp)  # Android performance hints (no-op elsewhere)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+set(NSMBU_GUEST_STUBS ${CMAKE_BINARY_DIR}/generated/nsmbu_guest_stubs.c)
+file(GLOB_RECURSE NSMBU_GUEST_STUB_INPUTS CONFIGURE_DEPENDS
+  ${CMAKE_SOURCE_DIR}/runtime/src/*.c ${CMAKE_SOURCE_DIR}/runtime/src/*.cpp
+  ${CMAKE_SOURCE_DIR}/runtime/src/*.h ${CMAKE_SOURCE_DIR}/runtime/src/*.mm
+  ${CMAKE_SOURCE_DIR}/tools/recomp/hooks.txt ${CMAKE_SOURCE_DIR}/tools/recomp/hooks_*.txt)
+add_custom_command(
+  OUTPUT ${NSMBU_GUEST_STUBS}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/recomp/guest_stubs.py ${NSMBU_GUEST_STUBS}
+  DEPENDS ${CMAKE_SOURCE_DIR}/tools/recomp/guest_stubs.py ${NSMBU_GUEST_STUB_INPUTS}
+  VERBATIM)
+list(APPEND RUNTIME_SOURCES ${NSMBU_GUEST_STUBS})
 list(APPEND RUNTIME_SOURCES ${NSMBU_BUILD_INFO})
 file(GLOB GX2_SOURCES CONFIGURE_DEPENDS runtime/src/gx2/*.cpp)
 # renderer selection / dispatch (runtime/src/gfx/renderer.cpp) and the GamePad screen modes / TV window

@@ -53,8 +53,8 @@ Each function comment in those headers has a guest address.
 These parts still need NSMBU-specific work.
 
 - Language packs and many mods still follow upstream Cemu pack folder names.
-- `runtime/src/nsmbu_guest_stubs.c` holds weak stubs for symbols the runtime still names from upstream.
-  Regenerate with `python3 tools/recomp/guest_stubs.py`.
+- The build writes weak stubs for symbols the runtime still names from upstream.
+  CMake runs `tools/recomp/guest_stubs.py` and compiles the output.
 
 The upstream built-in mods and cheats are removed.
 

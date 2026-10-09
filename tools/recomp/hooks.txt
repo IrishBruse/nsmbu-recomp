@@ -1,2 +1,5 @@
-024BD6EC
-02A764F8
+# Game functions replaced by runtime hooks. Address = function entry.
+# recomp.py ignores the text after '#'.
+
+024BD6EC  # ring-buffer push; the character-select table calls this once per slot
+02A764F8  # flush the OS message queue at this+0x248 and the work list at this+0x4A8
