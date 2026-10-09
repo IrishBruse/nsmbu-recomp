@@ -794,6 +794,18 @@ void upload_surface(Surface* s) {
 
     std::vector<uint8_t> data;
     id<MTLBuffer> staging = nil;
+    id<MTLTexture> dest = s->tex;
+    id<MTLTexture> guestTex = nil;
+    const bool scaleGuest = s->mips == 1 && s->tex.textureType == MTLTextureType2D &&
+                            ((NSUInteger)s->width != s->tex.width || (NSUInteger)s->height != s->tex.height);
+    if (scaleGuest) {
+        MTLTextureDescriptor* td = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:s->tex.pixelFormat width:s->width
+                                                                                     height:s->height mipmapped:NO];
+        td.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget | MTLTextureUsagePixelFormatView;
+        td.storageMode = MTLStorageModePrivate;
+        guestTex = [R.device newTextureWithDescriptor:td];
+        if (guestTex) dest = guestTex;
+    }
     end_encoder();
     id<MTLBlitCommandEncoder> blit = [command_buffer() blitCommandEncoder];
     for (uint32_t level = 0; level < ranges.size(); level++) {
@@ -802,8 +814,8 @@ void upload_surface(Surface* s) {
         decode_level(s, level, base, data, w, h, slices);
         uint32_t bw = f.compressed ? (w + 3) / 4 : w, bh = f.compressed ? (h + 3) / 4 : h;
         staging = [R.device newBufferWithBytes:data.data() length:data.size() options:MTLResourceStorageModeShared];
-        bool is3D = s->tex.textureType == MTLTextureType3D;
-        uint32_t layers = is3D ? 1 : (s->tex.textureType == MTLTextureTypeCube ? 6 : (uint32_t)s->tex.arrayLength);
+        bool is3D = dest.textureType == MTLTextureType3D;
+        uint32_t layers = is3D ? 1 : (dest.textureType == MTLTextureTypeCube ? 6 : (uint32_t)dest.arrayLength);
         uint32_t perSlice = bw * bh * f.hostBytesPerBlock;
         for (uint32_t z = 0; z < (is3D ? 1 : std::min(slices, layers)); z++) {
             [blit copyFromBuffer:staging
@@ -811,13 +823,14 @@ void upload_surface(Surface* s) {
                 sourceBytesPerRow:bw * f.hostBytesPerBlock
               sourceBytesPerImage:perSlice
                        sourceSize:MTLSizeMake(f.compressed ? bw * 4 : w, f.compressed ? bh * 4 : h, is3D ? slices : 1)
-                        toTexture:s->tex
+                        toTexture:dest
                  destinationSlice:z
                  destinationLevel:level
                 destinationOrigin:MTLOriginMake(0, 0, 0)];
         }
     }
     [blit endEncoding];
+    if (guestTex) resample(guestTex, s->tex, f, 1, 1, 1, 0, 0);
 }
 
 // ---------------------------------------------------------------- GX2CopySurface

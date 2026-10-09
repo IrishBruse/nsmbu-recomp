@@ -716,6 +716,19 @@ int renderer_smoke_test() {
    fprintf(stderr,"[renderer smoke] queued GPU PNG capture passed: %s\n",capturePath.string().c_str());
    require(R.tv.swapchain!=VK_NULL_HANDLE,"smoke presentation did not create a swapchain");LOG("[renderer smoke] scan-buffer swapchain presentation and PNG readback passed");
    volume_target_check();
+   {
+    set_res_scale(2);latch_res_scale();
+    SurfaceDesc d;d.addr=mem::host_alloc(65536,256);
+    d.width=32;d.height=32;d.pitch=32;d.slices=1;d.mips=1;d.format=0x1a;d.dim=1;
+    const uint8_t rgba[4]={17,34,51,255};
+    for(uint32_t i=0;i<65536;++i)mem::ptr(d.addr)[i]=rgba[i%4];
+    auto* scaled=find_or_create_surface(d,true);
+    require(scaled&&scaled->extent.width==64&&scaled->extent.height==64,"2x render target was not created at twice the guest size");
+    upload_surface(scaled);
+    rgba_is(read_image(*scaled,VK_IMAGE_ASPECT_COLOR_BIT,4),rgba,"guest upload into a target created at 2x did not fill the image");
+    set_res_scale(1);latch_res_scale();
+    fprintf(stderr,"[renderer smoke] guest upload into a render target created at 2x passed\n");
+   }
   }
   // Ensure deferred objects left by readback and stack-owned images are actually reclaimed.
   command_buffer();flush();require(R.garbageBuffers.empty()&&R.garbageImages.empty()&&R.garbageCacheRegions.empty(),"deferred Vulkan resources were not reclaimed");

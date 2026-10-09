@@ -1121,32 +1121,47 @@ void upload_surface(Surface* s) {
     for(uint32_t level=0;level<levels;++level)
         hash=(hash^content_hash(mem::ptr(ranges[level].first),size_t(ranges[level].second)))*1099511628211ull;
     if(!s->dirty&&hash==s->contentHash)return;
-    end_encoder();transition_image(s,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_ACCESS_TRANSFER_WRITE_BIT);
-    for(uint32_t level=0;level<s->mips;++level) {
-        std::vector<uint8_t> data;uint32_t w,h,slices;decode_level(s,level,mip_base(s,level),data,w,h,slices);
-        if (s->bcDecoded) { bc_decode_upload(s,level,data,w,h,slices); continue; }
-        std::vector<VkBufferImageCopy> copies;std::vector<uint8_t> packed;
-        bool threeD=s->imageType==VK_IMAGE_TYPE_3D;
-        uint32_t layers=threeD?1:slices;
-        if(s->fmt.stencil) {
-            // Vulkan buffer/image copies use separate tightly packed depth and stencil aspects.
-            size_t count=size_t(w)*h*slices;
-            packed.resize(count*5);
-            for(size_t i=0;i<count;++i) {memcpy(packed.data()+i*4,data.data()+i*8,4);packed[count*4+i]=data[i*8+4];}
-            VkBufferImageCopy depth{};depth.imageSubresource={VK_IMAGE_ASPECT_DEPTH_BIT,level,0,layers};depth.imageExtent={w,h,threeD?slices:1};
-            copies.push_back(depth);auto stencil=depth;stencil.bufferOffset=count*4;stencil.imageSubresource.aspectMask=VK_IMAGE_ASPECT_STENCIL_BIT;copies.push_back(stencil);
-        } else {
-            packed=std::move(data);
-            VkBufferImageCopy copy{};copy.imageSubresource={s->aspect,level,0,layers};copy.imageExtent={w,h,threeD?slices:1};copies.push_back(copy);
-        }
-        Buffer staging=create_buffer(packed.size(),VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        if(!staging.mapped){defer_buffer(staging);throw std::runtime_error("Vulkan texture staging allocation is not mapped");}
-        memcpy(staging.mapped,packed.data(),packed.size());
-        rprof::add_upload(rprof::kUpTexture,packed.size());
-        vkCmdCopyBufferToImage(command_buffer(),staging.buffer,s->image,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,uint32_t(copies.size()),copies.data());
-        defer_buffer(staging);
+    const bool scaleGuest=s->imageType==VK_IMAGE_TYPE_2D&&s->mips==1&&(s->extent.width!=s->width||s->extent.height!=s->height);
+    Surface guest;
+    Surface* dst=s;
+    if(scaleGuest) {
+        guest.width=s->width;guest.height=s->height;guest.slices=s->slices;guest.mips=1;
+        guest.dim=s->dim;guest.format=s->format;guest.isDepth=s->isDepth;guest.fmt=s->fmt;
+        create_surface_image(&guest,false);
+        dst=&guest;
     }
-    transition_image(s,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    try {
+        end_encoder();transition_image(dst,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_ACCESS_TRANSFER_WRITE_BIT);
+        for(uint32_t level=0;level<s->mips;++level) {
+            std::vector<uint8_t> data;uint32_t w,h,slices;decode_level(s,level,mip_base(s,level),data,w,h,slices);
+            if (s->bcDecoded) { bc_decode_upload(dst,level,data,w,h,slices); continue; }
+            std::vector<VkBufferImageCopy> copies;std::vector<uint8_t> packed;
+            bool threeD=dst->imageType==VK_IMAGE_TYPE_3D;
+            uint32_t layers=threeD?1:slices;
+            if(dst->fmt.stencil) {
+                size_t count=size_t(w)*h*slices;
+                packed.resize(count*5);
+                for(size_t i=0;i<count;++i) {memcpy(packed.data()+i*4,data.data()+i*8,4);packed[count*4+i]=data[i*8+4];}
+                VkBufferImageCopy depth{};depth.imageSubresource={VK_IMAGE_ASPECT_DEPTH_BIT,level,0,layers};depth.imageExtent={w,h,threeD?slices:1};
+                copies.push_back(depth);auto stencil=depth;stencil.bufferOffset=count*4;stencil.imageSubresource.aspectMask=VK_IMAGE_ASPECT_STENCIL_BIT;copies.push_back(stencil);
+            } else {
+                packed=std::move(data);
+                VkBufferImageCopy copy{};copy.imageSubresource={dst->aspect,level,0,layers};copy.imageExtent={w,h,threeD?slices:1};copies.push_back(copy);
+            }
+            Buffer staging=create_buffer(packed.size(),VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            if(!staging.mapped){defer_buffer(staging);throw std::runtime_error("Vulkan texture staging allocation is not mapped");}
+            memcpy(staging.mapped,packed.data(),packed.size());
+            rprof::add_upload(rprof::kUpTexture,packed.size());
+            vkCmdCopyBufferToImage(command_buffer(),staging.buffer,dst->image,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,uint32_t(copies.size()),copies.data());
+            defer_buffer(staging);
+        }
+        if(scaleGuest) resample(&guest,s,std::min(guest.arrayLayers,s->arrayLayers),1,1,0,0);
+        else transition_image(s,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    } catch(...) {
+        if(scaleGuest) destroy_surface_image(&guest);
+        throw;
+    }
+    if(scaleGuest) destroy_surface_image(&guest);
     s->contentHash=hash;s->writeSeq=next_write_seq();s->dirty=false;++g_stat_uploads;
 }
 void clear_color(const uint32_t*,uint32_t cb,const float rgba[4]) {
