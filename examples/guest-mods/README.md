@@ -10,9 +10,15 @@ game functions are referenced by address only (see `runtime/guest/include/nsmbu/
 | `play-scene-ticker` | Entry and return hooks on the play-scene step (`dScnPly_Execute`, `025B0314`) and the `every` option. While a level is running, the mod logs a counter every `every` logic steps. |
 | `smooth-step-replace` | A full replacement of `cLib_addCalc2` (`0200ED84`) with an equivalent implementation; every other call uses the game's code through `NSMBU_GAME_ORIGINAL`. Behaviour is unchanged; the log counts calls. |
 
-Build (needs clang with the PowerPC target and ld.lld; on macOS `brew install llvm lld`):
+Build (needs clang with the PowerPC target and `ld.lld` on PATH or under `/usr/lib/llvm-*/bin/`):
 
 ```sh
+# Linux (Debian/Ubuntu)
+sudo apt install clang lld
+make
+
+# macOS
+brew install llvm lld
 make CLANG=/opt/homebrew/opt/llvm/bin/clang LLD=/opt/homebrew/opt/lld/bin/ld.lld
 ```
 
