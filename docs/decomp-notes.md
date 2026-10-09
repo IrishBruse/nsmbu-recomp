@@ -415,6 +415,21 @@ Most active files (score = primitive calls + 5 × counters + pos/speed stores):
 | d_a_bb.cpp | 23 | 46 | s16-0x49A, s16+0x4C6, s16+0x4C8 | 44 | — |
 | d_a_bl.cpp | 21 | 26 | s16+0x422 | 69 | — |
 
+## Fixed: 1-1 crash at guest address 4 (shader ALU jump table)
+
+- **Signature.** SIGSEGV at guest address 4 during 1-1 after about 7000 frames.
+  Last log line is often `[dispatch] pc=027EBB64 …` (unknown indirect branch).
+- **Cause.** `bctr` at 027EBB5C jumps into a 16-entry branch island at 027EBB60 inside the shader ALU
+  dispatcher.
+  The recompiler lowered that `bctr` to `ppc_dispatch`, but only function entries are in the dispatch table,
+  not interior jump-table slots.
+  Unknown-branch diagnostics then called `ld32(r12+4)` with `r12=0`, which faulted at guest address 4 before
+  `fatal()` could run.
+- **Fix.** `tools/recomp/analyze.py` discovers these branch islands.
+  `tools/recomp/recomp.py` lowers them to `switch (c->ctr)` and registers interior slots on the owning
+  function.
+  `ppc_dispatch` logging only peeks guest memory at `ea >= 0x10000`.
+
 ## Fixed: intermittent boot crash (agl shader archive setup)
 
 **Cause: a late GX2CopySurface write from the render thread into freed and reused guest memory.**

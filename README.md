@@ -13,7 +13,7 @@ You supply the disc image, the keys, and the game files.
 
 ## Status
 
-Currently 1-1 is playing up to a point before a crash.
+Currently 1-1 plays through scripted runs past the former frame ~7080 shader-dispatch crash.
 
 ## Install
 

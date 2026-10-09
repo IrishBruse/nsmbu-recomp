@@ -109,11 +109,39 @@ class Program:
                 while self.in_text(t + 4 * count) and (self.word(t + 4 * count) >> 26) == 18 and not (self.word(t + 4 * count) & 3):
                     count += 1
             self.jump_tables[t - 4] = (t, count)
+        self._find_bctr_branch_islands()
+
+    def _branch_island_count(self, base):
+        count = 0
+        while self.in_text(base + 4 * count):
+            w = self.word(base + 4 * count)
+            if (w >> 26) != 18 or (w & 1):
+                break
+            count += 1
+        return count
+
+    def _find_bctr_branch_islands(self):
+        """bctr into a run of `b` opcodes (often at the next function entry)."""
+        for i, w in enumerate(self.words):
+            if w != 0x4E800420:
+                continue
+            bctr = self.text_lo + 4 * i
+            if bctr in self.jump_tables:
+                continue
+            for base in (bctr + 4, bctr - 4 * 16):
+                if not self.in_text(base):
+                    continue
+                count = self._branch_island_count(base)
+                if count < 2:
+                    continue
+                self.jump_tables[bctr] = (base, count)
+                break
 
 
 if __name__ == "__main__":
     p = Program(sys.argv[1])
     e = p.discover()
+    assert 0x027EBB5C in p.jump_tables, "027EBB5C shader dispatch jump table"
     print("entry point %08x" % p.entry)
     print("import call sites", len(p.import_calls), "import data refs", len(p.import_data))
     print("bl targets", len(p.call_targets))

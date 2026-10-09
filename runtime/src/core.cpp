@@ -291,7 +291,7 @@ uint32_t register_host(PpcFunc fn, const char* name) {
 extern "C" void ppc_dispatch(Cpu* c) {
     PpcFunc f = dispatch::lookup(c->pc);
     if (!f) {
-        auto word = [](uint32_t a) { return a ? ld32(a) : 0; };
+        auto word = [](uint32_t a) { return a >= 0x10000u ? ld32(a) : 0; };
         log_msg("[dispatch] pc=%08X lr=%08X ctr=%08X r3=%08X r4=%08X r11=%08X r12=%08X r29=%08X r30=%08X",
                 c->pc, c->lr, c->ctr, c->r[3], c->r[4], c->r[11], c->r[12], c->r[29], c->r[30]);
         log_msg("[dispatch] r30 words %08X %08X %08X %08X  r12 words %08X %08X %08X %08X",

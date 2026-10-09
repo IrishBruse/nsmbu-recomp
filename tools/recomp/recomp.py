@@ -89,6 +89,7 @@ class Recompiler:
             self.canon_of[addr] = canon
             (self.sites if site else self.hooks).add(addr)
         self._fixpoint()
+        self._build_interior_dispatch()
         self._check_hooks(hook_entries)
 
     def _check_hooks(self, hook_entries):
@@ -138,6 +139,21 @@ class Recompiler:
     def func_end(self, start):
         i = bisect.bisect_right(self.sorted_entries, start)
         return self.sorted_entries[i] if i < len(self.sorted_entries) else self.p.text_hi
+
+    def _build_interior_dispatch(self):
+        self.interior_dispatch = {}
+        self.extra_dispatch_addrs = {}
+        for _bctr, (base, count) in self.p.jump_tables.items():
+            for i in range(count):
+                slot = base + 4 * i
+                fn = self.func_of(slot)
+                if fn is None or slot == fn:
+                    continue
+                label = branch_target(slot, self.p.word(slot))
+                if label is None:
+                    continue
+                self.interior_dispatch.setdefault(fn, []).append((slot, label))
+                self.extra_dispatch_addrs[slot] = fn
 
     def _fixpoint(self):
         """Branch targets that land inside another function become entries."""
@@ -195,9 +211,13 @@ class Recompiler:
             cases = []
             for i in range(count):
                 slot = base + 4 * i
+                fn = self.func_of(slot)
                 if self.cur_start <= slot < self.cur_end:
                     self.labels.add(slot)
                     cases.append("case 0x%08Xu: goto L_%08X;" % (slot, slot))
+                elif fn is not None:
+                    cases.append("case 0x%08Xu: c->pc = 0x%08Xu; MUSTTAIL return f_%08X(c);" % (
+                        slot, slot, self.sym(fn)))
             back = any(self.cur_start <= base + 4 * i <= addr for i in range(count))  # may loop: see branch()
             return "%sswitch (c->ctr) { %s } c->pc = c->ctr; MUSTTAIL return ppc_dispatch(c);" % (
                 "PPC_LOOP(); " if back else "", " ".join(cases))
@@ -240,6 +260,15 @@ class Recompiler:
             # runtime hook: callers reach hook_X, which may call the original code (f_X_orig)
             out.append("void f_%08X(Cpu* __restrict c) { hook_%08X(c); }\n" % (name, name))
         out += ["void %s(Cpu* __restrict c) {" % fname, "    PPC_ENTER(0x%08Xu);" % start]
+        interior = self.interior_dispatch.get(start, [])
+        if interior:
+            icases = []
+            for slot, label in sorted(interior):
+                if self.cur_start <= label < self.cur_end:
+                    icases.append("case 0x%08Xu: goto L_%08X;" % (slot, label))
+            if icases:
+                out.append("    if (c->pc != 0x%08Xu) { switch (c->pc) { %s default: break; } }" % (
+                    start, " ".join(icases)))
         if self.mod_hooks:
             # guest mods: the check sits in the game's code (f_X, or f_X_orig behind a port hook), so the
             # port's own hooks (interpolation, true 60) stay outermost and mods hook the game's code
@@ -304,7 +333,10 @@ class Recompiler:
             f.write("const RecompEntry g_recomp_funcs[] = {\n")
             for e in self.sorted_entries:
                 f.write("    {0x%08Xu, f_%08X},\n" % (e, self.sym(e)))
-            f.write("};\nconst unsigned g_recomp_func_count = %d;\n\n" % len(self.sorted_entries))
+            for slot in sorted(self.extra_dispatch_addrs):
+                f.write("    {0x%08Xu, f_%08X},\n" % (slot, self.sym(self.extra_dispatch_addrs[slot])))
+            n_funcs = len(self.sorted_entries) + len(self.extra_dispatch_addrs)
+            f.write("};\nconst unsigned g_recomp_func_count = %d;\n\n" % n_funcs)
             f.write("const RecompImport g_recomp_imports[] = {\n")
             for s, (lib, name, kind) in sorted(self.imports.items()):
                 fn = self.imp_name(s) if kind == "f" else "0"
