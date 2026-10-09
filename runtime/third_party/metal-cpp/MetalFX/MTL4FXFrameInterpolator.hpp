@@ -17,20 +17,18 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #pragma once
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#include "MTLFXDefines.hpp"
-#include "MTLFXPrivate.hpp"
-#include "MTLFXFrameInterpolator.hpp"
-#include "../Metal/Metal.hpp"
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
 
 #include "MTLFXDefines.hpp"
 #include "MTLFXPrivate.hpp"
 
 #include "MTLFXFrameInterpolator.hpp"
 #include "../Metal/Metal.hpp"
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace MTL4FX
 {
@@ -40,6 +38,8 @@ namespace MTL4FX
         void encodeToCommandBuffer(MTL4::CommandBuffer* commandBuffer);
     };
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTLFX_INLINE void MTL4FX::FrameInterpolator::encodeToCommandBuffer(MTL4::CommandBuffer* commandBuffer)
 {

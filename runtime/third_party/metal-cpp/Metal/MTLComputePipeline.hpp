@@ -17,14 +17,7 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
-#include "../Foundation/Foundation.hpp"
-#include "MTLAllocation.hpp"
-#include "MTLDefines.hpp"
-#include "MTLHeaderBridge.hpp"
-#include "MTLPipeline.hpp"
-#include "MTLPrivate.hpp"
-#include "MTLTypes.hpp"
+
 #pragma once
 
 #include "../Foundation/Foundation.hpp"

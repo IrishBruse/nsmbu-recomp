@@ -17,15 +17,7 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
-#include "../Foundation/Foundation.hpp"
-#include "MTLAccelerationStructure.hpp"
-#include "MTLAccelerationStructureTypes.hpp"
-#include "MTLArgument.hpp"
-#include "MTLDefines.hpp"
-#include "MTLHeaderBridge.hpp"
-#include "MTLPrivate.hpp"
-#include "MTLStageInputOutputDescriptor.hpp"
+
 #pragma once
 
 #include "../Foundation/Foundation.hpp"

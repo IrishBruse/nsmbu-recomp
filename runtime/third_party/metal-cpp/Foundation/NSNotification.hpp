@@ -17,16 +17,10 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #pragma once
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#include "NSDefines.hpp"
-#include "NSDictionary.hpp"
-#include "NSObject.hpp"
-#include "NSString.hpp"
-#include "NSTypes.hpp"
-#include <functional>
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
 
 #include "NSDefines.hpp"
 #include "NSDictionary.hpp"
@@ -34,6 +28,8 @@
 #include "NSString.hpp"
 #include "NSTypes.hpp"
 #include <functional>
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace NS
 {
@@ -61,30 +57,42 @@ class NotificationCenter : public NS::Referencing<NotificationCenter>
 };
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::String* NS::Notification::name() const
 {
     return Object::sendMessage<NS::String*>(this, _NS_PRIVATE_SEL(name));
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE NS::Object* NS::Notification::object() const
 {
     return Object::sendMessage<NS::Object*>(this, _NS_PRIVATE_SEL(object));
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::Dictionary* NS::Notification::userInfo() const
 {
     return Object::sendMessage<NS::Dictionary*>(this, _NS_PRIVATE_SEL(userInfo));
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE NS::NotificationCenter* NS::NotificationCenter::defaultCenter()
 {
     return NS::Object::sendMessage<NS::NotificationCenter*>(_NS_PRIVATE_CLS(NSNotificationCenter), _NS_PRIVATE_SEL(defaultCenter));
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::Object* NS::NotificationCenter::addObserver(NS::NotificationName name, Object* pObj, void* pQueue, NS::ObserverBlock block)
 {
     return NS::Object::sendMessage<Object*>(this, _NS_PRIVATE_SEL(addObserverName_object_queue_block_), name, pObj, pQueue, block);
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE NS::Object* NS::NotificationCenter::addObserver(NS::NotificationName name, Object* pObj, void* pQueue, NS::ObserverFunction &handler)
 {
@@ -92,6 +100,8 @@ _NS_INLINE NS::Object* NS::NotificationCenter::addObserver(NS::NotificationName 
 
     return addObserver(name, pObj, pQueue, ^(NS::Notification* pNotif) {blockFunction(pNotif);});
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE void NS::NotificationCenter::removeObserver(Object* pObserver)
 {

@@ -17,21 +17,19 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #pragma once
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#include <objc/runtime.h>
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#define _NS_PRIVATE_CLS(symbol) (Private::Class::s_k##symbol)
-#define _NS_PRIVATE_SEL(accessor) (Private::Selector::s_k##accessor)
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#if defined(NS_PRIVATE_IMPLEMENTATION)
-#include <dlfcn.h>
-#pragma once
 
 #include <objc/runtime.h>
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #define _NS_PRIVATE_CLS(symbol) (Private::Class::s_k##symbol)
 #define _NS_PRIVATE_SEL(accessor) (Private::Selector::s_k##accessor)
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #if defined(NS_PRIVATE_IMPLEMENTATION)
 
@@ -46,13 +44,13 @@ namespace NS::Private
 
         return pAddress ? *pAddress : _Type();
     }
-}
+} // NS::Private
 
 #ifdef METALCPP_SYMBOL_VISIBILITY_HIDDEN
 #define _NS_PRIVATE_VISIBILITY __attribute__((visibility("hidden")))
 #else
 #define _NS_PRIVATE_VISIBILITY __attribute__((visibility("default")))
-#endif
+#endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
 
 #define _NS_PRIVATE_IMPORT __attribute__((weak_import))
 
@@ -62,7 +60,7 @@ namespace NS::Private
 #else
 #define _NS_PRIVATE_OBJC_LOOKUP_CLASS(symbol) objc_lookUpClass(#symbol)
 #define _NS_PRIVATE_OBJC_GET_PROTOCOL(symbol) objc_getProtocol(#symbol)
-#endif
+#endif // __OBJC__
 
 #define _NS_PRIVATE_DEF_CLS(symbol) void* s_k##symbol _NS_PRIVATE_VISIBILITY = _NS_PRIVATE_OBJC_LOOKUP_CLASS(symbol)
 #define _NS_PRIVATE_DEF_PRO(symbol) void* s_k##symbol _NS_PRIVATE_VISIBILITY = _NS_PRIVATE_OBJC_GET_PROTOCOL(symbol)
@@ -85,7 +83,9 @@ namespace NS::Private
 #define _NS_PRIVATE_DEF_SEL(accessor, symbol) extern SEL s_k##accessor
 #define _NS_PRIVATE_DEF_CONST(type, symbol) extern type const NS::symbol
 
-#endif
+#endif // NS_PRIVATE_IMPLEMENTATION
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace NS
 {
@@ -110,9 +110,11 @@ namespace Private
         _NS_PRIVATE_DEF_CLS(NSURL);
         _NS_PRIVATE_DEF_CLS(NSValue);
 
-    }
-}
-}
+    } // Class
+} // Private
+} // MTL
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace NS
 {
@@ -121,9 +123,11 @@ namespace Private
     namespace Protocol
     {
 
-    }
-}
-}
+    } // Protocol
+} // Private
+} // NS
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace NS
 {
@@ -520,7 +524,8 @@ namespace Private
             "wait");
         _NS_PRIVATE_DEF_SEL(waitUntilDate_,
             "waitUntilDate:");
-    }
-}
-}
+    } // Class
+} // Private
+} // MTL
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------

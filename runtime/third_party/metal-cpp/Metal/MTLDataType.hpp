@@ -17,10 +17,7 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
-#include "MTLDefines.hpp"
-#include "MTLHeaderBridge.hpp"
-#include "MTLPrivate.hpp"
+
 #pragma once
 
 #include "MTLDefines.hpp"

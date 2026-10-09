@@ -17,21 +17,32 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #pragma once
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #include "CADefines.hpp"
+
 #include <objc/runtime.h>
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #define _CA_PRIVATE_CLS(symbol) (Private::Class::s_k##symbol)
 #define _CA_PRIVATE_SEL(accessor) (Private::Selector::s_k##accessor)
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #if defined(CA_PRIVATE_IMPLEMENTATION)
+
 #ifdef METALCPP_SYMBOL_VISIBILITY_HIDDEN
 #define _CA_PRIVATE_VISIBILITY __attribute__((visibility("hidden")))
 #else
 #define _CA_PRIVATE_VISIBILITY __attribute__((visibility("default")))
 #endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
+
 #define _CA_PRIVATE_IMPORT __attribute__((weak_import))
+
 #ifdef __OBJC__
 #define _CA_PRIVATE_OBJC_LOOKUP_CLASS(symbol) ((__bridge void*)objc_lookUpClass(#symbol))
 #define _CA_PRIVATE_OBJC_GET_PROTOCOL(symbol) ((__bridge void*)objc_getProtocol(#symbol))
@@ -39,36 +50,6 @@
 #define _CA_PRIVATE_OBJC_LOOKUP_CLASS(symbol) objc_lookUpClass(#symbol)
 #define _CA_PRIVATE_OBJC_GET_PROTOCOL(symbol) objc_getProtocol(#symbol)
 #endif // __OBJC__
-#define _CA_PRIVATE_DEF_CLS(symbol) void* s_k##symbol _CA_PRIVATE_VISIBILITY = _CA_PRIVATE_OBJC_LOOKUP_CLASS(symbol)
-#define _CA_PRIVATE_DEF_PRO(symbol) void* s_k##symbol _CA_PRIVATE_VISIBILITY = _CA_PRIVATE_OBJC_GET_PROTOCOL(symbol)
-#define _CA_PRIVATE_DEF_SEL(accessor, symbol) SEL s_k##accessor _CA_PRIVATE_VISIBILITY = sel_registerName(symbol)
-#define _CA_PRIVATE_DEF_STR(type, symbol)                \
-#pragma once
-
-#include "CADefines.hpp"
-
-#include <objc/runtime.h>
-
-#define _CA_PRIVATE_CLS(symbol) (Private::Class::s_k##symbol)
-#define _CA_PRIVATE_SEL(accessor) (Private::Selector::s_k##accessor)
-
-#if defined(CA_PRIVATE_IMPLEMENTATION)
-
-#ifdef METALCPP_SYMBOL_VISIBILITY_HIDDEN
-#define _CA_PRIVATE_VISIBILITY __attribute__((visibility("hidden")))
-#else
-#define _CA_PRIVATE_VISIBILITY __attribute__((visibility("default")))
-#endif
-
-#define _CA_PRIVATE_IMPORT __attribute__((weak_import))
-
-#ifdef __OBJC__
-#define _CA_PRIVATE_OBJC_LOOKUP_CLASS(symbol) ((__bridge void*)objc_lookUpClass(#symbol))
-#define _CA_PRIVATE_OBJC_GET_PROTOCOL(symbol) ((__bridge void*)objc_getProtocol(#symbol))
-#else
-#define _CA_PRIVATE_OBJC_LOOKUP_CLASS(symbol) objc_lookUpClass(#symbol)
-#define _CA_PRIVATE_OBJC_GET_PROTOCOL(symbol) objc_getProtocol(#symbol)
-#endif
 
 #define _CA_PRIVATE_DEF_CLS(symbol) void* s_k##symbol _CA_PRIVATE_VISIBILITY = _CA_PRIVATE_OBJC_LOOKUP_CLASS(symbol)
 #define _CA_PRIVATE_DEF_PRO(symbol) void* s_k##symbol _CA_PRIVATE_VISIBILITY = _CA_PRIVATE_OBJC_GET_PROTOCOL(symbol)
@@ -84,7 +65,9 @@
 #define _CA_PRIVATE_DEF_SEL(accessor, symbol) extern SEL s_k##accessor
 #define _CA_PRIVATE_DEF_STR(type, symbol) extern type const CA::symbol
 
-#endif
+#endif // CA_PRIVATE_IMPLEMENTATION
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace CA
 {
@@ -93,9 +76,11 @@ namespace Private
     namespace Class
     {
         _CA_PRIVATE_DEF_CLS(CAMetalLayer);
-    }
-}
-}
+    } // Class
+} // Private
+} // CA
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace CA
 {
@@ -106,9 +91,11 @@ namespace Private
 
         _CA_PRIVATE_DEF_PRO(CAMetalDrawable);
 
-    }
-}
-}
+    } // Protocol
+} // Private
+} // CA
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace CA
 {
@@ -160,7 +147,8 @@ namespace Private
             "texture");
         _CA_PRIVATE_DEF_SEL(wantsExtendedDynamicRangeContent,
             "wantsExtendedDynamicRangeContent");
-    }
-}
-}
+    } // Class
+} // Private
+} // CA
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------

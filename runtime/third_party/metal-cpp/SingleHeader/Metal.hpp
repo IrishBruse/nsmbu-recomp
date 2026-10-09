@@ -17,19 +17,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-#pragma once
-#define _NS_WEAK_IMPORT __attribute__((weak_import))
-#ifdef METALCPP_SYMBOL_VISIBILITY_HIDDEN
-#define _NS_EXPORT __attribute__((visibility("hidden")))
-#else
-#define _NS_EXPORT __attribute__((visibility("default")))
-#endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
-#define _NS_EXTERN extern "C" _NS_EXPORT
-#define _NS_INLINE inline __attribute__((always_inline))
-#define _NS_PACKED __attribute__((packed))
-#define _NS_CONST(type, name) _NS_EXTERN type const name
-#define _NS_ENUM(type, name) enum name : type
-#define _NS_OPTIONS(type, name) \
+
 #pragma once
 
 #define _NS_WEAK_IMPORT __attribute__((weak_import))
@@ -37,7 +25,7 @@
 #define _NS_EXPORT __attribute__((visibility("hidden")))
 #else
 #define _NS_EXPORT __attribute__((visibility("default")))
-#endif
+#endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
 #define _NS_EXTERN extern "C" _NS_EXPORT
 #define _NS_INLINE inline __attribute__((always_inline))
 #define _NS_PACKED __attribute__((packed))
@@ -70,13 +58,13 @@ namespace NS::Private
 
         return pAddress ? *pAddress : _Type();
     }
-}
+} // NS::Private
 
 #ifdef METALCPP_SYMBOL_VISIBILITY_HIDDEN
 #define _NS_PRIVATE_VISIBILITY __attribute__((visibility("hidden")))
 #else
 #define _NS_PRIVATE_VISIBILITY __attribute__((visibility("default")))
-#endif
+#endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
 
 #define _NS_PRIVATE_IMPORT __attribute__((weak_import))
 
@@ -86,7 +74,7 @@ namespace NS::Private
 #else
 #define _NS_PRIVATE_OBJC_LOOKUP_CLASS(symbol) objc_lookUpClass(#symbol)
 #define _NS_PRIVATE_OBJC_GET_PROTOCOL(symbol) objc_getProtocol(#symbol)
-#endif
+#endif // __OBJC__
 
 #define _NS_PRIVATE_DEF_CLS(symbol) void* s_k##symbol _NS_PRIVATE_VISIBILITY = _NS_PRIVATE_OBJC_LOOKUP_CLASS(symbol)
 #define _NS_PRIVATE_DEF_PRO(symbol) void* s_k##symbol _NS_PRIVATE_VISIBILITY = _NS_PRIVATE_OBJC_GET_PROTOCOL(symbol)
@@ -109,7 +97,7 @@ namespace NS::Private
 #define _NS_PRIVATE_DEF_SEL(accessor, symbol) extern SEL s_k##accessor
 #define _NS_PRIVATE_DEF_CONST(type, symbol) extern type const NS::symbol
 
-#endif
+#endif // NS_PRIVATE_IMPLEMENTATION
 
 namespace NS
 {
@@ -134,9 +122,9 @@ namespace Private
         _NS_PRIVATE_DEF_CLS(NSURL);
         _NS_PRIVATE_DEF_CLS(NSValue);
 
-    }
-}
-}
+    } // Class
+} // Private
+} // MTL
 
 namespace NS
 {
@@ -145,9 +133,9 @@ namespace Private
     namespace Protocol
     {
 
-    }
-}
-}
+    } // Protocol
+} // Private
+} // NS
 
 namespace NS
 {
@@ -544,9 +532,9 @@ namespace Private
             "wait");
         _NS_PRIVATE_DEF_SEL(waitUntilDate_,
             "waitUntilDate:");
-    }
-}
-}
+    } // Class
+} // Private
+} // MTL
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <cstdint>
@@ -640,31 +628,31 @@ private:
 };
 }
 
-template <class _Class, class _Base >
+template <class _Class, class _Base /* = Object */>
 _NS_INLINE _Class* NS::Referencing<_Class, _Base>::retain()
 {
     return Object::sendMessage<_Class*>(this, _NS_PRIVATE_SEL(retain));
 }
 
-template <class _Class, class _Base >
+template <class _Class, class _Base /* = Object */>
 _NS_INLINE void NS::Referencing<_Class, _Base>::release()
 {
     Object::sendMessage<void>(this, _NS_PRIVATE_SEL(release));
 }
 
-template <class _Class, class _Base >
+template <class _Class, class _Base /* = Object */>
 _NS_INLINE _Class* NS::Referencing<_Class, _Base>::autorelease()
 {
     return Object::sendMessage<_Class*>(this, _NS_PRIVATE_SEL(autorelease));
 }
 
-template <class _Class, class _Base >
+template <class _Class, class _Base /* = Object */>
 _NS_INLINE NS::UInteger NS::Referencing<_Class, _Base>::retainCount() const
 {
     return Object::sendMessage<UInteger>(this, _NS_PRIVATE_SEL(retainCount));
 }
 
-template <class _Class, class _Base >
+template <class _Class, class _Base /* = Object */>
 _NS_INLINE _Class* NS::Copying<_Class, _Base>::copy() const
 {
     return Object::sendMessage<_Class*>(this, _NS_PRIVATE_SEL(copy));
@@ -677,7 +665,7 @@ _NS_INLINE _Dst NS::Object::bridgingCast(const void* pObj)
     return (__bridge _Dst)pObj;
 #else
     return (_Dst)pObj;
-#endif
+#endif // __OBJC__
 }
 
 template <typename _Type>
@@ -717,7 +705,7 @@ _NS_INLINE _Ret NS::Object::sendMessage(const void* pObj, SEL selector, _Args...
         return (*pProc)(pObj, selector, args...);
     }
     else
-#endif
+#endif // ( defined( __i386__ )  || defined( __x86_64__ )  )
 #if !defined(__arm64__)
         if constexpr (doesRequireMsgSendStret<_Ret>())
     {
@@ -731,7 +719,7 @@ _NS_INLINE _Ret NS::Object::sendMessage(const void* pObj, SEL selector, _Args...
         return ret;
     }
     else
-#endif
+#endif // !defined( __arm64__ )
     {
         using SendMessageProc = _Ret (*)(const void*, SEL, _Args...);
 
@@ -1594,7 +1582,7 @@ _NS_INLINE NS::Object* NS::Bundle::objectForInfoDictionaryKey(const String* pKey
     return Object::sendMessage<Object*>(this, _NS_PRIVATE_SEL(objectForInfoDictionaryKey_), pKey);
 }
 
-_NS_INLINE NS::String* NS::Bundle::localizedString(const String* pKey, const String* pValue , const String* pTableName ) const
+_NS_INLINE NS::String* NS::Bundle::localizedString(const String* pKey, const String* pValue /* = nullptr */, const String* pTableName /* = nullptr */) const
 {
     return Object::sendMessage<String*>(this, _NS_PRIVATE_SEL(localizedStringForKey_value_table_), pKey, pValue, pTableName);
 }
@@ -1630,12 +1618,14 @@ public:
     static Date* dateWithTimeIntervalSinceNow(TimeInterval secs);
 };
 
-}
+} // NS
 
 _NS_INLINE NS::Date* NS::Date::dateWithTimeIntervalSinceNow(NS::TimeInterval secs)
 {
     return NS::Object::sendMessage<NS::Date*>(_NS_PRIVATE_CLS(NSDate), _NS_PRIVATE_SEL(dateWithTimeIntervalSinceNow_), secs);
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace NS
 {
@@ -1778,15 +1768,15 @@ public:
     void              broadcast();
 };
 
-}
+} // NS
 
-template<class _Class, class _Base >
+template<class _Class, class _Base /* = NS::Object */>
 _NS_INLINE void NS::Locking<_Class, _Base>::lock()
 {
     NS::Object::sendMessage<void>(this, _NS_PRIVATE_SEL(lock));
 }
 
-template<class _Class, class _Base >
+template<class _Class, class _Base /* = NS::Object */>
 _NS_INLINE void NS::Locking<_Class, _Base>::unlock()
 {
     NS::Object::sendMessage<void>(this, _NS_PRIVATE_SEL(unlock));
@@ -1821,6 +1811,8 @@ _NS_INLINE void NS::Condition::broadcast()
 {
     NS::Object::sendMessage<void>(this, _NS_PRIVATE_SEL(broadcast));
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace NS
 {
@@ -2458,6 +2450,8 @@ _NS_INLINE bool NS::ProcessInfo::hasPerformanceProfile(ProcessPerformanceProfile
     return Object::sendMessageSafe<bool>(this, _NS_PRIVATE_SEL(hasPerformanceProfile_), performanceProfile);
 }
 
+/*****Immutable Set*******/
+
 namespace NS
 {
     class Set : public NS::Copying <Set>
@@ -2515,43 +2509,95 @@ template <class _Class>
 class SharedPtr
 {
 public:
-
+    /**
+     * Create a new null pointer.
+     */
     SharedPtr();
 
+    /**
+     * Destroy this SharedPtr, decreasing the reference count.
+     */
     ~SharedPtr();
 
+    /**
+     * Create a new null pointer.
+     */
     SharedPtr(std::nullptr_t) noexcept;
 
+    /**
+     * SharedPtr copy constructor.
+     */
     SharedPtr(const SharedPtr<_Class>& other) noexcept;
 
+    /**
+     * Construction from another pointee type.
+     */
     template <class _OtherClass>
     SharedPtr(const SharedPtr<_OtherClass>& other, typename std::enable_if_t<std::is_convertible_v<_OtherClass *, _Class *>> * = nullptr) noexcept;
 
+    /**
+     * SharedPtr move constructor.
+     */
     SharedPtr(SharedPtr<_Class>&& other) noexcept;
 
+    /**
+     * Move from another pointee type.
+     */
     template <class _OtherClass>
     SharedPtr(SharedPtr<_OtherClass>&& other, typename std::enable_if_t<std::is_convertible_v<_OtherClass *, _Class *>> * = nullptr) noexcept;
 
+    /**
+     * Copy assignment operator.
+     * Copying increases reference count. Only releases previous pointee if objects are different.
+     */
     SharedPtr& operator=(const SharedPtr<_Class>& other);
 
+    /**
+     * Copy-assignment from different pointee.
+     * Copying increases reference count. Only releases previous pointee if objects are different.
+     */
     template <class _OtherClass>
     typename std::enable_if_t<std::is_convertible_v<_OtherClass *, _Class *>, SharedPtr &>
     operator=(const SharedPtr<_OtherClass>& other);
 
+    /**
+     * Move assignment operator.
+     * Move without affecting reference counts, unless pointees are equal. Moved-from object is reset to nullptr.
+     */
     SharedPtr& operator=(SharedPtr<_Class>&& other);
 
+    /**
+     * Move-asignment from different pointee.
+     * Move without affecting reference counts, unless pointees are equal. Moved-from object is reset to nullptr.
+     */
     template <class _OtherClass>
     typename std::enable_if_t<std::is_convertible_v<_OtherClass *, _Class *>, SharedPtr &>
     operator=(SharedPtr<_OtherClass>&& other);
 
+    /**
+     * Access raw pointee.
+     * @warning Avoid wrapping the returned value again, as it may lead double frees unless this object becomes detached.
+     */
     _Class* get() const;
 
+    /**
+     * Call operations directly on the pointee.
+     */
     _Class* operator->() const;
 
+    /**
+     * Implicit cast to bool.
+     */
     explicit operator bool() const;
 
+    /**
+     * Reset this SharedPtr to null, decreasing the reference count.
+     */
     void reset();
 
+    /**
+     * Detach the SharedPtr from the pointee, without decreasing the reference count.
+     */
     void detach();
 
     template <class _OtherClass>
@@ -2564,6 +2610,11 @@ private:
     _Class* m_pObject;
 };
 
+/**
+ * Create a SharedPtr by retaining an existing raw pointer.
+ * Increases the reference count of the passed-in object.
+ * If the passed-in object was in an AutoreleasePool, it will be removed from it.
+ */
 template <class _Class>
 _NS_INLINE NS::SharedPtr<_Class> RetainPtr(_Class* pObject)
 {
@@ -2572,6 +2623,11 @@ _NS_INLINE NS::SharedPtr<_Class> RetainPtr(_Class* pObject)
     return ret;
 }
 
+/*
+ * Create a SharedPtr by transfering the ownership of an existing raw pointer to SharedPtr.
+ * Does not increase the reference count of the passed-in pointer, it is assumed to be >= 1.
+ * This method does not remove objects from an AutoreleasePool.
+*/
 template <class _Class>
 _NS_INLINE NS::SharedPtr<_Class> TransferPtr(_Class* pObject)
 {
@@ -2745,7 +2801,7 @@ struct hash<NS::SharedPtr<T>>
     }
 };
 
-}
+} // namespace std
 
 namespace NS
 {
@@ -2820,7 +2876,7 @@ _NS_INLINE const char* NS::URL::fileSystemRepresentation() const
 #define _MTL_PRIVATE_VISIBILITY __attribute__((visibility("hidden")))
 #else
 #define _MTL_PRIVATE_VISIBILITY __attribute__((visibility("default")))
-#endif
+#endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
 
 #define _MTL_PRIVATE_IMPORT __attribute__((weak_import))
 
@@ -2830,7 +2886,7 @@ _NS_INLINE const char* NS::URL::fileSystemRepresentation() const
 #else
 #define _MTL_PRIVATE_OBJC_LOOKUP_CLASS(symbol) objc_lookUpClass(#symbol)
 #define _MTL_PRIVATE_OBJC_GET_PROTOCOL(symbol) objc_getProtocol(#symbol)
-#endif
+#endif // __OBJC__
 
 #define _MTL_PRIVATE_DEF_CLS(symbol) void* s_k##symbol _MTL_PRIVATE_VISIBILITY = _MTL_PRIVATE_OBJC_LOOKUP_CLASS(symbol)
 #define _MTL_PRIVATE_DEF_PRO(symbol) void* s_k##symbol _MTL_PRIVATE_VISIBILITY = _MTL_PRIVATE_OBJC_GET_PROTOCOL(symbol)
@@ -2850,7 +2906,7 @@ namespace MTL::Private
 
         return pAddress ? *pAddress : nullptr;
     }
-}
+} // MTL::Private
 
 #if (TARGET_OS_OSX    && __MAC_26_0   && (__MAC_OS_X_VERSION_MIN_REQUIRED  >= __MAC_26_0))                           || \
     (TARGET_OS_IPHONE && _IPHONE_26_0 && (__IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_26_0) && (!TARGET_OS_VISION)) || \
@@ -2891,7 +2947,7 @@ namespace MTL::Private
 #define _MTL_PRIVATE_DEF_CONST(type, symbol) extern type const MTL::symbol
 #define _MTL_PRIVATE_DEF_WEAK_CONST(type, symbol) extern type const MTL::symbol
 
-#endif
+#endif // MTL_PRIVATE_IMPLEMENTATION
 
 namespace MTL
 {
@@ -2900,9 +2956,9 @@ namespace Private
     namespace Class
     {
 
-    }
-}
-}
+    } // Class
+} // Private
+} // MTL
 
 namespace MTL
 {
@@ -2911,9 +2967,9 @@ namespace Private
     namespace Protocol
     {
 
-    }
-}
-}
+    } // Protocol
+} // Private
+} // MTL
 
 namespace MTL
 {
@@ -2926,9 +2982,9 @@ namespace Private
             "beginScope");
         _MTL_PRIVATE_DEF_SEL(endScope,
             "endScope");
-    }
-}
-}
+    } // Class
+} // Private
+} // MTL
 
 namespace MTL::Private::Class
 {
@@ -7405,7 +7461,7 @@ _MTL_INLINE NS::UInteger MTL::Texture::width() const
 #define _CA_PRIVATE_VISIBILITY __attribute__((visibility("hidden")))
 #else
 #define _CA_PRIVATE_VISIBILITY __attribute__((visibility("default")))
-#endif
+#endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
 
 #define _CA_PRIVATE_IMPORT __attribute__((weak_import))
 
@@ -7415,7 +7471,7 @@ _MTL_INLINE NS::UInteger MTL::Texture::width() const
 #else
 #define _CA_PRIVATE_OBJC_LOOKUP_CLASS(symbol) objc_lookUpClass(#symbol)
 #define _CA_PRIVATE_OBJC_GET_PROTOCOL(symbol) objc_getProtocol(#symbol)
-#endif
+#endif // __OBJC__
 
 #define _CA_PRIVATE_DEF_CLS(symbol) void* s_k##symbol _CA_PRIVATE_VISIBILITY = _CA_PRIVATE_OBJC_LOOKUP_CLASS(symbol)
 #define _CA_PRIVATE_DEF_PRO(symbol) void* s_k##symbol _CA_PRIVATE_VISIBILITY = _CA_PRIVATE_OBJC_GET_PROTOCOL(symbol)
@@ -7431,7 +7487,7 @@ _MTL_INLINE NS::UInteger MTL::Texture::width() const
 #define _CA_PRIVATE_DEF_SEL(accessor, symbol) extern SEL s_k##accessor
 #define _CA_PRIVATE_DEF_STR(type, symbol) extern type const CA::symbol
 
-#endif
+#endif // CA_PRIVATE_IMPLEMENTATION
 
 namespace CA
 {
@@ -7440,9 +7496,9 @@ namespace Private
     namespace Class
     {
         _CA_PRIVATE_DEF_CLS(CAMetalLayer);
-    }
-}
-}
+    } // Class
+} // Private
+} // CA
 
 namespace CA
 {
@@ -7453,9 +7509,9 @@ namespace Private
 
         _CA_PRIVATE_DEF_PRO(CAMetalDrawable);
 
-    }
-}
-}
+    } // Protocol
+} // Private
+} // CA
 
 namespace CA
 {
@@ -7507,9 +7563,9 @@ namespace Private
             "texture");
         _CA_PRIVATE_DEF_SEL(wantsExtendedDynamicRangeContent,
             "wantsExtendedDynamicRangeContent");
-    }
-}
-}
+    } // Class
+} // Private
+} // CA
 
 namespace CA
 {
@@ -7728,7 +7784,7 @@ public:
 
     MTL::ResidencySet*       residencySet() const;
 };
-}
+} // namespace CA
 
 _CA_INLINE CA::MetalLayer* CA::MetalLayer::layer()
 {
@@ -9643,7 +9699,7 @@ struct PackedFloatQuaternion
     float&       operator[](int idx);
     const float& operator[](int idx) const;
 
-    union
+    union 
     {
         struct
         {
@@ -9655,7 +9711,7 @@ struct PackedFloatQuaternion
 
         float elements[4];
     };
-
+    
 } _MTL_PACKED;
 #pragma clang diagnostic pop
 
@@ -9740,7 +9796,7 @@ _MTL_INLINE const MTL::PackedFloat3& MTL::PackedFloat4x3::operator[](int idx) co
 #if __apple_build_version__ > 16000026
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnan-infinity-disabled"
-#endif
+#endif // __apple_build_version__ > 16000026
 _MTL_INLINE MTL::AxisAlignedBoundingBox::AxisAlignedBoundingBox()
     : min(INFINITY, INFINITY, INFINITY)
     , max(-INFINITY, -INFINITY, -INFINITY)
@@ -9748,7 +9804,7 @@ _MTL_INLINE MTL::AxisAlignedBoundingBox::AxisAlignedBoundingBox()
 }
 #if __apple_build_version__ > 16000026
 #pragma clang diagnostic pop
-#endif
+#endif // if __apple_build_version__ > 16000026
 
 _MTL_INLINE MTL::AxisAlignedBoundingBox::AxisAlignedBoundingBox(PackedFloat3 p)
     : min(p)
@@ -12928,7 +12984,7 @@ _MTL_INLINE MTL::BlitPassSampleBufferAttachmentDescriptorArray* MTL::BlitPassDes
 
 #include <cstdint>
 
-#endif
+#endif // __METAL_VERSION__
 
 namespace MTL
 {
@@ -15699,7 +15755,7 @@ _NS_EXPORT NS::Array* MTL::CopyAllDevicesWithObserver(NS::Object** pOutObserver,
     (void)pOutObserver;
     (void)handler;
     return nullptr;
-#endif
+#endif // TARGET_OS_OSX
 }
 
 _NS_EXPORT NS::Array* MTL::CopyAllDevicesWithObserver(NS::Object** pOutObserver, const MTL::DeviceNotificationHandlerFunction& handler)
@@ -15713,10 +15769,10 @@ _NS_EXPORT void MTL::RemoveDeviceObserver(const NS::Object* pObserver)
     (void)pObserver;
 #if TARGET_OS_OSX
     ::MTLRemoveDeviceObserver(pObserver);
-#endif
+#endif // TARGET_OS_OSX
 }
 
-#endif
+#endif // MTL_PRIVATE_IMPLEMENTATION
 
 _MTL_INLINE MTL::BindingAccess MTL::ArgumentDescriptor::access() const
 {

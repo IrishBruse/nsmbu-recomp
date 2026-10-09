@@ -17,16 +17,10 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #pragma once
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#include "MTLDefines.hpp"
-#include "MTLPrivate.hpp"
-#include "MTLResource.hpp"
-#include "MTLStageInputOutputDescriptor.hpp"
-#include "../Foundation/Foundation.hpp"
-#include <cstdint>
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
 
 #include "MTLDefines.hpp"
 #include "MTLPrivate.hpp"
@@ -35,6 +29,8 @@
 
 #include "../Foundation/Foundation.hpp"
 #include <cstdint>
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace MTL
 {
@@ -94,7 +90,7 @@ struct PackedFloatQuaternion
     float&       operator[](int idx);
     const float& operator[](int idx) const;
 
-    union
+    union 
     {
         struct
         {
@@ -106,7 +102,7 @@ struct PackedFloatQuaternion
 
         float elements[4];
     };
-
+    
 } _MTL_PACKED;
 #pragma clang diagnostic pop
 
@@ -138,12 +134,16 @@ struct BufferRange
 
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE MTL::PackedFloat3::PackedFloat3()
     : x(0.0f)
     , y(0.0f)
     , z(0.0f)
 {
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTL_INLINE MTL::PackedFloat3::PackedFloat3(float _x, float _y, float _z)
     : x(_x)
@@ -152,15 +152,21 @@ _MTL_INLINE MTL::PackedFloat3::PackedFloat3(float _x, float _y, float _z)
 {
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE float& MTL::PackedFloat3::operator[](int idx)
 {
     return elements[idx];
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE float MTL::PackedFloat3::operator[](int idx) const
 {
     return elements[idx];
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTL_INLINE MTL::PackedFloat4x3::PackedFloat4x3()
 {
@@ -170,6 +176,8 @@ _MTL_INLINE MTL::PackedFloat4x3::PackedFloat4x3()
     columns[3] = PackedFloat3(0.0f, 0.0f, 0.0f);
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE MTL::PackedFloat4x3::PackedFloat4x3(const PackedFloat3& col0, const PackedFloat3& col1, const PackedFloat3& col2, const PackedFloat3& col3)
 {
     columns[0] = col0;
@@ -178,20 +186,26 @@ _MTL_INLINE MTL::PackedFloat4x3::PackedFloat4x3(const PackedFloat3& col0, const 
     columns[3] = col3;
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE MTL::PackedFloat3& MTL::PackedFloat4x3::operator[](int idx)
 {
     return columns[idx];
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTL_INLINE const MTL::PackedFloat3& MTL::PackedFloat4x3::operator[](int idx) const
 {
     return columns[idx];
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #if __apple_build_version__ > 16000026
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnan-infinity-disabled"
-#endif
+#endif // __apple_build_version__ > 16000026
 _MTL_INLINE MTL::AxisAlignedBoundingBox::AxisAlignedBoundingBox()
     : min(INFINITY, INFINITY, INFINITY)
     , max(-INFINITY, -INFINITY, -INFINITY)
@@ -199,7 +213,9 @@ _MTL_INLINE MTL::AxisAlignedBoundingBox::AxisAlignedBoundingBox()
 }
 #if __apple_build_version__ > 16000026
 #pragma clang diagnostic pop
-#endif
+#endif // if __apple_build_version__ > 16000026
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTL_INLINE MTL::AxisAlignedBoundingBox::AxisAlignedBoundingBox(PackedFloat3 p)
     : min(p)
@@ -207,11 +223,15 @@ _MTL_INLINE MTL::AxisAlignedBoundingBox::AxisAlignedBoundingBox(PackedFloat3 p)
 {
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE MTL::AxisAlignedBoundingBox::AxisAlignedBoundingBox(PackedFloat3 _min, PackedFloat3 _max)
     : min(_min)
     , max(_max)
 {
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTL_INLINE MTL::PackedFloatQuaternion::PackedFloatQuaternion()
     : x(0.0f)
@@ -221,6 +241,8 @@ _MTL_INLINE MTL::PackedFloatQuaternion::PackedFloatQuaternion()
 {
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE MTL::PackedFloatQuaternion::PackedFloatQuaternion(float x, float y, float z, float w)
     : x(x)
     , y(y)
@@ -229,15 +251,21 @@ _MTL_INLINE MTL::PackedFloatQuaternion::PackedFloatQuaternion(float x, float y, 
 {
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE float& MTL::PackedFloatQuaternion::operator[](int idx)
 {
     return elements[idx];
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE const float& MTL::PackedFloatQuaternion::operator[](int idx) const
 {
     return elements[idx];
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTL_INLINE MTL4::BufferRange::BufferRange(uint64_t bufferAddress)
 : bufferAddress(bufferAddress)
@@ -245,14 +273,20 @@ _MTL_INLINE MTL4::BufferRange::BufferRange(uint64_t bufferAddress)
 {
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE MTL4::BufferRange::BufferRange(uint64_t bufferAddress, uint64_t length)
 : bufferAddress(bufferAddress)
 , length(length)
 {
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTL_INLINE MTL4::BufferRange MTL4::BufferRange::Make(uint64_t bufferAddress, uint64_t length)
 {
     return MTL4::BufferRange(bufferAddress, length);
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 

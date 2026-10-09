@@ -17,8 +17,7 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
-#include "MTLPrivate.hpp"
+
 #pragma once
 #include "MTLPrivate.hpp"
 

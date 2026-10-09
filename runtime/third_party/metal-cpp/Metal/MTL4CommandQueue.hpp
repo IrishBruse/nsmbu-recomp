@@ -17,16 +17,7 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
-#include "../Foundation/Foundation.hpp"
-#include "MTL4CommitFeedback.hpp"
-#include "MTLDefines.hpp"
-#include "MTLHeaderBridge.hpp"
-#include "MTLPrivate.hpp"
-#include "MTLResourceStateCommandEncoder.hpp"
-#include "MTLTypes.hpp"
-#include <cstdint>
-#include <dispatch/dispatch.h>
+
 #pragma once
 
 #include "../Foundation/Foundation.hpp"

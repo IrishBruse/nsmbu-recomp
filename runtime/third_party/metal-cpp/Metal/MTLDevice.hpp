@@ -17,24 +17,7 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
-#include "../Foundation/Foundation.hpp"
-#include "MTL4Counters.hpp"
-#include "MTLArgument.hpp"
-#include "MTLDataType.hpp"
-#include "MTLDefines.hpp"
-#include "MTLHeaderBridge.hpp"
-#include "MTLPixelFormat.hpp"
-#include "MTLPrivate.hpp"
-#include "MTLResource.hpp"
-#include "MTLTexture.hpp"
-#include "MTLTypes.hpp"
-#include <IOSurface/IOSurfaceRef.h>
-#include <cstdint>
-#include <dispatch/dispatch.h>
-#include <TargetConditionals.h>
-#include <cstdint>
-#include <functional>
+
 #pragma once
 
 #include "../Foundation/Foundation.hpp"
@@ -636,7 +619,7 @@ _NS_EXPORT NS::Array* MTL::CopyAllDevicesWithObserver(NS::Object** pOutObserver,
     (void)pOutObserver;
     (void)handler;
     return nullptr;
-#endif
+#endif // TARGET_OS_OSX
 }
 
 _NS_EXPORT NS::Array* MTL::CopyAllDevicesWithObserver(NS::Object** pOutObserver, const MTL::DeviceNotificationHandlerFunction& handler)
@@ -650,10 +633,10 @@ _NS_EXPORT void MTL::RemoveDeviceObserver(const NS::Object* pObserver)
     (void)pObserver;
 #if TARGET_OS_OSX
     ::MTLRemoveDeviceObserver(pObserver);
-#endif
+#endif // TARGET_OS_OSX
 }
 
-#endif
+#endif // MTL_PRIVATE_IMPLEMENTATION
 
 _MTL_INLINE MTL::BindingAccess MTL::ArgumentDescriptor::access() const
 {

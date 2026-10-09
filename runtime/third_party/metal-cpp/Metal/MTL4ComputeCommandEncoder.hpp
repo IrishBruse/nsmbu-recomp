@@ -17,21 +17,7 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
-#include "../Foundation/Foundation.hpp"
-#include "MTL4CommandEncoder.hpp"
-#include "MTL4Counters.hpp"
-#include "MTLAccelerationStructure.hpp"
-#include "MTLAccelerationStructureTypes.hpp"
-#include "MTLBlitCommandEncoder.hpp"
-#include "MTLCommandEncoder.hpp"
-#include "MTLDefines.hpp"
-#include "MTLGPUAddress.hpp"
-#include "MTLHeaderBridge.hpp"
-#include "MTLPrivate.hpp"
-#include "MTLTensor.hpp"
-#include "MTLTypes.hpp"
-#include <cstdint>
+
 #pragma once
 
 #include "../Foundation/Foundation.hpp"

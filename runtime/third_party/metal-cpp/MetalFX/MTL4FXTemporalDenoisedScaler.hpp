@@ -17,15 +17,10 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #pragma once
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#include "MTLFXDefines.hpp"
-#include "MTLFXPrivate.hpp"
-#include "MTLFXTemporalDenoisedScaler.hpp"
-#include "../Metal/Metal.hpp"
-#include <simd/simd.h>
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
 
 #include "MTLFXDefines.hpp"
 #include "MTLFXPrivate.hpp"
@@ -34,6 +29,8 @@
 #include "../Metal/Metal.hpp"
 
 #include <simd/simd.h>
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace MTL4FX
 {
@@ -43,6 +40,8 @@ namespace MTL4FX
         void encodeToCommandBuffer(MTL4::CommandBuffer* commandBuffer);
     };
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTLFX_INLINE void MTL4FX::TemporalDenoisedScaler::encodeToCommandBuffer( MTL4::CommandBuffer* commandBuffer )
 {

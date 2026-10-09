@@ -17,14 +17,7 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
-#include "../Foundation/Foundation.hpp"
-#include "MTL4PipelineState.hpp"
-#include "MTL4RenderPipeline.hpp"
-#include "MTLDefines.hpp"
-#include "MTLHeaderBridge.hpp"
-#include "MTLPrivate.hpp"
-#include "MTLTypes.hpp"
+
 #pragma once
 
 #include "../Foundation/Foundation.hpp"

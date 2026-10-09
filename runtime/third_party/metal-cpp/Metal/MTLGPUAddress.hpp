@@ -17,23 +17,18 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #pragma once
+
 #ifdef __METAL_VERSION__
+
 #include <metal_stdlib>
+
 #else
+
 #include <cstdint>
+
 #endif // __METAL_VERSION__
-#pragma once
-
-#ifdef __METAL_VERSION__
-
-#include <metal_stdlib>
-
-#else
-
-#include <cstdint>
-
-#endif
 
 namespace MTL
 {

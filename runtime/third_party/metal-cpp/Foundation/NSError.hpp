@@ -17,19 +17,17 @@
 // limitations under the License.
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 #pragma once
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#include "NSDefines.hpp"
-#include "NSObject.hpp"
-#include "NSPrivate.hpp"
-#include "NSTypes.hpp"
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-#pragma once
 
 #include "NSDefines.hpp"
 #include "NSObject.hpp"
 #include "NSPrivate.hpp"
 #include "NSTypes.hpp"
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace NS
 {
@@ -75,6 +73,8 @@ public:
 };
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_PRIVATE_DEF_CONST(NS::ErrorDomain, CocoaErrorDomain);
 _NS_PRIVATE_DEF_CONST(NS::ErrorDomain, POSIXErrorDomain);
 _NS_PRIVATE_DEF_CONST(NS::ErrorDomain, OSStatusErrorDomain);
@@ -93,58 +93,81 @@ _NS_PRIVATE_DEF_CONST(NS::ErrorUserInfoKey, StringEncodingErrorKey);
 _NS_PRIVATE_DEF_CONST(NS::ErrorUserInfoKey, URLErrorKey);
 _NS_PRIVATE_DEF_CONST(NS::ErrorUserInfoKey, FilePathErrorKey);
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::Error* NS::Error::error(ErrorDomain domain, Integer code, class Dictionary* pDictionary)
 {
     return Object::sendMessage<Error*>(_NS_PRIVATE_CLS(NSError), _NS_PRIVATE_SEL(errorWithDomain_code_userInfo_), domain, code, pDictionary);
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE NS::Error* NS::Error::alloc()
 {
     return Object::alloc<Error>(_NS_PRIVATE_CLS(NSError));
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::Error* NS::Error::init()
 {
     return Object::init<Error>();
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE NS::Error* NS::Error::init(ErrorDomain domain, Integer code, class Dictionary* pDictionary)
 {
     return Object::sendMessage<Error*>(this, _NS_PRIVATE_SEL(initWithDomain_code_userInfo_), domain, code, pDictionary);
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::Integer NS::Error::code() const
 {
     return Object::sendMessage<Integer>(this, _NS_PRIVATE_SEL(code));
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE NS::ErrorDomain NS::Error::domain() const
 {
     return Object::sendMessage<ErrorDomain>(this, _NS_PRIVATE_SEL(domain));
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::Dictionary* NS::Error::userInfo() const
 {
     return Object::sendMessage<Dictionary*>(this, _NS_PRIVATE_SEL(userInfo));
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE NS::String* NS::Error::localizedDescription() const
 {
     return Object::sendMessage<String*>(this, _NS_PRIVATE_SEL(localizedDescription));
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::Array* NS::Error::localizedRecoveryOptions() const
 {
     return Object::sendMessage<Array*>(this, _NS_PRIVATE_SEL(localizedRecoveryOptions));
 }
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _NS_INLINE NS::String* NS::Error::localizedRecoverySuggestion() const
 {
     return Object::sendMessage<String*>(this, _NS_PRIVATE_SEL(localizedRecoverySuggestion));
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _NS_INLINE NS::String* NS::Error::localizedFailureReason() const
 {
     return Object::sendMessage<String*>(this, _NS_PRIVATE_SEL(localizedFailureReason));
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
