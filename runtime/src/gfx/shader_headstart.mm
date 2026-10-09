@@ -6,9 +6,9 @@
 //   type 2 (pipeline): pipeline recipes seen in play, referencing type 1 shaders by key; built in the
 //                     background once their shaders are compiled (like the user cache's)
 //   type 3 (speculative): other archive programs with states of the same shader family; only
-//                     `wwhd --warm-shaders` compiles them, to fill the macOS Metal shader cache
-// `wwhd --warm-shaders` compiles all three kinds.
-// WWHD_HEADSTART=<file> overrides the location, WWHD_HEADSTART=0 disables it.
+//                     `nsmbu --warm-shaders` compiles them, to fill the macOS Metal shader cache
+// `nsmbu --warm-shaders` compiles all three kinds.
+// NSMBU_HEADSTART=<file> overrides the location, NSMBU_HEADSTART=0 disables it.
 #include <chrono>
 #include <thread>
 #include <unordered_map>
@@ -31,7 +31,7 @@ namespace {
 constexpr uint32_t kRecShader = 1, kRecPipeline = 2, kRecSpeculative = 3;
 
 std::string headstart_path() {
-    if (const char* e = getenv("WWHD_HEADSTART")) return e;
+    if (const char* e = getenv("NSMBU_HEADSTART")) return e;
     return config::game_dir + "/shadercache/headstart.bin";
 }
 
@@ -117,7 +117,7 @@ void headstart_load() {
             st.records, st.translated, st.failed, st.pipelines, ms_since(t0), headstart_path().c_str());
 }
 
-// `wwhd --warm-shaders`: translate and compile every head-start shader and pipeline once, so the macOS
+// `nsmbu --warm-shaders`: translate and compile every head-start shader and pipeline once, so the macOS
 // Metal shader cache holds the compiled code before the game first asks for it. Returns when done.
 int headstart_warm() {
     auto t0 = std::chrono::steady_clock::now();

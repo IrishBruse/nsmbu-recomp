@@ -49,7 +49,7 @@ void log_msg(const char* fmt, ...) {
     va_end(ap2);
     g_log_next++;
 #ifdef __ANDROID__
-    __android_log_vprint(ANDROID_LOG_INFO, "wwhd", fmt, ap);  // adb logcat -s wwhd
+    __android_log_vprint(ANDROID_LOG_INFO, "nsmbu", fmt, ap);  // adb logcat -s nsmbu
     va_end(ap);
 #else
     vfprintf(stderr, fmt, ap);
@@ -74,7 +74,7 @@ void fatal(const char* fmt, ...) {
         va_list ap;
         va_start(ap, fmt);
 #ifdef __ANDROID__
-        __android_log_vprint(ANDROID_LOG_FATAL, "wwhd", fmt, ap);
+        __android_log_vprint(ANDROID_LOG_FATAL, "nsmbu", fmt, ap);
 #else
         fprintf(stderr, "FATAL: ");
         vfprintf(stderr, fmt, ap);
@@ -217,7 +217,7 @@ bool load_rpx(const std::string& path, LoadedModule& out) {
 // ---------------------------------------------------------------- dispatch
 namespace dispatch {
 static constexpr uint32_t kTextBase = 0x02000000;
-static constexpr uint32_t kTextSize = 0x01000000;  // 16 MiB covers cking.rpx .text
+static constexpr uint32_t kTextSize = 0x01000000;  // 16 MiB covers red-pro2.rpx .text
 static PpcFunc* g_text_table;                        // indexed by (addr - kTextBase) / 4
 // lock-free direct tables for import slots and host functions (called through pointers a lot)
 static constexpr uint32_t kSlotBase = 0xC0000000, kSlotSize = 0x40000;     // import stubs, 4-byte steps

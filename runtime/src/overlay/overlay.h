@@ -11,9 +11,9 @@
 // thread once per TV present (frame()); option changes go back to the main thread (hostui::post).
 //
 // Test switches:
-//   WWHD_TEST_OVERLAY=open[:<tab>][@<frame>]   open the overlay (tab: saves, graphics, display, mods,
+//   NSMBU_TEST_OVERLAY=open[:<tab>][@<frame>]   open the overlay (tab: saves, graphics, display, mods,
 //                                              controls, about) at TV frame <frame> (default 1)
-//   WWHD_TEST_OVERLAY=perf                     only the performance overlay
+//   NSMBU_TEST_OVERLAY=perf                     only the performance overlay
 #pragma once
 #include <cstdint>
 

@@ -1,7 +1,7 @@
 /* Differential verification harness.
  *
- * For each WWHD function that has a candidate source implementation (VERIFY(addr, fn) in
- * wwhd_src), run the recompiled original and the candidate on identical inputs and compare:
+ * For each NSMBU function that has a candidate source implementation (VERIFY(addr, fn) in
+ * nsmbu_src), run the recompiled original and the candidate on identical inputs and compare:
  *   - the return value (type from the candidate's signature),
  *   - the net memory effect (every byte whose final value differs from its initial value,
  *     outside the stack below the entry SP),

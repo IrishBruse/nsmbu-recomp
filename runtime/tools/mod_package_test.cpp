@@ -53,7 +53,7 @@ mods::packages::View view(const std::string& id) {for(auto v:mods::packages::lis
 // Second process on the same storage: a confirmed native package loads after a restart without asking.
 int restart_check(const char* storage) {
     using namespace mods::packages;
-    env("WWHD_NO_HOST_INPUT","1");env("WWHD_MOD_MANAGER_DIR",storage);env("WWHD_TEST_TRUST_NATIVE_MODS",nullptr);
+    env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage);env("NSMBU_TEST_TRUST_NATIVE_MODS",nullptr);
     initialize();std::string error;
     assert(view("fixture").enabled && view("fixture").native_confirmed && unconfirmed_native("fixture").empty());
     frame(1);assert(view("fixture").active && view("fixture").status=="changed");
@@ -67,19 +67,19 @@ int main(int argc, char** argv) {
     if(argc == 3 && std::string(argv[1]) == "--restart") return restart_check(argv[2]);
     if(argc==2&&(std::string(argv[1])=="--cemu-startup"||std::string(argv[1])=="--cemu-backend")){
         bool backend=std::string(argv[1])=="--cemu-backend";
-        auto root=fs::temp_directory_path()/("wwhd-cemu-startup-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        auto root=fs::temp_directory_path()/("nsmbu-cemu-startup-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         auto storage=root/"storage",pack=storage/"Mods"/"cemu.test";fs::create_directories(pack);
-        std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"cemu.test","name":"Test","version":"1.0.0","game_id":"wwhd-usa","kind":"cemu","cemu_dir":""})";
+        std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"cemu.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"cemu","cemu_dir":""})";
         std::ofstream(pack/"rules.txt")<<"[Definition]\nname=Test\ntitleIds=0005000010143500\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n";
         std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true},"config":{"cemu.test":{"preset-0":"Double"}}}}})";
         if(backend){
             std::ofstream(pack/"0000000000000001_0000000000000002_ps.txt")<<"#version 420\nvoid main(){}\n";
             auto content=storage/"Mods"/"content.test";fs::create_directories(content/"content"/"Common");
             std::ofstream(content/"content"/"Common"/"test.bin")<<"synthetic content";
-            std::ofstream(content/"manifest.json")<<R"({"format_version":1,"id":"content.test","name":"Content","version":"1.0.0","game_id":"wwhd-usa","kind":"content","content_dir":"content"})";
+            std::ofstream(content/"manifest.json")<<R"({"format_version":1,"id":"content.test","name":"Content","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
             std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true,"content.test":true}}}})";
         }
-        env("WWHD_NO_HOST_INPUT","1");env("WWHD_MOD_MANAGER_DIR",storage.string().c_str());initialize();
+        env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());initialize();
         if(backend){
             assert(!mods::content::replacement("Common/test.bin").empty());
             for(const auto& view:list())if(view.id=="cemu.test")assert(!view.active&&!view.compatible&&view.enabled);
@@ -96,14 +96,14 @@ int main(int argc, char** argv) {
         std::cout<<"Cemu startup presets and restart-only immutable lifecycle passed\n";return 0;
     }
     if(argc==2&&std::string(argv[1])=="--content-startup"){
-        auto root=fs::temp_directory_path()/("wwhd-content-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        auto root=fs::temp_directory_path()/("nsmbu-content-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         auto storage=root/"storage";auto pack=storage/"Mods"/"content.test";
         fs::create_directories(pack/"content"/"Common");
         std::ofstream(pack/"content"/"Common"/"fixture.bin")<<"synthetic replacement";
         fs::create_directories(pack/"content"/"Common"/"Pack");std::ofstream(pack/"content"/"Common"/"Pack"/"permanent_2d_EuEnglish.pack")<<"SARCsynthetic translation";
-        std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"content.test","name":"Test","version":"1.0.0","game_id":"wwhd-usa","kind":"content","content_dir":"content"})";
+        std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"content.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
         std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"content.test":true}}}})";
-        env("WWHD_NO_HOST_INPUT","1");env("WWHD_MOD_MANAGER_DIR",storage.string().c_str());
+        env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());
         assert(mods::content::replacement("/vol/content/Common/fixture.bin").empty());initialize();
         auto file=mods::content::replacement("/vol/content/common/FIXTURE.bin");assert(file==(pack/"content"/"Common"/"fixture.bin").string());
         assert(mods::content::replacement("Common/fixture.bin")==file);
@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
         fs::remove_all(root);std::cout<<"Startup overrides, read-only routing, boundaries, and restart lifecycle passed\n";return 0;
     }
     assert(argc == 3 || argc == 4);
-    env("WWHD_TEST_TRUST_NATIVE_MODS",nullptr);
+    env("NSMBU_TEST_TRUST_NATIVE_MODS",nullptr);
     auto root=fs::path(argv[1])/std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     assert(!fs::exists(root));
     fs::create_directories(root);
@@ -170,10 +170,10 @@ int main(int argc, char** argv) {
     assert(configure("typed","rate",5,error));assert(!configure("typed","rate",11,error));
     assert(configure("typed","mode","b",error));assert(!configure("typed","mode","c",error));
     assert(install((root/"typed").string(),error));assert(remove("typed",error));
-    auto bad=root/"bad.wwhdmod";std::ofstream(bad)<<"not a package";assert(!install(bad.string(),error));
+    auto bad=root/"bad.nsmbumod";std::ofstream(bad)<<"not a package";assert(!install(bad.string(),error));
     auto native=root/"native";fs::create_directories(native);
     fs::copy_file(argv[2],native/"fixture.dylib");
-    std::ofstream(native/"manifest.json") << "{\"format_version\":1,\"id\":\"fixture\",\"name\":\"Fixture\",\"version\":\"1.0.0\",\"game_id\":\"wwhd-usa\",\"kind\":\"native\",\"abi_version\":1,\"binaries\":{\""
+    std::ofstream(native/"manifest.json") << "{\"format_version\":1,\"id\":\"fixture\",\"name\":\"Fixture\",\"version\":\"1.0.0\",\"game_id\":\"nsmbu-usa\",\"kind\":\"native\",\"abi_version\":1,\"binaries\":{\""
       << platform_key() << "\":\"fixture.dylib\"},\"options\":[{\"id\":\"label\",\"name\":\"Label\",\"type\":\"string\",\"default\":\"initial\"}]}";
     assert(install(native.string(),error));
     auto find=[] {return view("fixture");};
@@ -190,8 +190,8 @@ int main(int argc, char** argv) {
     pending=unconfirmed_native("needs-native");assert(pending.size()==1 && pending[0].first=="fixture");
     assert(!enable("needs-native",true,error));assert(remove("needs-native",error));
     // Test aid: pre-confirmed only in isolated test runs, and never written to profiles.json.
-    env("WWHD_TEST_TRUST_NATIVE_MODS","other,fixture");assert(find().native_confirmed && unconfirmed_native("fixture").empty());
-    env("WWHD_TEST_TRUST_NATIVE_MODS",nullptr);assert(!find().native_confirmed && trusted().empty());
+    env("NSMBU_TEST_TRUST_NATIVE_MODS","other,fixture");assert(find().native_confirmed && unconfirmed_native("fixture").empty());
+    env("NSMBU_TEST_TRUST_NATIVE_MODS",nullptr);assert(!find().native_confirmed && trusted().empty());
     assert(confirm_native("fixture",error));assert(trusted().size()==64);
     assert(find().native_confirmed && unconfirmed_native("fixture").empty());
     assert(!confirm_native("climb-preset",error));

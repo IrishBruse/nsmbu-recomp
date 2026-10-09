@@ -143,7 +143,7 @@ int usable(int language) {
 }
 
 std::string sources_dir() {
-    if (const char* e = getenv("WWHD_LANG_DIR"); e && *e) return e;
+    if (const char* e = getenv("NSMBU_LANG_DIR"); e && *e) return e;
     fs::path game = fs::path(config::game_dir);
     if (game.filename().empty()) game = game.parent_path();  // "data/game/"
     const fs::path beside = game.parent_path() / "game-lang";

@@ -5,7 +5,7 @@ implements, isolated from the rest of the game.
 usage: mkunit.py UNIT [--root .] [--out build/verify/UNIT]
 
 Reads tools/verify/units/UNIT.txt:
-    src  wwhd_src/...cpp        candidate sources (VERIFY(0xADDR, fn) marks what they implement)
+    src  nsmbu_src/...cpp        candidate sources (VERIFY(0xADDR, fn) marks what they implement)
     real ADDR                   link this callee's real code instead of a mock (pure helpers)
     field ADDR|* rN+OFF TYPE LO [HI]   steer generated inputs (read by the harness, -spec)
 

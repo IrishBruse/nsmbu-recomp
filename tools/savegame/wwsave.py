@@ -2,7 +2,7 @@
 
 Shared module of gc2hd.py / hd2gc.py / hd_save_info.py. Plain Python, no game data: only
 structure layouts, checksums and enum names (from the zeldaret tww decompilation and this
-project's verified WWHD decompilation).
+project's verified NSMBU decompilation).
 
 Sources
 -------
@@ -11,7 +11,7 @@ GameCube (tww, GZLE01/GZLJ01 identical; d_save.h only differs for the demo build
   src/d/d_save.cpp              dSv_info_c::memory_to_card / card_to_memory (packed order)
   include/m_Do/m_Do_MemCardRWmng.h, src/m_Do/m_Do_MemCardRWmng.cpp
                                 card_savedata / card_gamedata, the three checksums
-HD (wwhd_src on decomp-actors, all functions verified against the binary):
+HD (nsmbu_src on decomp-actors, all functions verified against the binary):
   d/d_save_5.cpp                dSv_info_c::card_to_memory 025BA7B0 / memory_to_card 025BA9FC
                                 (kCardHead: the same packed block order and sizes),
                                 initdata_to_card 025BAC50
@@ -48,7 +48,7 @@ _GC_BLOCKS, _GC_SIZE = _blocks([
     [("memory%02d" % i, 0x24) for i in range(16)] +
     [("ocean", 0x64), ("event", 0x100), ("reserve", 0x50)])
 
-# HD: kCardHead + the explicit copies of dSv_info_c::card_to_memory 025BA7B0 (wwhd_src/d/d_save_5.cpp)
+# HD: kCardHead + the explicit copies of dSv_info_c::card_to_memory 025BA7B0 (nsmbu_src/d/d_save_5.cpp)
 _HD_BLOCKS, _HD_SIZE = _blocks([
     ("status_a", 0x18), ("status_b", 0x18), ("return_place", 0xC), ("item", 0x15),
     ("get_item", 0x15), ("item_record", 8), ("item_max", 8), ("bag_item", 0x18),

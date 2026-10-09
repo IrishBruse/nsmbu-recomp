@@ -29,7 +29,7 @@ void ratio_begin(Cpu* c, int r);
 void ratio_end(Cpu* c, int r);
 void ratio_arg(Cpu* c, int r);
 float set_dt(float dt);  // step length for the code that follows (returns the previous one)
-// conversion groups (WWHD_TRUE60_GROUPS): each converted part can be switched off on its own
+// conversion groups (NSMBU_TRUE60_GROUPS): each converted part can be switched off on its own
 enum Group { kGrpLoco, kGrpCamera, kGrpSword, kGrpItems, kGrpSwim, kGrpSail, kGrpBk, kGrpMo2, kGrpCc, kGrpKi, kNumGroups };
 bool group_on(Group g);
 // how Link runs in his current procedure: 0 = 30 Hz (interpolated), 1 = 60 Hz (the procedure

@@ -10,7 +10,7 @@
 //   mouse       mouse movement turns the GamePad while the game aims (bow, telescope, ...): for Steam
 //               Input's "gyro to mouse" and plain mice
 // The game decides itself when it uses the gyro (its own Options "Gyro" switch, aiming, the right stick
-// released); this module only reports how the virtual GamePad moves. WWHD turns its first-person camera by
+// released); this module only reports how the virtual GamePad moves. NSMBU turns its first-person camera by
 // the change of the GamePad's direction from one frame to the next (fusion.h, docs/gyro.md), so the sources
 // only say how far the player turned (Aim) and one virtual GamePad (VirtualPad) turns by that.
 //
@@ -21,11 +21,11 @@
 // thread; vpad() runs on the game thread inside VPADRead. Everything is behind one mutex and short.
 //
 // Diagnostics: "[gyro]" log lines say when motion from a device stops and resumes, when the active device
-// changes and when the right stick keeps the game from using the gyro; WWHD_GYRO_LOG=1 adds the raw samples,
+// changes and when the right stick keeps the game from using the gyro; NSMBU_GYRO_LOG=1 adds the raw samples,
 // the bias, the gravity and the aim twice a second.
 //
-// Test aid: WWHD_TEST_GYRO=from-to:yaw:pitch,... turns the virtual GamePad at yaw / pitch degrees
-// per second during game-time seconds (as WWHD_TEST_MOUSE), with any source (also off); no sensitivity.
+// Test aid: NSMBU_TEST_GYRO=from-to:yaw:pitch,... turns the virtual GamePad at yaw / pitch degrees
+// per second during game-time seconds (as NSMBU_TEST_MOUSE), with any source (also off); no sensitivity.
 #pragma once
 #include <cstdint>
 #include <string>
@@ -65,7 +65,7 @@ void upgrade_from_first_release(Settings& s);
 Settings settings();
 // applies at once (starts or stops the Cemuhook client, controller sensors follow on the next host update)
 void set_settings(const Settings& s);
-// WWHD_GYRO=off|controller|cemuhook|mouse overrides the saved source at startup
+// NSMBU_GYRO=off|controller|cemuhook|mouse overrides the saved source at startup
 bool env_override();
 
 // ---- sources ----
@@ -94,7 +94,7 @@ void poll_recalibrate(const float* pad_values, const bool* keys);
 // ---- VPADRead / KPADRead (game thread) ----
 // the motion fields of this read; repeat = the read repeats the previous sample (frame interpolation)
 VpadMotion vpad(bool repeat);
-// a source (or WWHD_TEST_GYRO) turns the virtual GamePad: the game may use its motion also in Pro
+// a source (or NSMBU_TEST_GYRO) turns the virtual GamePad: the game may use its motion also in Pro
 // Controller mode (game_hooks.cpp)
 bool drives_gamepad();
 // the right stick the game aims with (GamePad or Pro Controller), each read: the game ignores the gyro

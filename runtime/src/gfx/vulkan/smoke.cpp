@@ -74,10 +74,10 @@ std::vector<uint8_t> read_buffer(VkBuffer source,VkDeviceSize offset,uint32_t si
  try {flush();std::vector<uint8_t> result(static_cast<uint8_t*>(out.mapped),static_cast<uint8_t*>(out.mapped)+size);defer_buffer(out);return result;}
  catch(...){defer_buffer(out);throw;}
 }
-// Guest buffer cache (WWHD_VK_BUFFER_CACHE=1 only): GPU copies read back from the device after a hit,
+// Guest buffer cache (NSMBU_VK_BUFFER_CACHE=1 only): GPU copies read back from the device after a hit,
 // an unannounced CPU write, a GX2Invalidate hint, a save-state reset and for native index data.
 void buffer_cache_check() {
- if(!buffer_cache_enabled()){fprintf(stderr,"[renderer smoke] buffer cache off (WWHD_VK_BUFFER_CACHE=1 tests it)\n");return;}
+ if(!buffer_cache_enabled()){fprintf(stderr,"[renderer smoke] buffer cache off (NSMBU_VK_BUFFER_CACHE=1 tests it)\n");return;}
  const uint32_t size=8192,addr=mem::host_alloc(65536,4096);
  for(uint32_t i=0;i<65536;++i)mem::ptr(addr)[i]=uint8_t(i*7+3);
  auto gpu_equals_guest=[&](const UploadSlice& s,uint32_t at,uint32_t n,const char* message) {
@@ -386,7 +386,7 @@ void vertex_window_check(Surface& s) {
  for(uint32_t i=100;i<108;++i) {const float xy[3][2]={{-0.8f,-0.8f},{0.8f,-0.8f},{0,0.8f}};data[i]={xy[(i-100)%3][0],xy[(i-100)%3][1],float(i),1,0,0,1};}
  const uint32_t address=0x73510000; // Fixture cache identity; data is supplied directly.
  auto sameSlice=[](const UploadSlice& a,const UploadSlice& b){return a.buffer==b.buffer && a.offset==b.offset;};
- const char* reuseEnv=std::getenv("WWHD_VK_REUSE_VERTEX_SNAPSHOTS");
+ const char* reuseEnv=std::getenv("NSMBU_VK_REUSE_VERTEX_SNAPSHOTS");
  const bool reuse=reuseEnv && !std::strcmp(reuseEnv,"1");
  const uint32_t reserved=106*sizeof(Vertex),offset=100*sizeof(Vertex);
  auto original=vertex_window_smoke_snapshot(0,address,reserved,offset,reserved-offset,data.data(),true);
@@ -617,7 +617,7 @@ int renderer_smoke_test() {
    volume_target_check();
    Image rendered(64,64,0x1a);dynamic_uniform_check(rendered.s);vertex_window_check(rendered.s);triangle(rendered.s);
    if(R.tv.scan)destroy_surface_image(R.tv.scan.get());R.tv.scan=std::make_unique<Surface>();auto& scan=*R.tv.scan;scan.width=64;scan.height=64;scan.format=0x1a;scan.fmt=format_info(scan.format,false);create_surface_image(&scan,false);resample(&rendered.s,&scan,1);mark_gpu_written(&scan);
-   auto capturePath=std::filesystem::temp_directory_path()/("wwhd-vulkan-smoke-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())+".png");
+   auto capturePath=std::filesystem::temp_directory_path()/("nsmbu-vulkan-smoke-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())+".png");
    request_tv_dump(capturePath.string(),0);swap();
    std::ifstream capture(capturePath,std::ios::binary);std::vector<uint8_t> png((std::istreambuf_iterator<char>(capture)),std::istreambuf_iterator<char>());
    const uint8_t signature[8]={137,80,78,71,13,10,26,10};require(png.size()>8&&memcmp(png.data(),signature,8)==0,"PNG capture signature differs");

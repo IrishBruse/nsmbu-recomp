@@ -1,5 +1,5 @@
 # Verification unit: d_a_kamome (seagull)
-src wwhd_src/d/actor/d_a_kamome.cpp wwhd_src/d/actor/d_a_kamome_exec.cpp wwhd_src/d/actor/d_a_kamome_auto.cpp
+src nsmbu_src/d/actor/d_a_kamome.cpp nsmbu_src/d/actor/d_a_kamome_exec.cpp nsmbu_src/d/actor/d_a_kamome_auto.cpp
 
 # stack objects passed to callees: compare the whole object (dBgS_LinChk 0x6C, sead::SafeString 8)
 # 02008FEC cBgS_LinChk::ct: constructor storage, not compared

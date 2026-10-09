@@ -1,9 +1,9 @@
 // Settings overlay on the SDL host (Vulkan-only builds: Windows, Linux, Android): hostui.h on top of
 // the SDL windows and the Vulkan renderer's settings. Options are kept in <config dir>/settings.ini
-// (key=value lines; WWHD_SETTINGS names another file; test runs with WWHD_NO_HOST_INPUT use none).
+// (key=value lines; NSMBU_SETTINGS names another file; test runs with NSMBU_NO_HOST_INPUT use none).
 // The GamePad screen modes are the AppKit host's (gfx/display_modes.cpp): the GamePad window is shown
 // in window mode and hidden in the others, which draw the GamePad picture into the TV window.
-#ifdef WWHD_SDL_HOST
+#ifdef NSMBU_SDL_HOST
 #include "backend.h"
 #include "gfx/display_modes.h"
 #include "settings.h"
@@ -32,8 +32,8 @@ std::map<std::string, std::string> g_values;
 bool g_loaded = false;
 
 std::string path() {
-    if (const char* e = getenv("WWHD_SETTINGS")) return e;
-    if (getenv("WWHD_NO_HOST_INPUT")) return {};  // test runs leave the user's settings alone
+    if (const char* e = getenv("NSMBU_SETTINGS")) return e;
+    if (getenv("NSMBU_NO_HOST_INPUT")) return {};  // test runs leave the user's settings alone
     return host::config_dir() + "/settings.ini";
 }
 void load_locked() {
@@ -57,7 +57,7 @@ void save_locked() {
     std::string tmp = p + ".tmp";
     {
         std::ofstream out(tmp, std::ios::trunc);
-        out << "# Wind Waker HD settings (settings overlay, F1)\n";
+        out << "# New Super Mario Bros. U settings (settings overlay, F1)\n";
         for (auto& [k, v] : g_values) out << k << '=' << v << '\n';
         if (!out) return;
     }
@@ -69,11 +69,11 @@ bool env_set(std::initializer_list<const char*> env) {
     return false;
 }
 // the GamePad screen options, as the AppKit host keeps them in display.plist (same keys; the mode's
-// WWHD_DRC_MODE and the overlay's WWHD_DRC_PIP win and are not saved)
+// NSMBU_DRC_MODE and the overlay's NSMBU_DRC_PIP win and are not saved)
 void save_display_locked() {
     using namespace gfx;
-    if (!env_set({"WWHD_DRC_MODE"})) g_values["drcMode"] = kModeNames[g_mode];
-    if (!env_set({"WWHD_DRC_PIP"})) {
+    if (!env_set({"NSMBU_DRC_MODE"})) g_values["drcMode"] = kModeNames[g_mode];
+    if (!env_set({"NSMBU_DRC_PIP"})) {
         char v[16];
         g_values["pipCorner"] = kCornerNames[g_corner];
         snprintf(v, sizeof v, "%g", g_pip_size.load());
@@ -94,7 +94,7 @@ void apply_drc_window() {
     if (!w) return;
     const bool want = gfx::drc_window_wanted();
     const bool shown = !(SDL_GetWindowFlags(w) & SDL_WINDOW_HIDDEN);
-    if (want && !shown && !getenv("WWHD_HIDDEN_WINDOWS")) {
+    if (want && !shown && !getenv("NSMBU_HIDDEN_WINDOWS")) {
         SDL_ShowWindow(w);
         gfxvk::R.drc.visible = true;
     } else if (!want && shown) {
@@ -148,7 +148,7 @@ void set(const char* key, const std::string& value) {
 
 float res_scale() { return gfxvk::requested_res_scale(); }
 void set_res_scale(float s) { gfxvk::set_res_scale(s); }
-// the graphics options are saved as the AppKit host saves them (an option's WWHD_* variable wins and
+// the graphics options are saved as the AppKit host saves them (an option's NSMBU_* variable wins and
 // is not saved)
 void graphics_changed() {
     std::lock_guard<std::mutex> lk(g_mu);
@@ -158,23 +158,23 @@ void graphics_changed() {
     };
     char res[16];
     snprintf(res, sizeof res, "%g", gfxvk::requested_res_scale());
-    put("resScale", {"WWHD_RES_SCALE"}, res);
-    put("aoMode", {"WWHD_AO_MODE", "WWHD_NO_AO_QUIRK"}, std::to_string(gfxvk::ao_mode()));
-    put("aoHires", {"WWHD_AO_HIRES"}, gfxvk::ao_hires_enabled() ? "1" : "0");
-    put("aniso", {"WWHD_ANISO"}, gfxvk::aniso_enabled() ? "1" : "0");
-    put("fxaa", {"WWHD_FXAA"}, gfxvk::fxaa_enabled() ? "1" : "0");
+    put("resScale", {"NSMBU_RES_SCALE"}, res);
+    put("aoMode", {"NSMBU_AO_MODE", "NSMBU_NO_AO_QUIRK"}, std::to_string(gfxvk::ao_mode()));
+    put("aoHires", {"NSMBU_AO_HIRES"}, gfxvk::ao_hires_enabled() ? "1" : "0");
+    put("aniso", {"NSMBU_ANISO"}, gfxvk::aniso_enabled() ? "1" : "0");
+    put("fxaa", {"NSMBU_FXAA"}, gfxvk::fxaa_enabled() ? "1" : "0");
 #ifdef __ANDROID__
     // the player's choice: the phone pauses interpolation by itself (platform/perf_hint.cpp)
-    put("fps60", {"WWHD_INTERP", "WWHD_TRUE60", "WWHD_INTERP_FPS"}, interp::mode() == 2 ? "2" : perf_hint::fps60_chosen() ? "1" : "0");
+    put("fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"}, interp::mode() == 2 ? "2" : perf_hint::fps60_chosen() ? "1" : "0");
 #else
-    put("fps60", {"WWHD_INTERP", "WWHD_TRUE60", "WWHD_INTERP_FPS"}, std::to_string(interp::mode()));
+    put("fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"}, std::to_string(interp::mode()));
 #endif
     // (fps60 is the mode, from before 120/240 fps; interpFps the interpolation's frame rate)
-    put("interpFps", {"WWHD_INTERP_FPS"}, std::to_string(interp::fps()));
-    put("fps60Paced", {"WWHD_INTERP_PACED"}, interp::paced_interpolation_at(60) ? "1" : "0");
-    put("fpsHighPaced", {"WWHD_INTERP_PACED"}, interp::paced_interpolation_at(120) ? "1" : "0");
-    put("scaleFilter", {"WWHD_SCALE_FILTER"}, std::to_string(gfxvk::scale_filter()));
-    put("vkPresentMode", {"WWHD_VK_PRESENT_MODE"}, std::to_string(gfxvk::present_mode()));
+    put("interpFps", {"NSMBU_INTERP_FPS"}, std::to_string(interp::fps()));
+    put("fps60Paced", {"NSMBU_INTERP_PACED"}, interp::paced_interpolation_at(60) ? "1" : "0");
+    put("fpsHighPaced", {"NSMBU_INTERP_PACED"}, interp::paced_interpolation_at(120) ? "1" : "0");
+    put("scaleFilter", {"NSMBU_SCALE_FILTER"}, std::to_string(gfxvk::scale_filter()));
+    put("vkPresentMode", {"NSMBU_VK_PRESENT_MODE"}, std::to_string(gfxvk::present_mode()));
     save_locked();
 }
 // start-up (backend.cpp init): the saved graphics options
@@ -187,17 +187,17 @@ void load_saved_options() {
     }
     auto saved = [&](const char* key, std::initializer_list<const char*> env) { return !env_set(env) && v.count(key); };
     auto num = [&](const char* key) { return atof(v[key].c_str()); };
-    if (saved("resScale", {"WWHD_RES_SCALE"})) gfxvk::set_res_scale((float)num("resScale"));
-    if (saved("aoMode", {"WWHD_AO_MODE", "WWHD_NO_AO_QUIRK"})) gfxvk::set_ao_mode((int)num("aoMode"));
-    if (saved("aoHires", {"WWHD_AO_HIRES"})) gfxvk::set_ao_hires(num("aoHires") != 0);
-    if (saved("aniso", {"WWHD_ANISO"})) gfxvk::set_aniso(num("aniso") != 0);
-    if (saved("fxaa", {"WWHD_FXAA"})) gfxvk::set_fxaa(num("fxaa") != 0);
-    if (saved("interpFps", {"WWHD_INTERP_FPS"})) interp::set_fps((int)num("interpFps"));
-    if (saved("fps60", {"WWHD_INTERP", "WWHD_TRUE60", "WWHD_INTERP_FPS"})) interp::set_mode((int)num("fps60"));
-    if (saved("fps60Paced", {"WWHD_INTERP_PACED"})) interp::set_paced_interpolation_at(60, num("fps60Paced") != 0);
-    if (saved("fpsHighPaced", {"WWHD_INTERP_PACED"})) interp::set_paced_interpolation_at(120, num("fpsHighPaced") != 0);
-    if (saved("scaleFilter", {"WWHD_SCALE_FILTER"})) gfxvk::set_scale_filter((int)num("scaleFilter"));
-    if (saved("vkPresentMode", {"WWHD_VK_PRESENT_MODE"})) gfxvk::set_present_mode((int)num("vkPresentMode"));
+    if (saved("resScale", {"NSMBU_RES_SCALE"})) gfxvk::set_res_scale((float)num("resScale"));
+    if (saved("aoMode", {"NSMBU_AO_MODE", "NSMBU_NO_AO_QUIRK"})) gfxvk::set_ao_mode((int)num("aoMode"));
+    if (saved("aoHires", {"NSMBU_AO_HIRES"})) gfxvk::set_ao_hires(num("aoHires") != 0);
+    if (saved("aniso", {"NSMBU_ANISO"})) gfxvk::set_aniso(num("aniso") != 0);
+    if (saved("fxaa", {"NSMBU_FXAA"})) gfxvk::set_fxaa(num("fxaa") != 0);
+    if (saved("interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps((int)num("interpFps"));
+    if (saved("fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"})) interp::set_mode((int)num("fps60"));
+    if (saved("fps60Paced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(60, num("fps60Paced") != 0);
+    if (saved("fpsHighPaced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(120, num("fpsHighPaced") != 0);
+    if (saved("scaleFilter", {"NSMBU_SCALE_FILTER"})) gfxvk::set_scale_filter((int)num("scaleFilter"));
+    if (saved("vkPresentMode", {"NSMBU_VK_PRESENT_MODE"})) gfxvk::set_present_mode((int)num("vkPresentMode"));
     // GamePad screen (display_modes.h); the start-up test overrides after the saved choices
     using namespace gfx;
     if (v.count("drcMode")) {
@@ -208,7 +208,7 @@ void load_saved_options() {
     if (v.count("pipSize")) g_pip_size = std::clamp((float)num("pipSize"), 0.1f, 0.5f);
     if (v.count("pipOpacity")) g_pip_opacity = std::clamp((float)num("pipOpacity"), 0.2f, 1.0f);
     display_env_overrides();
-    if (!drc_mode_offered(g_mode) && g_mode == kDrcWindow) g_mode = kDrcOff;  // no GamePad window (WWHD_NO_GAMEPAD, Android)
+    if (!drc_mode_offered(g_mode) && g_mode == kDrcWindow) g_mode = kDrcOff;  // no GamePad window (NSMBU_NO_GAMEPAD, Android)
     g_shown = !input::pro_controller();  // Pro Controller: GamePad screen starts hidden (as on macOS)
     apply_drc_window();
     LOG("[display] GamePad screen mode: %s%s", kModeNames[g_mode], g_shown ? "" : " (hidden)");
@@ -236,7 +236,7 @@ void set_fullscreen(bool on) {
 }
 // full screen is remembered for the next start, as display.plist does on macOS (same key): saved
 // whenever the TV window's state differs from the saved one, whichever way it changed (F11, Alt+Enter,
-// the overlay, the window manager); a session started with WWHD_FULLSCREEN does not save it
+// the overlay, the window manager); a session started with NSMBU_FULLSCREEN does not save it
 void tv_fullscreen_changed() {
 #ifndef __ANDROID__
     if (gfx::display_fullscreen_env() || !gfxvk::R.tv.window) return;
@@ -305,4 +305,4 @@ const char* name() { return "SDL"; }
 void set_clipboard(const std::string& text) { SDL_SetClipboardText(text.c_str()); }
 
 }  // namespace hostui
-#endif  // WWHD_SDL_HOST
+#endif  // NSMBU_SDL_HOST

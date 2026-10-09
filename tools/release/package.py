@@ -11,10 +11,10 @@ CMake compiled the placeholder code and linked the executable, and turns that in
 there:
 
   - gamecode: the compiler flags of build/gen/code_*.c (same flags, same compiler family);
-  - link: the exact link line of the wwhd executable, with the runtime's object files and static
+  - link: the exact link line of the nsmbu executable, with the runtime's object files and static
     libraries copied into sdk/ and libgamecode.a replaced by the player's own.
 
-Output: OUT_DIR/WindWakerHD-VERSION-NAME/ and OUT_DIR/WindWakerHD-VERSION-NAME.zip.
+Output: OUT_DIR/NSMBU-VERSION-NAME/ and OUT_DIR/NSMBU-VERSION-NAME.zip.
 """
 import argparse
 import hashlib
@@ -47,10 +47,10 @@ INSTALLER_FILES = [
     "tools/installer/toolchains.json",
     "tools/installer/README.md",
 ]
-SETUP_APP = "Wind Waker HD"
-PORTABLE_TXT = """Wind Waker HD (native PC port), portable release.
+SETUP_APP = "NSMBU"
+PORTABLE_TXT = """NSMBU (native PC port), portable release.
 
-Start "Wind Waker HD". The first start prepares the game once from your own disc dump (releases never
+Start "NSMBU". The first start prepares the game once from your own disc dump (releases never
 contain game code, so it is built here); later starts launch the game directly.
 
 Everything the setup and the game create stays in this folder (in "data"): the built game, the game
@@ -58,7 +58,7 @@ files extracted from a disc image (an extracted game folder is used where it is)
 save states, shader caches, logs and the downloaded compiler. Nothing goes to your user folders
 unless you ask for a shortcut. To remove everything, delete this folder.
 
-Hold Shift while starting Wind Waker HD (macOS, Windows), or start it with --setup, to repair,
+Hold Shift while starting NSMBU (macOS, Windows), or start it with --setup, to repair,
 update, change the game or import saves. The same setup in a terminal: tools/Setup in Terminal.command
 (macOS), tools/Setup in a console window.bat (Windows), tools/setup-in-terminal.sh (Linux).
 
@@ -80,16 +80,16 @@ MAC_SETUP_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 """
 LINUX_SETUP_DESKTOP = """[Desktop Entry]
 Type=Application
-Name=Wind Waker HD
-Comment=The Wind Waker HD (native PC port); the first start prepares the game from your own disc dump
-Exec=sh -c 'cd "$(dirname "%k")" && exec ./wind-waker-hd'
+Name=NSMBU
+Comment=New Super Mario Bros. U (native PC port); the first start prepares the game from your own disc dump
+Exec=sh -c 'cd "$(dirname "%k")" && exec ./nsmbu-launcher'
 Terminal=false
 Categories=Game;
 Actions=setup;
 
 [Desktop Action setup]
 Name=Setup (repair, update, change the game)
-Exec=sh -c 'cd "$(dirname "%k")" && exec ./wind-waker-hd --setup'
+Exec=sh -c 'cd "$(dirname "%k")" && exec ./nsmbu-launcher --setup'
 """
 
 
@@ -97,7 +97,7 @@ def add_setup_gui(pkg, platform, exe, version):
     """The program a release starts: the first start prepares the game, later starts launch it."""
     if platform.startswith("macos"):
         app = os.path.join(pkg, SETUP_APP + ".app", "Contents")
-        copy(exe, os.path.join(app, "MacOS", "wind-waker-hd"))
+        copy(exe, os.path.join(app, "MacOS", "nsmbu-launcher"))
         v = re.sub(r"[^0-9.]", "", version.lstrip("v")) or "0"
         with open(os.path.join(app, "Info.plist"), "w") as f:
             f.write(MAC_SETUP_PLIST % (v, v))
@@ -106,8 +106,8 @@ def add_setup_gui(pkg, platform, exe, version):
     elif platform.startswith("windows"):
         copy(exe, os.path.join(pkg, SETUP_APP + ".exe"))
     else:
-        copy(exe, os.path.join(pkg, "wind-waker-hd"))
-        os.chmod(os.path.join(pkg, "wind-waker-hd"), 0o755)
+        copy(exe, os.path.join(pkg, "nsmbu-launcher"))
+        os.chmod(os.path.join(pkg, "nsmbu-launcher"), 0o755)
         with open(os.path.join(pkg, SETUP_APP + ".desktop"), "w") as f:
             f.write(LINUX_SETUP_DESKTOP)
         os.chmod(os.path.join(pkg, SETUP_APP + ".desktop"), 0o755)
@@ -142,15 +142,15 @@ def split_command(cmd):
 
 
 def link_command(build):
-    lines = subprocess.check_output(["ninja", "-C", build, "-t", "commands", "wwhd"], text=True).splitlines()
+    lines = subprocess.check_output(["ninja", "-C", build, "-t", "commands", "nsmbu"], text=True).splitlines()
     cmd = lines[-1].strip()
     # CMake wraps link rules (": && CMD && :" on POSIX hosts, 'cmd.exe /C "cd . && CMD && ..."' on
-    # Windows) and may chain post-build steps (copying SDL3.dll): keep the part that writes wwhd
+    # Windows) and may chain post-build steps (copying SDL3.dll): keep the part that writes nsmbu
     m = re.match(r'^(?:\S*[\\/])?cmd(?:\.exe)? /C "(.*)"$', cmd, re.I)
     if m:
         cmd = m.group(1)
     parts = [p.strip() for p in cmd.split(" && ")]
-    links = [p for p in parts if re.search(r"(^|\s)-o\s+\"?wwhd(\.exe)?\"?(\s|$)", p)]
+    links = [p for p in parts if re.search(r"(^|\s)-o\s+\"?nsmbu(\.exe)?\"?(\s|$)", p)]
     if len(links) != 1:
         sys.exit("cannot find the link step in: " + cmd)
     cmd = links[0]
@@ -233,10 +233,10 @@ def build_link_recipe(build, pkg, linkonly):
                 continue
             # the game's Windows resources (VERSIONINFO + manifest) from our own generated .rc
             # (cmake/WindowsResources.cmake; windres writes a COFF object named .rc.res)
-            own_res = re.fullmatch(r"CMakeFiles/wwhd\.dir/generated/wwhd\.rc\.res",
+            own_res = re.fullmatch(r"CMakeFiles/nsmbu\.dir/generated/nsmbu\.rc\.res",
                                    os.path.relpath(path, build).replace("\\", "/"))
             if a.lower().endswith(OBJ_EXT) or own_res:
-                # flatten CMakeFiles/wwhd.dir/runtime/src/x.cpp.o -> obj/runtime_src_x.cpp.o
+                # flatten CMakeFiles/nsmbu.dir/runtime/src/x.cpp.o -> obj/runtime_src_x.cpp.o
                 rel = os.path.relpath(path, build).replace("\\", "/")
                 rel = re.sub(r"^CMakeFiles/[^/]+\.dir/", "", rel)
                 flat = re.sub(r"[^A-Za-z0-9_.+-]", "_", rel)
@@ -329,14 +329,14 @@ def main():
     ap.add_argument("--license", action="append", default=[], help="NAME=PATH of a dependency's license")
     ap.add_argument("--runtime-file", action="append", default=[], help="file to install next to the executable")
     ap.add_argument("--linkonly-lib", action="append", default=[], help="system library to ship for linking only")
-    ap.add_argument("--setup-gui", help="the built graphical installer (wwhd-setup) to include")
+    ap.add_argument("--setup-gui", help="the built graphical installer (nsmbu-setup) to include")
     ap.add_argument("--windows-python", help="windows: the pinned embeddable Python zip (toolchains.json python.windows), "
                     "shipped unmodified as tools/python")
     ap.add_argument("--no-zip", action="store_true")
     a = ap.parse_args()
 
     build = os.path.abspath(a.build)
-    name = "WindWakerHD-%s-%s" % (a.version, a.platform)
+    name = "NSMBU-%s-%s" % (a.version, a.platform)
     pkg = os.path.join(os.path.abspath(a.out), name)
     if os.path.exists(pkg):
         shutil.rmtree(pkg)
@@ -359,7 +359,7 @@ def main():
         "version": a.version,
         "platform": a.platform,
         "toolchain": a.toolchain,
-        "exe": "wwhd" + exe_suffix,
+        "exe": "nsmbu" + exe_suffix,
         "built_with": os.path.basename(driver),
         "gamecode_cflags": cflags,
         "link": link,
@@ -375,23 +375,23 @@ def main():
             copy(os.path.join(ROOT, "tools", "recomp", hp), os.path.join(pkg, "tools", "recomp", hp))
     # the extractor must be self-contained: zstd from the pinned source, linked statically (cmake/Zstd.cmake)
     try:
-        with open(os.path.join(build, "wwhd-zstd.txt")) as f:
+        with open(os.path.join(build, "nsmbu-zstd.txt")) as f:
             kind, _, zstd_license = f.read().strip().partition(" ")
     except OSError:
         kind, zstd_license = "", ""
     if kind != "bundled":
-        sys.exit("wwhd-extract in %s uses a system zstd; configure release builds with -DWWHD_BUNDLED_ZSTD=ON "
-                 "(on by default with -DWWHD_BUNDLED_DEPS=ON)" % build)
-    copy(os.path.join(build, "wwhd-extract" + exe_suffix), os.path.join(pkg, "tools", "bin", "wwhd-extract" + exe_suffix))
+        sys.exit("nsmbu-extract in %s uses a system zstd; configure release builds with -DNSMBU_BUNDLED_ZSTD=ON "
+                 "(on by default with -DNSMBU_BUNDLED_DEPS=ON)" % build)
+    copy(os.path.join(build, "nsmbu-extract" + exe_suffix), os.path.join(pkg, "tools", "bin", "nsmbu-extract" + exe_suffix))
 
     # the setup in a terminal (the fallback for the program above), in tools/
     inst = os.path.join(ROOT, "tools", "installer")
     if a.platform.startswith("macos"):
         copy(os.path.join(inst, "install-macos.command"), os.path.join(pkg, "tools", "Setup in Terminal.command"))
     elif a.platform.startswith("windows"):
-        # runs "Wind Waker HD.exe --console-setup", which runs setup.py with the bundled Python
+        # runs "NSMBU.exe --console-setup", which runs setup.py with the bundled Python
         if not a.setup_gui:
-            sys.exit("windows: --setup-gui is required (tools/Setup in a console window.bat runs Wind Waker HD.exe)")
+            sys.exit("windows: --setup-gui is required (tools/Setup in a console window.bat runs NSMBU.exe)")
         if not a.windows_python:
             sys.exit("windows: --windows-python is required (the setup runs with the bundled Python)")
         add_windows_python(pkg, a.windows_python)
@@ -414,7 +414,7 @@ def main():
     licdir = os.path.join(pkg, "third-party-licenses")
     os.makedirs(licdir)
     entries = dict(VENDORED_LICENSES)
-    # zstd: compiled into tools/bin/wwhd-extract on every platform (pinned source, cmake/Zstd.cmake)
+    # zstd: compiled into tools/bin/nsmbu-extract on every platform (pinned source, cmake/Zstd.cmake)
     entries["Zstandard (BSD-3-Clause)"] = zstd_license
     if a.platform.startswith("windows"):
         entries["Python (PSF-2.0)"] = os.path.join(pkg, "tools", "python", "LICENSE.txt")
@@ -432,7 +432,7 @@ def main():
     with open(os.path.join(licdir, "README.txt"), "w") as f:
         f.writelines(index)
     with open(os.path.join(pkg, "VERSION.txt"), "w") as f:
-        f.write("Wind Waker HD native PC port %s (%s)\n"
+        f.write("NSMBU native PC port %s (%s)\n"
                 "This package contains no game code, game data or keys; the installer builds the game\n"
                 "from your own disc dump on your machine.\n" % (a.version, a.platform))
 

@@ -26,14 +26,14 @@ def build(unit):
     out = os.path.join(ROOT, "build", "verify", unit)
     image = os.path.join(ROOT, "build", "verify", "image.bin")
     if not os.path.exists(image):
-        sh([sys.executable, os.path.join(HERE, "mkimage.py"), "game/code/cking.rpx", image])
+        sh([sys.executable, os.path.join(HERE, "mkimage.py"), "game/code/red-pro2.rpx", image])
     sh([sys.executable, os.path.join(HERE, "mkunit.py"), unit, "--root", ROOT])
     srcs = []
     for line in open(os.path.join(HERE, "units", unit + ".txt")):
         f = line.split("#")[0].split()
         if f and f[0] == "src":
             srcs += f[1:]
-    inc = ["-Iruntime/include", "-Itools/verify/include", "-Itools/verify/src", "-Iwwhd_src/include"]
+    inc = ["-Iruntime/include", "-Itools/verify/include", "-Itools/verify/src", "-Insmbu_src/include"]
     objs = []
     for src, lang in [(os.path.join(out, "unit.c"), "c"), ("runtime/src/espresso_fp.c", "c"), ("tools/verify/src/harness.cpp", "c++")] + \
             [(s, "c++") for s in srcs]:
@@ -53,7 +53,7 @@ def build(unit):
 
 def newest_header():
     t = 0
-    for d in ("tools/verify/include", "tools/verify/src", "wwhd_src/include", "runtime/include"):
+    for d in ("tools/verify/include", "tools/verify/src", "nsmbu_src/include", "runtime/include"):
         for dp, _, fs in os.walk(os.path.join(ROOT, d)):
             for f in fs:
                 t = max(t, os.path.getmtime(os.path.join(dp, f)))

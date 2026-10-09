@@ -99,7 +99,7 @@ struct Header {
     uint64_t created;       // unix time
     char area[32];          // stage name
     uint8_t build[16];      // LC_UUID of the executable that wrote it (informational)
-    uint64_t game_id;       // hash of cking.rpx
+    uint64_t game_id;       // hash of red-pro2.rpx
     uint32_t cpu_size;      // sizeof(Cpu)
     uint32_t blocks;        // compressed blocks that follow
     uint64_t raw_size;      // payload bytes
@@ -206,10 +206,10 @@ void report_done(int slot, bool ok, const std::string& why) {
 std::string state_dir() {
     static const std::string dir = [] {
         std::string d;
-        if (const char* e = getenv("WWHD_STATE_DIR")) d = e;
+        if (const char* e = getenv("NSMBU_STATE_DIR")) d = e;
         else {
 #ifdef __APPLE__
-            d=std::string(getenv("HOME")?getenv("HOME"):".")+"/Library/Application Support/wwhd/states";
+            d=std::string(getenv("HOME")?getenv("HOME"):".")+"/Library/Application Support/nsmbu/states";
 #else
             d=host::config_dir()+"/states";
 #endif
@@ -268,7 +268,7 @@ uint64_t game_id() {
 // current stage (dComIfG_gameInfo.play: the start stage, 8 chars)
 constexpr uint32_t kStageName = 0x1046F0B0 + 0x5134;  // dStage_startStage_c (next stage at +0x5140)
 std::string stage_name() {
-    if (const char* e = getenv("WWHD_STATE_STAGE_ADDR")) {
+    if (const char* e = getenv("NSMBU_STATE_STAGE_ADDR")) {
         uint32_t a = (uint32_t)strtoul(e, nullptr, 16);
         return std::string((const char*)mem::ptr(a), strnlen((const char*)mem::ptr(a), 8));
     }
@@ -634,7 +634,7 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
 
 // ---------------------------------------------------------------- portable states (portable_state.h)
 // Made and applied on the game's main thread at the frame boundary, with the game's own save
-// functions (wwhd_src d_save_5.cpp, d_menu_save_card.cpp; GameCube names from zeldaret/tww):
+// functions (nsmbu_src d_save_5.cpp, d_menu_save_card.cpp; GameCube names from zeldaret/tww):
 //   save: dSv_info_c::putSave(current stage) and dComIfGs_setGameStartStage, as the in-game save
 //         does before writing (both undone afterwards: making a portable state changes nothing),
 //         dSv_info_c::memory_to_card into a scratch buffer = this Quest Log's block of cking.sav;
@@ -652,7 +652,7 @@ constexpr uint32_t kNextStage = kPlay + 0x5140;     // dStage_nextStage_c: the s
 constexpr uint32_t kStageData = kPlay + 0x5150;     // dStage_stageDt_c (getStagInfo: vtable +0x15C)
 constexpr uint32_t kLinkPtr = kPlay + 0x5B34;       // mpPlayerPtr[0]: daPy_lk_c
 constexpr uint32_t kShipPtr = kPlay + 0x5B3C;       // dComIfGp_getShipActor: daShip_c (0 without a boat)
-constexpr uint32_t kActorPos = 0x314, kActorRoom = 0x326, kShapeAngleY = 0x32A;  // fopAc_ac_c (WWHD)
+constexpr uint32_t kActorPos = 0x314, kActorRoom = 0x326, kShapeAngleY = 0x32A;  // fopAc_ac_c (NSMBU)
 constexpr uint32_t kLinkProc = 0x65F0;              // daPy_lk_c::mCurProc
 constexpr uint32_t kInfo = 0x20;                    // dSv_info_c in the save area
 constexpr uint32_t kDataNum = kInfo + 0x1290;       // dSv_info_c::mDataNum (Quest Log 0..2)
@@ -1102,8 +1102,8 @@ int g_full_setting = -1;  // -1: not read yet
 std::string full_cfg_path() { return state_dir() + "/full_save_states.cfg"; }
 int full_env() {  // 1 / 0 forced by the environment, -1 not forced
     static const int v = [] {
-        if (const char* e = getenv("WWHD_FULL_SAVE_STATES")) return atoi(e) != 0 ? 1 : 0;
-        for (const char* t : {"WWHD_STATE_SAVE_AT", "WWHD_STATE_LOAD_AT", "WWHD_TEST_SAVE", "WWHD_TEST_LOAD"})
+        if (const char* e = getenv("NSMBU_FULL_SAVE_STATES")) return atoi(e) != 0 ? 1 : 0;
+        for (const char* t : {"NSMBU_STATE_SAVE_AT", "NSMBU_STATE_LOAD_AT", "NSMBU_TEST_SAVE", "NSMBU_TEST_LOAD"})
             if (getenv(t)) return 1;
         return -1;
     }();
@@ -1125,7 +1125,7 @@ bool newer_is_portable(int slot) {
     return port;
 }
 
-// test aid: WWHD_STATE_SAVE_AT=frame:slot,...  WWHD_STATE_LOAD_AT=frame:slot,... (TV frames)
+// test aid: NSMBU_STATE_SAVE_AT=frame:slot,...  NSMBU_STATE_LOAD_AT=frame:slot,... (TV frames)
 struct Timed { uint64_t frame; int slot; };
 std::vector<Timed> parse_timed(const char* var) {
     std::vector<Timed> v;
@@ -1375,11 +1375,11 @@ std::string states_dir() { return state_dir(); }
 
 void service(Cpu* c) {
     crashrec::service();
-    // test aids (TV frames): WWHD_STATE_SAVE_AT / WWHD_STATE_LOAD_AT for full states,
-    // WWHD_PORTABLE_SAVE_AT / WWHD_PORTABLE_LOAD_AT for portable ones; WWHD_PORTABLE_LOAD=file loads
+    // test aids (TV frames): NSMBU_STATE_SAVE_AT / NSMBU_STATE_LOAD_AT for full states,
+    // NSMBU_PORTABLE_SAVE_AT / NSMBU_PORTABLE_LOAD_AT for portable ones; NSMBU_PORTABLE_LOAD=file loads
     // that portable state as soon as a Quest Log is being played (a state from a bug report)
-    static const std::vector<Timed> save_at = parse_timed("WWHD_STATE_SAVE_AT"), load_at = parse_timed("WWHD_STATE_LOAD_AT"),
-                                    psave_at = parse_timed("WWHD_PORTABLE_SAVE_AT"), pload_at = parse_timed("WWHD_PORTABLE_LOAD_AT");
+    static const std::vector<Timed> save_at = parse_timed("NSMBU_STATE_SAVE_AT"), load_at = parse_timed("NSMBU_STATE_LOAD_AT"),
+                                    psave_at = parse_timed("NSMBU_PORTABLE_SAVE_AT"), pload_at = parse_timed("NSMBU_PORTABLE_LOAD_AT");
     if (!save_at.empty() || !load_at.empty() || !psave_at.empty() || !pload_at.empty()) {
         static uint64_t last = 0;
         uint64_t f = render::frame_count();
@@ -1394,7 +1394,7 @@ void service(Cpu* c) {
         last = f;
     }
     static bool env_load = [] {
-        if (const char* e = getenv("WWHD_PORTABLE_LOAD")) request_load_portable_file(e);
+        if (const char* e = getenv("NSMBU_PORTABLE_LOAD")) request_load_portable_file(e);
         return true;
     }();
     (void)env_load;
@@ -1402,8 +1402,8 @@ void service(Cpu* c) {
     if (int slot = g_psave_req.exchange(0)) do_portable_save(c, slot);
     service_portable_load(c);
     watch_arrival(c);
-    // test aid: WWHD_STATE_DUMP=n dumps the n TV frames after each save/load (state_<save|load><slot>_<k>.png)
-    static const int dump = getenv("WWHD_STATE_DUMP") ? atoi(getenv("WWHD_STATE_DUMP")) : 0;
+    // test aid: NSMBU_STATE_DUMP=n dumps the n TV frames after each save/load (state_<save|load><slot>_<k>.png)
+    static const int dump = getenv("NSMBU_STATE_DUMP") ? atoi(getenv("NSMBU_STATE_DUMP")) : 0;
     if (int slot = g_save_req.load()) {
         if (do_save(slot)) {
             g_save_req = 0;

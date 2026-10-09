@@ -2,7 +2,7 @@
 """Dump the RPX's loaded sections (.text, .rodata, .data, ...) for the harness: generated inputs
 read constants, tables and vtables from the real image. Output is game data: keep it in build/.
 
-usage: mkimage.py game/code/cking.rpx build/verify/image.bin
+usage: mkimage.py game/code/red-pro2.rpx build/verify/image.bin
 """
 import os
 import struct

@@ -1,10 +1,10 @@
 """Reports written next to the names TSV by match.py:
 
-  wwhd_to_gc.tsv   WWHD address -> GameCube mangled symbol, source file, module, GameCube address,
-                   evidence, WWHD size, GameCube size (input for checking functions one by one)
-  coverage.tsv     per translation unit: GameCube functions, how many are matched, WWHD functions
+  nsmbu_to_gc.tsv   NSMBU address -> GameCube mangled symbol, source file, module, GameCube address,
+                   evidence, NSMBU size, GameCube size (input for checking functions one by one)
+  coverage.tsv     per translation unit: GameCube functions, how many are matched, NSMBU functions
                    named after it
-  regions.tsv      long stretches of WWHD code with no match (HD-only code: new UI, sead/agl,
+  regions.tsv      long stretches of NSMBU code with no match (HD-only code: new UI, sead/agl,
                    nw4f libraries, GX2 renderer), used for the "no GameCube counterpart" estimate
 """
 import os
@@ -55,8 +55,8 @@ def write_reports(x, g, m, out, tww, outdir):
         return ("%08X" % hit[0]) if f.module == "main" else ("%s+%X" % (f.module, hit[0]))
 
     sizes = {a: (x.funcs[i + 1] if i + 1 < len(x.funcs) else x.p.text_hi) - a for i, a in enumerate(x.funcs)}
-    with open(os.path.join(outdir, "wwhd_to_gc.tsv"), "w") as o:
-        o.write("wwhd\tgc_symbol\tfile\tgc_module\tgc_address\tevidence\twwhd_size\tgc_size\n")
+    with open(os.path.join(outdir, "nsmbu_to_gc.tsv"), "w") as o:
+        o.write("nsmbu\tgc_symbol\tfile\tgc_module\tgc_address\tevidence\tnsmbu_size\tgc_size\n")
         for a in sorted(out):
             c = gc_of(a)
             if c is None:
@@ -80,7 +80,7 @@ def write_reports(x, g, m, out, tww, outdir):
     for c in matched:
         hit[g.funcs[c].file] += 1
     with open(os.path.join(outdir, "coverage.tsv"), "w") as o:
-        o.write("file\tmodule\tgc_functions\tgc_matched\tpercent\twwhd_named\n")
+        o.write("file\tmodule\tgc_functions\tgc_matched\tpercent\tnsmbu_named\n")
         for f in sorted(tot, key=lambda f: (-(tot[f] - hit[f]), f)):
             o.write("%s\t%s\t%d\t%d\t%.0f\t%d\n" % (f, module[f], tot[f], hit[f], 100.0 * hit[f] / tot[f], wn[f]))
     # unnamed stretches
@@ -103,5 +103,5 @@ def write_reports(x, g, m, out, tww, outdir):
     gc_unique = sum(tot.values())
     print("GameCube functions (weak copies merged) %d, matched %d (%.1f%%)" % (gc_unique, len(matched),
                                                                              100.0 * len(matched) / gc_unique))
-    print("WWHD functions %d: named %d; in unnamed stretches of >= %d functions (HD-only code) %d; "
+    print("NSMBU functions %d: named %d; in unnamed stretches of >= %d functions (HD-only code) %d; "
           "other unnamed %d" % (len(F), len(out), MIN_GAP, in_gaps, len(F) - len(out) - in_gaps))

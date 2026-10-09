@@ -8,7 +8,7 @@
 
 namespace gx2 { void checkpoint_vulkan_caches(); }
 
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 // AppKit host (gfx/display.mm): windows exist, each view gets a CAMetalLayer for a Vulkan surface
 namespace gfx {
 void display_create_windows();
@@ -25,7 +25,7 @@ const Backend& vulkan_backend() {
     static const Backend b = [] {
         Backend b{};
         b.api = Api::Vulkan;
-#if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
         b.init = [] {
             gfx::display_create_windows();
             void *tv = nullptr, *drc = nullptr;

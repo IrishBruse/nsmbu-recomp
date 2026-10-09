@@ -10,14 +10,14 @@
 #endif
 // Test aids for the true 60 fps conversions (debug only; nothing here runs unless its env var is set).
 //
-//   WWHD_TEST_POKE=t:ADDR:HEX,...   at scenario time t (s, game time; see input.mm) writes the bytes
+//   NSMBU_TEST_POKE=t:ADDR:HEX,...   at scenario time t (s, game time; see input.mm) writes the bytes
 //                                   HEX to guest memory at ADDR. ADDR is hex, or *PTR+OFF (the word
 //                                   at PTR plus OFF), e.g. *101F84DC+2E:38 equips the Hero's Sword.
-//   WWHD_SAVEINFO_DUMP=path         at the end of the scenario (WWHD_TEST_END) writes the save-info
+//   NSMBU_SAVEINFO_DUMP=path         at the end of the scenario (NSMBU_TEST_END) writes the save-info
 //                                   block (dSv_info_c, *101F84DC, 0x12A0 bytes: what the game saves,
 //                                   plus the current stage/zone memory) to path; also at the times
-//                                   in WWHD_SAVEINFO_AT=t1,t2,... to path.t1, path.t2, ...
-//   WWHD_ACTOR_DUMP=path:FN:SIZE,...  after every execute of a process whose execute function is FN
+//                                   in NSMBU_SAVEINFO_AT=t1,t2,... to path.t1, path.t2, ...
+//   NSMBU_ACTOR_DUMP=path:FN:SIZE,...  after every execute of a process whose execute function is FN
 //                                   (hex; "link" for daPy_lk_c) appends a record to path: header
 //                                   'ADMP', u64 logic step, u32 full pass, f32 dt, u32 process,
 //                                   u32 size, then SIZE raw (big-endian guest) bytes of the process.
@@ -40,7 +40,7 @@ namespace {
 struct Poke { double t; uint32_t ptr; bool deref; uint32_t off; std::vector<uint8_t> bytes; bool done = false; };
 std::vector<Poke> parse_pokes() {
     std::vector<Poke> v;
-    const char* e = getenv("WWHD_TEST_POKE");
+    const char* e = getenv("NSMBU_TEST_POKE");
     while (e && *e) {
         Poke p{};
         char* end;
@@ -79,10 +79,10 @@ void dump_saveinfo(const std::string& path) {
 
 // called with the scenario time on every controller read (input.mm)
 void tick(double t, bool ended) {
-    // WWHD_TEST_LOAD=t:slot,... loads a save state at scenario time t (once each)
+    // NSMBU_TEST_LOAD=t:slot,... loads a save state at scenario time t (once each)
     static std::vector<std::pair<double, int>> loads = [] {
         std::vector<std::pair<double, int>> v;
-        for (const char* e = getenv("WWHD_TEST_LOAD"); e && *e;) {
+        for (const char* e = getenv("NSMBU_TEST_LOAD"); e && *e;) {
             double at; int slot, n;
             if (sscanf(e, "%lf:%d%n", &at, &slot, &n) != 2) break;
             v.push_back({at, slot});
@@ -98,9 +98,9 @@ void tick(double t, bool ended) {
             ss::request_load(slot);
             slot = 0;
         }
-    // WWHD_TEST_SCENECHANGE=t: at scenario time t the game is asked to enter its current stage again at
+    // NSMBU_TEST_SCENECHANGE=t: at scenario time t the game is asked to enter its current stage again at
     // the start point (dComIfGp next stage := start stage, enabled): a scene change wherever Link is
-    static double sc_t = getenv("WWHD_TEST_SCENECHANGE") ? atof(getenv("WWHD_TEST_SCENECHANGE")) : -1;
+    static double sc_t = getenv("NSMBU_TEST_SCENECHANGE") ? atof(getenv("NSMBU_TEST_SCENECHANGE")) : -1;
     if (sc_t >= 0 && t >= sc_t) {
         sc_t = -1;
         constexpr uint32_t kPlay = 0x1046F0B0, kStart = kPlay + 0x5134, kNext = kPlay + 0x5140;
@@ -117,11 +117,11 @@ void tick(double t, bool ended) {
         for (size_t i = 0; i < p.bytes.size(); i++) st8(a + (uint32_t)i, p.bytes[i]);
         LOG("[test] t=%.3f poke %08X: %zu bytes", t, a, p.bytes.size());
     }
-    static const char* sd = getenv("WWHD_SAVEINFO_DUMP");
+    static const char* sd = getenv("NSMBU_SAVEINFO_DUMP");
     if (!sd) return;
     static std::vector<double> at = [] {
         std::vector<double> v;
-        for (const char* e = getenv("WWHD_SAVEINFO_AT"); e && *e;) {
+        for (const char* e = getenv("NSMBU_SAVEINFO_AT"); e && *e;) {
             char* end;
             v.push_back(strtod(e, &end));
             if (*end != ',') break;
@@ -147,7 +147,7 @@ namespace {
 struct DumpSpec { FILE* f; uint32_t fn; uint32_t size; bool link; };
 std::vector<DumpSpec> parse_dumps() {
     std::vector<DumpSpec> v;
-    const char* e = getenv("WWHD_ACTOR_DUMP");
+    const char* e = getenv("NSMBU_ACTOR_DUMP");
     while (e && *e) {
         const char* c1 = strchr(e, ':');
         if (!c1) break;
@@ -188,15 +188,15 @@ void after_execute(uint32_t proc, uint32_t fn, bool is_link, float dt) {
         if (++n % 64 == 0) fflush(d.f);
     }
 }
-// WWHD_RNG_TRACE=path: before each full-pass execute of Link: logic step and cM_rnd's seeds
+// NSMBU_RNG_TRACE=path: before each full-pass execute of Link: logic step and cM_rnd's seeds
 void rng_trace() {
-    static FILE* f = getenv("WWHD_RNG_TRACE") ? fopen(getenv("WWHD_RNG_TRACE"), "w") : nullptr;
+    static FILE* f = getenv("NSMBU_RNG_TRACE") ? fopen(getenv("NSMBU_RNG_TRACE"), "w") : nullptr;
     if (!f || interp::hold_pass()) return;
     fprintf(f, "%llu %08X %08X %08X", (unsigned long long)interp::logic_steps(), ld32(0x101FF9D4), ld32(0x101FF9D8), ld32(0x101FF9DC));
-    // WWHD_MEM_WATCH=addr:len,... adds those bytes (hex) to each line
+    // NSMBU_MEM_WATCH=addr:len,... adds those bytes (hex) to each line
     static std::vector<std::pair<uint32_t, uint32_t>> w = [] {
         std::vector<std::pair<uint32_t, uint32_t>> v;
-        for (const char* e = getenv("WWHD_MEM_WATCH"); e && *e;) {
+        for (const char* e = getenv("NSMBU_MEM_WATCH"); e && *e;) {
             char* end;
             uint32_t a = (uint32_t)strtoul(e, &end, 16), n = 4;
             if (*end == ':') n = (uint32_t)strtoul(end + 1, &end, 16);
@@ -215,16 +215,16 @@ void rng_trace() {
     if (++n % 30 == 0) fflush(f);
 }
 bool dumping() {
-    static const bool on = getenv("WWHD_ACTOR_DUMP") || getenv("WWHD_RNG_TRACE") || getenv("WWHD_MEM_DUMP") || getenv("WWHD_LINK_PRE");
+    static const bool on = getenv("NSMBU_ACTOR_DUMP") || getenv("NSMBU_RNG_TRACE") || getenv("NSMBU_MEM_DUMP") || getenv("NSMBU_LINK_PRE");
     return on;
 }
 }  // namespace true60_test
 
-// WWHD_LIGHT_TRACE=path: point-light registrations (dKy_plight_set/priority_set/cut,
+// NSMBU_LIGHT_TRACE=path: point-light registrations (dKy_plight_set/priority_set/cut,
 // dKy_efplight_set/cut) with logic step, full pass and caller (true60 comparisons)
 namespace {
 void light_trace(int fn, Cpu* c) {
-    static FILE* f = getenv("WWHD_LIGHT_TRACE") ? fopen(getenv("WWHD_LIGHT_TRACE"), "w") : nullptr;
+    static FILE* f = getenv("NSMBU_LIGHT_TRACE") ? fopen(getenv("NSMBU_LIGHT_TRACE"), "w") : nullptr;
     if (!f) return;
     fprintf(f, "%llu %d %d %08X %08X\n", (unsigned long long)interp::logic_steps(), interp::hold_pass() ? 0 : 1, fn, c->r[3], c->lr);
     fflush(f);
@@ -240,15 +240,15 @@ void hook_0255BA9C(Cpu* c) { light_trace(4, c); f_0255BA9C_orig(c); }
 }
 
 namespace true60_test {
-// WWHD_LINK_PRE=path: Link's process (0x8284 bytes) right before each full-pass execute (same record format)
+// NSMBU_LINK_PRE=path: Link's process (0x8284 bytes) right before each full-pass execute (same record format)
 void before_execute_link(uint32_t proc) {
-    // WWHD_MEM_DUMP=path:addr:size: that memory before each full-pass execute of Link (same record format)
+    // NSMBU_MEM_DUMP=path:addr:size: that memory before each full-pass execute of Link (same record format)
     static FILE* md = nullptr;
     static uint32_t md_a = 0, md_n = 0;
     static bool md_init = false;
     if (!md_init) {
         md_init = true;
-        if (const char* e = getenv("WWHD_MEM_DUMP")) {
+        if (const char* e = getenv("NSMBU_MEM_DUMP")) {
             const char* c1 = strchr(e, ':');
             if (c1) {
                 md = fopen(std::string(e, c1 - e).c_str(), "wb");
@@ -266,7 +266,7 @@ void before_execute_link(uint32_t proc) {
         fwrite(&md_a, 4, 1, md); fwrite(&md_n, 4, 1, md); fwrite(mem::ptr(md_a), 1, md_n, md);
         fflush(md);
     }
-    static FILE* f = getenv("WWHD_LINK_PRE") ? fopen(getenv("WWHD_LINK_PRE"), "wb") : nullptr;
+    static FILE* f = getenv("NSMBU_LINK_PRE") ? fopen(getenv("NSMBU_LINK_PRE"), "wb") : nullptr;
     if (!f || interp::hold_pass()) return;
     uint64_t step = interp::logic_steps();
     uint32_t full = 1, size = 0x8284;
@@ -283,20 +283,20 @@ void set_origin_step(uint64_t s) { g_origin_step = s; }
 uint64_t origin_step() { return g_origin_step; }
 }
 
-// debug: WWHD_TEVLOG=path: dScnKy_env_light_c::settingTevStruct (025626A4) calls: step, full, type (r4), tevStr (r6)
+// debug: NSMBU_TEVLOG=path: dScnKy_env_light_c::settingTevStruct (025626A4) calls: step, full, type (r4), tevStr (r6)
 extern "C" void f_025626A4_orig(Cpu* c);
 extern "C" void hook_025626A4(Cpu* c) {
-    static FILE* f = getenv("WWHD_TEVLOG") ? fopen(getenv("WWHD_TEVLOG"), "w") : nullptr;
+    static FILE* f = getenv("NSMBU_TEVLOG") ? fopen(getenv("NSMBU_TEVLOG"), "w") : nullptr;
     if (f) fprintf(f, "%llu %d %d %08X %08X %08X\n", (unsigned long long)interp::logic_steps(), interp::hold_pass() ? 0 : 1, (int)c->r[4], c->r[5], c->r[6], c->lr);
     f_025626A4_orig(c);
 }
-// debug: WWHD_CULLLOG=path: fopAcM_cullingCheck (025D6CE8): step, full, actor, result
+// debug: NSMBU_CULLLOG=path: fopAcM_cullingCheck (025D6CE8): step, full, actor, result
 extern "C" void f_025D6CE8_orig(Cpu* c);
 namespace true60_test { uint64_t origin_step(); }
 extern "C" void hook_025D6CE8(Cpu* c) {
-    // debug: WWHD_T60_PAGEHASH=step:actor:path writes a hash per 4 KB page of 10000000..4A000000 at that
+    // debug: NSMBU_T60_PAGEHASH=step:actor:path writes a hash per 4 KB page of 10000000..4A000000 at that
     // actor's culling check on the full pass of that scenario step (to diff two runs)
-    static const char* ph = getenv("WWHD_T60_PAGEHASH");
+    static const char* ph = getenv("NSMBU_T60_PAGEHASH");
     if (ph && true60_test::origin_step() && !interp::hold_pass()) {
         static uint64_t st = strtoull(ph, nullptr, 10);
         static uint32_t act = (uint32_t)strtoul(strchr(ph, ':') + 1, nullptr, 16);
@@ -314,7 +314,7 @@ extern "C" void hook_025D6CE8(Cpu* c) {
             }
         }
     }
-    static FILE* f = getenv("WWHD_CULLLOG") ? fopen(getenv("WWHD_CULLLOG"), "w") : nullptr;
+    static FILE* f = getenv("NSMBU_CULLLOG") ? fopen(getenv("NSMBU_CULLLOG"), "w") : nullptr;
     uint32_t a = c->r[3];
     std::string ctx;
     if (f) {
@@ -332,10 +332,10 @@ extern "C" void hook_025D6CE8(Cpu* c) {
     f_025D6CE8_orig(c);
     if (f) fprintf(f, "%llu %d %08X %d%s\n", (unsigned long long)interp::logic_steps(), interp::hold_pass() ? 0 : 1, a, (int)c->r[3], ctx.c_str());
 }
-// debug: WWHD_BOOTDBG=1 logs agl shader program archive setup (02786520 / 027B8904): boot crash hunt
+// debug: NSMBU_BOOTDBG=1 logs agl shader program archive setup (02786520 / 027B8904): boot crash hunt
 extern "C" void f_02786520_orig(Cpu* c);
 extern "C" void hook_02786520(Cpu* c) {
-    static const bool on = getenv("WWHD_BOOTDBG") != nullptr;
+    static const bool on = getenv("NSMBU_BOOTDBG") != nullptr;
     if (on) {
         uint32_t ar = c->r[4];
         LOG("[bootdbg] 02786520 this=%08X archive=%08X vt=%08X getFile=%08X", c->r[3], ar, ar ? ld32(ar + 0x10) : 0,
@@ -346,27 +346,27 @@ extern "C" void hook_02786520(Cpu* c) {
 namespace { void wp_arm(uint32_t guest_lo, uint32_t size); }
 extern "C" void f_027B8904_orig(Cpu* c);
 extern "C" void hook_027B8904(Cpu* c) {
-    static const bool on = getenv("WWHD_BOOTDBG") != nullptr;
+    static const bool on = getenv("NSMBU_BOOTDBG") != nullptr;
     if (on)
         LOG("[bootdbg] 027B8904 obj=%08X fb=%08X sharc=%08X flags=%X", c->r[3], ld32(c->r[4]), ld32(c->r[5]), c->r[6]);
     uint32_t obj = c->r[3];
-    // WWHD_BOOTDBG_SLOW=ms: stall each archive init (a slow machine) to make boot timing races reproducible
-    static const int slow = getenv("WWHD_BOOTDBG_SLOW") ? atoi(getenv("WWHD_BOOTDBG_SLOW")) : 0;
+    // NSMBU_BOOTDBG_SLOW=ms: stall each archive init (a slow machine) to make boot timing races reproducible
+    static const int slow = getenv("NSMBU_BOOTDBG_SLOW") ? atoi(getenv("NSMBU_BOOTDBG_SLOW")) : 0;
     if (slow) std::this_thread::sleep_for(std::chrono::milliseconds(slow));
     f_027B8904_orig(c);
     if (on) {
         uint32_t a = ld32(obj + 0x20);
         LOG("[bootdbg] 027B8904 done obj=%08X n=%u arr=%08X e0.7c=%08X", obj, ld32(obj + 0x1c), a, a ? ld32(a + 0x7c) : 0);
         static bool armed = false;
-        if (!armed && getenv("WWHD_BOOTDBG_PROT") && a) { armed = true; wp_arm(a, ld32(obj + 0x1c) * 0x84); }
+        if (!armed && getenv("NSMBU_BOOTDBG_PROT") && a) { armed = true; wp_arm(a, ld32(obj + 0x1c) * 0x84); }
     }
 }
-// WWHD_BOOTDBG_PROT=1: after the first agl program archive (obj 226FE868) is set up, its program
+// NSMBU_BOOTDBG_PROT=1: after the first agl program archive (obj 226FE868) is set up, its program
 // array's host page is write-protected; every write fault logs the writing thread and backtrace (the
 // page is re-protected 0.2 ms later), to find who corrupts it
 namespace {
 #ifdef _WIN32
-void wp_arm(uint32_t, uint32_t) { LOG("[wp] WWHD_BOOTDBG_PROT is not available on Windows"); }
+void wp_arm(uint32_t, uint32_t) { LOG("[wp] NSMBU_BOOTDBG_PROT is not available on Windows"); }
 #else
 std::atomic<uintptr_t> g_wp_lo{0}, g_wp_hi{0};
 std::atomic<bool> g_wp_armed{false};
@@ -419,7 +419,7 @@ void wp_arm(uint32_t guest_lo, uint32_t size) {
 }  // namespace
 extern "C" void f_027B82B8_orig(Cpu* c);
 extern "C" void hook_027B82B8(Cpu* c) {
-    static const bool on = getenv("WWHD_BOOTDBG") != nullptr;
+    static const bool on = getenv("NSMBU_BOOTDBG") != nullptr;
     uint32_t obj = c->r[3];
     auto st = [&](const char* w) {
         uint32_t a = ld32(obj + 0x20);
@@ -429,13 +429,13 @@ extern "C" void hook_027B82B8(Cpu* c) {
     f_027B82B8_orig(c);
     if (on) st("out");
 }
-// debug: WWHD_HEAPLOG=1 logs each new (heap, thread) pair of sead::ExpHeap::alloc (02753D6C) with the
+// debug: NSMBU_HEAPLOG=1 logs each new (heap, thread) pair of sead::ExpHeap::alloc (02753D6C) with the
 // heap's lock flag (+0x90 bit 0)
 #include <mutex>
 #include <set>
 extern "C" void f_02753D6C_orig(Cpu* c);
 extern "C" void hook_02753D6C(Cpu* c) {
-    static const bool on = getenv("WWHD_HEAPLOG") != nullptr;
+    static const bool on = getenv("NSMBU_HEAPLOG") != nullptr;
     if (on) {
         static std::mutex m;
         static std::set<std::pair<uint32_t, uint32_t>> seen;

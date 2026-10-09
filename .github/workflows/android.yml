@@ -9,7 +9,7 @@
 #
 # Pinned: the NDK, SDK platform and build tools (sdkmanager checks the packages' checksums), Gradle
 # (android/gradle/wrapper: distributionSha256Sum; the wrapper jar is validated below), and SDL3,
-# glslang, zlib and LZ4 (URL + SHA-256 in cmake/WindowsDependencies.cmake, WWHD_BUNDLED_DEPS).
+# glslang, zlib and LZ4 (URL + SHA-256 in cmake/WindowsDependencies.cmake, NSMBU_BUNDLED_DEPS).
 name: android
 
 on:
@@ -63,7 +63,7 @@ jobs:
       - name: Keep the APK for a few days (placeholder code, not a release)
         uses: actions/upload-artifact@v4
         with:
-          name: wwhd-android-placeholder-${{ github.sha }}
+          name: nsmbu-android-placeholder-${{ github.sha }}
           path: android/app/build/outputs/apk/release/*.apk
           retention-days: 3
           if-no-files-found: error

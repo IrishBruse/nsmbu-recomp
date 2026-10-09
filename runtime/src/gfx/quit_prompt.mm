@@ -1,14 +1,14 @@
 // Quit prompt (issue #65): closing the TV window quits the app, as on Windows and Linux; while a save
 // file is being played, closing it or Quit (Cmd+Q, the Dock's Quit, logout) first asks
-// "Quit Wind Waker HD?" in a sheet on the TV window:
+// "Quit NSMBU?" in a sheet on the TV window:
 //   Quit                 quits (the default button, Return)
 //   Cancel               keeps playing (Esc)
 //   Save State and Quit  writes save state slot 1 (as Save States > Save to slot 1, Shift+F1), then quits
 // Before that (boot, title screen, file select) and in test runs nothing asks (quit_prompt.h decides).
 // Closing the GamePad window still only hides it.
 //
-// Test aids: WWHD_TEST_QUIT_ANSWER=quit|cancel|save shows the prompt also in scripted runs and answers
-// it after 1.5 s; WWHD_TEST_CLOSE_TV_AT=frame closes the TV window (its close button) at that frame.
+// Test aids: NSMBU_TEST_QUIT_ANSWER=quit|cancel|save shows the prompt also in scripted runs and answers
+// it after 1.5 s; NSMBU_TEST_CLOSE_TV_AT=frame closes the TV window (its close button) at that frame.
 #import <AppKit/AppKit.h>
 
 #include <cstdlib>
@@ -88,7 +88,7 @@ void save_and_quit() {
 void ask() {
     LOG("[quit] asking before quitting");
     NSAlert* a = [NSAlert new];
-    a.messageText = @"Quit Wind Waker HD?";
+    a.messageText = @"Quit New Super Mario Bros. U?";
     a.informativeText = [NSString stringWithFormat:@"Progress since your last in-game save is lost.\n\n"
                                                    @"Save State and Quit keeps it in save state slot %d (Save States menu), "
                                                    @"replacing what is there.",
@@ -151,9 +151,9 @@ bool quit_request(const char* from) {
 }
 @end
 
-@interface WWQuitDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
+@interface NsmbuQuitDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @end
-@implementation WWQuitDelegate
+@implementation NsmbuQuitDelegate
 // Quit (Cmd+Q), the Dock's Quit, logout
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication*)sender {
     return quit_request("Quit") ? NSTerminateNow : NSTerminateCancel;
@@ -170,11 +170,11 @@ Class tv_window_class() { return [WWTvWindow class]; }
 
 // with the windows (display.mm): the TV window's delegate and the application's
 void install_quit_prompt(NSWindow* tv) {
-    static WWQuitDelegate* d = [WWQuitDelegate new];  // both delegate properties are weak
+    static NsmbuQuitDelegate* d = [NsmbuQuitDelegate new];  // both delegate properties are weak
     g_tv = tv;
     tv.delegate = d;
     NSApp.delegate = d;
-    if (const char* e = getenv("WWHD_TEST_CLOSE_TV_AT")) {
+    if (const char* e = getenv("NSMBU_TEST_CLOSE_TV_AT")) {
         uint64_t at = strtoull(e, nullptr, 10);
         [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer* t) {
             if (render::frame_count() < at) return;

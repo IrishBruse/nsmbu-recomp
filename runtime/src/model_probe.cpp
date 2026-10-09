@@ -1,4 +1,4 @@
-// Temporary probe: find where WWHD's J3DModel keeps its joint matrices (WWHD_PROBE_MODEL=n models).
+// Temporary probe: find where NSMBU's J3DModel keeps its joint matrices (NSMBU_PROBE_MODEL=n models).
 #include <cmath>
 #include <cstdlib>
 #include <set>
@@ -32,7 +32,7 @@ static bool guest_ptr(uint32_t p) { return p >= 0x10000000 && p < 0x50000000 && 
 extern "C" void hook_027F4D5C(Cpu* c) {
     uint32_t model = c->r[3];
     f_027F4D5C_orig(c);
-    static int left = getenv("WWHD_PROBE_MODEL") ? atoi(getenv("WWHD_PROBE_MODEL")) : 0;
+    static int left = getenv("NSMBU_PROBE_MODEL") ? atoi(getenv("NSMBU_PROBE_MODEL")) : 0;
     static std::set<uint32_t> seen;
     if (left <= 0 || !seen.insert(model).second) return;
     left--;

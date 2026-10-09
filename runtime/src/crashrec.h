@@ -1,6 +1,6 @@
 // Crash recovery: while it is on, the game is saved into rotating automatic save states every few
 // minutes, and the controller input since the latest one is recorded next to it. After a crash the
-// crash log names both; WWHD_REPLAY=<n> loads automatic state n and plays the recorded input back,
+// crash log names both; NSMBU_REPLAY=<n> loads automatic state n and plays the recorded input back,
 // so the crash can be reproduced (reliably for crashes caused by what the game does; timing-dependent
 // crashes between threads may not repeat). See crashrec.cpp.
 #pragma once

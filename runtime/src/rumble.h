@@ -13,7 +13,7 @@
 // next host frame (a GamePad pattern with every other bit set rumbles at half strength), or full
 // strength while the Pro Controller motor is on.
 //
-// The option (settings overlay > Controls > Rumble, saved as "rumble"; WWHD_RUMBLE=0 starts with
+// The option (settings overlay > Controls > Rumble, saved as "rumble"; NSMBU_RUMBLE=0 starts with
 // it off) only silences the host motors: the game's requests are still followed, so turning it on
 // again picks up an effect that is still running.
 #pragma once
@@ -55,11 +55,11 @@ void reset();                    // save state loaded: the game's earlier reques
 // ---- the option (any thread)
 bool enabled();
 void set_enabled(bool on);       // off stops the host motors with the host's next update
-bool env_override();             // WWHD_RUMBLE is set: it decides the start value, not the saved one
+bool env_override();             // NSMBU_RUMBLE is set: it decides the start value, not the saved one
 
 // ---- host (main thread, once per update): the motor strength now, 0..1; 0 while the option is off
 float host_level(uint64_t window_us);
 
-bool log_enabled();              // WWHD_LOG_RUMBLE=1: log requests and motor changes
+bool log_enabled();              // NSMBU_LOG_RUMBLE=1: log requests and motor changes
 
 }  // namespace rumble

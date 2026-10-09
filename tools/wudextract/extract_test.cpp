@@ -1,9 +1,9 @@
-// End-to-end test of wwhd-extract on a synthetic Wii U disc image built here with made-up keys
+// End-to-end test of nsmbu-extract on a synthetic Wii U disc image built here with made-up keys
 // and made-up file contents (no game data, no real keys): partition table, system partition with
 // a ticket, game partition with a raw (CBC) cluster and a hashed (H0) cluster, as .wud and .wux.
 // Checks extraction results byte for byte and the error codes for wrong/malformed keys and damage.
 //
-// usage: extract_test WWHD_EXTRACT_EXE WORKDIR      (run by ctest as "extract_synthetic")
+// usage: extract_test NSMBU_EXTRACT_EXE WORKDIR      (run by ctest as "extract_synthetic")
 #include "crypto.h"
 
 #include <cstdio>
@@ -235,7 +235,7 @@ static int run(const std::string& cmd) {
 
 int main(int argc, char** argv) {
     if (argc != 3) {
-        fprintf(stderr, "usage: extract_test WWHD_EXTRACT_EXE WORKDIR\n");
+        fprintf(stderr, "usage: extract_test NSMBU_EXTRACT_EXE WORKDIR\n");
         return 2;
     }
     fs::path exe = fs::absolute(argv[1]), work = fs::absolute(argv[2]);
@@ -251,7 +251,7 @@ int main(int argc, char** argv) {
     // game partition files
     PartitionBuilder gm;
     gm.hash_modes = {0, 2};
-    gm.files = {{"code/cking.rpx", pattern(100000, 1), 0},
+    gm.files = {{"code/red-pro2.rpx", pattern(100000, 1), 0},
                 {"code/app.xml", pattern(37, 2), 0},
                 {"meta/meta.xml", pattern(0, 3), 0},
                 {"content/Audiores/big.bin", pattern(0xFC00 * 2 + 1234, 4), 1},
@@ -435,6 +435,6 @@ int main(int argc, char** argv) {
                "damaged hashed block -> exit 8");
     }
     printf(failures ? "%d FAILED\n" : "all passed\n", failures);
-    if (!failures && !getenv("WWHD_KEEP_TEST")) fs::remove_all(work);
+    if (!failures && !getenv("NSMBU_KEEP_TEST")) fs::remove_all(work);
     return failures ? 1 : 0;
 }

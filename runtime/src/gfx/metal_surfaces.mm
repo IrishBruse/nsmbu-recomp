@@ -46,7 +46,7 @@ static float parse_scale(const char* e) {
     float f = e ? (float)atof(e) : 1.0f;
     return std::clamp(f > 0 ? f : 1.0f, 1.0f, 4.0f);
 }
-static std::atomic<float> g_res_requested{parse_scale(getenv("WWHD_RES_SCALE"))};
+static std::atomic<float> g_res_requested{parse_scale(getenv("NSMBU_RES_SCALE"))};
 static float g_res_frame = g_res_requested.load();
 static void latch_aspect();  // render thread: the factor for this frame
 float res_scale() { return g_res_frame; }
@@ -55,10 +55,10 @@ void set_res_scale(float f) {
     LOG("[gfx] internal resolution %gx", g_res_requested.load());
 }
 void latch_res_scale() {
-    // test aid: WWHD_RES_SCALE_AT=frame:factor,... switches the factor at those frames
+    // test aid: NSMBU_RES_SCALE_AT=frame:factor,... switches the factor at those frames
     static std::vector<std::pair<uint64_t, float>> at = [] {
         std::vector<std::pair<uint64_t, float>> v;
-        if (const char* e = getenv("WWHD_RES_SCALE_AT"))
+        if (const char* e = getenv("NSMBU_RES_SCALE_AT"))
             for (char* p = (char*)e; *p;) {
                 uint64_t f = strtoull(p, &p, 10);
                 if (*p++ != ':') break;
@@ -101,8 +101,8 @@ static bool screen_shaped(const Surface* s) {
 }
 
 // the factor a render target gets. Shadow maps (depth arrays: the game's cascades) scale with the
-// internal resolution by default (sharper shadows; the user's choice). WWHD_SHADOW_FIX=1 keeps the
-// console's 1024x1024 (issue #67), and WWHD_SHADOW_SCALE=n gives them their own factor (overrides
+// internal resolution by default (sharper shadows; the user's choice). NSMBU_SHADOW_FIX=1 keeps the
+// console's 1024x1024 (issue #67), and NSMBU_SHADOW_SCALE=n gives them their own factor (overrides
 // both). The trade-off: the game softens shadow edges by sampling the map with bilinear depth compare at a per-pixel random
 // offset, then blurring the result on screen. At 2048x2048 each compare filters half as wide, so
 // shadow edges came out hard and the random offsets showed as crawling hatching (issue #67: the
@@ -112,8 +112,8 @@ static float target_scale(const Surface* s) {
     uint32_t width,height;
     if(!s->fmt.compressed&&s->mips==1&&mods::cemu::texture_extent(s->width,s->height,s->format,s->slices,s->tileMode,width,height))return 1.0f;
     if (s->fmt.compressed || s->mips > 1) return 1.0f;
-    static const float shadow = getenv("WWHD_SHADOW_SCALE") ? parse_scale(getenv("WWHD_SHADOW_SCALE"))
-                                : getenv("WWHD_SHADOW_FIX") && *getenv("WWHD_SHADOW_FIX") && *getenv("WWHD_SHADOW_FIX") != '0' ? 1.0f : 0.0f;
+    static const float shadow = getenv("NSMBU_SHADOW_SCALE") ? parse_scale(getenv("NSMBU_SHADOW_SCALE"))
+                                : getenv("NSMBU_SHADOW_FIX") && *getenv("NSMBU_SHADOW_FIX") && *getenv("NSMBU_SHADOW_FIX") != '0' ? 1.0f : 0.0f;
     if (shadow && s->isDepth && s->slices > 1) return shadow;
     return res_scale();
 }
@@ -187,7 +187,7 @@ static Surface* rescale(Surface* s) {
     resample(old, t, s->fmt, old.textureType == MTLTextureType2DArray ? (uint32_t)old.arrayLength : 1);
     s->tex = t;
     forget_texture_views();
-    if (getenv("WWHD_LOG_RESCALE"))
+    if (getenv("NSMBU_LOG_RESCALE"))
         LOG("[gfx] rescaled %08X %ux%u fmt %X to %lux%lu", s->addr, s->width, s->height, s->format, (unsigned long)t.width,
             (unsigned long)t.height);
     return s;
@@ -406,7 +406,7 @@ Surface* find_or_create_surface(const SurfaceDesc& d, bool forRendering) {
             (unsigned long)s->fmt.pixel);
         return nullptr;
     }
-    if (forRendering && getenv("WWHD_LOG_RESCALE"))
+    if (forRendering && getenv("NSMBU_LOG_RESCALE"))
         LOG("[gfx] render target %08X %ux%ux%u fmt %X%s -> %lux%lu", s->addr, s->width, s->height, s->slices, s->format,
             s->isDepth ? " depth" : "", (unsigned long)s->tex.width, (unsigned long)s->tex.height);
     Surface* raw = s.get();
@@ -624,8 +624,8 @@ static void check_texture(Surface* s) {
             for (auto& [a, n] : ranges)
                 if (wwatch::written_since(a, n, s->watchStamp)) {
                     full = true;
-                    // debug: WWHD_LOG_TEXCHECK=1 logs textures re-checked because their pages were written
-                    static const bool log = getenv("WWHD_LOG_TEXCHECK") != nullptr;
+                    // debug: NSMBU_LOG_TEXCHECK=1 logs textures re-checked because their pages were written
+                    static const bool log = getenv("NSMBU_LOG_TEXCHECK") != nullptr;
                     static int logged = 0;
                     if (log && logged++ < 400)
                         LOG("[texcheck] frame %llu %08X %ux%u fmt %X mips %u: write at %08X+%X", (unsigned long long)R.frame, s->addr,
@@ -920,8 +920,8 @@ void copy_surface_impl(uint32_t srcAddr, uint32_t srcMip, uint32_t srcSlice, uin
         LatteAddrLib::SetupCachedSurfaceAddrInfo(&sci, srcSlice, 0, bpp, si.pitch, si.height, si.depth, 1, stm, false, (sswz >> 8) & 1, (sswz >> 9) & 3);
     if (Latte::TM_IsMacroTiled(dtm))
         LatteAddrLib::SetupCachedSurfaceAddrInfo(&dci, dstSlice, 0, bpp, di.pitch, di.height, di.depth, 1, dtm, false, (dswz >> 8) & 1, (dswz >> 9) & 3);
-    // debug: WWHD_COPYDBG=1 logs each CPU-path copy (destination range, time); see GX2CopySurface
-    static const bool dbg = getenv("WWHD_COPYDBG") != nullptr;
+    // debug: NSMBU_COPYDBG=1 logs each CPU-path copy (destination range, time); see GX2CopySurface
+    static const bool dbg = getenv("NSMBU_COPYDBG") != nullptr;
     if (dbg)
         LOG("[copydbg] exec cpu copy t=%.3f src %08X dst %08X..%08X (%ux%u fmt %X tm %u->%u)", timebase::now() / (double)timebase::kTicksPerSec,
             sbase, dbase, dbase + (uint32_t)di.surfSize, w, h, (uint32_t)s->format.value(), (uint32_t)stm, (uint32_t)dtm);

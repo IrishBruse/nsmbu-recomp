@@ -6,23 +6,23 @@ components under MPL-2.0; Cemu's emulator runtime is not needed.
 
 ## One app, two renderers (macOS)
 
-The default macOS build (`WWHD_RENDERER=BOTH`) contains the Metal renderer and the Vulkan renderer.
+The default macOS build (`NSMBU_RENDERER=BOTH`) contains the Metal renderer and the Vulkan renderer.
 `runtime/src/gfx/renderer.h` is the interface: each renderer fills a table of entry points
 (`gfx/metal_backend.mm` for Metal, namespace `gfx`; `gfx/vulkan/backend_table.cpp` for Vulkan,
 namespace `gfxvk`), and the GX2 layer, save states, menus and input call `render::*`, which
 forward to the renderer chosen once at start-up:
 
 1. `--renderer=metal|vulkan` (or `--renderer metal|vulkan`) on the command line,
-2. `WWHD_RENDERER_RUNTIME=metal|vulkan` (tests),
+2. `NSMBU_RENDERER_RUNTIME=metal|vulkan` (tests),
 3. the saved choice from **Graphics > Renderer** (`renderer` in
-   `~/Library/Application Support/wwhd/display.plist`), which takes effect at the next start; the
+   `~/Library/Application Support/nsmbu/display.plist`), which takes effect at the next start; the
    menu offers "Restart Now" (the game relaunches itself with the same arguments),
 4. Metal.
 
 If Vulkan cannot start, the game falls back to Metal and shows why (log, a sheet on the TV window,
 the window title says "Metal (Vulkan unavailable)"): no Vulkan loader or glslang installed (both are
 weak imports, so the app still starts without them), no driver (MoltenVK), no device with dynamic
-rendering. `WWHD_VK_FORCE_INIT_FAIL=1` forces this path for testing.
+rendering. `NSMBU_VK_FORCE_INIT_FAIL=1` forces this path for testing.
 
 Both renderers use the same AppKit host (`gfx/display.mm`, `menu.mm`, `input.mm`,
 `controls_ui.mm`, `mods/mouse.mm`): TV and GamePad windows, full screen, GamePad screen modes
@@ -46,11 +46,11 @@ filter), and `gfx/vulkan/present.cpp` draws it. The TV window title starts with 
 | Capture frame (P) | pictures + draw log | pictures only (no draw log) |
 | Shader head start (`--warm-shaders`) | yes | no (Vulkan keeps its own SPIR-V / pipeline caches) |
 
-Other builds: `-DWWHD_RENDERER=METAL` (Metal only, no Vulkan dependencies) and
-`-DWWHD_RENDERER=VULKAN` (Vulkan only with the portable SDL3 host: SDL windows, input and audio;
-the default on Windows/Linux). Test runs: `WWHD_HIDDEN_WINDOWS=1` keeps the windows off screen
-(frame and present dumps still work), `WWHD_EXIT_AT_FRAME=n` quits in order at frame n,
-`WWHD_TEST_RENDERER_SWITCH=frame:metal|vulkan` does what "Restart Now" does, `WWHD_LOG_TITLE=1`
+Other builds: `-DNSMBU_RENDERER=METAL` (Metal only, no Vulkan dependencies) and
+`-DNSMBU_RENDERER=VULKAN` (Vulkan only with the portable SDL3 host: SDL windows, input and audio;
+the default on Windows/Linux). Test runs: `NSMBU_HIDDEN_WINDOWS=1` keeps the windows off screen
+(frame and present dumps still work), `NSMBU_EXIT_AT_FRAME=n` quits in order at frame n,
+`NSMBU_TEST_RENDERER_SWITCH=frame:metal|vulkan` does what "Restart Now" does, `NSMBU_LOG_TITLE=1`
 logs the window title.
 
 ## Build
@@ -70,11 +70,11 @@ missing, and exits.
 On macOS:
 
 ```sh
-brew install cmake vulkan-headers vulkan-loader molten-vk glslang   # sdl3 too for WWHD_RENDERER=VULKAN
+brew install cmake vulkan-headers vulkan-loader molten-vk glslang   # sdl3 too for NSMBU_RENDERER=VULKAN
 cmake -S . -B build/cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++   # BOTH
 cmake --build build/cmake --parallel
 # Vulkan only, SDL3 host:
-cmake -S . -B build/vulkan -DWWHD_RENDERER=VULKAN -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+cmake -S . -B build/vulkan -DNSMBU_RENDERER=VULKAN -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 ```
 
 Generate `build/gen` from your own game as described in the main README first.
@@ -86,7 +86,7 @@ that the executable links or runs on Windows/Linux.
 ## Check the renderer
 
 ```sh
-./build/vulkan/wwhd --renderer-smoke
+./build/vulkan/nsmbu --renderer-smoke
 ```
 
 This test does not read game assets. It checks GPU texture uploads, mip/layer
@@ -104,16 +104,16 @@ the copy is drawn instead (depth through `gl_FragDepth`, stencil one bit per pas
 that can blit keep the blit. The first time a format takes another path, one log line names it.
 If a device can neither blit nor draw a format, a whole destination is cleared (depth 1, stencil
 and colour 0) and a partial one keeps its contents, instead of aborting the game.
-`WWHD_VK_DEPTH_COPY=draw` forces the drawn copy on any device (test aid, e.g. on a desktop GPU);
-`WWHD_VK_DEPTH_COPY=none` takes neither the blit nor the draw for depth formats, which shows the
+`NSMBU_VK_DEPTH_COPY=draw` forces the drawn copy on any device (test aid, e.g. on a desktop GPU);
+`NSMBU_VK_DEPTH_COPY=none` takes neither the blit nor the draw for depth formats, which shows the
 last resort.
 To enable Khronos validation, install the Vulkan validation layers and set
-`WWHD_VK_VALIDATION=1`. On Homebrew, set `VK_LAYER_PATH` to
+`NSMBU_VK_VALIDATION=1`. On Homebrew, set `VK_LAYER_PATH` to
 `/opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d`.
-Test aids for older drivers: `WWHD_VK_FORCE_API=1.2` (or `1.1`) makes the renderer treat every GPU as
+Test aids for older drivers: `NSMBU_VK_FORCE_API=1.2` (or `1.1`) makes the renderer treat every GPU as
 if it reported that Vulkan version, so a Vulkan 1.3 GPU takes the `VK_KHR_dynamic_rendering` path;
-`WWHD_VK_HIDE_EXTENSIONS=VK_KHR_dynamic_rendering` (comma-separated names) hides device extensions,
-which together with `WWHD_VK_FORCE_API=1.2` shows the "missing features" error.
+`NSMBU_VK_HIDE_EXTENSIONS=VK_KHR_dynamic_rendering` (comma-separated names) hides device extensions,
+which together with `NSMBU_VK_FORCE_API=1.2` shows the "missing features" error.
 If the loader does not discover MoltenVK, set `VK_DRIVER_FILES` to its installed
 `MoltenVK_icd.json` (Homebrew places it below `$(brew --prefix molten-vk)/etc/vulkan/icd.d`).
 
@@ -132,18 +132,18 @@ input are supported. MoltenVK devices without sampler LOD bias use zero bias,
 matching the existing Metal backend; native Vulkan devices retain the bias. Shader warmup/cache behavior differs from Metal.
 
 Vulkan keeps a persistent device pipeline cache under the host configuration
-directory's `shadercache` folder. `WWHD_VK_PIPELINE_CACHE=/path/cache.bin` selects
-an isolated cache file; `WWHD_VK_PIPELINE_CACHE=0` disables persistence. Setting
-`WWHD_SHADER_CACHE=0` also disables persistence unless an explicit Vulkan cache
+directory's `shadercache` folder. `NSMBU_VK_PIPELINE_CACHE=/path/cache.bin` selects
+an isolated cache file; `NSMBU_VK_PIPELINE_CACHE=0` disables persistence. Setting
+`NSMBU_SHADER_CACHE=0` also disables persistence unless an explicit Vulkan cache
 path is supplied. Caches are matched to the device and pipeline-cache UUID;
 incompatible, truncated, or checksum-invalid files fall back to an empty cache. New data is saved
 atomically after 120 frames without new pipelines. First-time shader translation
 and pipeline creation can still cause stalls.
 
 Vulkan also persists compiled SPIR-V in the host configuration directory's
-`shadercache/vulkan-shaders/spirv.bin`. `WWHD_VK_SHADER_CACHE=/directory` selects
-an isolated directory; `WWHD_VK_SHADER_CACHE=0` disables disk storage. An explicit
-directory overrides `WWHD_SHADER_CACHE=0`. Canonical GLSL and stage deduplication
+`shadercache/vulkan-shaders/spirv.bin`. `NSMBU_VK_SHADER_CACHE=/directory` selects
+an isolated directory; `NSMBU_VK_SHADER_CACHE=0` disables disk storage. An explicit
+directory overrides `NSMBU_SHADER_CACHE=0`. Canonical GLSL and stage deduplication
 remains active in memory when disk storage is disabled. Fresh decompiler metadata
 is kept for every guest variant; identical final shader programs share compilation.
 
@@ -160,7 +160,7 @@ streamout; the units and exports are recorded from the program's first translati
 Render-target formats, samplers, buffer addresses and units the program does not sample
 are not in the key. Keys that still translate to an identical shader (GLSL, resource
 mapping, uniform offsets, descriptor ranks) share one shader and its pipelines.
-`WWHD_VK_SHADER_KEY_VERIFY=1` also computes the previous, wider key on every lookup and,
+`NSMBU_VK_SHADER_KEY_VERIFY=1` also computes the previous, wider key on every lookup and,
 once per distinct wider key, translates again under the current registers and compares
 the result with the shader the narrow key returned; any difference is logged as
 `[vulkan shader key] VIOLATION` and counted in the stats (`=N` checks one wider key in N).
@@ -210,7 +210,7 @@ hit every variant with zero SPIR-V compilation and about 17.5 ms cache-load time
 This reduces compilation hitches; sustained frame rate has a separate CPU/GPU
 budget.
 
-Set `WWHD_VK_STATS=1` to report frame rate, frame-interval percentiles, upload
+Set `NSMBU_VK_STATS=1` to report frame rate, frame-interval percentiles, upload
 traffic, shader compilation, and GPU/presentation waits every 120 frames.
 The SDL window title displays live presented FPS and the selected 60 FPS mode.
 Stats also report descriptor allocation/reuse, SPIR-V compilation and disk hits,
@@ -243,27 +243,27 @@ measurements. Timing comparisons should use the same binary, saved scene, graphi
 caches and a quiet host, with validation disabled.
 
 For timing with detailed per-draw instrumentation disabled, unset
-`WWHD_VK_STATS` and set `WWHD_VK_CPU_ONLY_STATS=1`. This reports render-thread
+`NSMBU_VK_STATS` and set `NSMBU_VK_CPU_ONLY_STATS=1`. This reports render-thread
 CPU time, FPS, frame pacing, and cumulative shader/pipeline cache counters every
 120 frames. It leaves comparison clocks, detailed preparation counters, and
 wait timers disabled. CPU time excludes sleeping and GPU waits.
 
 | Environment option | Scope and correctness constraints |
 | --- | --- |
-| `WWHD_VK_REUSE_UNIFORM_SNAPSHOTS` | Reuses immutable uniform slices after full fresh byte comparison within the same device/submission generation. Support uniforms are packed and texture/AO patches applied before lookup; allocation alignment and zero padding remain unchanged. |
-| `WWHD_VK_REUSE_FEEDBACK_IMAGES` | Retains compatible feedback-copy images in separate shader-stage/texture-unit slots, bounded to 128 MiB of retained image allocations. Every attachment alias still receives a fresh copy, with barriers preserving prior reads before overwrite. Replaced resources remain fence-retired. |
-| `WWHD_VK_SKIP_REDUNDANT_BINDS` | Omits only exact consecutive descriptor bindings, including layout, sets, dynamic offsets, command buffer, and submission generation. It can bind just the changed stage; resource preparation still runs. Pass changes reset the tracked state. |
-| `WWHD_VK_DESCRIPTOR_RANKS` | Precomputes descriptor binding ranks and compacts active writes/offsets in binding order. Invalid or duplicate metadata falls back to the original sorting path. |
-| `WWHD_VK_PIPELINE_LOOKASIDE` | Adds eight exact pipeline-key entries ahead of the existing map lookup. Full key comparison, device checks, and reset handling remain in place. |
-| `WWHD_VK_SHADER_ADDRESS_MEMO` | Texture address words 2/3 no longer invalidate the last Vulkan shader lookup. Other register classification is unchanged; textures and attachment aliases are resolved afresh, and context/save-state loads invalidate shader memoization. |
-| `WWHD_VK_FETCH_MEMO` | Reuses the last fetch-program lookup within one frame after fresh header/range validation, preserving the existing once-per-frame program-byte hashing contract and save-state reset. |
-| `WWHD_VK_SPECIALIZE_INDICES` | Selects a typed endian/restart reader once per draw and directly fills expanded primitive indices. Native index eligibility and the final immutable index extent scan remain unchanged; wrapped big-endian guest ranges use the original reader. |
-| `WWHD_VK_SHADER_STATE_MEMO` | Retains four exact gathered linkage-key entries per shader stage. Every lookup freshly gathers all linkage words and compares every active byte, count, and program hash seed. Misses use the identical hash mixer; save-state and sentinel calls clear the memo. |
-| `WWHD_VK_SKIP_VERTEX_BINDS` | Omits only identical host vertex buffer/offset bindings after fresh snapshot preparation. Sixteen binding slots are guarded by command buffer, submission generation, and pass resets. Index bindings remain fresh. Combine with exact vertex snapshot reuse to make unchanged slice identities available. |
-| `WWHD_VK_SAMPLER_MEMO` | Reuses immutable sampler handles after exact device, fresh sampler-word, compare/integer, and effective anisotropy matching. Texture preparation still runs before lookup. |
-| `WWHD_VK_SPARSE_HASH_MEMO` | Only used where page write tracking is unavailable (texture changes are detected by `runtime/src/write_watch.h`; the sparse check is its fallback). Compares all freshly read, ordered sparse texture samples before reusing their hash. Full texture checks, invalidation, and uploads remain unchanged. Retains 64 entries by default; `WWHD_VK_SPARSE_HASH_ENTRIES=256` selects a bounded 16 MiB sample store. Oversized sample sets stream through the original mixer. |
-| `WWHD_VK_SHADER_KEY_DIRTY` | Avoids shader-generation bumps only for explicitly classified register bits absent from the current Vulkan shader key. Program headers, fetch strides, unknown registers, and context/save-state invalidation remain conservative. |
-| `WWHD_VK_VERTEX_HISTORY_REUSE` | Adds a second distinct vertex snapshot key per binding, requiring `WWHD_VK_REUSE_VERTEX_SNAPSHOTS=1`. Every candidate receives a fresh full payload comparison within the same device/submission generation; changed bytes allocate a fresh slice. |
+| `NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS` | Reuses immutable uniform slices after full fresh byte comparison within the same device/submission generation. Support uniforms are packed and texture/AO patches applied before lookup; allocation alignment and zero padding remain unchanged. |
+| `NSMBU_VK_REUSE_FEEDBACK_IMAGES` | Retains compatible feedback-copy images in separate shader-stage/texture-unit slots, bounded to 128 MiB of retained image allocations. Every attachment alias still receives a fresh copy, with barriers preserving prior reads before overwrite. Replaced resources remain fence-retired. |
+| `NSMBU_VK_SKIP_REDUNDANT_BINDS` | Omits only exact consecutive descriptor bindings, including layout, sets, dynamic offsets, command buffer, and submission generation. It can bind just the changed stage; resource preparation still runs. Pass changes reset the tracked state. |
+| `NSMBU_VK_DESCRIPTOR_RANKS` | Precomputes descriptor binding ranks and compacts active writes/offsets in binding order. Invalid or duplicate metadata falls back to the original sorting path. |
+| `NSMBU_VK_PIPELINE_LOOKASIDE` | Adds eight exact pipeline-key entries ahead of the existing map lookup. Full key comparison, device checks, and reset handling remain in place. |
+| `NSMBU_VK_SHADER_ADDRESS_MEMO` | Texture address words 2/3 no longer invalidate the last Vulkan shader lookup. Other register classification is unchanged; textures and attachment aliases are resolved afresh, and context/save-state loads invalidate shader memoization. |
+| `NSMBU_VK_FETCH_MEMO` | Reuses the last fetch-program lookup within one frame after fresh header/range validation, preserving the existing once-per-frame program-byte hashing contract and save-state reset. |
+| `NSMBU_VK_SPECIALIZE_INDICES` | Selects a typed endian/restart reader once per draw and directly fills expanded primitive indices. Native index eligibility and the final immutable index extent scan remain unchanged; wrapped big-endian guest ranges use the original reader. |
+| `NSMBU_VK_SHADER_STATE_MEMO` | Retains four exact gathered linkage-key entries per shader stage. Every lookup freshly gathers all linkage words and compares every active byte, count, and program hash seed. Misses use the identical hash mixer; save-state and sentinel calls clear the memo. |
+| `NSMBU_VK_SKIP_VERTEX_BINDS` | Omits only identical host vertex buffer/offset bindings after fresh snapshot preparation. Sixteen binding slots are guarded by command buffer, submission generation, and pass resets. Index bindings remain fresh. Combine with exact vertex snapshot reuse to make unchanged slice identities available. |
+| `NSMBU_VK_SAMPLER_MEMO` | Reuses immutable sampler handles after exact device, fresh sampler-word, compare/integer, and effective anisotropy matching. Texture preparation still runs before lookup. |
+| `NSMBU_VK_SPARSE_HASH_MEMO` | Only used where page write tracking is unavailable (texture changes are detected by `runtime/src/write_watch.h`; the sparse check is its fallback). Compares all freshly read, ordered sparse texture samples before reusing their hash. Full texture checks, invalidation, and uploads remain unchanged. Retains 64 entries by default; `NSMBU_VK_SPARSE_HASH_ENTRIES=256` selects a bounded 16 MiB sample store. Oversized sample sets stream through the original mixer. |
+| `NSMBU_VK_SHADER_KEY_DIRTY` | Avoids shader-generation bumps only for explicitly classified register bits absent from the current Vulkan shader key. Program headers, fetch strides, unknown registers, and context/save-state invalidation remain conservative. |
+| `NSMBU_VK_VERTEX_HISTORY_REUSE` | Adds a second distinct vertex snapshot key per binding, requiring `NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=1`. Every candidate receives a fresh full payload comparison within the same device/submission generation; changed bytes allocate a fresh slice. |
 
 The four additional paths together with the previous ten and vertex snapshot
 reuse passed a 2,400-frame Khronos game run with a guarded wide-view save-state
@@ -309,19 +309,19 @@ a process sample showed a runtime initializer deadlock before `main`.
 The guest buffer cache replaces the per-draw copies of guest vertex arrays, index arrays and uniform
 blocks into the upload arena with persistent GPU copies keyed by guest address
 (`runtime/src/gfx/vulkan/buffer_cache_core.h`, glue in `buffer_cache.cpp`). It is **on by default on
-macOS and desktop Linux** (Steam Deck included) and **off on Windows and Android**; `WWHD_VK_BUFFER_CACHE=1` turns it on and
-`WWHD_VK_BUFFER_CACHE=0` off on any platform.
+macOS and desktop Linux** (Steam Deck included) and **off on Windows and Android**; `NSMBU_VK_BUFFER_CACHE=1` turns it on and
+`NSMBU_VK_BUFFER_CACHE=0` off on any platform.
 
 **Testers on Windows and Linux (and Android):** it stays opt-in there until it has been checked on
 those hosts, where the page-fault handling it relies on costs more and Linux limits the number of
 protected regions. Please run a normal play session, or the benchmark scene, once with
-`WWHD_VK_BUFFER_CACHE_VERIFY=1 WWHD_VK_CPU_ONLY_STATS=1` and report:
+`NSMBU_VK_BUFFER_CACHE_VERIFY=1 NSMBU_VK_CPU_ONLY_STATS=1` and report:
 - the `[vulkan buffer cache] verify:` lines (the mismatch count must stay 0; any `VERIFY MISMATCH` line
   is a bug, please include it),
 - the `page write faults` count of the `[vulkan textures]` lines and the `protect failures` count of
   the `[vulkan buffer cache]` lines,
-- and, if you can, render-thread CPU and FPS with `WWHD_VK_BUFFER_CACHE=1` against `=0`
-  (`tools/bench/run_bench.py --variant off:WWHD_VK_BUFFER_CACHE=0 --variant on:WWHD_VK_BUFFER_CACHE=1`).
+- and, if you can, render-thread CPU and FPS with `NSMBU_VK_BUFFER_CACHE=1` against `=0`
+  (`tools/bench/run_bench.py --variant off:NSMBU_VK_BUFFER_CACHE=0 --variant on:NSMBU_VK_BUFFER_CACHE=1`).
 
 - **Validity without hashing.** An entry is current while none of its pages has a newer stamp in the
   page write tracker (`runtime/src/write_watch.h`, shared with the texture checks): the upload arms
@@ -341,16 +341,16 @@ protected regions. Please run a normal play session, or the benchmark scene, onc
   previous upload, is no longer armed and takes the arena path; it is tried again after 64 frames,
   doubling up to 2048.
 - **Memory.** 32 MiB host-visible blocks, device-local when the device offers it (unified memory,
-  resizable BAR or the 256 MiB BAR window, of which at most half is used). `WWHD_VK_BUFFER_CACHE_MB`
+  resizable BAR or the 256 MiB BAR window, of which at most half is used). `NSMBU_VK_BUFFER_CACHE_MB`
   sets the budget (default 256). Replaced regions are retired with the recording submission and freed
   after its fence. Entries unused for 1800 frames are evicted, the least recently used ones when over
   budget.
-- **Verify mode.** `WWHD_VK_BUFFER_CACHE_VERIFY=1` (implies the cache) compares every hit with freshly
+- **Verify mode.** `NSMBU_VK_BUFFER_CACHE_VERIFY=1` (implies the cache) compares every hit with freshly
   read guest bytes (converted indices: a fresh conversion) and logs `VERIFY MISMATCH` with address and
   size; a difference caused by a write racing the check (newer stamp) is counted as "raced" instead.
-- `WWHD_VK_BUFFER_CACHE_HINTS=0` ignores the DCFlush/GX2Invalidate hints (write faults only).
+- `NSMBU_VK_BUFFER_CACHE_HINTS=0` ignores the DCFlush/GX2Invalidate hints (write faults only).
 
-With `WWHD_VK_CPU_ONLY_STATS=1` the 120-frame report adds a `[vulkan buffer cache]` line: lookups,
+With `NSMBU_VK_CPU_ONLY_STATS=1` the 120-frame report adds a `[vulkan buffer cache]` line: lookups,
 hit rate, uploads, stale entries, dynamic bypasses, resident MiB, hints and protect failures; the
 `[vulkan textures]` line shows the page write faults (textures and buffers together).
 
@@ -368,8 +368,8 @@ Measured 2026-10-07 on an Apple M3 Max (Vulkan via MoltenVK), against the then-n
 Page write faults rise from about 2 to 9-15 per frame (about 3.7 µs each on this machine). With an
 artificial 10 ms render-thread load (Windfall, paced 60, visible windows) the cache raised swaps/s from
 57.8 to 59.2 and drawn in-between frames from 99.2% to 100%, and lowered the p95 swap interval from
-20.6 to 19.0 ms. The snapshot-reuse defaults (`WWHD_VK_REUSE_VERTEX_SNAPSHOTS`,
-`WWHD_VK_VERTEX_HISTORY_REUSE`, `WWHD_VK_REUSE_UNIFORM_SNAPSHOTS`) are complementary: the cache supersedes
+20.6 to 19.0 ms. The snapshot-reuse defaults (`NSMBU_VK_REUSE_VERTEX_SNAPSHOTS`,
+`NSMBU_VK_VERTEX_HISTORY_REUSE`, `NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS`) are complementary: the cache supersedes
 them for the ranges it serves; they still trim the arena copies of dynamic ranges (turning them off with
 the cache on costs 0.06-0.2 ms/frame). What remains in the arena (about 8.5 MiB/frame of vertex data)
 is ranges the game rewrites every frame; they were invalidated by write faults, not by the hints.
@@ -395,14 +395,14 @@ controls remain disabled until the renderer reports support.
 | `7` | Toggle true 60 FPS mode. Selecting either mode does not guarantee its target frame rate. |
 | Graphics menu: Scaling | Select smooth, sharp, or integer scaling for presentation. |
 
-Startup overrides match Metal: `WWHD_RES_SCALE` selects the initial internal scale
-(1–4); `WWHD_AO_MODE` selects AO mode 0–2. If `WWHD_AO_MODE` is absent, presence of
-`WWHD_NO_AO_QUIRK` selects mode 0, otherwise mode 2 is the default. The explicit AO
+Startup overrides match Metal: `NSMBU_RES_SCALE` selects the initial internal scale
+(1–4); `NSMBU_AO_MODE` selects AO mode 0–2. If `NSMBU_AO_MODE` is absent, presence of
+`NSMBU_NO_AO_QUIRK` selects mode 0, otherwise mode 2 is the default. The explicit AO
 mode takes precedence over the legacy flag, whose value is ignored.
-`WWHD_AO_HIRES` defaults to on (off on Android, where the phone GPU is the limit in heavy views, issue #56); `0` disables it, `1` enables it. `WWHD_ANISO` defaults to off and a
-nonzero value enables it. `WWHD_FXAA` defaults to off and its presence enables it,
+`NSMBU_AO_HIRES` defaults to on (off on Android, where the phone GPU is the limit in heavy views, issue #56); `0` disables it, `1` enables it. `NSMBU_ANISO` defaults to off and a
+nonzero value enables it. `NSMBU_FXAA` defaults to off and its presence enables it,
 including a value of `0`, matching Metal's existing behavior.
-`WWHD_SCALE_FILTER=smooth|sharp|integer` selects the initial presentation filter;
+`NSMBU_SCALE_FILTER=smooth|sharp|integer` selects the initial presentation filter;
 smooth is the default. Live settings currently apply to this process.
 
 A full-game Khronos validation run passed internal-scale transitions
@@ -441,15 +441,15 @@ Rule: mapped upload memory is only written. Every reuse check or scan uses a CPU
 memory, kept next to the slice and filled before the slice is written from it (so both hold the same
 bytes even when the game writes the range meanwhile):
 
-- vertex snapshots and vertex windows (`WWHD_VK_REUSE_VERTEX_SNAPSHOTS`, `WWHD_VK_VERTEX_HISTORY_REUSE`):
+- vertex snapshots and vertex windows (`NSMBU_VK_REUSE_VERTEX_SNAPSHOTS`, `NSMBU_VK_VERTEX_HISTORY_REUSE`):
   `vertex_snapshot_history.h`;
-- uniform snapshots (`WWHD_VK_REUSE_UNIFORM_SNAPSHOTS`): `uniform_snapshot.h`;
+- uniform snapshots (`NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS`): `uniform_snapshot.h`;
 - native index extents: the buffer cache entry's shadow, or a CPU copy the arena slice is written from;
 - converted indices are built in a CPU vector and scanned there.
 
 `runtime/tools/snapshot_cache_test.cpp` (CTest `snapshot_caches`) poisons every mapped byte right after
 it is written and checks that the caches still find exactly the expected reuse hits. The only read of
-mapped GPU-input memory left is the buffer cache's opt-in diagnostic `WWHD_VK_BUFFER_CACHE_VERIFY=1`.
+mapped GPU-input memory left is the buffer cache's opt-in diagnostic `NSMBU_VK_BUFFER_CACHE_VERIFY=1`.
 Buffers the CPU is meant to read (captures, the GamePad overlay signatures) come from
 `create_readback_buffer`, which prefers host-cached memory.
 
@@ -472,7 +472,7 @@ decisions and hit counts are identical in both modes; `snapshot_caches` runs eve
 (poisoned arena for the copy mode, a readable one for direct reads) and checks equal hits, and that
 direct reads against a poisoned arena miss.
 
-`WWHD_VK_UPLOAD_READS` overrides the choice for A/B runs: `auto` (default), `shadow` (always keep CPU
+`NSMBU_VK_UPLOAD_READS` overrides the choice for A/B runs: `auto` (default), `shadow` (always keep CPU
 copies, e.g. to measure the discrete-GPU path on a Mac) or `direct` (always read the slices; slow on
 uncached memory, a diagnostic only). The log line `[vulkan] upload arena memory: ...` reports the
 memory and the mode.
@@ -481,13 +481,13 @@ memory and the mode.
 
 Since 2026-10-07 every platform uses the two paths that were Android defaults before:
 
-- `WWHD_VK_LAZY_DRAW_DONE` (default on, `0` restores the wait): GX2DrawDone queues the work instead
+- `NSMBU_VK_LAZY_DRAW_DONE` (default on, `0` restores the wait): GX2DrawDone queues the work instead
   of waiting for an idle device. The renderer copies all guest data (vertices, indices, uniform
   blocks, textures) into fenced upload slices when it records the work and never writes GPU results
   back to guest memory, so the game only needs its commands executed, which `render_sync` already
   waits for (Cemu's GX2DrawDone waits for its GPU thread in the same way). Save states still wait
   for the idle GPU.
-- `WWHD_VK_ASYNC_PRESENT` (default on, `0` restores the drain): the presentation submission goes into
+- `NSMBU_VK_ASYNC_PRESENT` (default on, `0` restores the drain): the presentation submission goes into
   the submission ring and `swap()` does not wait for the GPU, so the render thread records frame N+1
   while the GPU draws frame N. Both window hosts (SDL and the macOS AppKit host). Captures, frame and
   present dumps and the automatic GamePad overlay's signatures read back through a waiting flush.
@@ -503,9 +503,9 @@ pool and deferred resources until its fence completes. The next draw reopens
 attachments with `LOAD`, preserving draw order and contents. This uses the
 existing asynchronous submission path.
 
-Set `WWHD_VK_DRAW_BATCH=0` to disable mid-frame batching, or set an explicit
+Set `NSMBU_VK_DRAW_BATCH=0` to disable mid-frame batching, or set an explicit
 positive draw count to tune it. Empty or invalid values disable batching.
-`WWHD_VK_DRAW_BATCH_CAP=1|2|3` sets the maximum mid-frame submissions (default three).
+`NSMBU_VK_DRAW_BATCH_CAP=1|2|3` sets the maximum mid-frame submissions (default three).
 See `docs/performance.md` for the local Windows comparison.
 
 ## macOS defaults and tuning
@@ -519,11 +519,11 @@ reuse is on by default on every platform since 2026-10-07 (see "CPU paths").
 
 | Option | Behavior and default |
 | --- | --- |
-| `WWHD_VSYNC_PRECISE` | macOS defaults to enabled: sleep to near the vsync deadline, then spin for the final portion (up to 2 ms). Set `0` to disable. Other platforms keep the previous off default. Precise sleeping increases CPU use. |
+| `NSMBU_VSYNC_PRECISE` | macOS defaults to enabled: sleep to near the vsync deadline, then spin for the final portion (up to 2 ms). Set `0` to disable. Other platforms keep the previous off default. Precise sleeping increases CPU use. |
 | `MVK_CONFIG_PREFILL_METAL_COMMAND_BUFFERS` | macOS defaults to `3`; an explicit MoltenVK override, including `0`, is respected. Normal macOS render batches use an autorelease pool. Other platforms receive no application override. |
-| `WWHD_VK_DRAW_BATCH` | Defaults to `2048` when unset, on every platform. Set `0` to disable. Positive decimal values up to 1,048,576 select the batch size; malformed or out-of-range values disable batching. |
-| `WWHD_VK_DRAW_BATCH_CAP` | Accepts `1`, `2`, or `3`. When unset, defaults to `3`. An explicitly invalid value falls back to `2`. Has no effect with batching disabled. |
-| `WWHD_VK_REUSE_VERTEX_SNAPSHOTS=1` | Reuse a bounded vertex snapshot only after exact guest-byte comparison within the same fenced submission generation. On by default since 2026-10-07 (`0` turns it off); measured as a small net CPU gain and 3.3 MiB/frame fewer uploads on Outset. |
+| `NSMBU_VK_DRAW_BATCH` | Defaults to `2048` when unset, on every platform. Set `0` to disable. Positive decimal values up to 1,048,576 select the batch size; malformed or out-of-range values disable batching. |
+| `NSMBU_VK_DRAW_BATCH_CAP` | Accepts `1`, `2`, or `3`. When unset, defaults to `3`. An explicitly invalid value falls back to `2`. Has no effect with batching disabled. |
+| `NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=1` | Reuse a bounded vertex snapshot only after exact guest-byte comparison within the same fenced submission generation. On by default since 2026-10-07 (`0` turns it off); measured as a small net CPU gain and 3.3 MiB/frame fewer uploads on Outset. |
 
 Draw batching keeps the four-slot fence retirement contract. More submissions can
 reduce the final GPU tail, but add attachment LOAD/STORE boundaries and descriptor
@@ -605,15 +605,15 @@ tests pass, and `--renderer-smoke` passes under Wine with lavapipe (`.github/wor
 builds and runs the tests natively); a run on Windows hardware with a GPU and gameplay remain to be
 tested.
 
-For an isolated capture, set `WWHD_CAPTURE_PATH` to the PNG output path and
-`WWHD_CAPTURE` to the renderer frame number (default120). Keep these artifacts
+For an isolated capture, set `NSMBU_CAPTURE_PATH` to the PNG output path and
+`NSMBU_CAPTURE` to the renderer frame number (default120). Keep these artifacts
 private; they contain game imagery.
 
 ## Render-thread profiler
 
-`runtime/src/render_prof.h` (both renderers) is on by default and cheap (`WWHD_PROFILE=0` turns it
-off). Every 120 frames it builds a report that `WWHD_PROFILE=1`, `WWHD_VK_STATS` or
-`WWHD_VK_CPU_ONLY_STATS=1` log as `[prof]` lines, and that the settings overlay's
+`runtime/src/render_prof.h` (both renderers) is on by default and cheap (`NSMBU_PROFILE=0` turns it
+off). Every 120 frames it builds a report that `NSMBU_PROFILE=1`, `NSMBU_VK_STATS` or
+`NSMBU_VK_CPU_ONLY_STATS=1` log as `[prof]` lines, and that the settings overlay's
 **Copy performance report** button (Graphics tab) puts on the clipboard. Its two header lines
 (`runtime/src/report_header.h`) say where the report comes from: the version and commit (release
 builds: the tag; others `git describe`, e.g. `v0.2.5+3`), the OS and version, the GPU with its driver
@@ -644,21 +644,21 @@ CPU paths not set to `1` and lazy DrawDone / async present when turned off. The 
 
 These switches require the exact value `1` and remain disabled by default.
 
-- `WWHD_VK_GPU_TIMESTAMPS`: measures submission timestamp intervals using two queries per fenced submission slot. Results are collected only after the existing completion fence, without query waits. The interval sum is not GPU busy time or the frame critical path; unsupported or zero-only timestamp results cannot establish GPU cost.
-- `WWHD_VK_UNCAPPED`: bypasses guest wall-clock flip eligibility for throughput diagnostics, while retaining FIFO GPU completion ordering. Frame-driven simulation accelerates; timebase/audio clocks remain real-time. This is not normal gameplay FPS. The same switch is now in the settings overlay (Graphics → "Uncapped (debug: the game runs too fast)", not saved) and `WWHD_UNCAPPED=1` sets it for either renderer; while it is on, the swapchains present with immediate (or mailbox) instead of the chosen mode, and Metal turns the layers' displaySyncEnabled off.
-- `WWHD_VK_READY_FLIP_WAIT`: experimental waiting for an already-eligible pending flip to complete instead of sleeping another full guest tick. It preserves the existing minimum swap interval and GPU completion guards. Literal wait-for-vblank behavior changes for an eligible pending flip; keep opt-in until matched gameplay benchmarks and correctness checks establish suitability.
-- `WWHD_VK_READY_FLIP_PARK`: experimental eligible-flip completion wait after the save-state freeze gate and before guest-core reacquisition. The optional host callback runs while the thread is marked running and its guest core remains released; it keeps the existing flip eligibility and FIFO GPU guards. This avoids a second core release/acquire roundtrip. Default sleep behavior and Metal callers remain unchanged.
-- `WWHD_VK_NARROW_BARRIERS`: experimental layout-specific source dependency scopes. Destination scopes, image ranges, render-pass breaks and same-layout write barriers remain unchanged. Shader-read classification assumes the current vertex/fragment consumers; general and unknown layouts retain conservative scopes.
-- `WWHD_VK_FEEDBACK_STATS`: counts full feedback copies and identical source versions within one draw across both shader stages. It reports physical texels rather than estimated bandwidth and does not skip copies.
+- `NSMBU_VK_GPU_TIMESTAMPS`: measures submission timestamp intervals using two queries per fenced submission slot. Results are collected only after the existing completion fence, without query waits. The interval sum is not GPU busy time or the frame critical path; unsupported or zero-only timestamp results cannot establish GPU cost.
+- `NSMBU_VK_UNCAPPED`: bypasses guest wall-clock flip eligibility for throughput diagnostics, while retaining FIFO GPU completion ordering. Frame-driven simulation accelerates; timebase/audio clocks remain real-time. This is not normal gameplay FPS. The same switch is now in the settings overlay (Graphics → "Uncapped (debug: the game runs too fast)", not saved) and `NSMBU_UNCAPPED=1` sets it for either renderer; while it is on, the swapchains present with immediate (or mailbox) instead of the chosen mode, and Metal turns the layers' displaySyncEnabled off.
+- `NSMBU_VK_READY_FLIP_WAIT`: experimental waiting for an already-eligible pending flip to complete instead of sleeping another full guest tick. It preserves the existing minimum swap interval and GPU completion guards. Literal wait-for-vblank behavior changes for an eligible pending flip; keep opt-in until matched gameplay benchmarks and correctness checks establish suitability.
+- `NSMBU_VK_READY_FLIP_PARK`: experimental eligible-flip completion wait after the save-state freeze gate and before guest-core reacquisition. The optional host callback runs while the thread is marked running and its guest core remains released; it keeps the existing flip eligibility and FIFO GPU guards. This avoids a second core release/acquire roundtrip. Default sleep behavior and Metal callers remain unchanged.
+- `NSMBU_VK_NARROW_BARRIERS`: experimental layout-specific source dependency scopes. Destination scopes, image ranges, render-pass breaks and same-layout write barriers remain unchanged. Shader-read classification assumes the current vertex/fragment consumers; general and unknown layouts retain conservative scopes.
+- `NSMBU_VK_FEEDBACK_STATS`: counts full feedback copies and identical source versions within one draw across both shader stages. It reports physical texels rather than estimated bandwidth and does not skip copies.
 
 The saved uphill 3x scene passed 2400 frames with both experimental switches, guarded checkpoint restore and Vulkan synchronization validation on Apple M3 Max. This establishes a tested path, not a universal synchronization proof or FPS improvement. Duplicate feedback counters were zero for that scene, so duplicate-copy elimination was rejected there. Comparisons must use the same executable, accepted checkpoint, resolution and graphics settings; a rejected state load invalidates the scene benchmark.
 
 The PARK experiment separately passed the native build, four CTest regressions, extracted-function UBSan ordering/guard tests, and 2400-frame synchronization validation with an accepted uphill checkpoint. Its gameplay performance still requires matched non-validation comparisons.
 
-`WWHD_VK_GPU_PASS_TIMESTAMPS=1` adds bounded render-pass and feedback-copy scopes: at most 256 pairs per submission, recorded outside dynamic rendering and collected after the existing fence. Top-eight format/extent buckets report stage intervals, draw counts, unavailable/zero results and capacity drops. This instrumentation affects GPU scheduling: a matched uphill 3x calibration measured about 45 FPS with scopes versus 55 FPS without them. Use it to investigate work, and disable it for performance acceptance; interval sums are not exclusive GPU busy time.
+`NSMBU_VK_GPU_PASS_TIMESTAMPS=1` adds bounded render-pass and feedback-copy scopes: at most 256 pairs per submission, recorded outside dynamic rendering and collected after the existing fence. Top-eight format/extent buckets report stage intervals, draw counts, unavailable/zero results and capacity drops. This instrumentation affects GPU scheduling: a matched uphill 3x calibration measured about 45 FPS with scopes versus 55 FPS without them. Use it to investigate work, and disable it for performance acceptance; interval sums are not exclusive GPU busy time.
 
-`WWHD_VK_VERTEX_WINDOW_STATS=1` measures a conservative unused-prefix opportunity without changing uploads. Its separate index scan adds CPU overhead, so its FPS is not a gameplay benchmark. The accepted uphill checkpoint showed approximately 27.4 MiB of copied-prefix requests with 8.0 MiB never referenced by the draw.
+`NSMBU_VK_VERTEX_WINDOW_STATS=1` measures a conservative unused-prefix opportunity without changing uploads. Its separate index scan adds CPU overhead, so its FPS is not a gameplay benchmark. The accepted uphill checkpoint showed approximately 27.4 MiB of copied-prefix requests with 8.0 MiB never referenced by the draw.
 
-The strict opt-in `WWHD_VK_VERTEX_COPY_WINDOW=1` instead fuses minimum and maximum index reduction, retains the original physical allocation and draw addressing, and copies/compares only the proven fetch window. Unsupported bounds/rates/layouts keep the original full-prefix path. A separate cache includes reservation, window offset/length, device and submission generation; fresh guest data is always compared. Device smoke tests passed full/window pixel equivalence with poisoned leading bytes, signed base vertex, restart, vertex-index checks, mutations and submission-ring retirement. Actual saved-scene validation and matched FPS acceptance are still required before adoption.
+The strict opt-in `NSMBU_VK_VERTEX_COPY_WINDOW=1` instead fuses minimum and maximum index reduction, retains the original physical allocation and draw addressing, and copies/compares only the proven fetch window. Unsupported bounds/rates/layouts keep the original full-prefix path. A separate cache includes reservation, window offset/length, device and submission generation; fresh guest data is always compared. Device smoke tests passed full/window pixel equivalence with poisoned leading bytes, signed base vertex, restart, vertex-index checks, mutations and submission-ring retirement. Actual saved-scene validation and matched FPS acceptance are still required before adoption.
 
-Small register updates (at most 16 words) use the fused Vulkan path by default. Set `WWHD_VK_FUSE_SMALL_REGS=0` to disable it. Matched scene tests suggest roughly 2% less renderer CPU time; FPS benefit remains modest and subject to run drift.
+Small register updates (at most 16 words) use the fused Vulkan path by default. Set `NSMBU_VK_FUSE_SMALL_REGS=0` to disable it. Matched scene tests suggest roughly 2% less renderer CPU time; FPS benefit remains modest and subject to run drift.

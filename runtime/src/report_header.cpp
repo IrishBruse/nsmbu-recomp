@@ -24,11 +24,11 @@
 namespace reporthdr {
 
 const char* const kVulkanCpuPaths[kVulkanCpuPathCount] = {
-    "WWHD_VK_REUSE_UNIFORM_SNAPSHOTS", "WWHD_VK_REUSE_FEEDBACK_IMAGES", "WWHD_VK_SKIP_REDUNDANT_BINDS",
-    "WWHD_VK_DESCRIPTOR_RANKS",        "WWHD_VK_PIPELINE_LOOKASIDE",    "WWHD_VK_SHADER_ADDRESS_MEMO",
-    "WWHD_VK_FETCH_MEMO",              "WWHD_VK_SPECIALIZE_INDICES",    "WWHD_VK_SHADER_STATE_MEMO",
-    "WWHD_VK_SKIP_VERTEX_BINDS",       "WWHD_VK_SAMPLER_MEMO",          "WWHD_VK_SPARSE_HASH_MEMO",
-    "WWHD_VK_SHADER_KEY_DIRTY",        "WWHD_VK_REUSE_VERTEX_SNAPSHOTS", "WWHD_VK_VERTEX_HISTORY_REUSE"};
+    "NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS", "NSMBU_VK_REUSE_FEEDBACK_IMAGES", "NSMBU_VK_SKIP_REDUNDANT_BINDS",
+    "NSMBU_VK_DESCRIPTOR_RANKS",        "NSMBU_VK_PIPELINE_LOOKASIDE",    "NSMBU_VK_SHADER_ADDRESS_MEMO",
+    "NSMBU_VK_FETCH_MEMO",              "NSMBU_VK_SPECIALIZE_INDICES",    "NSMBU_VK_SHADER_STATE_MEMO",
+    "NSMBU_VK_SKIP_VERTEX_BINDS",       "NSMBU_VK_SAMPLER_MEMO",          "NSMBU_VK_SPARSE_HASH_MEMO",
+    "NSMBU_VK_SHADER_KEY_DIRTY",        "NSMBU_VK_REUSE_VERTEX_SNAPSHOTS", "NSMBU_VK_VERTEX_HISTORY_REUSE"};
 
 std::string vk_version(uint32_t v) {
     // VK_API_VERSION_MAJOR / MINOR / PATCH (the variant, top 3 bits, is 0 for Vulkan)
@@ -170,7 +170,7 @@ std::vector<std::string> vulkan_overrides(GetEnv env) {
         else if (strcmp(v, "1") != 0) out.push_back(std::string(name) + "=" + v);
     }
     // on unless set to a value that reads as 0 (gx2_core.cpp lazy_draw_done, backend.cpp async_present)
-    for (const char* name : {"WWHD_VK_LAZY_DRAW_DONE", "WWHD_VK_ASYNC_PRESENT"}) {
+    for (const char* name : {"NSMBU_VK_LAZY_DRAW_DONE", "NSMBU_VK_ASYNC_PRESENT"}) {
         const char* v = env(name);
         if (v && atoi(v) == 0) out.push_back(std::string(name) + "=" + v);
     }

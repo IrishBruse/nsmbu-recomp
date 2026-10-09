@@ -1,4 +1,4 @@
-package org.wwhdrecomp.wwhd;
+package org.nsmbrecomp.nsmbu;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -11,7 +11,7 @@ import org.libsdl.app.SDLActivity;
 import java.io.File;
 
 // The game: SDL loads libmain.so and runs its SDL_main (runtime/src/main.cpp).
-public class WwhdActivity extends SDLActivity {
+public class NsmbuActivity extends SDLActivity {
     @Override
     protected String[] getLibraries() {
         return new String[] { "SDL3", "main" };
@@ -19,13 +19,13 @@ public class WwhdActivity extends SDLActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // The game files go to Android/data/org.wwhdrecomp.wwhd/files/game (code, content, meta):
+        // The game files go to Android/data/org.nsmbrecomp.nsmbu/files/game (code, content, meta):
         // create the folders so they show up for copying over USB.
         File files = getExternalFilesDir(null);
         if (files != null) {
             new File(files, "game").mkdirs();
             new File(files, "save").mkdirs();
-            Log.i("wwhd", "game folder: " + new File(files, "game"));
+            Log.i("nsmbu", "game folder: " + new File(files, "game"));
         }
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -80,7 +80,7 @@ public class WwhdActivity extends SDLActivity {
                 if (lp.preferredDisplayModeId == id) return;
                 lp.preferredDisplayModeId = id;
                 w.setAttributes(lp);
-                Log.i("wwhd", "display mode " + id + " requested for " + hz + " fps");
+                Log.i("nsmbu", "display mode " + id + " requested for " + hz + " fps");
             }
         });
     }

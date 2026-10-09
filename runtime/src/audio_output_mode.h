@@ -23,7 +23,7 @@
 //                                         up to 5 game frames, then TV only)
 // The sum adds nothing the game didn't fade itself: through a switch the host hears TV t^2 plus
 // GamePad d^2, the game's own crossfade (its middle is ~0.52 of full level, as on the hardware).
-// WWHD_AUDIO_OUTPUT=auto (default) | tv | gamepad overrides it (debug).
+// NSMBU_AUDIO_OUTPUT=auto (default) | tv | gamepad overrides it (debug).
 #pragma once
 #include <cstdint>
 #include <cstring>

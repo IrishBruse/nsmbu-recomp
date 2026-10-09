@@ -5,12 +5,12 @@ plugins {
 }
 
 android {
-    namespace = "org.wwhdrecomp.wwhd"
+    namespace = "org.nsmbrecomp.nsmbu"
     compileSdk 36
     buildToolsVersion "35.0.0"  // pinned (the CI installs this one)
     ndkVersion "30.0.16248370"  // android/build_native.sh's default (the native libraries come from there)
     defaultConfig {
-        applicationId "org.wwhdrecomp.wwhd"
+        applicationId "org.nsmbrecomp.nsmbu"
         minSdk 33
         targetSdk 36
         versionCode 1

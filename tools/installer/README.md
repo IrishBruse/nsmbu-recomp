@@ -1,6 +1,6 @@
 # Setup (first start)
 
-The release packages contain no game files and no game code. The first start of **Wind Waker HD**
+The release packages contain no game files and no game code. The first start of **NSMBU**
 builds the game on the player's machine from their own dump (a disc image, a Cemu archive or an
 extracted game folder): it extracts the game (a disc image or archive only), translates its code to C, compiles it with a pinned compiler
 and links it with the prebuilt runtime. Later starts launch the built game directly. Player
@@ -12,7 +12,7 @@ A release folder contains `portable.txt`. Then everything stays in `<release>/da
 
 | path | what |
 |---|---|
-| `data/bin/wwhd` (`.exe`) | the built game; `data/bin/portable.txt` puts the runtime in portable mode |
+| `data/bin/nsmbu` (`.exe`) | the built game; `data/bin/portable.txt` puts the runtime in portable mode |
 | `data/game/` | game files extracted from a disc image or Cemu archive (an extracted folder chosen by the player is used where it is) |
 | `data/save/` | saves |
 | `data/user/` | settings, controls, graphics options, save states, shader caches (`host::portable_user_dir()`) |
@@ -33,20 +33,20 @@ Start menu, applications menu) are only created when the player asks for one.
 |---|---|
 | `setup.py` | all of the installation logic (Python 3.8+, standard library only) |
 | `toolchains.json` | pinned compilers and Python downloads (URL + SHA-256); CI builds with the same ones |
-| `gui/setup_gui.cpp` | **Wind Waker HD**, the program a release starts: first-start setup, then the game launcher (SDL3 + Dear ImGui) |
+| `gui/setup_gui.cpp` | **NSMBU**, the program a release starts: first-start setup, then the game launcher (SDL3 + Dear ImGui) |
 | `install-macos.command` | setup in Terminal, macOS (shipped as `tools/Setup in Terminal.command`) |
-| `install-windows.bat` | setup in a console window, Windows (`tools/Setup in a console window.bat`): runs `Wind Waker HD.exe --console-setup`, which runs `setup.py` in that console with the bundled Python (`tools/python`) |
+| `install-windows.bat` | setup in a console window, Windows (`tools/Setup in a console window.bat`): runs `NSMBU.exe --console-setup`, which runs `setup.py` in that console with the bundled Python (`tools/python`) |
 | `install-linux.sh` | setup in a terminal, Linux (`tools/setup-in-terminal.sh`; falls back to a pinned standalone Python) |
 | `test_setup.py` | unit tests of the helpers (`python3 tools/installer/test_setup.py`) |
 
-In a release folder the program is `Wind Waker HD.app` (macOS), `Wind Waker HD.exe` (Windows) or
-`wind-waker-hd` plus `Wind Waker HD.desktop` (Linux); the terminal setup in `tools/` is the fallback.
+In a release folder the program is `NSMBU.app` (macOS), `NSMBU.exe` (Windows) or
+`nsmbu-launcher` plus `NSMBU.desktop` (Linux); the terminal setup in `tools/` is the fallback.
 
-## Wind Waker HD (the program a release starts)
+## NSMBU (the program a release starts)
 
 On start, when `data/install.json` says the game is prepared for this release (same version as
 `sdk/manifest.json`, the executable and the game files are there), it starts the game right away and
-shows no window of its own (macOS, Linux: `exec`, so the Dock keeps "Wind Waker HD"; Windows: starts
+shows no window of its own (macOS, Linux: `exec`, so the Dock keeps "NSMBU"; Windows: starts
 the game without a console window and exits). Otherwise, or with Shift held at start (macOS,
 Windows) or `--setup`, it shows the setup.
 
@@ -64,7 +64,7 @@ log. On macOS it first checks for Apple's Command
 Line Tools and offers Apple's installer, as the Terminal launcher does.
 
 Finding the release folder: the program looks for `tools/installer/setup.py` next to itself (macOS: next
-to `Wind Waker HD.app`). A downloaded app opened from Finder on macOS runs from a random read-only copy
+to `NSMBU.app`). A downloaded app opened from Finder on macOS runs from a random read-only copy
 of the bundle alone (App Translocation, `/private/var/folders/.../AppTranslocation/<id>/d/`), so it
 asks Security.framework (`SecTranslocateIsTranslocatedURL`, `SecTranslocateCreateOriginalPathForURL`,
 loaded at run time) where the original bundle is and uses the folder around it. The question is about
@@ -77,7 +77,7 @@ text) and what to do, offers to show the folder involved, and appends the same t
 setup.log` on macOS, `%TEMP%\Wind Waker HD setup.log` on Windows, `$TMPDIR/wind-waker-hd-setup.log`
 on Linux).
 
-Build: `-DWWHD_SETUP_GUI=ON` adds the `wwhd-setup` target (`cmake/SetupGui.cmake`). SDL3 is linked
+Build: `-DNSMBU_SETUP_GUI=ON` adds the `nsmbu-setup` target (`cmake/SetupGui.cmake`). SDL3 is linked
 statically on macOS and Windows (pinned source, release toolchain); Linux uses the shared SDL3 the
 release ships in `sdk/runtime`. The ImGui SDL3 and SDL_Renderer backends are the unmodified ones of
 the vendored ImGui release.
@@ -90,17 +90,17 @@ unmodified in `tools/python`: the release workflow downloads the pinned zip, `to
 and unpacks it, and `tools/release/guard.py` allows exactly those files there. Its programs and DLLs keep
 the Python Software Foundation's signature (the release workflow checks it); its license is in
 `third-party-licenses/Python.txt`. It lives in the release folder, not in the data folder, because it belongs
-to the release (like `tools/` and `sdk/`): the same place works for portable and per-user (`%LOCALAPPDATA%\WWHD`)
-installations and for `--data-dir`/`WWHD_DATA_DIR`, and a newer release brings its own.
+to the release (like `tools/` and `sdk/`): the same place works for portable and per-user (`%LOCALAPPDATA%\NSMBU`)
+installations and for `--data-dir`/`NSMBU_DATA_DIR`, and a newer release brings its own.
 
-`Wind Waker HD.exe` starts `tools\python\python.exe tools\installer\setup.py --gui-protocol` directly
+`NSMBU.exe` starts `tools\python\python.exe tools\installer\setup.py --gui-protocol` directly
 (`gui/console_setup_win.cpp`); `--console-setup ARGS` (the first argument; used by
 `tools\Setup in a console window.bat`) runs `setup.py ARGS` in the console it was started from. If
 `tools\python` is missing, both say that the release is incomplete and should be unzipped again. The program
 contains no download code and starts no script host; `setup.py` uses the Windows API through ctypes for its
 file dialogs and shortcuts. Until 0.2.6 a PowerShell script started with `-ExecutionPolicy Bypass` removed
 the "mark of the web" from every file in the release folder and downloaded Python; antivirus heuristics read
-that as a dropper (issue #58). Nothing needs the mark removed: SmartScreen asks once for `Wind Waker HD.exe`
+that as a dropper (issue #58). Nothing needs the mark removed: SmartScreen asks once for `NSMBU.exe`
 and remembers "Run anyway", and programs started with CreateProcess (Python, the extractor, the compiler,
 the game) and DLLs are not checked for it.
 
@@ -167,7 +167,7 @@ A `.wua` is Cemu's Wii U archive: a [ZArchive](https://github.com/Exzap/ZArchive
 title named `<title id>_v<version>`, often the game, its update and DLC together. No keys are needed:
 the GUI skips the key screen and the terminal setup asks for none.
 
-`wwhd-extract --title 0005000010143500 info GAME.wua` lists every title folder and the one selected;
+`nsmbu-extract --title 0005000010143500 info GAME.wua` lists every title folder and the one selected;
 setup then decides (`archive_choice` in `setup.py`) and logs which title it uses and why:
 
 - the game itself, `0005000010143500_v0`, is used: the port's translated code and its hooks are made
@@ -177,7 +177,7 @@ setup then decides (`archive_choice` in `setup.py`) and logs which title it uses
 - another region, an archive with only the update, another game, or a version other than 0 stop
   with an explanation.
 
-`wwhd-extract --title FOLDER --progress extract GAME.wua data/game.partial` first checks the archive's
+`nsmbu-extract --title FOLDER --progress extract GAME.wua data/game.partial` first checks the archive's
 SHA-256 ("phase verify", the step's bar shows "checking the archive"), then writes the title folder's
 `code`, `content` and `meta` ("phase extract"); damaged archives (exit 8), truncated or foreign files
 (exit 7) and a missing title (exit 10) are reported before anything is written. The space check is
@@ -186,8 +186,8 @@ archive written by the test) and `ArchiveTitles` in `test_setup.py`.
 
 ## Game version check
 
-The translated code and its hooks (`tools/recomp/hooks*.txt`) are made for one file: `code/cking.rpx`
-of The Wind Waker HD (USA), title 00050000-10143500, version 0. `setup.py` keeps its SHA-256
+The translated code and its hooks (`tools/recomp/hooks*.txt`) are made for one file: `code/red-pro2.rpx`
+of New Super Mario Bros. U (USA), title 00050000-10143500, version 0. `setup.py` keeps its SHA-256
 (`SUPPORTED_RPX_SHA256`, a checksum only: it identifies the file and contains nothing of it;
 `guard.py` flags 32-digit, key-shaped strings, not 64-digit sums) and `check_game_version` compares
 it for every source before anything is translated: an extracted folder at the "folder" step (and
@@ -196,6 +196,6 @@ already when the window probes it), a disc image or Cemu archive right after ext
 installed files. On a mismatch the message says what was found (another title, "an update merged in"
 when `code/app.xml` or `meta/meta.xml` give a version above 0 or the update's title id, otherwise
 "not the expected file" with the start of its SHA-256), what is needed and how to get it. Tests:
-`GameVersion` in `test_setup.py` (synthetic files; `WWHD_GAME_DIR=game` also checks your own copy).
-The recompiler reads only `code/cking.rpx` (the runtime checks at start that it matches the translated
+`GameVersion` in `test_setup.py` (synthetic files; `NSMBU_GAME_DIR=game` also checks your own copy).
+The recompiler reads only `code/red-pro2.rpx` (the runtime checks at start that it matches the translated
 code); the other files in `code/` (`app.xml`, `cos.xml`) are metadata and are not checked.

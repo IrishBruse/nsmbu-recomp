@@ -11,7 +11,7 @@
 //  - 2D: the HD layouts (nw::lyt) drawn to the TV keep their proportions, centred, and panes near
 //    the screen edges move out to the new edges (see "HD layouts" below).
 //
-// Game side (WWHD addresses, tools/recomp/hooks_aspect.txt):
+// Game side (NSMBU addresses, tools/recomp/hooks_aspect.txt):
 //   camera_execute 024FFA3C: view.mAspect (+0xD8) = 16/9 constant 1004AAF0 every step   @024FFA98
 //   init_phase2    02501F98: the same at camera creation                                @025020E0
 //   camera_draw    024FFC40: C_MTXPerspective(proj, mFovy, mAspect, mNear, mFar)         @024FFD60
@@ -41,7 +41,7 @@ namespace {
 constexpr float kBase = 16.0f / 9.0f;
 
 int parse_env_mode(float& custom) {
-    const char* e = getenv("WWHD_ASPECT");
+    const char* e = getenv("NSMBU_ASPECT");
     if (!e || !*e) return kOriginal;
     if (!strcmp(e, "window") || !strcmp(e, "match")) return kWindow;
     if (!strcmp(e, "16:9")) return kOriginal;
@@ -142,11 +142,11 @@ static uint64_t g_swaps = 0, g_changed_swap = 0;
 uint64_t game_frame() { return g_swaps; }
 
 float on_swap() {
-    // test aid: WWHD_ASPECT_AT=frame:aspect,... switches the aspect at those swaps (aspect 0 = window)
+    // test aid: NSMBU_ASPECT_AT=frame:aspect,... switches the aspect at those swaps (aspect 0 = window)
     static uint64_t swaps = 0;
     static std::vector<std::pair<uint64_t, float>> at = [] {
         std::vector<std::pair<uint64_t, float>> v;
-        if (const char* e = getenv("WWHD_ASPECT_AT"))
+        if (const char* e = getenv("NSMBU_ASPECT_AT"))
             for (char* p = (char*)e; *p;) {
                 uint64_t f = strtoull(p, &p, 10);
                 if (*p++ != ':') break;
@@ -197,7 +197,7 @@ extern "C" void site_024F8168(Cpu* c) { adjust_projection_args(c, 1, 2); }
 // dScnName_c::setView: C_MTXPerspective (file select)
 extern "C" void site_025ADB38(Cpu* c) { adjust_projection_args(c, 1, 2); }
 
-// ---- HD layouts (nw::lyt, WWHD's nw4f): TV draws see the 16:9 layout space centred in the wider
+// ---- HD layouts (nw::lyt, NSMBU's nw4f): TV draws see the 16:9 layout space centred in the wider
 // screen, panes near the left/right edges move out to the new edges.
 //   DrawInfo::LoadProjectionMtx 02874038: GX2SetVertexUniformReg(uProjection, 16, DrawInfo+0).
 //     The layers' DrawInfos hold a perspective projection (fovy 40, aspect 16/9; the layout plane
@@ -312,8 +312,8 @@ extern "C" void hook_028766CC(Cpu* c) {
         // an actor's projected screen position (cursors, markers) -> scaled out with the 3D view
         float tx = (float)ldf32(pane + kPaneTrans), ty = (float)ldf32(pane + kPaneTrans + 4);
         bool placed = t_anchor && (tx != 0.0f || ty != 0.0f);
-        // debug: WWHD_ASPECT_LOG=1 logs each placed root (name, translation) once per name
-        static const bool log_roots = getenv("WWHD_ASPECT_LOG") != nullptr;
+        // debug: NSMBU_ASPECT_LOG=1 logs each placed root (name, translation) once per name
+        static const bool log_roots = getenv("NSMBU_ASPECT_LOG") != nullptr;
         if (log_roots && placed) {
             static std::mutex mu;
             static std::unordered_map<std::string, int> seen;
@@ -359,7 +359,7 @@ extern "C" void hook_028766CC(Cpu* c) {
         if (w >= 1270.0f && h >= 710.0f) {
             nsx = sx * kx;
             nsy = sy * ky;
-            static const bool log_st = getenv("WWHD_ASPECT_LOG") != nullptr;
+            static const bool log_st = getenv("NSMBU_ASPECT_LOG") != nullptr;
             if (log_st) {
                 static std::mutex mu;
                 static std::unordered_map<std::string, int> seen;
@@ -371,7 +371,7 @@ extern "C" void hook_028766CC(Cpu* c) {
         }
     }
     bool moved = nx != tx || ny != ty, scaled = nsx != sx || nsy != sy;
-    static const bool log_moves = getenv("WWHD_ASPECT_LOG") != nullptr;
+    static const bool log_moves = getenv("NSMBU_ASPECT_LOG") != nullptr;
     if (log_moves && moved && parent == t_root) {
         static std::mutex mu;
         static std::unordered_map<std::string, int> seen;

@@ -99,7 +99,7 @@ std::vector<float> reorder_line(const std::vector<Glyph>& line, int para_level);
 
 // Runtime glue (rtl_text_hooks.cpp): hle/fs.cpp reports each 2D language pack (permanent_2d_*.pack)
 // the game opens; right-to-left text turns on when its message font has Arabic or Hebrew letters
-// (WWHD_RTL=0 keeps it off, WWHD_RTL=1 forces it on).
+// (NSMBU_RTL=0 keeps it off, NSMBU_RTL=1 forces it on).
 namespace rtl_text {
 void language_pack_opened(const std::string& host_path);
 }

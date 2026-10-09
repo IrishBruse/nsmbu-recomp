@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 namespace mods::packages {
-inline constexpr const char* kGameId="wwhd-usa";
+inline constexpr const char* kGameId="nsmbu-usa";
 inline constexpr const char* kManagerVersion="1.2.0";
 struct Option {
     std::string id,name,description,type;
@@ -24,7 +24,7 @@ struct View {
 void initialize(); // metadata only; before the game starts
 std::string directory();
 std::vector<View> list();
-bool install(const std::string& source,std::string& error); // directory or ZIP/.wwhdmod
+bool install(const std::string& source,std::string& error); // directory or ZIP/.nsmbumod
 bool remove(const std::string& id,std::string& error);
 bool enable(const std::string& id,bool on,std::string& error); // refuses unconfirmed native code
 // Native packages that enabling `id` would newly turn on (itself and disabled dependencies) whose

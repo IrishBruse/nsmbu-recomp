@@ -18,7 +18,7 @@ Wii U Pro Controller", which is the Wii U's behaviour: in the port it does apply
 
 Settings overlay (F1) → **Controls** → **Gyro…**:
 
-- **Source** (above). `WWHD_GYRO=off|controller|cemuhook|mouse` overrides it at start.
+- **Source** (above). `NSMBU_GYRO=off|controller|cemuhook|mouse` overrides it at start.
 - **Turn left/right by** (controller and Cemuhook sources), the usual gyro aiming conventions (as in
   JoyShockMapper and Steam Input):
   - **Player space** (default): turning the controller left or right about the real vertical,
@@ -51,7 +51,7 @@ window says when a connected controller has a gyro.
 
 ## How the game reads the GamePad
 
-From the decompilation (`wwhd_src`):
+From the decompilation (`nsmbu_src`):
 
 - The game imports `VPADRead` and no VPAD gyro setup function, so it runs with the library defaults.
 - `ControllerMgr::calc` (02617AF4) copies the **direction matrix** of the newest `VPADStatus` sample
@@ -71,7 +71,7 @@ From the decompilation (`wwhd_src`):
 - Every item aim goes through that camera; no item code reads the gyro itself.
 
 So what matters is how the direction matrix turns from one frame to the next, in the GamePad's own
-frame. Measured in R3 look (`WWHD_TEST_GYRO`, Outset): a GamePad turn of 60° right turned the view
+frame. Measured in R3 look (`NSMBU_TEST_GYRO`, Outset): a GamePad turn of 60° right turned the view
 113° right, a tilt of 20° up 29° up.
 
 ## How the port does it
@@ -116,11 +116,11 @@ frame. Measured in R3 look (`WWHD_TEST_GYRO`, Outset): a GamePad turn of 60° ri
   right stick has rested at x, y for 2 s while aiming" (the game ignores the gyro while the right stick
   is outside its 0.1 dead zone: a drifting stick does this; raise **Controls → stick dead zone**).
   The Gyro window shows the same.
-- **More detail:** `WWHD_GYRO_LOG=1` logs, twice a second and for every source, the raw gyro and
+- **More detail:** `NSMBU_GYRO_LOG=1` logs, twice a second and for every source, the raw gyro and
   accelerometer samples, the sample rate, the bias, the gravity direction and the aim, plus what the
   virtual GamePad gets; on the macOS app also the raw GameController values.
 
-Debug: `WWHD_TEST_GYRO=from-to:yaw:pitch,...` turns the virtual GamePad by yaw / pitch degrees per
+Debug: `NSMBU_TEST_GYRO=from-to:yaw:pitch,...` turns the virtual GamePad by yaw / pitch degrees per
 second during game-time seconds (any source, also off; no sensitivity; game time, so it does not
 depend on how fast the machine runs).
 
@@ -135,7 +135,7 @@ controllers. Please report (with the log) if something is off:
    its top up looks up, however you hold it; rolling does nothing. **Yaw** and **Roll** as described
    above. With the controller on a desk the view must stay still after a second (bias calibration).
 2. Same on the **macOS app** (GameController.framework, a different axis mapping:
-   `WWHD_GYRO_LOG=1` logs the raw values).
+   `NSMBU_GYRO_LOG=1` logs the raw values).
 3. **Steam Deck** (SDL) and **Joy-Con** pairs.
 4. **Cemuhook**: DS4Windows or BetterJoy with the server on, source Cemuhook; the Gyro window shows
    "receiving motion". Stop the server: the game must keep running smoothly. Android needs network

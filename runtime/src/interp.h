@@ -24,6 +24,6 @@ float paced_drawn_share();  // share of in-between frames drawn lately (paced an
 // the display (hosts and renderers): refresh rate of the TV window's screen (0: unknown), and
 // whether presenting waits for its vsync (Metal, Vulkan FIFO)
 void set_display_hz(int hz);
-int display_hz();           // (WWHD_DISPLAY_HZ overrides the detected rate)
+int display_hz();           // (NSMBU_DISPLAY_HZ overrides the detected rate)
 void set_present_vsync(bool on);
 }  // namespace interp

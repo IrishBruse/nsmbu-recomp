@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Game test of portable save states (runtime/src/portable_state.h), headless.
 
-usage: portable_state_scenario.py WWHD_BINARY GAME_DIR SAVE_DIR WORK_DIR [--boat-save DIR] [--event-save DIR] [--skip-full]
+usage: portable_state_scenario.py NSMBU_BINARY GAME_DIR SAVE_DIR WORK_DIR [--boat-save DIR] [--event-save DIR] [--skip-full]
 
 SAVE_DIR is a save folder (with user/cking.sav whose Quest Log 1 is in play, e.g. on Outset); only a
 copy of cking.sav and cking_playlog.sav is used. Three runs, one game at a time:
@@ -21,7 +21,7 @@ copy of cking.sav and cking_playlog.sav is used. Three runs, one game at a time:
   event: (--event-save, e.g. gametest/saves/helm) a portable save while the King of Red Lions
          talks is refused and writes nothing, a full save at the same moment works, and a portable
          save once Link is under control again works
-  full:  full save states (WWHD_STATE_SAVE_AT / WWHD_STATE_LOAD_AT) still save and load
+  full:  full save states (NSMBU_STATE_SAVE_AT / NSMBU_STATE_LOAD_AT) still save and load
 
 A game is only started when no performance benchmark (run_bench.py) is running; the script starts
 at most one game and stops it itself (TERM, then KILL).
@@ -51,9 +51,9 @@ def run_game(binary, game, run_dir, env_extra, until, timeout):
     """starts the game in run_dir, stops it when `until(log)` is true or after `timeout` s"""
     wait_for_quiet_machine()
     env = dict(os.environ)
-    env.update({"WWHD_HIDDEN_WINDOWS": "1", "WWHD_NO_AUDIO": "1", "WWHD_NO_HOST_INPUT": "1", "WWHD_NO_GAMEPAD": "1",
-                "WWHD_RENDERER_RUNTIME": "metal", "WWHD_STATE_DIR": "states", "WWHD_SHADER_CACHE": "../shader_cache.bin",
-                "WWHD_VK_SHADER_CACHE": "../vk_shader_cache"})  # private caches, never the player's
+    env.update({"NSMBU_HIDDEN_WINDOWS": "1", "NSMBU_NO_AUDIO": "1", "NSMBU_NO_HOST_INPUT": "1", "NSMBU_NO_GAMEPAD": "1",
+                "NSMBU_RENDERER_RUNTIME": "metal", "NSMBU_STATE_DIR": "states", "NSMBU_SHADER_CACHE": "../shader_cache.bin",
+                "NSMBU_VK_SHADER_CACHE": "../vk_shader_cache"})  # private caches, never the player's
     env.update(env_extra)
     log_path = os.path.join(run_dir, "log")
     with open(log_path, "w") as log:
@@ -120,9 +120,9 @@ def show(log, words=("savestate", "test]")):
 
 
 def make_state(binary, game, save, work, name, env_extra, slot=1, origin=3300):
-    """boots a copy of `save`, runs env_extra (presses, stick, pokes), saves a portable state (WWHD_PORTABLE_SAVE_AT in env_extra)"""
+    """boots a copy of `save`, runs env_extra (presses, stick, pokes), saves a portable state (NSMBU_PORTABLE_SAVE_AT in env_extra)"""
     d = prepare(work, name + "-make", save)
-    env = {"WWHD_PRESS": presses(), "WWHD_TEST_ORIGIN": str(origin)}
+    env = {"NSMBU_PRESS": presses(), "NSMBU_TEST_ORIGIN": str(origin)}
     env.update(env_extra)
     log = run_game(binary, game, d, env, lambda l: "slot %d: portable state written" % slot in l or "slot %d: not saved" % slot in l, 300)
     path = os.path.join(d, "states", "slot%d.wwstate" % slot)
@@ -141,10 +141,10 @@ def load_state(binary, game, save, work, name, state, quest_log=1, origin=3300):
     """cold boot of `save`, rupees changed and Link moved, load `state`, save slot 2 after the arrival"""
     d2 = prepare(work, name + "-load", save, [state])
     shutil.move(os.path.join(d2, "states", os.path.basename(state)), os.path.join(d2, "states", "slot1.wwstate"))
-    env = {"WWHD_PRESS": presses(quest_log=quest_log), "WWHD_TEST_ORIGIN": str(origin),
-           "WWHD_TEST_POKE": "1:*101F84DC+24:0063",  # 99 rupees before the load (the state has the save's own count)
-           "WWHD_STICK": "%d-%d:1:0" % (origin + 30, origin + 80),
-           "WWHD_PORTABLE_LOAD_AT": "%d:1" % (origin + 90), "WWHD_PORTABLE_SAVE_AT": "%d:2" % (origin + 600)}
+    env = {"NSMBU_PRESS": presses(quest_log=quest_log), "NSMBU_TEST_ORIGIN": str(origin),
+           "NSMBU_TEST_POKE": "1:*101F84DC+24:0063",  # 99 rupees before the load (the state has the save's own count)
+           "NSMBU_STICK": "%d-%d:1:0" % (origin + 30, origin + 80),
+           "NSMBU_PORTABLE_LOAD_AT": "%d:1" % (origin + 90), "NSMBU_PORTABLE_SAVE_AT": "%d:2" % (origin + 600)}
     log = run_game(binary, game, d2, env, lambda l: "slot 2: portable state written" in l or "slot 2: not saved" in l, 300)
     arrived = re.search(r"portable load: arrived in (\S+) room (-?\d+) at (\S+) (\S+) (\S+) \(distance (\S+)", log)
     print(name + ": " + (arrived.group(0) if arrived else "Link did not arrive"))
@@ -189,9 +189,9 @@ def compare(name, state1, state2, same_slot=True, pos_tolerance=30, xz_only=Fals
 
 def portable_case(binary, game, save_dir, work, name, warp, expect_stage, origin=3300):
     """make a portable state (after an optional stage-change poke and a walk), load it in a cold boot"""
-    env = {"WWHD_STICK": "%d-%d:0:1" % (origin + 420, origin + 450), "WWHD_PORTABLE_SAVE_AT": "%d:1" % (origin + 540)}
+    env = {"NSMBU_STICK": "%d-%d:0:1" % (origin + 420, origin + 450), "NSMBU_PORTABLE_SAVE_AT": "%d:1" % (origin + 540)}
     if warp:
-        env["WWHD_TEST_POKE"] = "1:104741F0:" + warp
+        env["NSMBU_TEST_POKE"] = "1:104741F0:" + warp
     state1, _ = make_state(binary, game, save_dir, work, name, env)
     if not state1:
         return False, None
@@ -224,8 +224,8 @@ def questlog_case(binary, game, save_dir, work, state1):
 
 def boat_case(binary, game, boat_save, work, origin=3300):
     """swim to the boat, climb aboard (A), set sail (A), sail; save; cold boot; load: Link on the boat"""
-    env = {"WWHD_PRESS": presses(extra=(3430, 3560)), "WWHD_STICK": "3300-3400:0:-1,3600-3800:0:1",
-           "WWHD_PORTABLE_SAVE_AT": "3820:1"}
+    env = {"NSMBU_PRESS": presses(extra=(3430, 3560)), "NSMBU_STICK": "3300-3400:0:-1,3600-3800:0:1",
+           "NSMBU_PORTABLE_SAVE_AT": "3820:1"}
     state1, _ = make_state(binary, game, boat_save, work, "boat", env, origin=origin)
     if not state1:
         return False
@@ -261,8 +261,8 @@ def boat_case(binary, game, boat_save, work, origin=3300):
 def event_case(binary, game, event_save, work):
     """the King of Red Lions talks after Link walks into the water: no portable state then, a full one yes"""
     d = prepare(work, "event", event_save)
-    env = {"WWHD_PRESS": presses(extra=range(3500, 3700, 40)), "WWHD_STICK": "3300-3360:0.54:-0.84",
-           "WWHD_PORTABLE_SAVE_AT": "3485:1,3820:2", "WWHD_STATE_SAVE_AT": "3487:3", "WWHD_DUMP_FRAMES": "3485"}
+    env = {"NSMBU_PRESS": presses(extra=range(3500, 3700, 40)), "NSMBU_STICK": "3300-3360:0.54:-0.84",
+           "NSMBU_PORTABLE_SAVE_AT": "3485:1,3820:2", "NSMBU_STATE_SAVE_AT": "3487:3", "NSMBU_DUMP_FRAMES": "3485"}
     log = run_game(binary, game, d, env, lambda l: "slot 2: portable state written" in l or "slot 2: not saved" in l
                    or "slot 2: portable state refused" in l, 300)
     refused = re.search(r"slot 1: portable state refused: (.*)", log)
@@ -312,9 +312,9 @@ def main():
     if not skip_full and run("full"):
         d3 = prepare(work, "full", save_dir)
         # then a portable state into the same slot: the full one is kept, the log and the Saves tab say so
-        env = {"WWHD_PRESS": presses(), "WWHD_STATE_SAVE_AT": "%d:3" % origin, "WWHD_STATE_LOAD_AT": "%d:3" % (origin + 300),
-               "WWHD_PORTABLE_SAVE_AT": "%d:3" % (origin + 450), "WWHD_TEST_OVERLAY": "open:saves@%d" % (origin + 500),
-               "WWHD_DUMP_FRAMES": str(origin + 560), "WWHD_DUMP_PRESENT": "1"}
+        env = {"NSMBU_PRESS": presses(), "NSMBU_STATE_SAVE_AT": "%d:3" % origin, "NSMBU_STATE_LOAD_AT": "%d:3" % (origin + 300),
+               "NSMBU_PORTABLE_SAVE_AT": "%d:3" % (origin + 450), "NSMBU_TEST_OVERLAY": "open:saves@%d" % (origin + 500),
+               "NSMBU_DUMP_FRAMES": str(origin + 560), "NSMBU_DUMP_PRESENT": "1"}
         done = "frame_%d_present.png" % (origin + 560)
         log = run_game(binary, game, d3, env, lambda l: os.path.exists(os.path.join(d3, done)) or "slot 3: cannot" in l or "slot 3: not" in l, 300)
         written = re.search(r"slot 3: written \(([\d.]+) MB on disk", log)

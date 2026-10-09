@@ -3,7 +3,7 @@
 
 usage: stubgen.py OUTDIR
 
-recomp.py needs your own cking.rpx. This script instead emits the same file layout (funcs.h,
+recomp.py needs your own red-pro2.rpx. This script instead emits the same file layout (funcs.h,
 code_000.c, table.c, imports.c) with every guest function the runtime refers to (hooks and direct
 calls) defined as a stub that halts via ppc_unimplemented. The result compiles and links the full
 runtime and renderer on any host, so CI and porting work can check the build; the executable

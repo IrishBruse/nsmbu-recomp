@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 #include "overlay/game_font.h"
-namespace config { std::string game_dir = "/nonexistent-wwhd-game", save_dir; }
+namespace config { std::string game_dir = "/nonexistent-nsmbu-game", save_dir; }
 void log_msg(const char*, ...) {}
 static void be16(std::vector<uint8_t>& v, size_t at, uint16_t x) { v[at] = x >> 8; v[at + 1] = x & 255; }
 static void be32(std::vector<uint8_t>& v, size_t at, uint32_t x) { be16(v, at, x >> 16); be16(v, at + 2, x & 0xFFFF); }

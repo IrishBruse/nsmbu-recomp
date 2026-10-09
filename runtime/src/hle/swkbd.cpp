@@ -1,6 +1,6 @@
 // swkbd: the system software keyboard. Text is entered in the settings overlay's text prompt
 // (overlay/text_entry.h: field, on-screen keyboard for controllers), where the overlay can't show in a
-// host dialog (input::prompt_text), or WWHD_SWKBD_TEXT for unattended runs, instead of the GamePad keyboard.
+// host dialog (input::prompt_text), or NSMBU_SWKBD_TEXT for unattended runs, instead of the GamePad keyboard.
 #include <atomic>
 #include <mutex>
 #include <chrono>
@@ -53,7 +53,7 @@ std::string narrow(const std::u16string& s) {
     return o;
 }
 
-// UTF-8 (WWHD_SWKBD_TEXT) to UTF-16; a malformed sequence becomes U+FFFD
+// UTF-8 (NSMBU_SWKBD_TEXT) to UTF-16; a malformed sequence becomes U+FFFD
 std::u16string utf8_to_u16(const char* s) {
     std::u16string out;
     const auto* p = (const unsigned char*)s;
@@ -91,7 +91,7 @@ void read_config(uint32_t a) {
 
 void start_prompt() {
     S.decided = S.cancelled = S.pending = S.live_pending = false;
-    if (const char* t = getenv("WWHD_SWKBD_TEXT")) {
+    if (const char* t = getenv("NSMBU_SWKBD_TEXT")) {
         S.pending_text = utf8_to_u16(t);  // "Łódź", "Größe": characters, not bytes
         if ((int)S.pending_text.size() > S.max_len) S.pending_text.resize(S.max_len);
         S.pending_ok = S.pending = true;

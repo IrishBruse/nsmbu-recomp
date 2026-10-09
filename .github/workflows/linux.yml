@@ -53,9 +53,9 @@ jobs:
 
       - name: Renderer smoke test (lavapipe + validation)
         env:
-          WWHD_VK_VALIDATION: "1"
+          NSMBU_VK_VALIDATION: "1"
         run: |
           export LD_LIBRARY_PATH="$HOME/sdl3/lib"
-          xvfb-run -a -s "-screen 0 1920x1080x24" ./build/linux/wwhd --renderer-smoke 2>&1 | tee smoke.log
+          xvfb-run -a -s "-screen 0 1920x1080x24" ./build/linux/nsmbu --renderer-smoke 2>&1 | tee smoke.log
           grep -q "PASS" smoke.log
           ! grep -q "VUID" smoke.log
