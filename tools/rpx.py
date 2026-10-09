@@ -8,14 +8,11 @@ SHF_RPL_ZLIB = 0x08000000
 
 R_PPC_ADDR32, R_PPC_ADDR16_LO, R_PPC_ADDR16_HI, R_PPC_ADDR16_HA, R_PPC_REL24 = 1, 4, 5, 6, 10
 
-
 class Section:
     pass
 
-
 class Symbol:
     pass
-
 
 class Rpx:
     def __init__(self, path):
@@ -60,7 +57,7 @@ class Rpx:
                 sym.import_lib = None
                 if sym.section is not None and sym.section.type == SHT_RPL_IMPORTS:
                     sym.import_lib = sym.section.name.split("_", 1)[1]
-                    sym.import_kind = sym.section.name[1]  # 'f' function, 'd' data
+                    sym.import_kind = sym.section.name[1]
                 self.symbols.append(sym)
 
     def _load_relocs(self):
@@ -73,7 +70,6 @@ class Rpx:
             for k in range(len(s.data) // 12):
                 off, info, addend = struct.unpack_from(">IIi", s.data, k * 12)
                 self.relocs.append((target, off, info & 0xFF, self.symbols[info >> 8], addend))
-
 
 def _cstr(buf, off):
     return buf[off:buf.index(b"\0", off)].decode("utf-8", "replace")

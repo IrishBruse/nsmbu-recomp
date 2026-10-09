@@ -1,8 +1,5 @@
-// Language sources (game_languages.h, docs/language-packs.md) on a SYNTHETIC game folder: dummy files
-// named like the game's language packs (a "SARC" tag and a few made-up bytes; no game data). Checks the
-// packs found in data/game-lang/<region>/content/Common/Pack, the start chosen for a language and a
-// region, and that the real guest file system HLE reads the source's pack under the name the game
-// asks for (open, read, stat by path and handle) while everything else stays as it was.
+
+
 #include "game_languages.h"
 #include "runtime.h"
 #include "savestate.h"
@@ -20,7 +17,7 @@
 #else
 #include <sys/mman.h>
 #endif
-// hle/fs.cpp reports opened language packs to the right-to-left text support (not under test)
+
 namespace rtl_text { void language_pack_opened(const std::string&) {} }
 namespace fs = std::filesystem;
 namespace {
@@ -29,7 +26,7 @@ std::map<std::string, PpcFunc>& functions() {
     return f;
 }
 constexpr uint32_t base = 0x10000000;
-}  // namespace
+}
 HleReg::HleReg(const char* lib, const char* name, PpcFunc fn) { functions()[std::string(lib) + ":" + name] = fn; }
 bool g_trace_hle = false;
 void log_msg(const char*, ...) {}
@@ -43,7 +40,7 @@ void write_cstr(uint32_t ea, const std::string& s, uint32_t max) {
         ptr(ea)[n] = 0;
     }
 }
-}  // namespace mem
+}
 namespace threads { void block_begin() {} void block_end() {} }
 namespace wwatch { void host_write_begin(uint32_t, uint32_t) {} void host_write_end(uint32_t, uint32_t) {} }
 
@@ -91,8 +88,7 @@ int main() {
     assert(memory == address);
     const fs::path root = fs::temp_directory_path() /
                           ("nsmbu-langsrc-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-    // the installed (USA) game: three packs; a European source with five, one of them also named like a
-    // USA pack (ignored), one without the SARC tag (ignored); a Japanese source in another folder name case
+
     const fs::path game = root / "data" / "game", lang = root / "data" / "game-lang";
     put(game / "content" / "Common" / "Pack" / "permanent_2d_UsEnglish.pack", "SARC synthetic us-en");
     put(game / "content" / "Common" / "Pack" / "permanent_2d_UsFrench.pack", "SARC synthetic us-fr");
@@ -120,7 +116,7 @@ int main() {
     assert((game_lang::available() == std::vector<int>{1, 2, 5}));
     assert(game_lang::region() == "USA");
     const auto& packs = game_lang::source_packs();
-    assert(packs.size() == 6);  // five European (the EU folder's German first: folders in name order), one Japanese
+    assert(packs.size() == 6);
     assert((game_lang::source_languages(game_lang::kEurope) == std::vector<int>{1, 2, 3, 4, 5}));
     assert((game_lang::source_languages(game_lang::kJapan) == std::vector<int>{0}));
     assert(game_lang::source_languages(game_lang::kUsa).empty());
@@ -129,41 +125,38 @@ int main() {
     assert(game_lang::source_pack(0, game_lang::kJapan)->file == "permanent_2d_JpJapanese.pack");
     assert(!game_lang::source_pack(3, game_lang::kJapan) && !game_lang::source_pack(1, game_lang::kUsa));
 
-    // starts: a source language, a language no source has, the installed game
     game_lang::Start s = game_lang::choose(3, game_lang::kEurope);
     assert(s.pack == de && s.language == 3 && s.region == game_lang::kEurope);
     s = game_lang::choose(1, game_lang::kEurope);
     assert(s.pack && s.pack->file == "permanent_2d_EuEnglish.pack");
-    s = game_lang::choose(10, game_lang::kEurope);  // Russian: no pack anywhere
+    s = game_lang::choose(10, game_lang::kEurope);
     assert(!s.pack && s.language == 1);
-    s = game_lang::choose(0, game_lang::kNoRegion);  // Japanese without the source region: not on this disc
+    s = game_lang::choose(0, game_lang::kNoRegion);
     assert(!s.pack && s.language == 1);
     s = game_lang::choose(0, game_lang::kJapan);
     assert(s.pack && s.language == 0 && s.region == game_lang::kJapan);
-    s = game_lang::choose(3, game_lang::kUsa);  // "us" is the installed game
+    s = game_lang::choose(3, game_lang::kUsa);
     assert(!s.pack && s.language == 1);
 
-    // before a start, and with the installed game's own text, nothing is redirected
     const std::string guest_de = "/vol/content/Common/Pack/permanent_2d_EuGerman.pack";
     uint32_t h = 0;
     assert(game_lang::redirect(guest_de).empty());
-    assert(try_open(guest_de, "rb", &h) != 0);  // the USA game has no such file
+    assert(try_open(guest_de, "rb", &h) != 0);
     game_lang::set_started(2);
     assert(game_lang::started() == 2 && !game_lang::current().pack && game_lang::redirect(guest_de).empty());
     assert(read_all("/vol/content/Common/Pack/permanent_2d_UsFrench.pack") == "SARC synthetic us-fr");
 
-    // German from the European source: the game's own name for it, any case, relative or absolute
     game_lang::begin(game_lang::choose(3, game_lang::kEurope));
     assert(game_lang::started() == 3 && game_lang::current().region == game_lang::kEurope);
     assert(read_all(guest_de) == "SARC synthetic eu-German");
     assert(read_all("/vol/content/common/pack/PERMANENT_2D_EUGERMAN.PACK") == "SARC synthetic eu-German");
     assert(read_all("Common/Pack/permanent_2d_EuGerman.pack") == "SARC synthetic eu-German");
     assert(game_lang::redirect("/vol/content/Common/Pack/xpermanent_2d_EuGerman.pack").empty());
-    assert(game_lang::redirect("/vol/content/Common/Pack/permanent_2d_EuFrench.pack").empty());  // not chosen
-    // the installed game's files are untouched
+    assert(game_lang::redirect("/vol/content/Common/Pack/permanent_2d_EuFrench.pack").empty());
+
     assert(read_all("/vol/content/Common/Pack/permanent_2d_UsEnglish.pack") == "SARC synthetic us-en");
     assert(read_all("/vol/content/Common/Pack/permanent_3d.pack") == "SARC synthetic 3d");
-    // writers never reach the language source
+
     assert(try_open(guest_de, "r+b", &h) != 0);
     {
         std::ifstream in(de->host, std::ios::binary);
@@ -171,12 +164,10 @@ int main() {
         assert(bytes == "SARC synthetic eu-German");
     }
 
-    // Japanese from the Japanese source
     game_lang::begin(game_lang::choose(0, game_lang::kJapan));
     assert(read_all("/vol/content/Common/Pack/permanent_2d_JpJapanese.pack") == "SARC synthetic jp-ja");
     assert(game_lang::redirect(guest_de).empty());
 
-    // the save options' language byte (GameCube PAL order)
     assert(game_lang::options_language(1) == 0 && game_lang::options_language(3) == 1 &&
            game_lang::options_language(2) == 2 && game_lang::options_language(5) == 3 &&
            game_lang::options_language(4) == 4 && game_lang::options_language(0) == 0);

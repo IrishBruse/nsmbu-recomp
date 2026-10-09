@@ -1,6 +1,5 @@
-// Fetch shader microcode parser.
-// Adapted from Cemu src/Cafe/HW/Latte/Core/FetchShader.cpp (cache registration removed).
-// Copyright (c) Cemu contributors. Licensed under the Mozilla Public License 2.0 (see LICENSE.txt).
+
+
 #include "Cafe/HW/Latte/Core/LatteConst.h"
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
 #include "Cafe/HW/Latte/Core/Latte.h"
@@ -124,7 +123,6 @@ void LatteShader_calculateFSKey(LatteFetchShader* fetchShader)
 			}
 		}
 	}
-	// todo - also hash invalid buffer groups?
 
 #ifdef ENABLE_METAL
 	if (g_renderer->GetType() == RendererAPI::Metal)
@@ -143,7 +141,7 @@ void LatteShader_calculateFSKey(LatteFetchShader* fetchShader)
 
 void LatteFetchShader::CalculateFetchShaderVkHash()
 {
-	// patched: Vulkan pipeline hash is unused here; a plain FNV-1a over the attribute layout replaces SHA-1
+
 	uint64 h = 1469598103934665603ull;
 	for (auto& group : bufferGroups)
 		for (sint32 f = 0; f < group.attribCount; f++)
@@ -179,8 +177,8 @@ void LatteFetchShader::CheckIfVerticesNeedManualFetchMtl(uint32* contextRegister
 
 void _fetchShaderDecompiler_parseInstruction_VTX_SEMANTIC(LatteFetchShader* parsedFetchShader, uint32* contextRegister, const LatteClauseInstruction_VTX* instr)
 {
-	uint32 semanticId = instr->getFieldSEM_SEMANTIC_ID(); // location (attribute index inside shader)
-	uint32 bufferId = instr->getField_BUFFER_ID(); // the index used for GX2SetAttribBuffer (+0xA0)
+	uint32 semanticId = instr->getFieldSEM_SEMANTIC_ID();
+	uint32 bufferId = instr->getField_BUFFER_ID();
 	LatteConst::VertexFetchType2 fetchType = instr->getField_FETCH_TYPE();
 	auto srcSelX = instr->getField_SRC_SEL_X();
 	auto dsx = instr->getField_DST_SEL(0);
@@ -197,11 +195,9 @@ void _fetchShaderDecompiler_parseInstruction_VTX_SEMANTIC(LatteFetchShader* pars
 	cemu_assert(attribSize > 0);
 	uint32 offsetAfterAttrib = offset + attribSize;
 
-	// get buffer
 	cemu_assert_debug(bufferId >= 0xA0 && bufferId < 0xB0);
 	uint32 bufferIndex = (bufferId - 0xA0);
 
-	// get or add new attribute group (by buffer index)
 	LatteParsedFetchShaderBufferGroup* attribGroup = nullptr;
 	if (LatteFetchShader::isValidBufferIndex(bufferIndex))
 	{
@@ -215,7 +211,7 @@ void _fetchShaderDecompiler_parseInstruction_VTX_SEMANTIC(LatteFetchShader* pars
 		if (bufferGroupItr != parsedFetchShader->bufferGroupsInvalid.end())
 			attribGroup = &(*bufferGroupItr);
 	}
-	// create new group if none found
+
 	if (attribGroup == nullptr)
 	{
 		if (LatteFetchShader::isValidBufferIndex(bufferIndex))
@@ -228,7 +224,7 @@ void _fetchShaderDecompiler_parseInstruction_VTX_SEMANTIC(LatteFetchShader* pars
 		attribGroup->minOffset = offset;
 		attribGroup->totalAttribRangeSize = offset;
 	}
-	// add attribute
+
 	sint32 groupAttribIndex = attribGroup->attribCount;
 	if (attribGroup->attribCount < (groupAttribIndex + 1))
 	{
@@ -250,27 +246,27 @@ void _fetchShaderDecompiler_parseInstruction_VTX_SEMANTIC(LatteFetchShader* pars
 	attribGroup->attrib[groupAttribIndex].endianSwap = endianSwap;
 	attribGroup->minOffset = (std::min)(attribGroup->minOffset, offset);
 	attribGroup->totalAttribRangeSize = (std::max)(attribGroup->totalAttribRangeSize, offsetAfterAttrib);
-	// get alu divisor
+
 	if (srcSelX == LatteClauseInstruction_VTX::SRC_SEL::SEL_X)
 	{
-		cemu_assert_debug(fetchType != LatteConst::VertexFetchType2::INSTANCE_DATA); // aluDivisor 0 in combination with instanced data is not allowed?
+		cemu_assert_debug(fetchType != LatteConst::VertexFetchType2::INSTANCE_DATA);
 		attribGroup->attrib[groupAttribIndex].aluDivisor = -1;
 	}
 	else if (srcSelX == LatteClauseInstruction_VTX::SRC_SEL::SEL_W)
 	{
-		cemu_assert_debug(fetchType == LatteConst::VertexFetchType2::INSTANCE_DATA); // using constant divisor 1 with per-vertex data seems strange? (divisor is instance-only)
-		// aluDivisor is constant 1
+		cemu_assert_debug(fetchType == LatteConst::VertexFetchType2::INSTANCE_DATA);
+
 		attribGroup->attrib[groupAttribIndex].aluDivisor = 1;
 	}
 	else if (srcSelX == LatteClauseInstruction_VTX::SRC_SEL::SEL_Y)
 	{
-		// use alu divisor 1
+
 		attribGroup->attrib[groupAttribIndex].aluDivisor = (sint32)contextRegister[Latte::REGADDR::VGT_INSTANCE_STEP_RATE_0];
 		cemu_assert_debug(attribGroup->attrib[groupAttribIndex].aluDivisor > 0);
 	}
 	else if (srcSelX == LatteClauseInstruction_VTX::SRC_SEL::SEL_Z)
 	{
-		// use alu divisor 2
+
 		attribGroup->attrib[groupAttribIndex].aluDivisor = (sint32)contextRegister[Latte::REGADDR::VGT_INSTANCE_STEP_RATE_1];
 		cemu_assert_debug(attribGroup->attrib[groupAttribIndex].aluDivisor > 0);
 	}
@@ -314,21 +310,18 @@ void _fetchShaderDecompiler_parseCF(LatteFetchShader* parsedFetchShader, uint32*
 		}
 		else
 		{
-			cemu_assert_debug(false); // unhandled / unexpected CF instruction
+			cemu_assert_debug(false);
 		}
 		if (cfInstruction->getField_END_OF_PROGRAM())
 		{
-			cemu_assert_debug(false); // unusual for fetch shader? They should end with a return instruction
+			cemu_assert_debug(false);
 			break;
 		}
 		cfInstruction++;
 	}
-	cemu_assert_debug(false); // program must be terminated with an instruction that has EOP set?
+	cemu_assert_debug(false);
 }
 
-// parse fetch shader and create LatteFetchShader object
-// also registers the fs in the cache (s_fetchShaderByHash)
-// can be assumed to be thread-safe, if called simultaneously on the same fetch shader only one shader will become registered. The others will be destroyed
 LatteFetchShader* LatteShaderRecompiler_createFetchShader(LatteFetchShader::CacheHash fsHash, uint32* contextRegister, uint32* fsProgramCode, uint32 fsProgramSize)
 {
 	LatteFetchShader* newFetchShader = new LatteFetchShader();
@@ -337,32 +330,10 @@ LatteFetchShader* LatteShaderRecompiler_createFetchShader(LatteFetchShader::Cach
 		debugBreakpoint();
 	uint32 index = 0;
 
-	// if the first instruction is a CF instruction then parse shader properly
-	// otherwise fall back to our broken legacy method (where we assumed fetch shaders had no CF program)
-	// this workaround is required to make sure old shader caches dont break
-
-	// from old fetch shader gen (CF part missing):
-	//			{0x0000a001, 0x27961000, 0x00020000, 0x00000000}
-	//			{0x0000a001, 0x2c151002, 0x00020000, 0x00000000, 0x0000a001, 0x068d1000, 0x0000000c, ...}
-	//			{0x0000a001, 0x2c151000, 0x00020000, 0x00000000}
-	//          {0x0300aa21, 0x28cd1006, 0x00000000, 0x00000000, 0x0300ab21, 0x28cd1007, 0x00000000, ...}
-
-	// shaders shipped with games (e.g. BotW):
-	//			{0x00000002, 0x01800400, 0x00000000, 0x8a000000, 0x1c00a001, 0x280d1000, 0x00090000, ...}
-	//			{0x00000002, 0x01800000, 0x00000000, 0x8a000000, 0x1c00a001, 0x27961000, 0x000a0000, ...}
-	//			{0x00000002, 0x01800c00, 0x00000000, 0x8a000000, 0x2c00a001, 0x2c151000, 0x000a0000, ...} // size 0x50
-	//          {0x00000002, 0x01801000, 0x00000000, 0x8a000000, 0x1c00a001, 0x280d1000, 0x00090000, ...} // size 0x60
-	//			{0x00000002, 0x01801c00, 0x00000000, 0x8a000000, 0x1c00a001, 0x280d1000, 0x00090000, ...} // size 0x90
-
-	// our new implementation:
-	//			{0x00000002, 0x01800400, 0x00000000, 0x8a000000, 0x0000a001, 0x2c151000, 0x00020000, ...}
-
-	// for ALU instructions everything except the 01 is dynamic
 	newFetchShader->bufferGroups.reserve(16);
 	if (fsProgramSize == 0)
 	{
-		// empty fetch shader, seen in Minecraft
-		// these only make sense when vertex shader does not call FS?
+
 		LatteShader_calculateFSKey(newFetchShader);
 		newFetchShader->CalculateFetchShaderVkHash();
 #ifdef ENABLE_METAL
@@ -373,7 +344,7 @@ LatteFetchShader* LatteShaderRecompiler_createFetchShader(LatteFetchShader::Cach
 
 	if ((fsProgramCode[0] & 1) == 0 && fsProgramCode[0] <= 0x30 && (fsProgramCode[1]&~((3 << 10)| (1 << 19))) == 0x01800000)
 	{
-		// very likely a CF instruction
+
 		_fetchShaderDecompiler_parseCF(newFetchShader, contextRegister, { (uint8*)fsProgramCode, fsProgramSize });
 	}
 	else
@@ -385,8 +356,7 @@ LatteFetchShader* LatteShaderRecompiler_createFetchShader(LatteFetchShader::Cach
 			index++;
 			if (opcode == VTX_INST_MEM)
 			{
-				// this might be the clause initialization instruction? (Seems to be the first instruction always)
-				// todo - upon further investigation, it seems like fetch shaders also start with a CF program. Our implementation doesnt emit one right now
+
 				uint32 opcode2 = (dword0 >> 8) & 7;
 
 				index += 3;
@@ -399,7 +369,7 @@ LatteFetchShader* LatteShaderRecompiler_createFetchShader(LatteFetchShader::Cach
 		}
 	}
 	newFetchShader->bufferGroups.shrink_to_fit();
-	// calculate group information
+
 	cemu_assert(newFetchShader->bufferGroups.size() <= Latte::GPU_LIMITS::NUM_VERTEX_BUFFERS);
 	for (auto& bufferGroup : newFetchShader->bufferGroups)
 	{

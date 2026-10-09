@@ -1,4 +1,4 @@
-// Install-time build bridge shared by runtime startup and synthetic tests.
+
 #pragma once
 #include "mod_json.h"
 #include "../platform/process.h"
@@ -60,4 +60,4 @@ struct BuildBridge {
         return result;
     }
 };
-} // namespace guestmods
+}

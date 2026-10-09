@@ -81,25 +81,33 @@ and the actual-device renderer smoke test passed in the local build.
 
 ## How to profile
 
-Run a scripted session, then sample it with macOS `sample` (1 ms stacks for every thread):
+Load slot 1 to reach 1-1.
+Do this before you play through the title screen.
+Slot 1 is `~/.config/nsmbu/states/slot1.bin`.
+`NSMBU_STATE_LOAD_AT` is `TV frame:slot`.
+Frame 700 is after the boot threads exist.
+The log line `Loaded slot 1` means the load worked.
 
 ```sh
-# copy the save and shader cache so the test can't touch your real ones
-cp -R save /tmp/nsmbu-save; cp ~/Library/Caches/nsmbu/shaders.bin /tmp/shaders.bin
-NSMBU_SHADER_CACHE=/tmp/shaders.bin \
-NSMBU_PRESS=600-610:8000,900-910:8000,1200-1210:8000,1500-1510:8000 \
-NSMBU_STATE_LOAD_AT=1800:2 NSMBU_DUMP_FRAMES=2400 \
-./build/cmake/nsmbu --save /tmp/nsmbu-save > run.log 2>&1 &
-sleep 45; sample $! 20 -file sample.txt; kill $!
+mkdir -p .tmp/repro
+NSMBU_NO_AUDIO=1 NSMBU_PROFILE=1 NSMBU_VK_STATS=1 \
+NSMBU_LOG_FILE=.tmp/repro/nsmbu.log \
+NSMBU_STATE_LOAD_AT=700:1 NSMBU_EXIT_AT_FRAME=1100 \
+./build/nsmbu --game game
 ```
 
-`NSMBU_PRESS` presses A to get past the title screen, `NSMBU_STATE_LOAD_AT=1800:2` loads save-state
-slot 2 at TV frame 1800, and `NSMBU_DUMP_FRAMES=2400` writes `frame_2400.png` (in the working
-directory) to check that the run still renders correctly. The "Sort by top of stack" section of
-`sample.txt` shows where the CPU time goes. `run.log` prints the shader and pipeline counts every
-few seconds.
+Read `[prof]`, `[vulkan perf]`, and `[gx2] frame` in `.tmp/repro/nsmbu.log`.
+A missing live thread logs `does not exist yet`.
+Load at a later TV frame.
+An exited thread in the save is ignored.
+
+On macOS, sample the same command with `sample` (1 ms stacks for every thread).
+The "Sort by top of stack" section shows where the CPU time goes.
 
 ### Fixed-scene benchmark
+
+The commands in this section are the old Wind Waker measurement record.
+Use the command above to reach 1-1.
 
 `tools/bench/run_bench.py` runs the game headless (or with `--visible` windows, which presentation
 and vsync pacing need) from a save state with scripted input, one game at a time, with a fresh copy

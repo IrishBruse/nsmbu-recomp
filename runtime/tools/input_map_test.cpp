@@ -1,5 +1,5 @@
-// Unit tests for the controls mapping (runtime/src/input_map.cpp).
-//   make -C build/cmake input_map_test && ./build/cmake/input_map_test
+
+
 #include "platform/keycodes.h"
 #include <filesystem>
 #include <chrono>
@@ -28,7 +28,7 @@ static input::PadState press(const Mapping& m, std::initializer_list<int> codes)
 
 static void test_defaults() {
     Mapping m = Mapping::defaults();
-    // the hard-coded keyboard layout this replaces
+
     struct { int code; uint32_t bit; } old[] = {
         {kVK_ANSI_K, input::kA}, {kVK_Space, input::kA}, {kVK_ANSI_J, input::kB}, {kVK_ANSI_L, input::kX},
         {kVK_Shift, input::kY}, {kVK_ANSI_Q, input::kL}, {kVK_ANSI_E, input::kR},
@@ -44,27 +44,26 @@ static void test_defaults() {
     s = press(m, {kVK_ANSI_S});
     CHECK(s.ly == -1);
     s = press(m, {kVK_UpArrow, kVK_RightArrow});
-    CHECK(s.rx == 1 && s.ry == 1);  // right stick: no diagonal scaling (as before)
+    CHECK(s.rx == 1 && s.ry == 1);
     CHECK(press(m, {kVK_ANSI_Z}).buttons == 0);
-    // the Screenshot app action: F10, no controller input, never a GamePad button or stick
+
     CHECK(m.keys[kScreenshot][0] == kVK_F10 && m.pad[kScreenshot] == kPadNone);
     CHECK(press(m, {kVK_F10}).buttons == 0 && press(m, {kVK_F10}).lx == 0);
     CHECK(action_bit(kScreenshot) == 0 && action_from_id("Screenshot") == kScreenshot);
-    // no default key is reserved; no key is used twice
+
     for (int a = 0; a < kActionCount; a++)
         for (int k : m.keys[a]) {
             CHECK(k == kNoKey || !reserved_key(k));
             CHECK(k == kNoKey || key_users(m, k, a).empty());
         }
 
-    // controllers by position: Xbox A (bottom) = Wii U B, Xbox B (right) = Wii U A
     float v[kPadCount] = {};
     v[kPadA] = 1;
     CHECK(controller_state(m, v).buttons == input::kB);
     v[kPadA] = 0; v[kPadB] = 1;
     CHECK(controller_state(m, v).buttons == input::kA);
     v[kPadB] = 0; v[kPadLT] = 0.4f;
-    CHECK(controller_state(m, v).buttons == 0);  // half-pulled trigger below threshold
+    CHECK(controller_state(m, v).buttons == 0);
     v[kPadLT] = 0.8f;
     CHECK(controller_state(m, v).buttons == input::kZL);
     v[kPadLT] = 0; v[kPadLSLeft] = 0.6f; v[kPadRSUp] = 0.3f;
@@ -74,10 +73,10 @@ static void test_defaults() {
 
 static void test_face_layout() {
     Mapping m = Mapping::defaults();
-    // the default is the by-position (Nintendo) preset
+
     CHECK(face_layout(m) == FaceLayout::kPosition);
     CHECK(m.pad[kA] == kPadB && m.pad[kB] == kPadA && m.pad[kX] == kPadY && m.pad[kY] == kPadX);
-    // by label (Xbox): A accepts/acts, B goes back (issue #78)
+
     apply_face_layout(m, FaceLayout::kLabels);
     CHECK(face_layout(m) == FaceLayout::kLabels);
     CHECK(m.pad[kA] == kPadA && m.pad[kB] == kPadB && m.pad[kX] == kPadX && m.pad[kY] == kPadY);
@@ -88,7 +87,7 @@ static void test_face_layout() {
     CHECK(controller_state(m, v).buttons == input::kB);
     v[kPadB] = 0; v[kPadX] = 1;
     CHECK(controller_state(m, v).buttons == input::kX);
-    // keyboard keys and the non-face controller bindings are not rewritten by the preset
+
     CHECK(m.keys[kA] == Mapping::defaults().keys[kA]);
     CHECK(m.keys[kB] == Mapping::defaults().keys[kB]);
     CHECK(m.keys[kX] == Mapping::defaults().keys[kX]);
@@ -99,15 +98,15 @@ static void test_face_layout() {
     CHECK(m.pad[kStickLClick] == Mapping::defaults().pad[kStickLClick]);
     CHECK(m.pad[kLUp] == Mapping::defaults().pad[kLUp]);
     CHECK(m.pad[kScreenshot] == Mapping::defaults().pad[kScreenshot]);
-    // one face binding by hand: neither preset
+
     m.pad[kX] = kPadLB;
     CHECK(face_layout(m) == FaceLayout::kCustom);
-    // a preset restores all four; kCustom is a no-op
+
     apply_face_layout(m, FaceLayout::kPosition);
     CHECK(face_layout(m) == FaceLayout::kPosition);
     apply_face_layout(m, FaceLayout::kCustom);
     CHECK(face_layout(m) == FaceLayout::kPosition);
-    // the labels are for the UI: present and distinct (the wording is free to change)
+
     CHECK(face_layout_label(FaceLayout::kPosition) && *face_layout_label(FaceLayout::kPosition));
     CHECK(face_layout_label(FaceLayout::kLabels) && *face_layout_label(FaceLayout::kLabels));
     CHECK(std::string(face_layout_label(FaceLayout::kPosition)) != face_layout_label(FaceLayout::kLabels));
@@ -135,7 +134,7 @@ static void test_conflicts() {
     auto u = key_users(m, kVK_ANSI_K);
     CHECK(u.size() == 1 && u[0] == kA);
     CHECK(key_users(m, kVK_ANSI_K, kA).empty());
-    m.keys[kB][1] = kVK_ANSI_K;  // K on A and B
+    m.keys[kB][1] = kVK_ANSI_K;
     u = key_users(m, kVK_ANSI_K, kB);
     CHECK(u.size() == 1 && u[0] == kA);
     CHECK(key_users(m, kVK_ANSI_K).size() == 2);
@@ -151,12 +150,12 @@ static void test_json_roundtrip() {
     Mapping r;
     CHECK(from_json(to_json(m), r, &err) && err.empty());
     CHECK(r == m);
-    // swap A and B everywhere, clear Home, change options
+
     std::swap(m.keys[kA], m.keys[kB]);
     std::swap(m.pad[kA], m.pad[kB]);
     m.keys[kHome] = {kNoKey, kNoKey};
     m.pad[kHome] = kPadNone;
-    m.keys[kZR] = {kVK_ANSI_C, 93};  // unnamed code survives as "Key93"
+    m.keys[kZR] = {kVK_ANSI_C, 93};
     m.deadzone = 0.15f;
     m.invert_camera_y = true;
     std::string j = to_json(m);
@@ -166,14 +165,14 @@ static void test_json_roundtrip() {
     CHECK(press(r, {kVK_ANSI_K}).buttons == input::kB);
     CHECK(press(r, {kVK_ANSI_J}).buttons == input::kA);
     CHECK(press(r, {kVK_ANSI_H}).buttons == 0);
-    CHECK(press(r, {kVK_UpArrow}).ry == -1);  // inverted camera
-    CHECK(press(r, {kVK_ANSI_W}).ly == 1);    // move stick not inverted
+    CHECK(press(r, {kVK_UpArrow}).ry == -1);
+    CHECK(press(r, {kVK_ANSI_W}).ly == 1);
 }
 
 static void test_json_partial_and_bad() {
     Mapping r;
     std::string err;
-    // missing inputs keep defaults; a single string is accepted for one key; null unbinds
+
     CHECK(from_json(R"({"keyboard": {"A": "J", "B": ["K", "Space"]}, "controller": {"Home": null}})", r, &err));
     CHECK(err.empty());
     CHECK(r.keys[kA][0] == kVK_ANSI_J && r.keys[kA][1] == kNoKey);

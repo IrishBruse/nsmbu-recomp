@@ -1,4 +1,4 @@
-// The game's languages from its language packs and the language sources (game_languages.h).
+
 #include "game_languages.h"
 
 #include <algorithm>
@@ -20,7 +20,7 @@ namespace fs = std::filesystem;
 
 const char* const kNames[kLanguages] = {"Japanese", "English", "French", "German", "Italian", "Spanish",
                                         "Chinese", "Korean", "Dutch", "Portuguese", "Russian", "Chinese (Taiwan)"};
-// the pack names the game knows: region prefix + language, per console language (0x1048DD4C)
+
 struct KnownPack { const char* prefix; int region; const char* language; int code; };
 const KnownPack kPacks[] = {
     {"Jp", kJapan, "Japanese", 0}, {"Us", kUsa, "English", 1},     {"Us", kUsa, "French", 2},
@@ -35,7 +35,6 @@ std::string lower(std::string s) {
 
 std::string pack_file(const KnownPack& p) { return std::string("permanent_2d_") + p.prefix + p.language + ".pack"; }
 
-// a known pack for a file name (any case), or null
 const KnownPack* known(const std::string& filename) {
     const std::string s = lower(filename);
     for (const KnownPack& p : kPacks)
@@ -43,7 +42,6 @@ const KnownPack* known(const std::string& filename) {
     return nullptr;
 }
 
-// <root>/content/Common/Pack matched without case (the disc's spelling, any host file system); empty if absent
 fs::path pack_dir(const fs::path& root) {
     std::error_code ec;
     fs::path at = root;
@@ -60,7 +58,7 @@ fs::path pack_dir(const fs::path& root) {
 struct Found {
     std::vector<int> languages;
     std::string region;
-    std::vector<std::string> files;  // lower-case names of the installed game's packs
+    std::vector<std::string> files;
 };
 
 const Found& found() {
@@ -108,10 +106,10 @@ bool sarc_file(const fs::path& p) {
 std::mutex g_mu;
 Start g_start;
 std::atomic<bool> g_started{false};
-std::string g_redirect_from;  // lower-case "pack/<file>" of the active source pack
+std::string g_redirect_from;
 std::string g_redirect_to;
 
-}  // namespace
+}
 
 const char* name(int language) { return language >= 0 && language < kLanguages ? kNames[language] : "?"; }
 
@@ -145,10 +143,9 @@ int usable(int language) {
 std::string sources_dir() {
     if (const char* e = getenv("NSMBU_LANG_DIR"); e && *e) return e;
     fs::path game = fs::path(config::game_dir);
-    if (game.filename().empty()) game = game.parent_path();  // "data/game/"
+    if (game.filename().empty()) game = game.parent_path();
     const fs::path beside = game.parent_path() / "game-lang";
-    // a game folder used in place (portable setup from an extracted folder) is not in the data folder;
-    // the launchers start the game in the data folder
+
     std::error_code ec;
     if (!fs::is_directory(beside, ec) && fs::is_directory("game-lang", ec)) return "game-lang";
     return beside.string();
@@ -172,7 +169,7 @@ const std::vector<Pack>& source_packs() {
                 const KnownPack* p = known(e.path().filename().string());
                 if (!p || !e.is_regular_file(ec)) continue;
                 const std::string file = pack_file(*p);
-                if (std::find(own.begin(), own.end(), lower(file)) != own.end()) continue;  // the game has it
+                if (std::find(own.begin(), own.end(), lower(file)) != own.end()) continue;
                 bool dup = false;
                 for (const Pack& q : out) dup |= lower(q.file) == lower(file);
                 if (dup) continue;
@@ -184,7 +181,7 @@ const std::vector<Pack>& source_packs() {
             }
         }
         std::sort(out.begin(), out.end(), [](const Pack& a, const Pack& b) {
-            return a.region != b.region ? a.region > b.region : a.language < b.language;  // Europe, then Japan
+            return a.region != b.region ? a.region > b.region : a.language < b.language;
         });
         for (const Pack& p : out)
             LOG("[config] language source: %s (%s) from %s", name(p.language), region_name(p.region), p.host.c_str());
@@ -252,18 +249,18 @@ std::string redirect(const std::string& guest) {
     std::string g = lower(guest);
     std::replace(g.begin(), g.end(), '\\', '/');
     if (g.compare(g.size() - g_redirect_from.size(), g_redirect_from.size(), g_redirect_from) != 0) return {};
-    // the pack folder itself: "pack/<file>" alone or after a '/'
+
     if (g.size() > g_redirect_from.size() && g[g.size() - g_redirect_from.size() - 1] != '/') return {};
     return g_redirect_to;
 }
 
 int options_language(int language) {
     switch (language) {
-        case 3: return 1;  // German
-        case 2: return 2;  // French
-        case 5: return 3;  // Spanish
-        case 4: return 4;  // Italian
-        default: return 0;  // English, Japanese
+        case 3: return 1;
+        case 2: return 2;
+        case 5: return 3;
+        case 4: return 4;
+        default: return 0;
     }
 }
 
@@ -272,4 +269,4 @@ const char* german_genitive_suffix(const std::string& name) {
     return strchr("sxzSXZ", last) && last ? "'" : "s";
 }
 
-}  // namespace game_lang
+}

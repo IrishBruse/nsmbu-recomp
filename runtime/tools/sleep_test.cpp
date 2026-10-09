@@ -26,7 +26,7 @@ template<class Sleep> void measure(const char* label, Sleep sleep) {
 }
 int main() {
 #ifdef _WIN32
-    // Match main.cpp's timer request when comparing the two implementations.
+
     timeBeginPeriod(1);
 #endif
     host::sleep_until(Clock::now() - std::chrono::seconds(1));

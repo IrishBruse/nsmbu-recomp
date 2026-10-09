@@ -5,7 +5,6 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
 def main():
     game_dir = os.path.join(ROOT, "game")
     image = os.path.join(game_dir, "game.wux")
@@ -25,7 +24,6 @@ def main():
         check=True,
         cwd=ROOT,
     )
-
 
 if __name__ == "__main__":
     main()

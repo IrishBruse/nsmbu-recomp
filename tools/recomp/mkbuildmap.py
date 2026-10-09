@@ -39,7 +39,6 @@ from analyze import Program, sext
 
 DATA_LO, DATA_HI = 0x10000000, 0x20000000
 
-
 class Binary:
     """An rpx with its functions, normalised bodies and relocation targets."""
 
@@ -50,7 +49,7 @@ class Binary:
         p.discover()
         self.entries = p.entries
         self.ends = p.entries[1:] + [p.text_hi]
-        # 16-bit relocations point at the halfword, i.e. instruction address + 2
+
         self.reloc_type = {}
         self.reloc_target = collections.defaultdict(list)
         for sec, addr, typ, sym, add in p.rpx.relocs:
@@ -80,14 +79,12 @@ class Binary:
         i = bisect.bisect_right(self.entries, a) - 1
         return i if 0 <= i < len(self.entries) and a < self.ends[i] else None
 
-
 def file_sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
-
 
 def steps_of(pairs):
     """[(canonical, mapped)] (sorted by canonical) -> [(canonical start, delta)] runs."""
@@ -98,10 +95,8 @@ def steps_of(pairs):
             steps.append((c, prev))
     return steps
 
-
 class Mismatch(Exception):
     pass
-
 
 def derive(canon, other):
     """The map from `canon` to `other`, or Mismatch if they are not the same program."""
@@ -112,7 +107,6 @@ def derive(canon, other):
     bodies_o = [other.body(i) for i in range(n)]
     differs = [i for i in range(n) if bodies_c[i] != bodies_o[i]]
 
-    # every body that is unique within both builds must sit at the same index in both
     def digest(b):
         return hashlib.blake2b(b"".join(w.to_bytes(4, "big") for w in b), digest_size=16).digest()
     dc = [digest(b) for b in bodies_c]
@@ -134,7 +128,6 @@ def derive(canon, other):
 
     code_steps = steps_of([(canon.entries[i], other.entries[i]) for i in range(n)])
 
-    # check: every direct call out of an identical function lands on the mapped address
     code = piecewise(code_steps)
     checked = wrong = 0
     for i in range(n):
@@ -157,7 +150,6 @@ def derive(canon, other):
     if wrong:
         raise Mismatch("%d of %d direct calls do not land on the mapped address" % (wrong, checked))
 
-    # data: a relocation in an identical function names the same global in both builds
     seen = collections.defaultdict(collections.Counter)
     for a, lst in canon.reloc_target.items():
         i = canon.func_index(a)
@@ -188,7 +180,6 @@ def derive(canon, other):
                   "data_addresses": len(seen)},
     }
 
-
 def piecewise(steps):
     starts = [s for s, _ in steps]
     deltas = [d for _, d in steps]
@@ -197,7 +188,6 @@ def piecewise(steps):
         i = bisect.bisect_right(starts, a) - 1
         return (a + deltas[i]) & 0xFFFFFFFF if i >= 0 else a
     return f
-
 
 def to_json(m, name, title, sha256, canon_sha256, canon_name):
     return {
@@ -215,7 +205,6 @@ def to_json(m, name, title, sha256, canon_sha256, canon_name):
         "differing_functions": [["%08X" % a, s1, "%08X" % b, s2] for a, s1, b, s2 in m["differing_functions"]],
     }
 
-
 def report(m):
     s = m["stats"]
     print("functions %d, bodies unique to both builds %d, direct calls checked %d, data addresses %d" % (
@@ -228,7 +217,6 @@ def report(m):
         print("   data from %08X: %+d" % (a, d))
     for a, s1, b, s2 in m["differing_functions"]:
         print("   body differs: %08X (%d bytes) -> %08X (%d bytes)" % (a, s1, b, s2))
-
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -274,7 +262,6 @@ def main():
     else:
         print(text)
     return 0
-
 
 if __name__ == "__main__":
     try:

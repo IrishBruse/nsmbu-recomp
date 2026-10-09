@@ -1,5 +1,5 @@
-// Vulkan guest buffer cache: GPU memory, retirement, switches and statistics (design:
-// buffer_cache_core.h).
+
+
 #include "buffer_cache.h"
 
 #include <atomic>
@@ -21,13 +21,9 @@ bool env_is(const char* name, const char* value) {
   return e && !std::strcmp(e, value);
 }
 
-// Requests above this are not cached (a block must hold them; such ranges are rare and unbounded
-// draws with a garbage size register would pin memory)
 constexpr uint32_t kMaxCachedRange = 8u << 20;
 constexpr VkDeviceSize kBlockSize = 32ull << 20;
 
-// Host-visible blocks, preferably device-local (unified memory, resizable BAR or the 256 MiB BAR
-// window): the CPU writes a changed range once and draws read it from video memory.
 struct VulkanBacking final : bufcache::Backing {
   std::vector<Buffer> blocks;
   std::vector<bufcache::RangeAllocator> allocators;
@@ -52,7 +48,7 @@ struct VulkanBacking final : bufcache::Backing {
     try {
       b = create_buffer(blockSize, usage, flags);
     } catch (const std::exception& e) {
-      // device-local host-visible memory may not take buffers of this usage, or its heap is full
+
       const bool retry = (flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0;
       LOG("[vulkan buffer cache] block allocation failed (%s)%s", e.what(),
           retry ? ": using host-visible memory" : ": no more blocks");
@@ -76,12 +72,12 @@ struct State {
   bufcache::Stats reported;
   uint64_t verifyLogged = 0;
 };
-// created on the render thread at the first cached draw; read by invalidate_all on any thread
+
 std::atomic<State*> g_state{nullptr};
 
 State& state() {
   if (State* s = g_state.load(std::memory_order_acquire)) return *s;
-  State* created = new State;  // lives as long as the device (never torn down, like the upload arena)
+  State* created = new State;
   auto& b = created->backing;
   if (const char* mb = std::getenv("NSMBU_VK_BUFFER_CACHE_MB"))
     b.budget = std::max<uint64_t>(std::strtoull(mb, nullptr, 10), 64) << 20;
@@ -93,18 +89,18 @@ State& state() {
     const auto f = p.memoryTypes[i].propertyFlags;
     if ((f & (hostFlags | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) != (hostFlags | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
       continue;
-    // a small BAR window (no resizable BAR) is shared with the driver: use at most half of it
+
     const uint64_t heap = p.memoryHeaps[p.memoryTypes[i].heapIndex].size;
     b.flags = hostFlags | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     if (heap < (1ull << 30)) b.budget = std::min<uint64_t>(b.budget, heap / 2);
     break;
   }
-  created->cache.keepShadow = buffer_cache_verify();  // verify() then never reads GPU memory
+  created->cache.keepShadow = buffer_cache_verify();
   LOG("[vulkan buffer cache] on%s: budget %llu MiB, %s memory, hints %s", buffer_cache_verify() ? " (verify mode)" : "",
       (unsigned long long)(b.budget >> 20),
       (b.flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ? "device-local host-visible" : "host-visible",
       env_is("NSMBU_VK_BUFFER_CACHE_HINTS", "0") ? "off" : "on");
-  // NSMBU_VK_BUFFER_CACHE_LOG=1: log the first 300 ranges that become dynamic
+
   if (env_is("NSMBU_VK_BUFFER_CACHE_LOG", "1"))
     created->cache.onDynamic = [](const bufcache::Key& k, const bufcache::Entry& e, bool hintOnly) {
       static int logged = 0;
@@ -116,20 +112,13 @@ State& state() {
   return *created;
 }
 
-}  // namespace
+}
 
 bool buffer_cache_verify() {
   static const bool verify = env_is("NSMBU_VK_BUFFER_CACHE_VERIFY", "1");
   return verify;
 }
 
-// On by default on macOS (verified there: 0 mismatches in verify mode over long gameplay runs), on
-// desktop Linux (Steam Deck included; an RK3588 report in issue #50 went from a 20 fps lock to full speed
-// with it) and on Android (issue #56: Galaxy S25 Ultra, 115.8 M verify checks with 0 mismatches and 0
-// protect failures; heavy Outset views 33.8 -> 47.0 presented fps, render thread 14.2 -> 10.4 ms/frame,
-// uploads 21.7 -> 10.1 MiB/frame) and on Windows (issue #91: RX 6700 XT, render thread 13-19% less,
-// uploads ~20 -> ~10 MiB/frame, no geometry problems over many sessions; the verify mode itself is
-// unusable there, it reads back non-host-cached memory). NSMBU_VK_BUFFER_CACHE=0|1 overrides it.
 constexpr bool kBufferCacheDefault = true;
 
 bool buffer_cache_enabled() {
@@ -195,7 +184,7 @@ bool cached_native_indices(uint32_t addr, uint32_t size, UploadSlice& out, bufca
     }
     break;
   case bufcache::kMiss: {
-    // one read of guest memory: the shadow (extent scans) and the region get the same bytes
+
     std::vector<uint8_t> bytes(mem::ptr(addr), mem::ptr(addr) + size);
     if (!cache.upload(*e, bytes.data(), size)) return false;
     e->shadow = std::move(bytes);
@@ -221,7 +210,7 @@ void buffer_cache_invalidate_all() {
 }
 
 void buffer_cache_guest_invalidate(uint32_t flags, uint32_t addr, uint32_t size) {
-  // GX2_INVALIDATE_MODE_ATTRIBUTE_BUFFER (1), UNIFORM_BLOCK (4); in command order on the render thread
+
   if ((flags & 5) && g_state.load(std::memory_order_acquire)) wwatch::hint(addr, size);
 }
 
@@ -259,4 +248,4 @@ void buffer_cache_report(double frames) {
   o = c;
 }
 
-}  // namespace gfxvk
+}

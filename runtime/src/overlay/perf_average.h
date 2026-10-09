@@ -2,7 +2,7 @@
 #include <cstdint>
 
 namespace overlay {
-// Cumulative rates from counter differences, independent of how often the UI is visible.
+
 struct PerfAverage {
     bool started = false;
     double since = 0, fps = 0, logic = 0;

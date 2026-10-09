@@ -58,7 +58,7 @@ Buffer dispatch(const std::vector<uint8_t>& blocks,uint32_t w,uint32_t h,uint32_
     VkWriteDescriptorSet writes[2]{};
     for(uint32_t i=0;i<2;++i){writes[i]={VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};writes[i].dstSet=set;writes[i].dstBinding=i;writes[i].descriptorCount=1;writes[i].descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;writes[i].pBufferInfo=&buffers[i];}
     vkUpdateDescriptorSets(R.device,2,writes,0,nullptr);
-    // Coherent host writes are made available by submission. The input is unique to this dispatch.
+
     vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_COMPUTE,pipeline);
     vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_COMPUTE,layout,0,1,&set,0,nullptr);
     uint32_t params[]={w,h,slices,mode};vkCmdPushConstants(cmd,layout,VK_SHADER_STAGE_COMPUTE_BIT,0,sizeof params,params);

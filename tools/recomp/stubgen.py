@@ -17,7 +17,6 @@ import sys
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.normpath(os.path.join(here, "..", ".."))
 
-
 def hook_lists():
     hooks, sites = set(), set()
     for hp in [os.path.join(here, "hooks.txt")] + sorted(glob.glob(os.path.join(here, "hooks_*.txt"))):
@@ -31,7 +30,6 @@ def hook_lists():
                 hooks.add(int(line, 16))
     return hooks, sites
 
-
 def runtime_refs():
     funcs = set()
     pat = re.compile(r"\bf_([0-9A-F]{8})(?:_orig)?\b")
@@ -40,7 +38,6 @@ def runtime_refs():
             with open(p, errors="replace") as f:
                 funcs.update(int(m, 16) for m in pat.findall(f.read()))
     return funcs
-
 
 def main(outdir):
     os.makedirs(outdir, exist_ok=True)
@@ -62,7 +59,7 @@ def main(outdir):
                 f.write("void f_%08X_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x%08Xu, 0); }\n" % (e, e))
             else:
                 f.write("void f_%08X(Cpu* __restrict c) { ppc_unimplemented(c, 0x%08Xu, 0); }\n" % (e, e))
-        # keep the site hooks referenced, as the recompiled code does
+
         f.write("\nvoid stubgen_sites(Cpu* c) {\n")
         for e in sorted(sites):
             f.write("    site_%08X(c);\n" % e)
@@ -76,14 +73,12 @@ def main(outdir):
         f.write("const RecompImport g_recomp_imports[] = {{0, 0, \"\", \"\", 0, 0}};\n")
         f.write("const unsigned g_recomp_import_count = 0;\n")
         f.write("const uint32_t g_recomp_entry_point = 0u; /* placeholder: matches no RPX */\n")
-        # Hooks off: like recomp.py without --mod-hooks, emit no registration.
-        # The runtime owns the hook count, flag pointer and body pointer.
+
     with open(os.path.join(outdir, "imports.c"), "w") as f:
         f.write('#include "funcs.h"\n')
     with open(os.path.join(outdir, "report.txt"), "w") as f:
         f.write("placeholder from stubgen.py: %d stub functions, %d hooks, %d sites\n" % (len(funcs), len(hooks), len(sites)))
     print("wrote %s: %d stub functions, %d hooks, %d sites" % (outdir, len(funcs), len(hooks), len(sites)))
-
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

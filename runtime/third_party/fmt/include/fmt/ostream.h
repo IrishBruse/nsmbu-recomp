@@ -1,15 +1,10 @@
-// Formatting library for C++ - std::ostream support
-//
-// Copyright (c) 2012 - present, Victor Zverovich
-// All rights reserved.
-//
-// For the license information refer to format.h.
+
 
 #ifndef FMT_OSTREAM_H_
 #define FMT_OSTREAM_H_
 
 #ifndef FMT_MODULE
-#  include <fstream>  // std::filebuf
+#  include <fstream>
 #endif
 
 #ifdef _WIN32
@@ -20,11 +15,11 @@
 #  include <io.h>
 #endif
 
-#include "chrono.h"  // formatbuf
+#include "chrono.h"
 
 #ifdef _MSVC_STL_UPDATE
 #  define FMT_MSVC_STL_UPDATE _MSVC_STL_UPDATE
-#elif defined(_MSC_VER) && _MSC_VER < 1912  // VS 15.5
+#elif defined(_MSC_VER) && _MSC_VER < 1912
 #  define FMT_MSVC_STL_UPDATE _MSVC_LANG
 #else
 #  define FMT_MSVC_STL_UPDATE 0
@@ -33,11 +28,9 @@
 FMT_BEGIN_NAMESPACE
 namespace detail {
 
-// Generate a unique explicit instantiation in every translation unit using a
-// tag type in an anonymous namespace.
 namespace {
 struct file_access_tag {};
-}  // namespace
+}
 template <typename Tag, typename BufType, FILE* BufType::*FileMemberPtr>
 class file_access {
   friend auto get_file(BufType& obj) -> FILE* { return obj.*FileMemberPtr; }
@@ -49,8 +42,6 @@ template class file_access<file_access_tag, std::filebuf,
 auto get_file(std::filebuf&) -> FILE*;
 #endif
 
-// Write the content of buf to os.
-// It is a separate function rather than a part of vprint to simplify testing.
 template <typename Char>
 void write_buffer(std::basic_ostream<Char>& os, buffer<Char>& buf) {
   const Char* buf_data = buf.data();
@@ -68,9 +59,8 @@ void write_buffer(std::basic_ostream<Char>& os, buffer<Char>& buf) {
 template <typename T> struct streamed_view {
   const T& value;
 };
-}  // namespace detail
+}
 
-// Formats an object of type T that has an overloaded ostream operator<<.
 template <typename Char>
 struct basic_ostream_formatter : formatter<basic_string_view<Char>, Char> {
   void set_debug_format() = delete;
@@ -80,7 +70,7 @@ struct basic_ostream_formatter : formatter<basic_string_view<Char>, Char> {
     auto buffer = basic_memory_buffer<Char>();
     auto&& formatbuf = detail::formatbuf<std::basic_streambuf<Char>>(buffer);
     auto&& output = std::basic_ostream<Char>(&formatbuf);
-    output.imbue(std::locale::classic());  // The default is always unlocalized.
+    output.imbue(std::locale::classic());
     output << value;
     output.exceptions(std::ios_base::failbit | std::ios_base::badbit);
     return formatter<basic_string_view<Char>, Char>::format(
@@ -100,14 +90,6 @@ struct formatter<detail::streamed_view<T>, Char>
   }
 };
 
-/**
- * Returns a view that formats `value` via an ostream `operator<<`.
- *
- * **Example**:
- *
- *     fmt::print("Current thread id: {}\n",
- *                fmt::streamed(std::this_thread::get_id()));
- */
 template <typename T>
 constexpr auto streamed(const T& value) -> detail::streamed_view<T> {
   return {value};
@@ -140,13 +122,6 @@ inline void vprint(std::ostream& os, string_view fmt, format_args args) {
   detail::write_buffer(os, buffer);
 }
 
-/**
- * Prints formatted data to the stream `os`.
- *
- * **Example**:
- *
- *     fmt::print(cerr, "Don't {}!", "panic");
- */
 FMT_EXPORT template <typename... T>
 void print(std::ostream& os, format_string<T...> fmt, T&&... args) {
   fmt::vargs<T...> vargs = {{args...}};
@@ -164,4 +139,4 @@ void println(std::ostream& os, format_string<T...> fmt, T&&... args) {
 
 FMT_END_NAMESPACE
 
-#endif  // FMT_OSTREAM_H_
+#endif

@@ -6,8 +6,7 @@
 #include <sys/stat.h>
 #ifdef _WIN32
 #include <io.h>
-// Local compatibility names used by the HLE filesystem only. Enumeration uses real
-// host directories; guest paths and guest handles remain owned by hle/fs.cpp.
+
 #define stat _stat64
 #define fstat _fstat64
 #define fileno _fileno

@@ -1,4 +1,4 @@
-// Sparse context restoration. Blocks never written are zero in every context.
+
 #pragma once
 #include <algorithm>
 #include <array>
@@ -20,8 +20,7 @@ public:
     void include(const uint32_t* regs) {
         for (size_t i = 0; i < Words; ++i) if (regs[i]) touch(i, 1);
     }
-    // Compare before copying, including zeros from a newly initialized context.
-    // The predicate uses the renderer's existing shader relevance rules.
+
     template <class Relevant>
     bool restore(uint32_t* regs, const uint32_t* shadow, Relevant relevant) const {
         bool shader = false;
@@ -36,4 +35,4 @@ public:
         return shader;
     }
 };
-} // namespace gx2
+}

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+
 #include "guest_addr.h"
 #include <cassert>
 

@@ -4,8 +4,7 @@
 #include "gx2_regs.h"
 
 namespace gx2 {
-// Only these proven registers have partial/no influence on Vulkan's current
-// shader key. Unknowns, program headers and vertex strides stay conservative.
+
 inline bool vulkan_shader_key_mask(uint32_t reg, uint32_t& mask) {
     using Latte::REGADDR;
     for(uint32_t base : {uint32_t(REGADDR::SQ_TEX_RESOURCE_WORD0_N_PS),
@@ -42,4 +41,4 @@ inline bool vulkan_shader_key_mask(uint32_t reg, uint32_t& mask) {
     }
     return false;
 }
-} // namespace gx2
+}

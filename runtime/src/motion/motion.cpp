@@ -1,4 +1,4 @@
-// Gyro (motion) input for the virtual GamePad (see motion.h).
+
 #include "motion.h"
 
 #include <algorithm>
@@ -22,7 +22,7 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 constexpr float kRadToDeg = 57.2957795f;
-// a device turning faster than this (rad/s, about 20 deg/s) takes over from a resting one
+
 constexpr float kMoving = 0.35f;
 
 std::mutex g_mu;
@@ -30,31 +30,31 @@ Settings g_settings;
 bool g_aiming = false;
 int g_gyro_controllers = 0;
 float g_mouse_dx = 0, g_mouse_dy = 0;
-const bool g_log = getenv("NSMBU_GYRO_LOG") != nullptr;  // raw samples and the aim, twice a second
+const bool g_log = getenv("NSMBU_GYRO_LOG") != nullptr;
 
 struct Device {
     Fusion fusion;
     uint64_t last_ns = 0;
     Clock::time_point seen{}, moved{}, log_at{};
-    bool stalled = false;       // "no motion" logged, waiting for samples again
-    int bad_stamps = 0;         // samples in a row whose sensor time did not advance plausibly
+    bool stalled = false;
+    int bad_stamps = 0;
     bool stamps_logged = false;
-    unsigned samples = 0;       // since the last log line
-    Aim logged_aim;             // aim since the last log line
+    unsigned samples = 0;
+    Aim logged_aim;
     Vec3 last_gyro, last_acc;
 };
 constexpr uint64_t kNone = ~0ull, kDsuDevice = ~1ull;
-std::map<uint64_t, Device> g_devices;   // controllers (key: host device id) and the DSU slot (key kDsuDevice)
-uint64_t g_active = kNone;              // the device that turns the virtual GamePad
-Aim g_pending;                          // the active device's aim not yet read by the game
-VirtualPad g_pad;                       // the one virtual GamePad all sources turn
+std::map<uint64_t, Device> g_devices;
+uint64_t g_active = kNone;
+Aim g_pending;
+VirtualPad g_pad;
 std::unique_ptr<dsu::Client> g_dsu;
-VpadMotion g_last;                      // the previous read's values (repeated reads)
+VpadMotion g_last;
 Clock::time_point g_last_read{}, g_read_log_at{};
-double g_last_game_time = -1;           // NSMBU_TEST_GYRO: game time of the previous read
-Aim g_read_aim;                         // aim given to the GamePad since the last log line
-float g_recalibrate_prev[2] = {};       // pad, key: held at the previous poll
-// the right stick the game aims with: the game ignores the gyro while it is pushed (stick drift)
+double g_last_game_time = -1;
+Aim g_read_aim;
+float g_recalibrate_prev[2] = {};
+
 bool g_stick_out = false, g_stick_logged = false;
 float g_stick_x = 0, g_stick_y = 0;
 Clock::time_point g_stick_since{};
@@ -64,14 +64,11 @@ std::string device_name(uint64_t id) {
     return id == kDsuDevice ? "the Cemuhook server" : "controller " + std::to_string((unsigned long long)id);
 }
 
-// a sample from `id` (g_mu held). The device the player moves turns the virtual GamePad: the active one
-// keeps it while it moves or sends, another takes over when it turns while the active one rests or is quiet.
 void feed(uint64_t id, uint64_t t_ns, Vec3 gyro_h, Vec3 acc_h) {
     const auto now = Clock::now();
     auto [it, fresh] = g_devices.try_emplace(id);
     Device& d = it->second;
-    // dt from the sensor's own clock; the arrival time when that clock does not advance plausibly (a
-    // driver without timestamps, a clock that stalls or wraps): the motion must never stop because of it
+
     float dt = 0;
     if (!fresh) {
         const double ds = d.last_ns && t_ns > d.last_ns ? (double)(t_ns - d.last_ns) * 1e-9 : -1.0;
@@ -132,7 +129,6 @@ void dsu_sink(const dsu::PadData& p) {
     if (g_settings.source == kCemuhook) feed(kDsuDevice, t, g, a);
 }
 
-// the Cemuhook client starts and stops outside g_mu: its thread's sink takes g_mu, and stop() joins it
 std::mutex g_dsu_mu;
 void apply_dsu(const Settings& s) {
     std::lock_guard lk(g_dsu_mu);
@@ -144,7 +140,6 @@ void apply_dsu(const Settings& s) {
     }
 }
 
-// NSMBU_TEST_GYRO=from-to:yaw:pitch,... (game-time seconds, degrees per second)
 struct TestTurn { double from, to; float yaw, pitch; };
 const std::vector<TestTurn>& test_turns() {
     static const std::vector<TestTurn> v = [] {
@@ -163,7 +158,7 @@ const std::vector<TestTurn>& test_turns() {
     return v;
 }
 
-}  // namespace
+}
 
 const char* source_id(int s) {
     static const char* ids[] = {"off", "controller", "cemuhook", "mouse"};
@@ -250,7 +245,7 @@ void set_settings(const Settings& in) {
         g_settings = s;
         if (source_changed) {
             log_msg("[gyro] source: %s", source_label(s.source));
-            // the virtual GamePad stays where it is (the game would see a jump otherwise)
+
             g_devices.clear();
             g_active = kNone;
             g_pending = {};
@@ -348,7 +343,7 @@ bool drives_gamepad() {
 void right_stick(float x, float y) {
     std::lock_guard lk(g_mu);
     const auto now = Clock::now();
-    const bool out = std::sqrt(x * x + y * y) > 0.1f;  // the game's dead zone (CalcSubjectAngle)
+    const bool out = std::sqrt(x * x + y * y) > 0.1f;
     if (out && !g_stick_out) g_stick_since = now;
     if (!out) g_stick_logged = false;
     g_stick_out = out;
@@ -370,8 +365,7 @@ VpadMotion vpad(bool repeat) {
     Aim aim;
     float step = std::min(dt, 0.1f);
     if (!test_turns().empty()) {
-        // game time, so a test turns the same however fast the machine runs; no sensitivity (it stands for
-        // the GamePad itself)
+
         const double t = mods::game_time();
         step = g_last_game_time >= 0 ? (float)std::clamp(t - g_last_game_time, 0.0, 0.1) : 0.0f;
         g_last_game_time = t;
@@ -380,7 +374,7 @@ VpadMotion vpad(bool repeat) {
             if (t >= tt.from && t < tt.to) yaw = tt.yaw, pitch = tt.pitch;
         aim = {yaw * step / kRadToDeg, pitch * step / kRadToDeg};
     } else if (g_settings.source == kMouse) {
-        // the mouse gives angles: the whole movement since the previous read, however long the frame took
+
         const float k = g_settings.mouse_degrees / kRadToDeg;
         aim = g_settings.tuning.apply({g_mouse_dx * k, -g_mouse_dy * k});
         g_mouse_dx = g_mouse_dy = 0;
@@ -414,7 +408,7 @@ std::string status() {
         if (g_aiming && g_stick_out && g_settings.source != kOff)
             stick = " The right stick is pushed: the game ignores the gyro until it is released.";
     }
-    if (settings().source == kCemuhook) {  // (g_dsu_mu without g_mu: see apply_dsu)
+    if (settings().source == kCemuhook) {
         std::lock_guard dl(g_dsu_mu);
         return (g_dsu ? "Cemuhook: " + g_dsu->status() + "." : "Cemuhook: off.") + stick;
     }
@@ -432,4 +426,4 @@ std::string status() {
     }
 }
 
-}  // namespace motion
+}

@@ -1,4 +1,4 @@
-/* NSMBU recomp frame-mod ABI v1. Plain C; game bytes are never part of the SDK. */
+
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
@@ -16,7 +16,7 @@ typedef struct NSMBUModHostV1 {
     void* context;
     const char* game_id;
     const char* package_dir;
-    /* Called only from the game-thread callbacks. Bytes use guest big-endian order. */
+
     int (*read_guest)(void*, uint32_t address, void* output, size_t size);
     int (*write_guest)(void*, uint32_t address, const void* input, size_t size);
     void (*log)(void*, const char* message);
@@ -28,14 +28,14 @@ typedef struct NSMBUModHostV1 {
 typedef struct NSMBUModV1 {
     uint32_t size, abi_version;
     void* instance;
-    /* Once per original logic step, after actor execution. No callback on interpolated draws. */
+
     void (*on_frame)(void*, uint64_t logic_step);
     void (*on_config_changed)(void*);
-    /* Runs after the last frame callback, before the library unloads. */
+
     void (*on_unload)(void*);
 } NSMBUModV1;
 typedef int (*NSMBUModInitV1)(const NSMBUModHostV1*, NSMBUModV1*);
-/* Each native mod exports this entry point and returns nonzero on successful init. */
+
 NSMBU_MOD_EXPORT int nsmbu_mod_init_v1(const NSMBUModHostV1*, NSMBUModV1*);
 #ifdef __cplusplus
 }

@@ -42,13 +42,11 @@ BAD_NAME = [
 TEXT_EXT = {".py", ".txt", ".md", ".json", ".sh", ".command", ".bat", ".ps1", ".h", ".hpp", ".c", ".cpp", ".inl",
             ".cfg", ".ini", ".xml", ".plist", ".toml", ".yml", ".yaml", ".rsp", ""}
 KEYLIKE = re.compile(rb"(?<![0-9A-Fa-f])[0-9A-Fa-f]{32}(?![0-9A-Fa-f])")
-# a function body as tools/recomp/recomp.py emits it (stubgen placeholders call ppc_unimplemented)
-GEN_CODE = re.compile(rb"void f_[0-9A-F]{8}\(Cpu\* __restrict c\) \{\n")
 
+GEN_CODE = re.compile(rb"void f_[0-9A-F]{8}\(Cpu\* __restrict c\) \{\n")
 
 PYTHON_FILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python-windows-files.json")
 PYTHON_DIR = re.compile(r"(?:^|/)tools/python/(.+)$")
-
 
 def check_python(name, data, seen, problems):
     """tools/python/...: only the pinned embeddable Python's own files, unmodified. Returns True when it was one."""
@@ -65,7 +63,6 @@ def check_python(name, data, seen, problems):
     seen.add(rel)
     return True
 
-
 def check_entry(name, data, problems):
     n = name.replace("\\", "/")
     for rx, why in BAD_NAME:
@@ -78,7 +75,6 @@ def check_entry(name, data, problems):
             problems.append("%s:%d: 32-hex-digit string (key-like)" % (name, line))
     if GEN_CODE.search(data):
         problems.append("%s: contains recompiled game functions" % name)
-
 
 def scan(path):
     problems, count, python = [], 0, set()
@@ -108,7 +104,6 @@ def scan(path):
             problems.append("tools/python/ lacks files of the pinned embeddable Python: " + ", ".join(missing))
     return problems, count
 
-
 def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
@@ -123,7 +118,6 @@ def main():
         else:
             print("ok %s (%d files checked)" % (p, count))
     sys.exit(1 if bad else 0)
-
 
 if __name__ == "__main__":
     main()

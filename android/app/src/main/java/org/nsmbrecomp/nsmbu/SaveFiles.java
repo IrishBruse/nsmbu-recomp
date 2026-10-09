@@ -17,8 +17,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-// The game's save folder (Android/data/<package>/files/save: user/cking.sav and the Picto Box photos)
-// as a zip, the same layout as the save/ folder of the PC version.
 final class SaveFiles {
     private SaveFiles() {}
 
@@ -58,8 +56,6 @@ final class SaveFiles {
         }
     }
 
-    // where the NSMBU save (user/cking.sav) is in the zip: "" at the top, "folder/" inside one
-    // top folder (a zipped save/ folder), null when there is none
     static String saveRoot(InputStream in) throws IOException {
         try (ZipInputStream zip = new ZipInputStream(in)) {
             for (ZipEntry e; (e = zip.getNextEntry()) != null; ) {
@@ -72,7 +68,6 @@ final class SaveFiles {
         return null;
     }
 
-    // extracts the entries below root into dir; refuses names that leave dir
     static int unzip(InputStream in, String root, File dir) throws IOException {
         int count = 0;
         String base = dir.getCanonicalPath() + File.separator;
@@ -104,8 +99,6 @@ final class SaveFiles {
         for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
     }
 
-    // The game keeps its save in memory and writes it back when it saves: stop the game's process
-    // before its files are replaced (the tools run in their own process).
     static void stopGame(Context c) {
         ActivityManager am = (ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
         if (am == null || am.getRunningAppProcesses() == null) return;

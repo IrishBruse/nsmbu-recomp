@@ -1,9 +1,4 @@
-// Formatting library for C++ - formatters for standard library types
-//
-// Copyright (c) 2012 - present, Victor Zverovich
-// All rights reserved.
-//
-// For the license information refer to format.h.
+
 
 #ifndef FMT_STD_H_
 #define FMT_STD_H_
@@ -16,14 +11,13 @@
 #  include <bitset>
 #  include <complex>
 #  include <exception>
-#  include <functional>  // std::reference_wrapper
+#  include <functional>
 #  include <memory>
 #  include <thread>
 #  include <type_traits>
-#  include <typeinfo>  // std::type_info
-#  include <utility>   // std::make_index_sequence
+#  include <typeinfo>
+#  include <utility>
 
-// Check FMT_CPLUSPLUS to suppress a bogus warning in MSVC.
 #  if FMT_CPLUSPLUS >= 201703L
 #    if FMT_HAS_INCLUDE(<filesystem>) && \
         (!defined(FMT_CPP_LIB_FILESYSTEM) || FMT_CPP_LIB_FILESYSTEM != 0)
@@ -36,32 +30,29 @@
 #      include <optional>
 #    endif
 #  endif
-// Use > instead of >= in the version check because <source_location> may be
-// available after C++17 but before C++20 is marked as implemented.
+
 #  if FMT_CPLUSPLUS > 201703L && FMT_HAS_INCLUDE(<source_location>)
 #    include <source_location>
 #  endif
 #  if FMT_CPLUSPLUS > 202002L && FMT_HAS_INCLUDE(<expected>)
 #    include <expected>
 #  endif
-#endif  // FMT_MODULE
+#endif
 
 #if FMT_HAS_INCLUDE(<version>)
 #  include <version>
 #endif
 
-// GCC 4 does not support FMT_HAS_INCLUDE.
 #if FMT_HAS_INCLUDE(<cxxabi.h>) || defined(__GLIBCXX__)
 #  include <cxxabi.h>
-// Android NDK with gabi++ library on some architectures does not implement
-// abi::__cxa_demangle().
+
 #  ifndef __GABIXX_CXXABI_H__
 #    define FMT_HAS_ABI_CXA_DEMANGLE
 #  endif
 #endif
 
 #ifdef FMT_CPP_LIB_FILESYSTEM
-// Use the provided definition.
+
 #elif defined(__cpp_lib_filesystem)
 #  define FMT_CPP_LIB_FILESYSTEM __cpp_lib_filesystem
 #else
@@ -69,7 +60,7 @@
 #endif
 
 #ifdef FMT_CPP_LIB_VARIANT
-// Use the provided definition.
+
 #elif defined(__cpp_lib_variant)
 #  define FMT_CPP_LIB_VARIANT __cpp_lib_variant
 #else
@@ -108,7 +99,7 @@ void write_escaped_path(basic_memory_buffer<Char>& quoted,
   }
 }
 
-#endif  // FMT_CPP_LIB_FILESYSTEM
+#endif
 
 #if defined(__cpp_lib_expected) || FMT_CPP_LIB_VARIANT
 
@@ -141,23 +132,17 @@ template <typename Variant, typename Char> class is_variant_formattable {
       std::make_index_sequence<std::variant_size<Variant>::value>()))::value;
 };
 
-#endif  // FMT_CPP_LIB_VARIANT
+#endif
 
 #if FMT_USE_RTTI
 inline auto normalize_libcxx_inline_namespaces(string_view demangled_name_view,
                                                char* begin) -> string_view {
-  // Normalization of stdlib inline namespace names.
-  // libc++ inline namespaces.
-  //  std::__1::*       -> std::*
-  //  std::__1::__fs::* -> std::*
-  // libstdc++ inline namespaces.
-  //  std::__cxx11::*             -> std::*
-  //  std::filesystem::__cxx11::* -> std::filesystem::*
+
   if (demangled_name_view.starts_with("std::")) {
-    char* to = begin + 5;  // std::
+    char* to = begin + 5;
     for (const char *from = to, *end = begin + demangled_name_view.size();
          from < end;) {
-      // This is safe, because demangled_name is NUL-terminated.
+
       if (from[0] == '_' && from[1] == '_') {
         const char* next = from + 1;
         while (next < end && *next != ':') next++;
@@ -218,13 +203,10 @@ auto write_demangled_name(OutputIt out, const std::type_info& ti) -> OutputIt {
 #  elif FMT_MSC_VERSION && defined(_LIBCPP_VERSION)
   const string_view demangled_name = ti.name();
   std::string name_copy(demangled_name.size(), '\0');
-  // normalize_msvc_abi_name removes class, struct, union etc that MSVC has in
-  // front of types
+
   name_copy.erase(normalize_msvc_abi_name(demangled_name, name_copy.begin()),
                   name_copy.end());
-  // normalize_libcxx_inline_namespaces removes the inline __1, __2, etc
-  // namespaces libc++ uses for ABI versioning On MSVC ABI + libc++
-  // environments, we need to eliminate both of them.
+
   const string_view normalized_name =
       normalize_libcxx_inline_namespaces(name_copy, name_copy.data());
   return detail::write_bytes<char>(out, normalized_name);
@@ -233,7 +215,7 @@ auto write_demangled_name(OutputIt out, const std::type_info& ti) -> OutputIt {
 #  endif
 }
 
-#endif  // FMT_USE_RTTI
+#endif
 
 template <typename T, typename Enable = void>
 struct has_flip : std::false_type {};
@@ -248,8 +230,6 @@ template <typename T> struct is_bit_reference_like {
                                 has_flip<T>::value;
 };
 
-// Workaround for libc++ incompatibility with C++ standard.
-// According to the Standard, `bitset::operator[] const` returns bool.
 #if defined(_LIBCPP_VERSION) && !defined(FMT_IMPORT_STD)
 template <typename C>
 struct is_bit_reference_like<std::__bit_const_reference<C>> {
@@ -270,7 +250,7 @@ struct has_format_as_member<
     T, void_t<decltype(formatter<T>::format_as(std::declval<const T&>()))>>
     : std::true_type {};
 
-}  // namespace detail
+}
 
 template <typename T, typename Deleter>
 auto ptr(const std::unique_ptr<T, Deleter>& p) -> const void* {
@@ -346,13 +326,13 @@ class path : public std::filesystem::path {
   auto generic_system_string() const -> std::string { return generic_string(); }
 };
 
-#endif  // FMT_CPP_LIB_FILESYSTEM
+#endif
 
 template <size_t N, typename Char>
 struct formatter<std::bitset<N>, Char>
     : nested_formatter<basic_string_view<Char>, Char> {
  private:
-  // This is a functor because C++11 doesn't support generic lambdas.
+
   struct writer {
     const std::bitset<N>& bs;
 
@@ -405,7 +385,7 @@ struct formatter<std::optional<T>, Char,
     return detail::write(out, ')');
   }
 };
-#endif  // __cpp_lib_optional
+#endif
 
 #ifdef __cpp_lib_expected
 template <typename T, typename E, typename Char>
@@ -434,7 +414,7 @@ struct formatter<std::expected<T, E>, Char,
     return out;
   }
 };
-#endif  // __cpp_lib_expected
+#endif
 
 #ifdef __cpp_lib_source_location
 template <> struct formatter<std::source_location> {
@@ -504,7 +484,7 @@ struct formatter<Variant, Char,
   }
 };
 
-#endif  // FMT_CPP_LIB_VARIANT
+#endif
 
 template <> struct formatter<std::error_code> {
  private:
@@ -573,7 +553,7 @@ template <> struct formatter<std::type_info> {
     return detail::write_demangled_name(ctx.out(), ti);
   }
 };
-#endif  // FMT_USE_RTTI
+#endif
 
 template <typename T>
 struct formatter<
@@ -609,9 +589,6 @@ struct formatter<
   }
 };
 
-// We can't use std::vector<bool, Allocator>::reference and
-// std::bitset<N>::reference because the compiler can't deduce Allocator and N
-// in partial specialization.
 template <typename BitRef, typename Char>
 struct formatter<BitRef, Char,
                  enable_if_t<detail::is_bit_reference_like<BitRef>::value>>
@@ -643,7 +620,7 @@ struct formatter<std::atomic_flag, Char> : formatter<bool, Char> {
     return formatter<bool, Char>::format(v.test(), ctx);
   }
 };
-#endif  // __cpp_lib_atomic_flag_test
+#endif
 
 template <typename T, typename Char> struct formatter<std::complex<T>, Char> {
  private:
@@ -709,8 +686,7 @@ template <typename T, typename Char> struct formatter<std::complex<T>, Char> {
 
 template <typename T, typename Char>
 struct formatter<std::reference_wrapper<T>, Char,
-                 // Guard against format_as because reference_wrapper is
-                 // implicitly convertible to T&.
+
                  enable_if_t<is_formattable<remove_cvref_t<T>, Char>::value &&
                              !detail::has_format_as<T>::value &&
                              !detail::has_format_as_member<T>::value>>
@@ -724,4 +700,4 @@ struct formatter<std::reference_wrapper<T>, Char,
 
 FMT_END_NAMESPACE
 
-#endif  // FMT_STD_H_
+#endif

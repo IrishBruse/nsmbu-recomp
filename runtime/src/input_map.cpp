@@ -1,4 +1,4 @@
-// Controls mapping model, JSON persistence and evaluation (see input_map.h).
+
 #include "input_map.h"
 
 #include "platform/keycodes.h"
@@ -18,8 +18,6 @@
 #include <mutex>
 
 namespace input_map {
-
-// ---- names
 
 namespace {
 struct ActionInfo { const char* id; const char* label; uint32_t bit; };
@@ -98,7 +96,7 @@ const KeyInfo* find_key(int code) {
         if (k.code == code) return &k;
     return nullptr;
 }
-}  // namespace
+}
 
 const char* action_id(int a) { return a >= 0 && a < kActionCount ? kActions[a].id : ""; }
 const char* action_label(int a) { return a >= 0 && a < kActionCount ? kActions[a].label : ""; }
@@ -140,7 +138,7 @@ int key_from_id(const std::string& id) {
 }
 
 const char* reserved_key(int code) {
-    // keep in sync with gfx::menu_hotkey (gfx/menu.mm)
+
     switch (code) {
     case kVK_ANSI_O: return "Graphics › Ambient occlusion";
     case kVK_ANSI_M: return "Graphics › Full-size occlusion depth";
@@ -159,8 +157,6 @@ const char* reserved_key(int code) {
     }
 }
 
-// ---- model
-
 Mapping Mapping::defaults() {
     Mapping m;
     for (auto& k : m.keys) k.fill(kNoKey);
@@ -173,25 +169,23 @@ Mapping Mapping::defaults() {
     key(kStickLClick, kVK_ANSI_X); key(kStickRClick, kVK_ANSI_V);
     key(kLUp, kVK_ANSI_W); key(kLDown, kVK_ANSI_S); key(kLLeft, kVK_ANSI_A); key(kLRight, kVK_ANSI_D);
     key(kRUp, kVK_UpArrow); key(kRDown, kVK_DownArrow); key(kRLeft, kVK_LeftArrow); key(kRRight, kVK_RightArrow);
-    key(kScreenshot, kVK_F10);  // free on every host (F11: SDL full screen, F12/P: debug frame capture)
-    // controllers map by position: the bottom face button (Xbox A) is the Wii U's B (face_layout)
+    key(kScreenshot, kVK_F10);
+
     const int pads[kActionCount] = {
-        kPadNone, kPadNone, kPadNone, kPadNone,  // A B X Y: face-layout preset, filled below
+        kPadNone, kPadNone, kPadNone, kPadNone,
         kPadLB, kPadRB, kPadLT, kPadRT, kPadMenu, kPadOptions, kPadHome,
         kPadDUp, kPadDDown, kPadDLeft, kPadDRight, kPadL3, kPadR3,
         kPadLSUp, kPadLSDown, kPadLSLeft, kPadLSRight, kPadRSUp, kPadRSDown, kPadRSLeft, kPadRSRight,
-        kPadNone,  // Screenshot: no controller input by default (every button already plays)
+        kPadNone,
     };
     for (int a = 0; a < kActionCount; a++) m.pad[a] = pads[a];
     apply_face_layout(m, FaceLayout::kPosition);
     return m;
 }
 
-// ---- face-button presets (issue #78): pad inputs for the actions kA, kB, kX, kY
-
 namespace {
-const int kFaceByPosition[4] = {kPadB, kPadA, kPadY, kPadX};  // by position (default)
-const int kFaceByLabel[4] = {kPadA, kPadB, kPadX, kPadY};     // by label (Xbox)
+const int kFaceByPosition[4] = {kPadB, kPadA, kPadY, kPadX};
+const int kFaceByLabel[4] = {kPadA, kPadB, kPadX, kPadY};
 }
 
 FaceLayout face_layout(const Mapping& m) {
@@ -293,7 +287,7 @@ input::PadState keyboard_state(const Mapping& m, const bool keys[256]) {
     s.ly = v[kLUp] - v[kLDown];
     s.rx = v[kRRight] - v[kRLeft];
     s.ry = v[kRUp] - v[kRDown];
-    if (s.lx && s.ly) { s.lx *= 0.7071f; s.ly *= 0.7071f; }  // keep diagonal walking at full-stick length
+    if (s.lx && s.ly) { s.lx *= 0.7071f; s.ly *= 0.7071f; }
     if (m.invert_camera_y) s.ry = -s.ry;
     return s;
 }
@@ -302,7 +296,7 @@ static void apply_deadzone(float& x, float& y, float dz) {
     float len = std::sqrt(x * x + y * y);
     if (dz <= 0) return;
     if (len <= dz) { x = y = 0; return; }
-    float scale = std::min(1.0f, (len - dz) / (1.0f - dz)) / len;  // rescale so the edge still reaches 1
+    float scale = std::min(1.0f, (len - dz) / (1.0f - dz)) / len;
     x *= scale;
     y *= scale;
 }
@@ -327,8 +321,6 @@ input::PadState controller_state(const Mapping& m, const float values[kPadCount]
     return s;
 }
 
-// ---- JSON (just enough for this file: objects, arrays, strings, numbers, booleans, null)
-
 namespace {
 struct JsonMember;
 struct Json {
@@ -337,7 +329,7 @@ struct Json {
     double n = 0;
     std::string s;
     std::vector<Json> arr;
-    // not std::pair<std::string, Json>: libstdc++ rejects a pair of an incomplete type
+
     std::vector<JsonMember> obj;
     const Json* get(const char* k) const;
 };
@@ -458,7 +450,7 @@ std::string quote(const std::string& s) {
     }
     return o + "\"";
 }
-}  // namespace
+}
 
 std::string to_json(const Mapping& m) {
     std::string o = "{\n  \"version\": 1,\n  \"keyboard\": {\n";
@@ -559,18 +551,16 @@ bool save_file(const std::string& path, const Mapping& m) {
     std::string text = to_json(m);
     bool ok = fwrite(text.data(), 1, text.size(), f) == text.size();
     ok = fclose(f) == 0 && ok;
-    if (ok) ok = host::replace_file(tmp,path);  // atomic: never a half-written file
+    if (ok) ok = host::replace_file(tmp,path);
     if (!ok) remove(tmp.c_str());
     return ok;
 }
 
 std::string default_path() {
-    // NSMBU_CONTROLS=<file> uses another controls file (tests)
+
     if (const char* e = getenv("NSMBU_CONTROLS"); e && *e) return e;
     return host::config_dir() + "/controls.json";
 }
-
-// ---- live mapping
 
 static std::mutex g_mu;
 static Mapping g_map = Mapping::defaults();
@@ -580,7 +570,7 @@ void load_startup() {
     std::string path = default_path(), err;
     Mapping m;
     struct stat st;
-    if (stat(path.c_str(), &st) != 0) return;  // no file yet: defaults
+    if (stat(path.c_str(), &st) != 0) return;
     if (load_file(path, m, &err)) {
         set_current(m, false);
         fprintf(stderr, "[input] controls loaded from %s%s%s\n", path.c_str(), err.empty() ? "" : ": ", err.c_str());
@@ -606,4 +596,4 @@ void set_current(const Mapping& m, bool save) {
 
 uint32_t generation() { return g_gen.load(); }
 
-}  // namespace input_map
+}

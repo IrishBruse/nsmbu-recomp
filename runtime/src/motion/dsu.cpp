@@ -1,4 +1,4 @@
-// Cemuhook (DSU) motion client (see dsu.h). Protocol: https://v1993.github.io/cemuhook-protocol/
+
 #include "dsu.h"
 
 #include <algorithm>
@@ -45,7 +45,6 @@ uint32_t get32(const uint8_t* p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 |
 uint64_t get64(const uint8_t* p) { return (uint64_t)get32(p) | (uint64_t)get32(p + 4) << 32; }
 float getf(const uint8_t* p) { uint32_t x = get32(p); float f; memcpy(&f, &x, 4); return f; }
 
-// header + message type; the length field counts everything after the 16-byte header
 std::vector<uint8_t> message(const char magic[4], uint32_t id, uint32_t type, size_t size) {
     std::vector<uint8_t> v(size, 0);
     memcpy(v.data(), magic, 4);
@@ -60,7 +59,7 @@ void finish(std::vector<uint8_t>& v) {
     put32(v, 8, crc32(v.data(), v.size()));
 }
 
-}  // namespace
+}
 
 uint32_t crc32(const uint8_t* data, size_t size) {
     static const auto table = [] {
@@ -88,7 +87,7 @@ std::vector<uint8_t> encode_port_info_request(uint32_t client_id, const std::vec
 
 std::vector<uint8_t> encode_pad_data_request(uint32_t client_id, uint8_t slot) {
     auto v = message("DSUC", client_id, kPadData, 20 + 8);
-    v[20] = 1;  // register by slot
+    v[20] = 1;
     v[21] = slot;
     finish(v);
     return v;
@@ -97,7 +96,7 @@ std::vector<uint8_t> encode_pad_data_request(uint32_t client_id, uint8_t slot) {
 uint32_t message_type(const uint8_t* p, size_t size) {
     if (size < 20 || memcmp(p, "DSUS", 4) != 0) return 0;
     if (get16(p + 4) > kProtocolVersion) return 0;
-    if ((size_t)get16(p + 6) + kHeaderSize > size) return 0;  // truncated
+    if ((size_t)get16(p + 6) + kHeaderSize > size) return 0;
     size_t len = get16(p + 6) + kHeaderSize;
     std::vector<uint8_t> copy(p, p + len);
     memset(copy.data() + 8, 0, 4);
@@ -112,7 +111,7 @@ bool parse_pad_data(const uint8_t* p, size_t size, PadData& d) {
     d.model = p[22];
     d.connected = p[31] != 0;
     d.packet = get32(p + 32);
-    // 36: buttons, PS, touch button, 4 sticks, 12 analog buttons, 2 touches (6 bytes each)
+
     d.timestamp_us = get64(p + 68);
     for (int i = 0; i < 3; i++) d.accel[i] = getf(p + 76 + 4 * i);
     for (int i = 0; i < 3; i++) d.gyro[i] = getf(p + 88 + 4 * i);
@@ -124,19 +123,17 @@ std::vector<uint8_t> encode_pad_data(uint32_t server_id, const PadData& d) {
     v[20] = d.slot;
     v[21] = d.state;
     v[22] = d.model;
-    v[23] = 2;     // bluetooth
-    v[30] = 0x05;  // battery full
+    v[23] = 2;
+    v[30] = 0x05;
     v[31] = d.connected ? 1 : 0;
     put32(v, 32, d.packet);
-    v[40] = v[41] = v[42] = v[43] = 128;  // sticks centred
+    v[40] = v[41] = v[42] = v[43] = 128;
     put64(v, 68, d.timestamp_us);
     for (int i = 0; i < 3; i++) putf(v, 76 + 4 * i, d.accel[i]);
     for (int i = 0; i < 3; i++) putf(v, 88 + 4 * i, d.gyro[i]);
     finish(v);
     return v;
 }
-
-// ---- client thread ----
 
 static int64_t now_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -181,7 +178,7 @@ void Client::run(std::string host, uint16_t port, uint8_t slot) {
         if (s != status_) log_msg("[gyro] Cemuhook %s:%u: %s", host.c_str(), (unsigned)port, s.c_str());
         status_ = s;
     };
-    const uint32_t id = (uint32_t)now_ms() ^ 0x57574844u;  // any value; servers tell clients apart by it
+    const uint32_t id = (uint32_t)now_ms() ^ 0x57574844u;
     socket_t s = kNoSocket;
     sockaddr_storage addr{};
     socklen_t addr_len = 0;
@@ -207,7 +204,7 @@ void Client::run(std::string host, uint16_t port, uint8_t slot) {
             freeaddrinfo(res);
             if (s == kNoSocket) {
 #ifdef __ANDROID__
-                // the Android app does not ask for the INTERNET permission (docs/gyro.md): no sockets
+
                 if (errno == EACCES || errno == EPERM) {
                     set_status("unavailable: the Android app has no network permission");
                     next_resolve = t + 60000;
@@ -237,11 +234,11 @@ void Client::run(std::string host, uint16_t port, uint8_t slot) {
         }
         uint8_t buf[512];
         int n = (int)recv(s, (char*)buf, sizeof buf, 0);
-        if (n <= 0) continue;  // timeout (or ICMP "port unreachable" on some systems): ask again later
+        if (n <= 0) continue;
         PadData d;
         if (!parse_pad_data(buf, (size_t)n, d) || d.slot != slot) continue;
         if (!d.connected || d.state != 2) { set_status("slot " + std::to_string(slot) + ": no controller"); continue; }
-        if (any && d.packet == last_packet) continue;  // duplicate
+        if (any && d.packet == last_packet) continue;
         any = true;
         last_packet = d.packet;
         last_data_ms_ = now_ms();
@@ -254,4 +251,4 @@ void Client::run(std::string host, uint16_t port, uint8_t slot) {
 #endif
 }
 
-}  // namespace dsu
+}

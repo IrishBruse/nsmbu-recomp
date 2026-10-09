@@ -1,8 +1,5 @@
-// Decompile the shaders in a GX2 shader file (.gsh) to Metal Shading Language.
-//   shadertest file.gsh [index]
-// Loads the file into guest memory, binds each vertex/pixel shader pair into a
-// register file exactly as GX2SetVertexShader/GX2SetPixelShader do, and runs
-// the vendored Cemu decompiler.
+
+
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 
@@ -37,7 +34,6 @@ int main(int argc, char** argv) {
     std::vector<uint8> d((std::istreambuf_iterator<char>(f)), {});
     auto be = [&](size_t o) { return (uint32)d[o] << 24 | d[o + 1] << 16 | d[o + 2] << 8 | d[o + 3]; };
 
-    // copy every block into guest memory at 0x10000000+ (256-byte aligned, as GX2 requires)
     std::vector<Block> blocks;
     uint32 next = 0x10000000;
     size_t off = be(4);
@@ -48,8 +44,7 @@ int main(int argc, char** argv) {
         next = (next + size + 0xFF) & ~0xFFu;
         off += hs + size;
     }
-    // shader headers (types 3/6) are followed by their programs (types 5/7);
-    // point the header's shaderPtr at the loaded program
+
     uint32 vs = 0, ps = 0;
     for (size_t i = 0; i + 1 < blocks.size(); i++) {
         if (blocks[i].type == 3 && blocks[i + 1].type == 5) {
@@ -68,13 +63,13 @@ int main(int argc, char** argv) {
 
     if (vs) {
         gx2::bind_vertex_shader_regs(regs, vs);
-        // fetch shader: one float4 attribute per vertex shader input, each in its own buffer
+
         LatteFetchShader fs;
-        // attribInfo pointers inside .gsh files are relocatable offsets (0xD06xxxxx) into the header block
+
         uint32 nattr = ld32(vs + 0x104), attrs = vs + (ld32(vs + 0x108) & 0xFFFFF);
         static LatteParsedFetchShaderAttribute pa[16];
         for (uint32 i = 0; i < nattr && i < 16; i++) {
-            // GX2AttribVar: +0 name, +4 type, +8 count, +C location
+
             uint32 loc = ld32(attrs + i * 16 + 12);
             LatteParsedFetchShaderAttribute& a = pa[i];
             a = {};
@@ -90,7 +85,7 @@ int main(int argc, char** argv) {
             g.attrib = &a;
             fs.bufferGroups.push_back(g);
             fs.attributeBufferMask |= 1u << i;
-            regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START + i * 7 + 2] = 16 << 11;  // stride
+            regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START + i * 7 + 2] = 16 << 11;
             printf("// attribute %u -> semantic %u\n", i, loc);
         }
         uint32 prog = gx2::vertex_shader_program(vs, &size);
@@ -103,7 +98,7 @@ int main(int argc, char** argv) {
     }
     if (ps) {
         gx2::bind_pixel_shader_regs(regs, ps);
-        regs[mmCB_COLOR0_INFO] = 0x1A << 2;  // RGBA8 render target
+        regs[mmCB_COLOR0_INFO] = 0x1A << 2;
         regs[mmCB_COLOR0_BASE] = 0x100;
         regs[Latte::REGADDR::CB_TARGET_MASK] = 0xF;
         uint32 prog = gx2::pixel_shader_program(ps, &size);

@@ -3,30 +3,11 @@
 #include "Cafe/OS/libs/gx2/GX2_Surface.h"
 #include <bit>
 
-/*
-	Info:
-
-	- Extra samples for AA are stored in their own micro-tiles
-
-	Macro-Tiling:
-
-	- Contains one micro-tile for every combination of bank/channel select
-	- Since there are 4 bank and 2 pipe bits this means 4*2 = 8 micro tiles (or 8*4 for thick?). But the arrangement varies per tilemode (aspect ratio)
-	  Allowed layouts: 1x8, 2x4, 4x2
-
-	- Address format: .... aaaaabbc aaaaaaaa		A = offset, b = bank, c = channel
-	- Channel/Bank bits are determined by:
-		channel0 = x[3] ^ y[3]
-		bank0 = x[3] ^ y[5]
-		bank1 = x[4] ^ y[4]
-
-*/
-
 using namespace Latte;
 
 namespace LatteAddrLib
 {
-	
+
 	enum class COMPUTE_SURFACE_RESULT
 	{
 		RESULT_OK = 0,
@@ -295,7 +276,7 @@ namespace LatteAddrLib
 			uint32 slices = *pNumSlices;
 			width >>= mipLevel;
 			height >>= mipLevel;
-			if (!flags.dimCube) // dim 3D
+			if (!flags.dimCube)
 				slices >>= mipLevel;
 			width = std::max<uint32>(1, width);
 			height = std::max<uint32>(1, height);
@@ -755,7 +736,7 @@ namespace LatteAddrLib
 		uint32 heightAlign;
 		uint32 pitchAlign;
 		uint32 baseAlign;
-		_ComputeSurfaceAlignmentsMicroTiled(expTileMode, bpp, flags, numSamples, /* outputs: */ baseAlign, pitchAlign, heightAlign);
+		_ComputeSurfaceAlignmentsMicroTiled(expTileMode, bpp, flags, numSamples,  baseAlign, pitchAlign, heightAlign);
 		PadDimensions(expTileMode, padDims, flags.dimCube, flags.cubeAsArray, &expPitch, pitchAlign, &expHeight, heightAlign, &expNumSlices, microTileThickness);
 		pOut->pitch = expPitch;
 		pOut->height = expHeight;
@@ -785,7 +766,7 @@ namespace LatteAddrLib
 			expNumSlices = NextPow2(numSlices);
 			if (flags.dimCube)
 			{
-				// cubemap
+
 				expNumSlices = numSlices;
 				padDims = numSlices <= 1 ? 2 : 0;
 			}
@@ -986,7 +967,7 @@ namespace LatteAddrLib
 		else
 		{
 			if(pOut->surfSize == 0 && pOut->depth == 0)
-				pOut->sliceSize = 0; // edge case for (1D)_ARRAY textures with res 0/0/0
+				pOut->sliceSize = 0;
 			else
 				pOut->sliceSize = (uint32)(pOut->surfSize / pOut->depth);
 			if (pIn->slice == pIn->numSlices - 1 && pIn->numSlices > 1)
@@ -1072,7 +1053,7 @@ namespace LatteAddrLib
 			surfInfoIn.size = sizeof(AddrSurfaceInfo_IN);
 			if (!IsValidHWTileMode((E_HWTILEMODE)surfaceTileMode))
 			{
-				// cemuLog_log(LogType::Force, "Unexpected TileMode {} in AddrLib", (uint32)surfaceTileMode);
+
 				surfaceTileMode = (E_GX2TILEMODE)((uint32)surfaceTileMode & 0xF);
 			}
 			surfInfoIn.tileMode = MakeHWTileMode(surfaceTileMode);
@@ -1160,11 +1141,9 @@ namespace LatteAddrLib
 		return currentMipOffset;
 	}
 
-	// Calculate aligned address and size of a given slice and mip level
-	// For thick-tiled surfaces this returns the area of the whole thick tile (4 slices per thick tile) and the relative slice index within the tile is returned in subSliceIndex
 	void CalculateMipAndSliceAddr(uint32 physAddr, uint32 physMipAddr, Latte::E_GX2SURFFMT format, uint32 width, uint32 height, uint32 depth, Latte::E_DIM dim, Latte::E_HWTILEMODE tileMode, uint32 swizzle, uint32 surfaceAA, sint32 mipIndex, sint32 sliceIndex, uint32* outputSliceOffset, uint32* outputSliceSize, sint32* subSliceIndex)
 	{
-		cemu_assert_debug((uint32)tileMode < 16); // only hardware tilemodes allowed
+		cemu_assert_debug((uint32)tileMode < 16);
 
 		AddrSurfaceInfo_OUT surfaceInfo;
 		uint32 currentMipOffset = 0;
@@ -1173,7 +1152,7 @@ namespace LatteAddrLib
 		for (sint32 level = 1; level <= mipIndex; level++)
 		{
 			GX2CalculateSurfaceInfo(format, width, height, depth, dim, MakeGX2TileMode(tileMode), surfaceAA, level, &surfaceInfo);
-			// extract swizzle from mip-pointer if macro tiled
+
 			if (level == 1 && TM_IsMacroTiled(surfaceInfo.hwTileMode))
 			{
 				swizzle = physMipAddr & 0x700;
@@ -1198,19 +1177,17 @@ namespace LatteAddrLib
 			lastTileMode = surfaceInfo.hwTileMode;
 			prevSize = (uint32)surfaceInfo.surfSize;
 		}
-		// calculate slice offset
-		if( mipIndex == 0 ) // make sure surfaceInfo is initialized
+
+		if( mipIndex == 0 )
 			GX2CalculateSurfaceInfo(format, width, height, depth, dim, MakeGX2TileMode(tileMode), surfaceAA, 0, &surfaceInfo);
 		uint32 sliceOffset = 0;
 		uint32 sliceSize = 0;
 
-		// surfaceInfo.sliceSize isn't always correct (especially when depth is misaligned with 4 for THICK tile modes?) so we calculate it manually
-		// this formula only works because both pitch and height are aligned to micro/macro blocks by GX2CalculateSurfaceInfo, normally we would have to use the tile dimensions to calculate the size
 		uint32 correctedSliceSize = surfaceInfo.pitch*surfaceInfo.height*surfaceInfo.bpp / 8;
-	
+
 		if (TM_IsThick(surfaceInfo.hwTileMode))
 		{
-			// 4 slices are interleaved
+
 			sliceOffset = (sliceIndex&~3) * correctedSliceSize;
 			sliceSize = correctedSliceSize * 4;
 			*subSliceIndex = sliceIndex & 3;

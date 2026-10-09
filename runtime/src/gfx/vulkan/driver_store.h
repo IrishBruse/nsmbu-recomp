@@ -8,7 +8,7 @@ struct Driver {
     int min_api = 0;
     std::filesystem::path directory;
 };
-// No Vulkan or Android dependency: package and probe state are host-testable.
+
 class Store {
     std::filesystem::path root_;
     std::string selected_, probing_;
@@ -21,8 +21,7 @@ public:
     std::string install(const std::filesystem::path& zip, int api);
     void select(const std::string& id);
     void remove(const std::string& id);
-    // Called once at process start, BEFORE touching the custom driver.
-    // Returns true if an incomplete probe forced system fallback.
+
     bool start();
     void rendered_frame();
     void failed();

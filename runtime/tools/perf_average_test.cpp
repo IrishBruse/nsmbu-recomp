@@ -9,7 +9,7 @@ int main() {
     a.sample(2, 160, 110, 0, 0, 30, 1);
     assert(a.fps == 30 && a.logic == 30);
     a.sample(4, 340, 170, 0, 0, 30, 1);
-    assert(a.fps == 60 && a.logic == 30); // cumulative, not mean of instantaneous rates
+    assert(a.fps == 60 && a.logic == 30);
     for (int change = 0; change < 4; ++change) {
         a.sample(5 + change, 400, 200, change > 0, change > 1, change > 2 ? 120 : 30, 2);
         assert(a.fps == 0 && a.logic == 0);

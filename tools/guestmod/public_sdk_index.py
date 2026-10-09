@@ -15,11 +15,8 @@ VERIFY = re.compile(r'\bVERIFY\(\s*(0x[0-9A-Fa-f]+)\s*,\s*(&?[A-Za-z_]\w*(?:::[A
 DECL = re.compile(r'(?:^|[\n;}])\s*(?:(?:static|inline|extern)\s+)*([\w:<>,*& \t\n]+?[ \t\n*&])([A-Za-z_]\w*(?:::[~A-Za-z_]\w*)*)\s*\(([^;{}]*)\)\s*(?:const\s*)?\{')
 LAYOUT = re.compile(r'\bWWHD_(SIZE|OFFSET)\(\s*([^;\n]+?)\s*\)\s*;')
 
-
 def git(root, *args):
     return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
-
-
 
 def mask_declarations(text):
     masked = re.sub(r'/\*.*?\*/|//[^\n]*', lambda m: ''.join('\n' if c == '\n' else ' ' for c in m[0]), text, flags=re.S)
@@ -29,7 +26,6 @@ def mask_declarations(text):
         continuation = directive and line.rstrip().endswith('\\')
         lines.append(''.join('\n' if c == '\n' else ' ' for c in line) if directive else line)
     return ''.join(lines)
-
 
 def inventory(root):
     root = root.resolve()
@@ -45,7 +41,7 @@ def inventory(root):
             continue
         text = path.read_text()
         relative = path.relative_to(root).as_posix()
-        # Preserve positions while masking comments before scanning declarations.
+
         masked = mask_declarations(text)
         declarations = {}
         for match in DECL.finditer(masked):
@@ -76,8 +72,6 @@ def inventory(root):
     return {'abi_aliases': aliases(root), 'public_source': PUBLIC_URL, 'revision': git(root, 'rev-parse', 'HEAD'),
             'functions': functions, 'layout_assertions': layouts, 'unresolved_declarations': unresolved}
 
-
-
 def symbols_header(index):
     """Every verified public name gets an address; ambiguous names keep address suffixes."""
     entries = index['functions'] + index['unresolved_declarations']
@@ -97,7 +91,6 @@ def symbols_header(index):
             address = next(iter(addresses))
             lines.append(f'#define NSMBU_ADDR_{name} NSMBU_ADDR_{name}_{address:08X}')
     return '\n'.join(lines) + '\n'
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -128,7 +121,6 @@ def main():
         args.symbols_header.write_text(symbols_header(result))
         (args.symbols_header.parent / 'public-wwhd-LICENSE').write_bytes((args.public_clone / 'LICENSE').read_bytes())
     print(f"Indexed {len(result['functions'])} functions and {len(result['layout_assertions'])} layout assertions; {len(result['unresolved_declarations'])} declarations need resolution")
-
 
 if __name__ == '__main__':
     main()

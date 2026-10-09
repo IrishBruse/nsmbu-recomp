@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(nsmbu_recomp C CXX)
-# Renderers compiled into the executable:
-#   BOTH   (macOS default) Metal and Vulkan (MoltenVK) in one app; Graphics > Renderer picks one at start
-#   METAL  Metal only (macOS)
-#   VULKAN Vulkan only, with the portable SDL3 host (default on other platforms)
+
 set(NSMBU_RENDERER "" CACHE STRING "Graphics backends: BOTH, METAL or VULKAN")
 if(NOT NSMBU_RENDERER)
   if(APPLE)
@@ -29,8 +26,7 @@ endif()
 if(NSMBU_RENDERER MATCHES "^(BOTH|VULKAN)$")
   set(NSMBU_HAS_VULKAN ON)
 endif()
-# the SDL3 host (windows, input, audio) serves Vulkan-only builds; with Metal compiled in, the
-# AppKit host (TV/GamePad windows, menus, controls window) serves both renderers
+
 if(NSMBU_HAS_VULKAN AND NOT NSMBU_HAS_METAL)
   set(NSMBU_SDL_HOST ON)
 else()
@@ -41,9 +37,6 @@ if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
   message(FATAL_ERROR "The recompiled game requires Clang (musttail support); select clang/clang++")
 endif()
 
-# Linux and Android on arm64: plain char is unsigned in that ABI, but signed on x86-64 and Apple
-# arm64, where the runtime and the recompiled game code are tested. Keep it signed everywhere (also
-# reaches the game code the installer compiles: its flags come from this build).
 if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|Android)$" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
   add_compile_options(-fsigned-char)
 endif()
@@ -61,9 +54,6 @@ if(NOT GEN_SOURCES)
   message(FATAL_ERROR "no generated code in ${GEN_DIR}; run tools/recomp/recomp.py first")
 endif()
 
-# NSMBU_BUNDLED_DEPS: build glslang, zlib, LZ4 (and SDL3 if not found) from pinned sources with the
-# project's own compiler. Release builds use it so the prebuilt runtime and its dependencies all
-# come from the toolchain the installer later links with (llvm-mingw, zig).
 option(NSMBU_BUNDLED_DEPS "build missing dependencies from pinned sources" OFF)
 if(WIN32 AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC" OR NSMBU_BUNDLED_DEPS)
   include(cmake/WindowsDependencies.cmake)
@@ -74,18 +64,16 @@ endif()
 
 add_library(gamecode STATIC ${GEN_SOURCES} ${GEN_DIR}/table.c ${GEN_DIR}/imports.c)
 target_include_directories(gamecode PUBLIC runtime/include ${GEN_DIR})
-# exact FP semantics: no contraction into FMA, no fast-math
+
 target_compile_options(gamecode PRIVATE -O3 -ffp-contract=off -fno-strict-aliasing -w)
 if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
   target_compile_options(gamecode PRIVATE -mcpu=apple-m1)
 endif()
 
-
-# ---- vendored Cemu GPU pieces (MPL-2.0): address library + shader decompiler
 set(CEMU_DIR ${CMAKE_SOURCE_DIR}/runtime/third_party/cemu)
 file(GLOB_RECURSE CEMU_SOURCES CONFIGURE_DEPENDS ${CEMU_DIR}/*.cpp)
 if(NOT NSMBU_HAS_METAL)
-  # the MSL emitter needs metal-cpp (Objective-C runtime); Vulkan uses the GLSL emitter
+
   list(FILTER CEMU_SOURCES EXCLUDE REGEX "LatteDecompilerEmitMSL[^/]*\\.cpp$")
 endif()
 add_library(cemu_latte STATIC ${CEMU_SOURCES})
@@ -100,15 +88,12 @@ if(NSMBU_HAS_VULKAN)
 endif()
 target_compile_options(cemu_latte PRIVATE -w -O2)
 
-# ---- Dear ImGui (MIT, runtime/third_party/imgui, pinned release): the in-game settings overlay
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/runtime/third_party/imgui)
 add_library(imgui STATIC ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_tables.cpp ${IMGUI_DIR}/imgui_widgets.cpp)
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
 target_compile_definitions(imgui PUBLIC IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
 target_compile_options(imgui PRIVATE -w -O2)
 
-# ---- build identification (runtime/src/build_info.h): version and commit, rewritten by
-# cmake/BuildInfo.cmake on every build when they change. Release builds pass the tag.
 set(NSMBU_VERSION "" CACHE STRING "release version shown in reports and logs (default: from git describe)")
 set(NSMBU_BUILD_INFO ${CMAKE_BINARY_DIR}/generated/build_info.cpp)
 add_custom_target(nsmbu_build_info
@@ -116,8 +101,7 @@ add_custom_target(nsmbu_build_info
           -P ${CMAKE_SOURCE_DIR}/cmake/BuildInfo.cmake
   BYPRODUCTS ${NSMBU_BUILD_INFO}
   COMMENT "Build info (version, commit)" VERBATIM)
-# Windows: VERSIONINFO + application manifest (nsmbu_windows_resources); release builds strip the shipped
-# programs' debug information (NSMBU_STRIP_RELEASE: -s for GNU-style linkers in Release/MinSizeRel)
+
 include(cmake/WindowsResources.cmake)
 if(WIN32 AND NOT MSVC AND NOT CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
   set(NSMBU_STRIP_RELEASE "$<$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>:-s>")
@@ -125,13 +109,10 @@ else()
   set(NSMBU_STRIP_RELEASE "")
 endif()
 
-# ---- the game executable: runtime + native GX2 + the selected renderers
-# GX2 sources are compiled into the executable (not a static library) so their
-# strong HLE definitions replace the generated weak import stubs.
 file(GLOB RUNTIME_SOURCES CONFIGURE_DEPENDS runtime/src/*.cpp runtime/src/*.c runtime/src/hle/*.cpp runtime/src/mods/*.cpp runtime/src/motion/*.cpp
                                             runtime/src/overlay/*.cpp)
 list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "nsmbu_guest_stubs\\.c$")
-list(APPEND RUNTIME_SOURCES runtime/src/platform/perf_hint.cpp)  # Android performance hints (no-op elsewhere)
+list(APPEND RUNTIME_SOURCES runtime/src/platform/perf_hint.cpp)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(NSMBU_GUEST_STUBS ${CMAKE_BINARY_DIR}/generated/nsmbu_guest_stubs.c)
 file(GLOB_RECURSE NSMBU_GUEST_STUB_INPUTS CONFIGURE_DEPENDS
@@ -146,17 +127,16 @@ add_custom_command(
 list(APPEND RUNTIME_SOURCES ${NSMBU_GUEST_STUBS})
 list(APPEND RUNTIME_SOURCES ${NSMBU_BUILD_INFO})
 file(GLOB GX2_SOURCES CONFIGURE_DEPENDS runtime/src/gx2/*.cpp)
-# renderer selection / dispatch (runtime/src/gfx/renderer.cpp) and the GamePad screen modes / TV window
-# layout both window hosts share (display_modes.cpp): every configuration
+
 set(GFX_SOURCES runtime/src/gfx/renderer.cpp runtime/src/gfx/display_modes.cpp)
 set(MOD_GFX_SOURCES)
 if(NSMBU_HAS_METAL)
-  # Metal renderer and the AppKit host (windows, menus, input, controls window, display modes)
+
   file(GLOB METAL_SOURCES CONFIGURE_DEPENDS runtime/src/gfx/*.mm)
   file(GLOB MOD_GFX_SOURCES CONFIGURE_DEPENDS runtime/src/mods/*.mm)
   list(APPEND GFX_SOURCES ${METAL_SOURCES})
   set_source_files_properties(${METAL_SOURCES} ${MOD_GFX_SOURCES} PROPERTIES COMPILE_FLAGS "-fobjc-arc")
-  # the settings overlay's Metal renderer (Dear ImGui's backend, unmodified)
+
   set(IMGUI_METAL ${IMGUI_DIR}/backends/imgui_impl_metal.mm)
   set_source_files_properties(${IMGUI_METAL} PROPERTIES COMPILE_FLAGS "-fobjc-arc -w")
 endif()
@@ -185,7 +165,7 @@ if(NSMBU_SDL_HOST)
 endif()
 set_source_files_properties(${GX2_SOURCES} ${GFX_SOURCES} PROPERTIES COMPILE_OPTIONS "-include;${CEMU_DIR}/cemu_shim.h")
 if(ANDROID)
-  # Android: SDLActivity loads the game as libmain.so and calls its SDL_main (android/)
+
   add_library(nsmbu SHARED ${RUNTIME_SOURCES} ${GX2_SOURCES} ${GFX_SOURCES} ${MOD_GFX_SOURCES} ${IMGUI_METAL})
   set_target_properties(nsmbu PROPERTIES OUTPUT_NAME main)
 else()
@@ -205,34 +185,28 @@ endif()
 if(WIN32)
   target_compile_definitions(nsmbu PRIVATE _USE_MATH_DEFINES)
   nsmbu_windows_resources(nsmbu "New Super Mario Bros. U, native PC port" "nsmbu.exe" gui)
-  # advapi32: the Windows version for the performance report (report_header.cpp, RegGetValueW)
-  target_link_libraries(nsmbu PRIVATE winmm ws2_32 advapi32)  # timeBeginPeriod (main.cpp), Cemuhook client sockets (motion/dsu.cpp)
+
+  target_link_libraries(nsmbu PRIVATE winmm ws2_32 advapi32)
 endif()
 if(NSMBU_HAS_METAL)
   target_compile_definitions(nsmbu PRIVATE NSMBU_HAS_METAL=1)
   target_link_libraries(nsmbu PRIVATE "-framework Metal" "-framework QuartzCore" "-framework AppKit" "-framework Foundation" "-framework ImageIO" "-framework UniformTypeIdentifiers" "-framework GameController" "-framework Carbon" "-framework AudioToolbox" "-framework CoreAudio" compression)
 endif()
 if(NSMBU_HAS_VULKAN)
-  # VK_NO_PROTOTYPES: the renderer loads every Vulkan function at run time (gfx/vulkan/loader.h), so the
-  # executable starts without a Vulkan loader or with an older one, and can say what is missing
+
   target_compile_definitions(nsmbu PRIVATE NSMBU_HAS_VULKAN=1 VK_NO_PROTOTYPES)
   if(NSMBU_HAS_METAL)
-    # One app, two renderers: the Vulkan loader and glslang are weak imports, so the game still
-    # starts (with Metal) on a Mac without them; the renderer checks for them before using Vulkan.
-    # SYSTEM: searched after the project's own -I paths, so a Homebrew boost/fmt in the same prefix
-    # (/opt/homebrew/include) can't replace the vendored ones (cemu_latte is built with those; a
-    # different boost changed LatteDecompilerShader's layout and crashed the first shader translation)
+
     target_include_directories(nsmbu SYSTEM PRIVATE $<TARGET_PROPERTY:Vulkan::Vulkan,INTERFACE_INCLUDE_DIRECTORIES>
                                             $<TARGET_PROPERTY:glslang::glslang,INTERFACE_INCLUDE_DIRECTORIES>)
     foreach(lib Vulkan::Vulkan glslang::glslang glslang::SPIRV glslang::glslang-default-resource-limits)
       target_link_options(nsmbu PRIVATE "LINKER:-weak_library,$<TARGET_FILE:${lib}>")
     endforeach()
   elseif(APPLE)
-    # SDL host on a Mac: Homebrew's loader is linked; SDL and the renderer find it in the process
+
     target_link_libraries(nsmbu PRIVATE Vulkan::Vulkan glslang::glslang glslang::SPIRV glslang::glslang-default-resource-limits)
   else()
-    # Windows, Linux, Android: SDL loads the Vulkan loader at run time (SDL_Vulkan_LoadLibrary);
-    # only its headers are used here
+
     target_include_directories(nsmbu SYSTEM PRIVATE $<TARGET_PROPERTY:Vulkan::Vulkan,INTERFACE_INCLUDE_DIRECTORIES>)
     target_link_libraries(nsmbu PRIVATE glslang::glslang glslang::SPIRV glslang::glslang-default-resource-limits)
   endif()
@@ -267,7 +241,6 @@ if(NSMBU_SETUP_GUI)
   include(cmake/SetupGui.cmake)
 endif()
 
-# External native package fixture and isolated lifecycle/integration tests.
 add_library(mod_fixture MODULE runtime/tools/mod_fixture.cpp)
 target_include_directories(mod_fixture PRIVATE runtime/include)
 add_executable(mod_package_test runtime/tools/mod_package_test.cpp runtime/src/mods/manager.cpp runtime/src/mods/packages.cpp runtime/src/mods/mod_archive.cpp runtime/src/mods/content.cpp runtime/src/mods/cemu_pack.cpp runtime/src/guest_addr_identity.c)
@@ -275,20 +248,16 @@ target_include_directories(mod_package_test PRIVATE runtime/src runtime/include)
 target_compile_options(mod_package_test PRIVATE -UNDEBUG)
 target_link_libraries(mod_package_test PRIVATE ZLIB::ZLIB Threads::Threads ${CMAKE_DL_LIBS})
 
-# Synthetic integration tests call the real guest filesystem HLE handlers.
 add_executable(mod_content_fs_test runtime/tools/mod_content_fs_test.cpp runtime/src/hle/fs.cpp runtime/src/mods/content.cpp runtime/src/mods/mod_archive.cpp runtime/src/game_languages.cpp runtime/src/guest_addr_identity.c)
 target_include_directories(mod_content_fs_test PRIVATE runtime/src runtime/include)
 target_compile_options(mod_content_fs_test PRIVATE -UNDEBUG)
 target_link_libraries(mod_content_fs_test PRIVATE ZLIB::ZLIB Threads::Threads)
 
-# language sources: synthetic European/Japanese packs read through the guest file system (game_languages.h)
 add_executable(language_source_test runtime/tools/language_source_test.cpp runtime/src/hle/fs.cpp runtime/src/mods/content.cpp runtime/src/mods/mod_archive.cpp runtime/src/game_languages.cpp runtime/src/guest_addr_identity.c)
 target_include_directories(language_source_test PRIVATE runtime/src runtime/include)
 target_compile_options(language_source_test PRIVATE -UNDEBUG)
 target_link_libraries(language_source_test PRIVATE ZLIB::ZLIB Threads::Threads)
 
-# controls mapping unit tests (runtime/src/input_map.cpp)
-# performance report header: driver version decoding, OS names, overrides list (report_header.h)
 add_executable(report_header_test runtime/tools/report_header_test.cpp runtime/src/report_header.cpp ${NSMBU_BUILD_INFO})
 target_include_directories(report_header_test PRIVATE runtime/src runtime/include)
 target_compile_options(report_header_test PRIVATE -UNDEBUG)
@@ -309,12 +278,12 @@ target_include_directories(portable_state_test PRIVATE runtime/src)
 target_compile_options(portable_state_test PRIVATE -UNDEBUG)
 add_executable(input_map_test runtime/tools/input_map_test.cpp runtime/src/input_map.cpp)
 target_include_directories(input_map_test PRIVATE runtime/src)
-# screenshots: PNG writer, file names, binding, requests and the encoding thread (runtime/src/screenshot.cpp)
+
 add_executable(screenshot_test runtime/tools/screenshot_test.cpp runtime/src/screenshot.cpp runtime/src/input_map.cpp)
 target_include_directories(screenshot_test PRIVATE runtime/src runtime/include)
 target_compile_options(screenshot_test PRIVATE -UNDEBUG)
 target_link_libraries(screenshot_test PRIVATE ZLIB::ZLIB Threads::Threads)
-# the text prompt's reader of the game's name font (runtime/src/overlay/game_font.cpp)
+
 add_executable(rtl_text_test runtime/tools/rtl_text_test.cpp runtime/src/rtl_text.cpp)
 target_include_directories(rtl_text_test PRIVATE runtime/src)
 target_compile_options(rtl_text_test PRIVATE -UNDEBUG)
@@ -322,24 +291,23 @@ add_executable(game_font_test runtime/tools/game_font_test.cpp runtime/src/overl
 target_include_directories(game_font_test PRIVATE runtime/src runtime/include)
 target_compile_options(game_font_test PRIVATE -UNDEBUG)
 target_link_libraries(game_font_test PRIVATE Threads::Threads)
-# the game's languages from its language packs (runtime/src/game_languages.cpp)
+
 add_executable(game_languages_test runtime/tools/game_languages_test.cpp runtime/src/game_languages.cpp)
 target_include_directories(game_languages_test PRIVATE runtime/src runtime/include)
 target_compile_options(game_languages_test PRIVATE -UNDEBUG)
 target_link_libraries(game_languages_test PRIVATE Threads::Threads)
-# frame interpolation: blend fractions, display cap and paced scheduling (runtime/src/interp_pacing.h)
+
 add_executable(interp_pacing_test runtime/tools/interp_pacing_test.cpp)
 target_compile_options(interp_pacing_test PRIVATE -UNDEBUG)
-# quit prompt decisions: when closing the TV window or Quit asks first (runtime/src/quit_prompt.h, issue #65)
+
 add_executable(quit_prompt_test runtime/tools/quit_prompt_test.cpp)
 target_compile_options(quit_prompt_test PRIVATE -UNDEBUG)
-# texture change detection: page write tracking of guest memory (runtime/src/write_watch.cpp)
+
 add_executable(write_watch_test runtime/tools/write_watch_test.cpp runtime/src/write_watch.cpp)
 target_include_directories(write_watch_test PRIVATE runtime/src)
 target_compile_options(write_watch_test PRIVATE -UNDEBUG)
 target_link_libraries(write_watch_test PRIVATE Threads::Threads)
-# recompiled spin waits see other threads' stores (PPC_LOOP in runtime/include/ppc.h, issue #62):
-# built with the game code's flags
+
 if(NOT WIN32)
   add_executable(spin_wait_test runtime/tools/spin_wait_test.c)
   target_include_directories(spin_wait_test PRIVATE runtime/include)
@@ -350,11 +318,11 @@ if(NOT WIN32)
   target_link_libraries(spin_wait_test PRIVATE Threads::Threads)
   add_test(NAME spin_wait COMMAND spin_wait_test)
 endif()
-# host audio: TV mix, or TV + GamePad in Off-TV Play, from the game's faders (runtime/src/audio_output_mode.h)
+
 add_executable(audio_output_test runtime/tools/audio_output_test.cpp)
 target_include_directories(audio_output_test PRIVATE runtime/src)
 target_compile_options(audio_output_test PRIVATE -UNDEBUG)
-# Vulkan guest buffer cache: range keys, invalidation by write stamps and hints (runtime/src/gfx/vulkan/buffer_cache_core.h)
+
 add_executable(buffer_cache_test runtime/tools/buffer_cache_test.cpp runtime/src/write_watch.cpp)
 target_include_directories(buffer_cache_test PRIVATE runtime/src)
 target_compile_options(buffer_cache_test PRIVATE -UNDEBUG)
@@ -365,13 +333,11 @@ if(NSMBU_HAS_VULKAN)
   target_include_directories(cpu_copy_format_test SYSTEM PRIVATE $<TARGET_PROPERTY:Vulkan::Vulkan,INTERFACE_INCLUDE_DIRECTORIES>)
   target_compile_options(cpu_copy_format_test PRIVATE -UNDEBUG)
 endif()
-# Vulkan snapshot reuse caches never read mapped upload memory (runtime/src/gfx/vulkan/uniform_snapshot.h,
-# vertex_snapshot_history.h)
+
 add_executable(snapshot_cache_test runtime/tools/snapshot_cache_test.cpp)
 target_include_directories(snapshot_cache_test PRIVATE runtime/src)
 target_compile_options(snapshot_cache_test PRIVATE -UNDEBUG)
-# gyro: orientation integration, axis mapping, Cemuhook (DSU) packets, mouse as a gyro, settings
-# (runtime/src/motion/)
+
 set(MOTION_SOURCES runtime/src/motion/motion.cpp runtime/src/motion/fusion.cpp runtime/src/motion/dsu.cpp)
 add_executable(motion_test runtime/tools/motion_test.cpp ${MOTION_SOURCES})
 target_include_directories(motion_test PRIVATE runtime/src)
@@ -380,7 +346,7 @@ target_link_libraries(motion_test PRIVATE Threads::Threads)
 if(WIN32)
   target_link_libraries(motion_test PRIVATE ws2_32)
 endif()
-# controller rumble: the game's motor requests and the host motor level (runtime/src/rumble.cpp)
+
 add_executable(rumble_test runtime/tools/rumble_test.cpp runtime/src/rumble.cpp)
 target_include_directories(rumble_test PRIVATE runtime/src runtime/include)
 target_compile_options(rumble_test PRIVATE -UNDEBUG)
@@ -406,7 +372,7 @@ if(NSMBU_SDL_HOST)
     target_link_libraries(sleep_test PRIVATE winmm)
   endif()
 endif()
-# These test executables use assertions as checks, including fixture setup.
+
 target_compile_options(input_map_test PRIVATE -UNDEBUG)
 if(NSMBU_SDL_HOST)
   target_compile_options(input_sdl_test PRIVATE -UNDEBUG)
@@ -414,14 +380,12 @@ if(NSMBU_SDL_HOST)
 endif()
 
 if(NSMBU_SDL_HOST)
-  add_executable(mouse_sdl_test runtime/tools/mouse_sdl_test.cpp runtime/src/platform/mouse_sdl.cpp)  # motion.h stubbed
+  add_executable(mouse_sdl_test runtime/tools/mouse_sdl_test.cpp runtime/src/platform/mouse_sdl.cpp)
   target_include_directories(mouse_sdl_test PRIVATE runtime/src runtime/include ${CEMU_DIR} ${CEMU_DIR}/Cafe ${CMAKE_SOURCE_DIR}/runtime/third_party/fmt/include)
   target_compile_options(mouse_sdl_test PRIVATE -UNDEBUG)
   target_link_libraries(mouse_sdl_test PRIVATE SDL3::Headers)
 endif()
 
-# disc image / Cemu archive extractor used by the installer (tools/wudextract; no Python or
-# pycryptodome needed) and its tests; zstd (for .wua) from pinned source (cmake/Zstd.cmake)
 include(cmake/Zstd.cmake)
 add_library(wudcrypto STATIC tools/wudextract/crypto.cpp)
 target_include_directories(wudcrypto PUBLIC tools/wudextract)
@@ -457,7 +421,7 @@ target_include_directories(mod_cemu_test PRIVATE runtime/src runtime/include)
 target_compile_options(mod_cemu_test PRIVATE -UNDEBUG)
 add_test(NAME mod_cemu COMMAND mod_cemu_test)
 add_test(NAME portable_state COMMAND portable_state_test)
-# Verify the shipped EUR address tables without game code, plus the weak USA fallback.
+
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
   add_test(NAME build_coverage COMMAND "${Python3_EXECUTABLE}" -m unittest discover
@@ -510,7 +474,7 @@ add_test(NAME extract_crypto COMMAND extract_crypto_test)
 add_test(NAME extract_synthetic COMMAND extract_test $<TARGET_FILE:nsmbu-extract> ${CMAKE_BINARY_DIR}/extract_test_work)
 add_test(NAME extract_wua COMMAND wua_test $<TARGET_FILE:nsmbu-extract> ${CMAKE_BINARY_DIR}/wua_test_work)
 if(NOT ANDROID)
-  # crash logs name the module of a host crash address (main.cpp, crash_addr.cpp)
+
   add_test(NAME crash_log_module COMMAND ${CMAKE_COMMAND} -DNSMBU=$<TARGET_FILE:nsmbu>
            -DWORK=${CMAKE_BINARY_DIR}/crash_log_test_work -P ${CMAKE_SOURCE_DIR}/runtime/tools/crash_log_test.cmake)
 endif()
@@ -529,8 +493,7 @@ add_test(NAME bc_reference COMMAND bc_reference_test)
 
 if(ANDROID)
   include(FetchContent)
-  # libadrenotools and its pinned linkernsbypass submodule are BSD-2-Clause.
-  # The loader uses gipa directly; no volk dependency.
+
   FetchContent_Declare(nsmbu_adrenotools
     GIT_REPOSITORY https://github.com/bylaws/libadrenotools.git
     GIT_TAG 8fae8ce254dfc1344527e05301e43f37dea2df80
@@ -562,18 +525,17 @@ target_include_directories(crash_redact_test PRIVATE runtime/src)
 target_compile_options(crash_redact_test PRIVATE -UNDEBUG)
 add_test(NAME crash_redact COMMAND crash_redact_test)
 
-# Cheats must preserve sword ownership: it controls Medli/Makar story placement (#85).
 if(Python3_Interpreter_FOUND)
   add_test(NAME medli_scenario_evidence COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/runtime/tools/medli_scenario_test.py")
 endif()
-# Guest mod loader metadata validation; synthetic tables, no game files.
+
 add_executable(guest_validation_test runtime/tools/guest_validation_test.cpp)
 target_include_directories(guest_validation_test PRIVATE runtime/include runtime/src)
 target_compile_options(guest_validation_test PRIVATE -UNDEBUG)
 add_test(NAME guest_validation COMMAND guest_validation_test)
 
 add_executable(guest_hooks_test runtime/tools/guest_hooks_test.cpp runtime/tools/guest_hooks_body.c)
-# The entry musttail regression must reach the optimized backend even in Debug builds.
+
 set_source_files_properties(runtime/tools/guest_hooks_body.c PROPERTIES COMPILE_OPTIONS "-O3")
 target_include_directories(guest_hooks_test PRIVATE runtime/include runtime/src)
 target_compile_options(guest_hooks_test PRIVATE -UNDEBUG)

@@ -7,11 +7,9 @@ import unittest
 
 from medli_scenario import actor_records
 
-
 def record(step, full=1):
     data = bytes(256)
     return b"ADMP" + struct.pack("<QIfII", step, full, 1.0, 0x15000000, len(data)) + data
-
 
 class EvidenceTest(unittest.TestCase):
     def test_count_only_complete_full_passes_after_room_entry(self):
@@ -33,7 +31,6 @@ class EvidenceTest(unittest.TestCase):
             p.write_bytes(b"ADMP" + struct.pack("<QIfII", 201, 1, 1.0, 0x15000000, 0x10001))
             with self.assertRaises(ValueError):
                 actor_records(p, 200)
-
 
 if __name__ == "__main__":
     unittest.main()

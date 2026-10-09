@@ -1,5 +1,5 @@
-// Screenshots (runtime/src/screenshot.cpp): the PNG writer (decoded again here: inflate + unfilter),
-// file names, the binding, the request/take cycle and the encoding thread. No game or renderer.
+
+
 #include <zlib.h>
 
 #include <chrono>
@@ -23,7 +23,6 @@
         }                                                                     \
     } while (0)
 
-// what screenshot.cpp needs from the rest of the runtime
 static std::vector<std::string> g_notices;
 namespace ss { void notice(const std::string& t) { g_notices.push_back(t); } }
 namespace hostui {
@@ -40,7 +39,6 @@ void log_msg(const char* fmt, ...) {
 
 static uint32_t be32(const uint8_t* p) { return uint32_t(p[0]) << 24 | uint32_t(p[1]) << 16 | uint32_t(p[2]) << 8 | p[3]; }
 
-// a minimal PNG reader for what write_png writes (8-bit RGB, one or more IDAT chunks)
 static bool read_png(const std::string& path, uint32_t& w, uint32_t& h, std::vector<uint8_t>& rgb, bool& srgb) {
     FILE* f = fopen(path.c_str(), "rb");
     if (!f) return false;
@@ -109,7 +107,6 @@ int main() {
     setenv("NSMBU_TEST_SCREENSHOT", "7,9", 1);
 #endif
 
-    // 1. the PNG writer: an image with gradients, noise, flat areas and a row stride; RGBA and BGRA
     const uint32_t W = 301, H = 77;
     const size_t stride = W * 4 + 12;
     std::vector<uint8_t> px(stride * H, 0xEE);
@@ -140,7 +137,6 @@ int main() {
     }
     CHECK(!screenshot::write_png((dir / "missing" / "x.png").string(), W, H, stride, px.data()));
 
-    // 2. the binding: F10 by default, rebindable; other keys are not taken
     input_map::set_current(input_map::Mapping::defaults(), false);
     CHECK(screenshot::key_down(kVK_F10));
     CHECK(!screenshot::key_down(kVK_F9) && !screenshot::key_down(kVK_ANSI_P) && !screenshot::key_down(-1));
@@ -157,26 +153,25 @@ int main() {
     CHECK(!screenshot::take(2, tv2, gp2));
     float pad[input_map::kPadCount] = {};
     pad[input_map::kPadR3] = 1;
-    screenshot::poll_controller(pad);  // pressed: one request
-    screenshot::poll_controller(pad);  // held: nothing more
+    screenshot::poll_controller(pad);
+    screenshot::poll_controller(pad);
     CHECK(screenshot::take(3, tv2, gp2) && !screenshot::take(4, tv2, gp2));
     pad[input_map::kPadR3] = 0;
     screenshot::poll_controller(pad);
     const std::string name = fs::path(tv).filename().string();
     CHECK(name.rfind("NSMBU_", 0) == 0 && name.size() >= 29 && name[10] == '-' && name[16] == '_');
     CHECK(fs::path(tv).parent_path() == dir && gp.empty());
-    CHECK(tv2 != tv);  // still reserved (not written yet): the next name
+    CHECK(tv2 != tv);
     screenshot::set_gamepad_too(true);
     std::string tv7, gp7, tv3, gp3;
     CHECK(screenshot::take(7, tv7, gp7) && !screenshot::take(8, tv3, gp3) && screenshot::take(9, tv3, gp3));
     CHECK(!gp7.empty() && tv7 != tv3);
     CHECK(gp3.size() > 12 && gp3.substr(gp3.size() - 12) == "_GamePad.png" && gp3.substr(0, gp3.size() - 12) + ".png" == tv3);
 
-    // 4. writing on the worker thread; the TV file shows a notice; finish() waits for all of them
     auto owned = std::make_shared<std::vector<uint8_t>>(px);
     for (const std::string& p : {tv, tv2, tv3, gp3})
         screenshot::write_async(p, W, H, stride, owned->data(), owned, 1, p != gp3);
-    // take(7)'s pictures never came (a renderer releases the names): nothing written, no notice
+
     screenshot::write_async(tv7, 0, 0, 0, nullptr, nullptr, 7, true);
     screenshot::write_async(gp7, 0, 0, 0, nullptr, nullptr, 7, false);
     screenshot::finish();
@@ -185,7 +180,6 @@ int main() {
     CHECK(screenshot::last_file() == tv3 || screenshot::last_file() == tv2 || screenshot::last_file() == tv);
     CHECK(g_notices.size() == 3 && g_notices[0].rfind("Screenshot saved: NSMBU_", 0) == 0);
 
-    // 5. encoding time of a large picture (2x internal resolution at 21:9), for the log
     {
         const uint32_t bw = 3414, bh = 1440;
         std::vector<uint8_t> big(size_t(bw) * bh * 4);

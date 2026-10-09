@@ -24,7 +24,6 @@ import re
 HERE = os.path.dirname(os.path.abspath(__file__))
 CANONICAL = "USA"
 
-
 class Build:
     def __init__(self, d):
         self.name = d["name"]
@@ -93,7 +92,6 @@ class Build:
     def __repr__(self):
         return "<Build %s title %s>" % (self.name, self.title_id)
 
-
 class _Shift:
     """A piecewise constant shift: [(start, delta), ...] sorted by start."""
 
@@ -117,7 +115,6 @@ class _Shift:
         i = bisect.bisect_right(self.i_starts, a) - 1
         return (a - self.i_deltas[i]) & 0xFFFFFFFF if i >= 0 else a
 
-
 def all_builds():
     builds = [canonical_build()]
     for path in sorted(glob.glob(os.path.join(HERE, "builds", "*.json"))):
@@ -125,19 +122,14 @@ def all_builds():
             builds.append(Build(json.load(source)))
     return builds
 
-
-# The USA build is the canonical one: its addresses are the ids, so its map is empty. Its title and
-# the SHA-256 of its cking.rpx live here, next to the other builds'.
 _CANONICAL = {
     "name": CANONICAL,
     "title_id": "0005000010143500",
     "rpx_sha256": "c4f0ab300542e0bfc462696850534e71db2ad02288a7eb55e5a4cd4062f16153",
 }
 
-
 def canonical_build():
     return Build(_CANONICAL)
-
 
 def by_name(name):
     for b in all_builds():
@@ -145,20 +137,17 @@ def by_name(name):
             return b
     return None
 
-
 def by_sha256(digest):
     for b in all_builds():
         if b.sha256 == digest:
             return b
     return None
 
-
 def by_title(title_id):
     for b in all_builds():
         if b.title_id == title_id:
             return b
     return None
-
 
 def file_sha256(path):
     h = hashlib.sha256()
@@ -167,14 +156,11 @@ def file_sha256(path):
             h.update(chunk)
     return h.hexdigest()
 
-
 def identify(rpx_path):
     """Which build `rpx_path` is, or None if it is not one the port knows."""
     return by_sha256(file_sha256(rpx_path))
 
-
 _BUILDS_RE = re.compile(r"^#\s*builds:\s*(.+)$", re.I)
-
 
 def read_hooks(paths, build):
     """Read the hooks files that apply to `build`.
@@ -205,7 +191,6 @@ def read_hooks(paths, build):
             canon = int(text[1:] if site else text, 16)
             entries.append((site, canon, build.code(canon), where))
     return entries, skipped
-
 
 def hook_files(directory=None):
     d = directory or HERE

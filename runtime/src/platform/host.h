@@ -30,15 +30,14 @@
 #endif
 namespace host {
 #if defined(__APPLE__) && defined(NSMBU_HAS_VULKAN)
-// Render command batches can create Objective-C temporaries inside MoltenVK.
+
 void with_autorelease_pool(void (*fn)());
 void with_autorelease_pool(void (*fn)(void*), void* context);
 #else
 inline void with_autorelease_pool(void (*fn)()) { fn(); }
 inline void with_autorelease_pool(void (*fn)(void*), void* context) { fn(context); }
 #endif
-// The native call is synchronous: captured references remain valid and no heap
-// allocation or callable lifetime extension is needed. Exceptions propagate.
+
 template<class Fn> void with_autorelease_pool(Fn&& fn) {
  auto call = [&] { fn(); };
  with_autorelease_pool([](void* context) {
@@ -58,27 +57,23 @@ inline void set_thread_name(const char* name) {
  pthread_setname_np(pthread_self(),thread_label.substr(0,15).c_str());
 #endif
 }
-// Game and render threads: keep them on fast cores and ahead of background work. macOS: QoS
-// user-interactive (the default QoS let macOS park them on efficiency cores). Windows: above-normal
-// priority and no power throttling (hybrid P/E-core CPUs otherwise move busy threads to E-cores).
-// Linux: a small nice boost where the process may raise priority (needs CAP_SYS_NICE; otherwise a
-// no-op). NSMBU_NO_QOS=1 leaves the thread untouched on every platform.
+
 inline void boost_thread_priority() {
  if(getenv("NSMBU_NO_QOS")) return;
 #ifdef __APPLE__
  pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE,0);
 #elif defined(_WIN32)
  SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_ABOVE_NORMAL);
- // SetThreadInformation(ThreadPowerThrottling) exists from Windows 10 1709; looked up at run time
+
  struct PowerThrottling { ULONG Version, ControlMask, StateMask; };
  using SetInfo=BOOL(WINAPI*)(HANDLE,int,LPVOID,DWORD);
  static const auto set_info=(SetInfo)GetProcAddress(GetModuleHandleW(L"Kernel32.dll"),"SetThreadInformation");
  if(set_info) {
-  PowerThrottling state{1 /* THREAD_POWER_THROTTLING_CURRENT_VERSION */,1 /* EXECUTION_SPEED */,0 /* off */};
-  set_info(GetCurrentThread(),3 /* ThreadPowerThrottling */,&state,sizeof state);
+  PowerThrottling state{1 ,1 ,0 };
+  set_info(GetCurrentThread(),3 ,&state,sizeof state);
  }
 #else
- setpriority(PRIO_PROCESS,(id_t)syscall(SYS_gettid),-5);  // EPERM without CAP_SYS_NICE: ignored
+ setpriority(PRIO_PROCESS,(id_t)syscall(SYS_gettid),-5);
 #endif
 }
 inline void get_thread_name(char* out,size_t size) {
@@ -117,8 +112,7 @@ inline size_t page_size() {
 }
 inline bool memory_touched(void* p,size_t bytes) {
 #ifdef _WIN32
- // MEM_WRITE_WATCH records written pages even after paging them out. Residency alone
- // cannot distinguish untouched zero pages from modified pages in the swap file.
+
  size_t n=(bytes+page_size()-1)/page_size(); std::vector<void*> pages(n);
  ULONG_PTR count=n; DWORD granularity=0;
  if(GetWriteWatch(0,p,bytes,pages.data(),&count,&granularity)!=0)return true;
@@ -129,8 +123,7 @@ inline bool memory_touched(void* p,size_t bytes) {
  for(auto page:pages)if(page!=0)return true;
  return false;
 #else
- // Linux mincore reports residency, not whether a swapped-out page contains data.
- // Scan the mapped region to preserve every byte; this is slower than macOS/Windows.
+
  (void)p;(void)bytes;return true;
 #endif
 }
@@ -141,10 +134,7 @@ inline bool replace_file(const std::string& from,const std::string& to) {
  return rename(from.c_str(),to.c_str())==0;
 #endif
 }
-// Portable mode (release packages): a file "portable.txt" next to the executable keeps every
-// per-user file (settings, controls, save states, shader caches) in "user" next to the executable's
-// folder (<folder>/bin/nsmbu -> <folder>/user) instead of the user's Library / AppData / .config.
-// Without the marker (source builds) nothing changes.
+
 inline std::string exe_dir() {
  static const std::string dir=[]{
   std::string p;

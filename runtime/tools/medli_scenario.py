@@ -27,9 +27,8 @@ import time
 import portable_state_scenario as scenario
 
 ORIGIN = 1800
-# Leave generous native dialogue time, and a quiet checkpoint before each warp.
-QUILL_CHECK, CHIEF_ENTER, CHIEF_CHECK, UPPER_ENTER, UPPER_CHECK, END = 80, 85, 230, 235, 249, 260
 
+QUILL_CHECK, CHIEF_ENTER, CHIEF_CHECK, UPPER_ENTER, UPPER_CHECK, END = 80, 85, 230, 235, 249, 260
 
 def resource_gate(work):
     while True:
@@ -42,24 +41,22 @@ def resource_gate(work):
         print("Waiting for load <=30, >15 GiB disk and no game/benchmark", flush=True)
         time.sleep(15)
 
-
 def actor_records(path, after_step):
     count = 0
     with path.open("rb") as f:
         while header := f.read(28):
             if len(header) != 28:
-                break  # the game is stopped with TERM; its last buffered record may be partial
+                break
             if header[:4] != b"ADMP":
                 raise ValueError("invalid actor dump header")
             step, full, dt, proc, size = struct.unpack("<QIfII", header[4:])
             if size > 0x10000:
                 raise ValueError("invalid actor dump size")
             if len(f.read(size)) != size:
-                break  # count only complete records
+                break
             if step >= after_step and full:
                 count += 1
     return count
-
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -86,7 +83,7 @@ def main():
     pulse_times = list(range(12, 75)) + list(range(CHIEF_ENTER + 8, CHIEF_CHECK - 4))
     warp = lambda point, room, name: name.encode().hex().ljust(16, "0") + f"{point:04x}{room:02x}ff0100"
     def restart(t, name, room, pos, angle):
-        # Same dSv_restart_c fields used by portable-state loading (save base +0x1148).
+
         return [f"{t}:*101F84DC+1148:{room:02x}",
                 f"{t}:*101F84DC+115E:{angle & 0xffff:04x}",
                 f"{t}:*101F84DC+1160:" + struct.pack(">fff", *pos).hex(),
@@ -156,7 +153,6 @@ def main():
     print(json.dumps(result, indent=2), flush=True)
     print(scenario.show(log), flush=True)
     return 0 if result["pass"] else 1
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

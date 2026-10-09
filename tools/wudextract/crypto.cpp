@@ -1,6 +1,5 @@
-// AES-128 and SHA-1, written from FIPS-197 and FIPS-180-4. The S-box and the round tables are
-// computed at startup (no hand-typed tables); tools/wudextract/crypto_test.cpp checks them
-// against the standards' test vectors.
+
+
 #include "crypto.h"
 
 #include <cstring>
@@ -26,7 +25,7 @@ struct Tables {
     uint8_t sbox[256], inv_sbox[256];
     uint32_t te[4][256], td[4][256];
     Tables() {
-        // S-box: multiplicative inverse in GF(2^8) followed by the affine transform
+
         for (int i = 0; i < 256; i++) {
             uint8_t inv = 0;
             if (i)
@@ -44,7 +43,7 @@ struct Tables {
         }
         for (int i = 0; i < 256; i++) {
             uint8_t s = sbox[i];
-            // column (2s, s, s, 3s) as a big-endian word: byte 0 is the most significant
+
             uint32_t e = ((uint32_t)gmul(s, 2) << 24) | ((uint32_t)s << 16) | ((uint32_t)s << 8) | gmul(s, 3);
             uint8_t v = inv_sbox[i];
             uint32_t d = ((uint32_t)gmul(v, 14) << 24) | ((uint32_t)gmul(v, 9) << 16) | ((uint32_t)gmul(v, 13) << 8) |
@@ -91,14 +90,13 @@ void expand_key(const uint8_t key[16], uint32_t w[44]) {
     }
 }
 
-// InvMixColumns of one word: td applied to sbox(x) undoes the inverse S-box inside td
 uint32_t inv_mix(uint32_t x) {
     const Tables& t = T();
     return t.td[0][t.sbox[x >> 24]] ^ t.td[1][t.sbox[(x >> 16) & 0xFF]] ^ t.td[2][t.sbox[(x >> 8) & 0xFF]] ^
            t.td[3][t.sbox[x & 0xFF]];
 }
 
-}  // namespace
+}
 
 Aes128Enc::Aes128Enc(const uint8_t key[16]) { expand_key(key, rk); }
 
@@ -129,7 +127,7 @@ void Aes128Enc::encrypt_block(const uint8_t in[16], uint8_t out[16]) const {
 Aes128Dec::Aes128Dec(const uint8_t key[16]) {
     uint32_t w[44];
     expand_key(key, w);
-    // equivalent inverse cipher: round keys in reverse order, InvMixColumns on the middle ones
+
     for (int r = 0; r <= 10; r++)
         for (int i = 0; i < 4; i++) {
             uint32_t k = w[4 * (10 - r) + i];
@@ -244,7 +242,7 @@ void sha256_block(uint32_t h[8], const uint8_t* p) {
     }
     h[0] += a, h[1] += b, h[2] += c, h[3] += d, h[4] += e, h[5] += f, h[6] += g, h[7] += hh;
 }
-}  // namespace
+}
 
 Sha256::Sha256() {
     static const uint32_t init[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
@@ -279,4 +277,4 @@ void Sha256::final(uint8_t out[32]) {
     for (int i = 0; i < 8; i++) store_be(out + 4 * i, h[i]);
 }
 
-}  // namespace wudcrypto
+}

@@ -1,4 +1,4 @@
-// Guest memory, RPX loading, function dispatch, logging and HLE registry.
+
 #ifdef __APPLE__
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -29,15 +29,14 @@ bool g_trace_hle = false;
 namespace config {
 std::string game_dir = "game";
 std::string save_dir = "save";
-}  // namespace config
+}
 
 static std::mutex g_log_mutex;
 
-// the last log lines, kept for crash logs (crash handlers read them without the lock)
 static constexpr int kLogRing = 200, kLogLine = 240;
 static char g_log_ring[kLogRing][kLogLine];
 static std::atomic<uint32_t> g_log_next{0};
-// the log file (main.cpp, captures/nsmbu.log): every line in full, under the log lock
+
 static void (*g_log_sink)(const char*, size_t) = nullptr;
 void log_set_sink(void (*sink)(const char*, size_t)) {
     std::lock_guard<std::mutex> lk(g_log_mutex);
@@ -63,7 +62,7 @@ void log_msg(const char* fmt, ...) {
         if (n > 0) g_log_sink(full, std::min((size_t)n, sizeof full - 1));
     }
 #ifdef __ANDROID__
-    __android_log_vprint(ANDROID_LOG_INFO, "nsmbu", fmt, ap);  // adb logcat -s nsmbu
+    __android_log_vprint(ANDROID_LOG_INFO, "nsmbu", fmt, ap);
     va_end(ap);
 #else
     vfprintf(stderr, fmt, ap);
@@ -99,7 +98,6 @@ void fatal(const char* fmt, ...) {
     abort();
 }
 
-// ---------------------------------------------------------------- memory
 namespace mem {
 static std::atomic<uint32_t> g_runtime_top{kRuntimeStart};
 
@@ -108,17 +106,16 @@ void init() {
     mach_vm_address_t addr = (mach_vm_address_t)PPC_MEM_BASE;
     kern_return_t kr = mach_vm_allocate(mach_task_self(), &addr, 0x100000000ull, VM_FLAGS_FIXED);
     if (kr != KERN_SUCCESS) fatal("cannot reserve guest address space at %p (kr=%d)", PPC_MEM_BASE, kr);
-    // null page guard: catches guest null-pointer accesses
+
     mprotect(PPC_MEM_BASE, 0x10000, PROT_NONE);
 #elif defined(_WIN32)
     void* p = VirtualAlloc(PPC_MEM_BASE, 0x100000000ull, MEM_RESERVE | MEM_COMMIT | MEM_WRITE_WATCH, PAGE_READWRITE);
     if(p != PPC_MEM_BASE) fatal("cannot reserve guest address space (error=%lu)",GetLastError());
     DWORD old; if(!VirtualProtect(PPC_MEM_BASE,0x10000,PAGE_NOACCESS,&old)) fatal("cannot protect guest null page");
 #else
-    // Never replace existing mappings: requesting a hint and checking the result is safe on
-    // systems whose headers lack MAP_FIXED_NOREPLACE.
+
 #ifdef __ANDROID__
-    // phones have little RAM and strict commit accounting: pages are committed on first touch
+
     void* p = mmap(PPC_MEM_BASE,0x100000000ull,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE,-1,0);
 #else
     void* p = mmap(PPC_MEM_BASE,0x100000000ull,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
@@ -126,7 +123,7 @@ void init() {
     if(p != PPC_MEM_BASE) { if(p!=MAP_FAILED)munmap(p,0x100000000ull); fatal("cannot reserve guest address space at %p",PPC_MEM_BASE); }
     if(mprotect(PPC_MEM_BASE,0x10000,PROT_NONE))fatal("cannot protect guest null page");
 #endif
-    // texture change detection (write_watch.h): after the crash handler, which it chains to
+
     if (!wwatch::init(PPC_MEM_BASE, 0x100000000ull)) LOG("[mem] write tracking unavailable: textures use sampled change checks");
 }
 
@@ -146,8 +143,7 @@ static uint32_t bump(std::atomic<uint32_t>& top, uint32_t size, uint32_t align, 
 
 __attribute__((noinline)) uint32_t runtime_alloc(uint32_t size, uint32_t align) {
     uint32_t a = bump(g_runtime_top, size, align, kHostStart);
-    // who allocated (relative to the executable, stable across runs of one build): a loaded save
-    // state requires the same guest-visible allocations at the same addresses
+
     uint64_t tag = (uint64_t)((uintptr_t)__builtin_return_address(0) - host::executable_base());
     std::lock_guard<std::mutex> lk(g_alloc_log_m);
     g_alloc_log.push_back({a, size, tag});
@@ -182,9 +178,8 @@ void write_cstr(uint32_t ea, const std::string& s, uint32_t max) {
     memcpy(ptr(ea), s.data(), n);
     ptr(ea)[n] = 0;
 }
-}  // namespace mem
+}
 
-// ---------------------------------------------------------------- loader
 static uint32_t be32(const uint8_t* p) { return (uint32_t)p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3]; }
 static uint16_t be16(const uint8_t* p) { return (uint16_t)(p[0] << 8 | p[1]); }
 
@@ -209,12 +204,12 @@ bool load_rpx(const std::string& path, LoadedModule& out) {
                 data.assign(d.begin() + off, d.begin() + off + size);
             }
         }
-        if (type == 0x80000004 && data.size() >= 0x30) {  // RPL file info
+        if (type == 0x80000004 && data.size() >= 0x30) {
             out.sda_base = be32(&data[0x24]);
             out.sda2_base = be32(&data[0x28]);
             out.stack_size = be32(&data[0x2C]);
         }
-        // allocated sections in the text/data regions
+
         if ((flags & 2) && addr >= 0x02000000 && addr < 0xC0000000) {
             if (type == 8) {
                 memset(mem::ptr(addr), 0, size);
@@ -228,14 +223,13 @@ bool load_rpx(const std::string& path, LoadedModule& out) {
     return true;
 }
 
-// ---------------------------------------------------------------- dispatch
 namespace dispatch {
 static constexpr uint32_t kTextBase = 0x02000000;
-static constexpr uint32_t kTextSize = 0x01000000;  // 16 MiB covers red-pro2.rpx .text
-static PpcFunc* g_text_table;                        // indexed by (addr - kTextBase) / 4
-// lock-free direct tables for import slots and host functions (called through pointers a lot)
-static constexpr uint32_t kSlotBase = 0xC0000000, kSlotSize = 0x40000;     // import stubs, 4-byte steps
-static constexpr uint32_t kHostSize = 0x80000;                              // host functions, 8-byte steps
+static constexpr uint32_t kTextSize = 0x01000000;
+static PpcFunc* g_text_table;
+
+static constexpr uint32_t kSlotBase = 0xC0000000, kSlotSize = 0x40000;
+static constexpr uint32_t kHostSize = 0x80000;
 static std::atomic<PpcFunc> g_slot_table[kSlotSize / 4];
 static std::atomic<PpcFunc> g_host_table[kHostSize / 8];
 static std::unordered_map<uint32_t, PpcFunc> g_other;
@@ -246,7 +240,7 @@ static std::unordered_map<uint32_t, std::string> g_host_names;
 void init() {
     g_text_table = (PpcFunc*)calloc(kTextSize / 4, sizeof(PpcFunc));
     for (unsigned i = 0; i < g_recomp_func_count; i++) set(g_recomp_funcs[i].addr, g_recomp_funcs[i].fn);
-    // imported functions are reachable through their import slot addresses
+
     for (unsigned i = 0; i < g_recomp_import_count; i++)
         if (g_recomp_imports[i].is_func) set(g_recomp_imports[i].slot, g_recomp_imports[i].fn);
 }
@@ -286,7 +280,7 @@ uint32_t register_host(PpcFunc fn, const char* name) {
     g_host_names[a] = name;
     return a;
 }
-}  // namespace dispatch
+}
 
 extern "C" void ppc_dispatch(Cpu* c) {
     PpcFunc f = dispatch::lookup(c->pc);
@@ -304,7 +298,7 @@ extern "C" void ppc_dispatch(Cpu* c) {
 
 uint32_t guest_call(Cpu* c, uint32_t fn, std::initializer_list<uint32_t> args) {
     uint32_t save_lr = c->lr, save_ctr = c->ctr, save_sp = c->r[1];
-    // open a minimal frame so the callee's LR save slot doesn't clobber our caller's frame
+
     c->r[1] -= 0x40;
     st32(c->r[1], save_sp);
     int i = 3;
@@ -326,7 +320,6 @@ extern "C" void ppc_trap(Cpu* c, uint32_t addr) {
     fatal("guest trap at %08X (lr=%08X r3=%08X)", addr, c->lr, c->r[3]);
 }
 
-// ---------------------------------------------------------------- HLE registry
 static std::vector<HleReg*>& hle_registry() {
     static std::vector<HleReg*> r;
     return r;

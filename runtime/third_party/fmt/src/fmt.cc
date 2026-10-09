@@ -8,8 +8,6 @@ module;
 #  define FMT_CPLUSPLUS __cplusplus
 #endif
 
-// Put all implementation-provided headers into the global module fragment
-// to prevent attachment to this module.
 #ifndef FMT_IMPORT_STD
 #  include <algorithm>
 #  include <bitset>
@@ -101,11 +99,6 @@ import std;
 #define FMT_BEGIN_EXPORT export {
 #define FMT_END_EXPORT }
 
-// If you define FMT_ATTACH_TO_GLOBAL_MODULE
-//  - all declarations are detached from module 'fmt'
-//  - the module behaves like a traditional static library, too
-//  - all library symbols are mangled traditionally
-//  - you can mix TUs with either importing or #including the {fmt} API
 #ifdef FMT_ATTACH_TO_GLOBAL_MODULE
 extern "C++" {
 #endif
@@ -114,8 +107,6 @@ extern "C++" {
 #  define FMT_OS 1
 #endif
 
-// All library-provided declarations and definitions must be in the module
-// purview to be exported.
 #include "fmt/args.h"
 #include "fmt/chrono.h"
 #include "fmt/color.h"
@@ -134,7 +125,6 @@ extern "C++" {
 }
 #endif
 
-// gcc doesn't yet implement private module fragments
 #if !FMT_GCC_VERSION
 module :private;
 #endif

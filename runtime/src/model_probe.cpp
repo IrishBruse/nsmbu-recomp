@@ -1,4 +1,4 @@
-// Temporary probe: find where NSMBU's J3DModel keeps its joint matrices (NSMBU_PROBE_MODEL=n models).
+
 #include <cmath>
 #include <cstdlib>
 #include <set>
@@ -8,7 +8,7 @@
 extern "C" void f_027F4D5C_orig(Cpu* c);
 
 static bool plausible_mtx(uint32_t a) {
-    // 3x4 row-major: rows of the 3x3 part have similar, non-zero length; translation finite
+
     double len[3];
     for (int r = 0; r < 3; r++) {
         double s = 0;
@@ -41,7 +41,7 @@ extern "C" void hook_027F4D5C(Cpu* c) {
     for (uint32_t off = 0; off < 0x140; off += 4) {
         uint32_t p = ld32(model + off);
         if (!guest_ptr(p)) continue;
-        // direct array of matrices, or array of pointers to matrices
+
         int direct = 0;
         while (direct < 64 && plausible_mtx(p + 48 * direct)) direct++;
         if (direct >= 1)
@@ -50,7 +50,7 @@ extern "C" void hook_027F4D5C(Cpu* c) {
             n += snprintf(buf + n, sizeof buf - n, " +%X->*mtx", off);
         if (n > 900) break;
     }
-    // inline matrices in the model itself (base transform)
+
     for (uint32_t off = 0; off < 0x140; off += 4)
         if (plausible_mtx(model + off) && std::fabs(ldf32(model + off) ) <= 100) {
             n += snprintf(buf + n, sizeof buf - n, " inline@+%X", off);

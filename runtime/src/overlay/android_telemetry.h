@@ -17,7 +17,7 @@ struct AndroidTelemetry {
     }
     void read(const std::filesystem::path& root = "/sys") {
         busy = -1; temperatures.clear();
-        // kgsl reports busy and total time over the same sampling interval.
+
         auto kgsl = root / "class/kgsl/kgsl-3d0/gpubusy";
         if (FILE* f = fopen(kgsl.string().c_str(), "r")) {
             double active = 0, total = 0;
@@ -25,7 +25,7 @@ struct AndroidTelemetry {
                 busy = 100 * active / total;
             fclose(f);
         }
-        // Some Mali/MediaTek kernels expose a percentage through devfreq. Restrict to GPU nodes.
+
         std::error_code ec;
         if (busy < 0) for (const auto& entry : std::filesystem::directory_iterator(root / "class/devfreq", ec)) {
             auto name = entry.path().filename().string();

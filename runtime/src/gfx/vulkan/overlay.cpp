@@ -1,7 +1,5 @@
-// The settings overlay's Dear ImGui draw data, drawn by the Vulkan renderer into the TV window's
-// composition (present.cpp compose()). The renderer's own command buffer, upload arena, descriptor
-// pool and pipeline cache are used, so the overlay needs no queue submissions of its own and works
-// for every target format (swap images in any encoding, offscreen present dumps).
+
+
 #include "backend.h"
 #include "present.h"
 #include "shaders.h"
@@ -53,7 +51,7 @@ struct Resources {
     VkDescriptorSetLayout descriptors = VK_NULL_HANDLE;
     VkPipelineLayout layout = VK_NULL_HANDLE;
     VkSampler sampler = VK_NULL_HANDLE;
-    std::unordered_map<int, VkPipeline> pipelines;  // by target format
+    std::unordered_map<int, VkPipeline> pipelines;
 };
 Resources res;
 
@@ -195,7 +193,6 @@ void destroy(Texture* t) {
     delete t;
 }
 
-// ImGui 1.92 texture protocol: create, update (whole texture) and destroy font atlas pages
 void update_texture(VkCommandBuffer cmd, ImTextureData* tex) {
     if (tex->Status == ImTextureStatus_WantDestroy && tex->UnusedFrames > 0) {
         destroy((Texture*)(uintptr_t)tex->GetTexID());
@@ -251,7 +248,7 @@ void update_texture(VkCommandBuffer cmd, ImTextureData* tex) {
     tex->SetStatus(ImTextureStatus_OK);
 }
 
-}  // namespace
+}
 
 void overlay_renderer_init() {
     ImGuiIO& io = ImGui::GetIO();
@@ -268,7 +265,7 @@ void overlay_prepare(ImDrawData* d) {
 
 void overlay_draw(ImDrawData* d, VkCommandBuffer cmd, VkFormat format, VkExtent2D extent, bool linear) {
     if (!d || d->TotalVtxCount <= 0 || d->DisplaySize.x <= 0 || d->DisplaySize.y <= 0) return;
-    // the draw data is laid out for the TV window; a target of another size (present dump) gets it scaled
+
     const float sx = extent.width / d->DisplaySize.x, sy = extent.height / d->DisplaySize.y;
     UploadSlice vtx = allocate_upload(size_t(d->TotalVtxCount) * sizeof(ImDrawVert), 16);
     UploadSlice idx = allocate_upload(size_t(d->TotalIdxCount) * sizeof(ImDrawIdx), 16);
@@ -343,4 +340,4 @@ void reset_overlay_resources() {
     res = {};
 }
 
-}  // namespace gfxvk
+}

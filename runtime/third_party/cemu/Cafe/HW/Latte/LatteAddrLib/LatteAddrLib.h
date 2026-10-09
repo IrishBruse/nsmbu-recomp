@@ -17,7 +17,7 @@ namespace LatteAddrLib
 	union AddrSurfaceFlags
 	{
 		uint32 rawValue;
-		struct  
+		struct
 		{
 			bool color : 1;
 			bool depth : 1;
@@ -125,12 +125,10 @@ namespace LatteAddrLib
 
 	uint32 ComputeSurfaceRotationFromTileMode(Latte::E_HWTILEMODE tileMode);
 	uint32 ComputeSurfaceBankSwappedWidth(Latte::E_HWTILEMODE tileMode, uint32 bpp, uint32 numSamples, uint32 pitch);
-	
+
 	void GX2CalculateSurfaceInfo(Latte::E_GX2SURFFMT surfaceFormat, uint32 surfaceWidth, uint32 surfaceHeight, uint32 surfaceDepth, Latte::E_DIM surfaceDim, Latte::E_GX2TILEMODE surfaceTileMode, uint32 surfaceAA, uint32 level, AddrSurfaceInfo_OUT* pSurfOut, bool optimizeForDepthBuffer = false, bool optimizeForScanBuffer = false);
 	uint32 CalculateMipOffset(Latte::E_GX2SURFFMT format, uint32 width, uint32 height, uint32 depth, Latte::E_DIM dim, Latte::E_HWTILEMODE tileMode, uint32 swizzle, uint32 surfaceAA, sint32 mipIndex);
 	void CalculateMipAndSliceAddr(uint32 physAddr, uint32 physMipAddr, Latte::E_GX2SURFFMT format, uint32 width, uint32 height, uint32 depth, Latte::E_DIM dim, Latte::E_HWTILEMODE tileMode, uint32 swizzle, uint32 surfaceAA, sint32 mipIndex, sint32 sliceIndex, uint32* outputSliceOffset, uint32* outputSliceSize, sint32* subSliceIndex);
-
-	/* Pixel access */
 
 	uint32 ComputeSurfaceAddrFromCoordLinear(uint32 x, uint32 y, uint32 slice, uint32 sample, uint32 bpp, uint32 pitch, uint32 height, uint32 numSlices);
 	uint32 ComputeSurfaceAddrFromCoordMicroTiled(uint32 x, uint32 y, uint32 slice, uint32 bpp, uint32 pitch, uint32 height, Latte::E_HWTILEMODE tileMode, bool isDepth);
@@ -138,7 +136,6 @@ namespace LatteAddrLib
 
 	uint32 _ComputePixelIndexWithinMicroTile(uint32 x, uint32 y, uint32 z, uint32 bpp, Latte::E_HWTILEMODE tileMode, uint32 microTileType);
 
-	// addr lib (optimized access)
 	struct CachedSurfaceAddrInfo
 	{
 		uint32 slice;
@@ -147,19 +144,19 @@ namespace LatteAddrLib
 		uint32 pitch;
 		uint32 height;
 		uint32 depth;
-		uint32 numSamples; // for AA
+		uint32 numSamples;
 		Latte::E_HWTILEMODE tileMode;
 		int isDepth;
 		uint32 pipeSwizzle;
 		uint32 bankSwizzle;
 		uint32 pixelOffsetMul;
 		uint32 bytesPerPixel;
-		// calculated data
+
 		uint32 microTileThickness;
 		uint32 microTileBits;
 		uint32 microTileBytes;
 		uint32 microTileType;
-		uint32 rotation; // bank rotation
+		uint32 rotation;
 		uint32 macroTilePitch;
 		uint32 macroTileHeight;
 		uint32 macroTilePitchBits;
@@ -169,9 +166,9 @@ namespace LatteAddrLib
 		uint32 bankSwapWidth;
 		uint32 sliceBytes;
 		uint32 sliceIn;
-		// const
+
 		uint32 c0;
-		// micro tile pixel index table
+
 		uint16 microTilePixelIndexTable[8 * 8 * 8];
 	};
 

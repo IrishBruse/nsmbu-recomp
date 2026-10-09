@@ -2,10 +2,8 @@
 #include "aspect_panes.h"
 #include "renderer.h"
 #include <chrono>
-extern "C" uint64_t g_shader_state_gen;  // gx2_core.cpp: bumped by shader-relevant register changes
-// Draw calls: shader translation (via the vendored decompiler), pipelines,
-// resource binding and primitive submission. Binding conventions follow the
-// MSL the decompiler emits (as used by Cemu's Metal renderer).
+extern "C" uint64_t g_shader_state_gen;
+
 #include "Cafe/HW/Latte/Core/FetchShader.h"
 #include "gfx/area_sample.h"
 #include "gfx/shader_identity.h"
@@ -41,7 +39,6 @@ using namespace Latte;
 namespace gfx {
 static float bitsf_(uint32_t u) { float f; memcpy(&f, &u, 4); return f; }
 
-// debug: NSMBU_LOG_FRAME=n or n-m logs every draw of those frames
 static uint64_t g_log_frame = ~0ull, g_log_frame_end = 0;
 static bool g_log_init = [] {
     if (const char* e = getenv("NSMBU_LOG_FRAME")) {
@@ -50,8 +47,7 @@ static bool g_log_init = [] {
     }
     return true;
 }();
-// F12 capture: the next frame's draw log goes to captures/<time>/draws.log and every
-// full-screen pass (post-processing / deferred lighting) has its target dumped there
+
 static std::atomic<bool> g_capture_requested{false};
 static uint64_t g_capture_frame = ~0ull;
 static std::string g_capture_dir;
@@ -71,10 +67,9 @@ static void dlog(const char* fmt, ...) {
 }
 #define DLOG(...) do { if (log_this_frame()) dlog(__VA_ARGS__); } while (0)
 
-// called from swap() after R.frame advanced; returns the capture directory when this frame is captured
 const char* capture_begin_frame() {
     if (g_capture_log) { fclose(g_capture_log); g_capture_log = nullptr; }
-    static uint64_t envFrame = getenv("NSMBU_CAPTURE") ? strtoull(getenv("NSMBU_CAPTURE"), nullptr, 10) : ~0ull;  // scripted F12
+    static uint64_t envFrame = getenv("NSMBU_CAPTURE") ? strtoull(getenv("NSMBU_CAPTURE"), nullptr, 10) : ~0ull;
     if (!g_capture_requested.exchange(false) && R.frame != envFrame) return nullptr;
     char dir[64];
     time_t t = time(nullptr);
@@ -88,7 +83,6 @@ const char* capture_begin_frame() {
     return g_capture_dir.c_str();
 }
 
-// fast 64-bit hash over 8-byte words (tail handled bytewise)
 static uint64_t hash_bytes(const void* data, size_t n, uint64_t h = 0x9E3779B97F4A7C15ull) {
     const uint8_t* p = (const uint8_t*)data;
     size_t i = 0;
@@ -102,7 +96,6 @@ static uint64_t hash_bytes(const void* data, size_t n, uint64_t h = 0x9E3779B97F
     return h ^ (h >> 29);
 }
 
-// shader programs rarely change in place: cache their hash per address, revalidated once per frame
 struct ProgramHash {
     uint32_t size;
     uint64_t hash;
@@ -122,9 +115,6 @@ static uint64_t hash_regs(const uint32_t* regs, uint32_t first, uint32_t count, 
     return hash_bytes(&regs[first], count * 4, h);
 }
 
-// ---------------------------------------------------------------- upload pool
-// Transient per-draw data (indices, large support buffers) comes from shared
-// buffers recycled once the GPU is done with them.
 struct Upload {
     id<MTLBuffer> buf;
     uint32_t offset;
@@ -159,7 +149,6 @@ static Upload upload(const void* data, uint32_t size) {
     return u;
 }
 
-// called before a command buffer commits: buffers used so far are recycled when it completes
 void pool_retire(id<MTLCommandBuffer> cmd) {
     std::vector<id<MTLBuffer>> used;
     {
@@ -178,7 +167,6 @@ void pool_retire(id<MTLCommandBuffer> cmd) {
     }];
 }
 
-// ---------------------------------------------------------------- fetch shaders
 struct FetchShaderEntry {
     LatteFetchShader* fs;
 };
@@ -187,12 +175,12 @@ static std::unordered_map<uint64_t, LatteFetchShader*> g_fetch;
 static LatteFetchShader* get_fetch_shader(const uint32_t* regs, uint64_t* keyOut) {
     uint32_t prog = regs[mmSQ_PGM_START_FS] << 8;
     if (!prog) return nullptr;
-    // either our compact encoding (from GX2InitFetchShaderEx) or real fetch shader microcode shipped with the game
+
     bool ours = ld32(prog) == 0x57574653;
     uint32_t size = ours ? 16 + ld32(prog + 4) * 16 : regs[mmSQ_PGM_START_FS + 1] << 3;
     if (size > 0x1000) return nullptr;
     uint64_t h = hash_bytes(mem::ptr(prog), size);
-    // strides decide between vertex-descriptor fetch and manual fetch in the shader
+
     for (uint32_t b = 0; b < 16; b++) h = (h ^ ((regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START + b * 7 + 2] >> 11) & 0xFFFF)) * 1099511628211ull;
     *keyOut = h;
     auto it = g_fetch.find(h);
@@ -211,14 +199,9 @@ static LatteFetchShader* get_fetch_shader(const uint32_t* regs, uint64_t* keyOut
     return fs;
 }
 
-// ---------------------------------------------------------------- shaders
-// Shaders and pipelines compile in the background (NSMBU_SYNC_SHADERS=1 waits instead); draws that
-// need one still compiling are skipped for those frames rather than stalling the game.
 static const bool g_sync_shaders = getenv("NSMBU_SYNC_SHADERS") != nullptr;
-enum CompileState { CS_PENDING, CS_READY, CS_FAILED, CS_DEFERRED };  // deferred: translated from the cache, not compiled yet
+enum CompileState { CS_PENDING, CS_READY, CS_FAILED, CS_DEFERRED };
 
-// Metal's completion handlers publish results through compile_done, which wakes the render thread
-// if it's blocked in wait_compiled
 static std::mutex g_compile_mu;
 static std::condition_variable g_compile_cv;
 static void compile_done(std::atomic<int>& st, int v) {
@@ -233,27 +216,16 @@ struct Shader {
     uint64_t key = 0;
     gfx::ProgramKind kind = gfx::ProgramKind::Other;
     LatteDecompilerShader* dec = nullptr;
-    id<MTLFunction> fn = nil;                 // valid once state == CS_READY
+    id<MTLFunction> fn = nil;
     std::atomic<int> state{CS_PENDING};
-    int attempts = 0;                         // Metal compiles started (render thread)
-    uint64_t retryFrame = 0;                  // a failed compile is retried from this frame on (0: not scheduled)
+    int attempts = 0;
+    uint64_t retryFrame = 0;
 };
 
-// A Metal compile or pipeline build can fail for reasons that have nothing to do with the source:
-// the compiler service (MTLCompilerService) being interrupted or out of memory, which is more likely
-// during the startup burst of cache replay and background builds. A failure used to be final for
-// the whole session, so one unlucky compile could drop a pass for good (issue #47: the ambient
-// occlusion pass missing left every shadowed area black until the next launch). Failed compiles are
-// retried a few times on later frames (backoff kRetryFrames * attempts); translation errors (no
-// MSL at all) still fail at once.
-// test aid: NSMBU_TEST_FAIL_COMPILES=n fails the first n attempts of every shader and pipeline compile
 constexpr int kCompileAttempts = 4;
 constexpr uint64_t kRetryFrames = 30;
 static const int g_test_fail_compiles = getenv("NSMBU_TEST_FAIL_COMPILES") ? atoi(getenv("NSMBU_TEST_FAIL_COMPILES")) : 0;
 
-// render thread: true when a failed compile with attempts left is due for its retry (schedules the
-// retry on the first call after the failure)
-// (now: retry at once, for a draw that must not be skipped; see wait_compiled)
 template <class T>
 static bool retry_due(T* x, bool now = false) {
     if (x->attempts >= kCompileAttempts) return false;
@@ -267,9 +239,9 @@ static bool retry_due(T* x, bool now = false) {
     return true;
 }
 static std::unordered_map<uint64_t, Shader*> g_shaders;
-// Metal compiles (shaders and pipelines) started and not finished yet; background work holds back while it's high
+
 static std::atomic<int> g_compiles_in_flight{0};
-// time spent per stage, reported with the skip statistics
+
 static double g_t_decompile, g_t_msl, g_t_pipeline;
 static double now_ms() { return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
 
@@ -284,17 +256,11 @@ static void report_compile_error(const char* src, uint64_t key, NSError* err, in
     }
 }
 
-// Latte addresses texels in fixed point (1/256 texel); Apple GPUs use full float precision. A point
-// sample placed exactly on a texel boundary (e.g. the game's 2:1 depth downsample) then picks a
-// neighbour depending on interpolation noise, which shows up as streaks in ambient occlusion.
-// Snapping 2D float-texture coordinates to the 1/256 grid makes those picks consistent again.
 static std::string snap_texcoords(const char* src) {
     static const bool off = getenv("NSMBU_NO_UV_SNAP") != nullptr;
     std::string s = src;
     if (off) return s;
-    // one pass each over the declarations and the sample calls (this runs on the render thread for
-    // every compile); the output is byte-identical to wrapping each texture slot in turn, which keeps
-    // the system Metal cache (keyed by source) valid
+
     static const char kDecl[] = "texture2d<float> tex", kCall[] = ".sample(samplr";
     uint32_t is2d = 0;
     for (size_t p = s.find(kDecl); p != std::string::npos; p = s.find(kDecl, p + 1)) {
@@ -303,8 +269,8 @@ static std::string snap_texcoords(const char* src) {
         if (end != s.c_str() + p + strlen(kDecl) && t >= 0 && t < 32 && !strncmp(end, " [[", 3)) is2d |= 1u << t;
     }
     if (!is2d) return s;
-    // insertion points in the original text: "nsmbu_snap(texN, " before float2(, ")" after its close
-    std::vector<std::pair<size_t, int>> ins;  // (position, slot), slot < 0: closing paren
+
+    std::vector<std::pair<size_t, int>> ins;
     uint32_t broken = 0;
     for (size_t p = s.find(kCall); p != std::string::npos; p = s.find(kCall, p + 1)) {
         size_t d = p;
@@ -352,16 +318,14 @@ static void compile_msl(Shader* sh, const char* rawSrc, uint64_t key) {
     } else {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        opt.fastMathEnabled = NO;  // the pre-15 spelling of MTLMathModeSafe
+        opt.fastMathEnabled = NO;
 #pragma clang diagnostic pop
     }
     opt.languageVersion = MTLLanguageVersion3_0;
     std::string snapped = snap_texcoords(rawSrc);
     const char* src = snapped.c_str();
     NSString* source = [NSString stringWithUTF8String:src];
-    // test aid: NSMBU_MSL_NONCE=<text> changes every source so the system Metal cache misses (fresh install).
-    // The entry point is renamed too: the GPU-code cache behind pipeline creation is keyed by the compiled
-    // function, which a comment doesn't change.
+
     NSString* entry = @"main0";
     if (const char* nonce = getenv("NSMBU_MSL_NONCE")) {
         std::string name = "main0_";
@@ -391,11 +355,8 @@ static void compile_msl(Shader* sh, const char* rawSrc, uint64_t key) {
     }];
 }
 
-// registers that influence how a shader stage is translated (gathered, then hashed in one pass)
 static uint64_t stage_state_hash(const uint32_t* regs, uint64_t h, uint32_t texBase) {
-    // most lookups gather the same words as the previous one for this stage (the state generation
-    // also moves for registers that don't end up here): gather into the spare buffer and compare
-    // instead of rehashing. Render thread only.
+
     struct Last { uint64_t in = 0, out = 0; uint32_t n = 0, cur = 0; uint32_t buf[2][400]; };
     static Last last[2];
     Last& L = last[texBase == REGADDR::SQ_TEX_RESOURCE_WORD0_N_VS ? 0 : 1];
@@ -425,7 +386,7 @@ static uint64_t stage_state_hash(const uint32_t* regs, uint64_t h, uint32_t texB
         buf[n++] = cbBase[i] != 0;
     }
     buf[n++] = regs[REGADDR::DB_DEPTH_CONTROL] & 0x83;
-    // texture types and formats; sampling a bound render target switches to framebuffer fetch
+
     for (int t = 0; t < 18; t++) {
         const uint32_t* w = &regs[texBase + t * 7];
         buf[n++] = (w[0] & 7) | (w[4] & 0x300);
@@ -436,7 +397,7 @@ static uint64_t stage_state_hash(const uint32_t* regs, uint64_t h, uint32_t texB
                 if (base == cbBase[i]) fb = 1 + i;
         buf[n++] = fb;
     }
-    // depth-compare samplers
+
     for (int i = 0; i < 18 * 3; i++) buf[n++] = regs[REGADDR::SQ_TEX_SAMPLER_WORD0_0 + i * 3] & 0xF8000000;
     if (L.n == n && L.in == h && !memcmp(L.buf[L.cur], buf, n * 4)) return L.out;
     L.cur ^= 1;
@@ -448,7 +409,7 @@ static uint64_t stage_state_hash(const uint32_t* regs, uint64_t h, uint32_t texB
 static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetchShader* fs, uint64_t fsKey);
 
 static Shader* get_shader(const uint32_t* regs, bool vertex, LatteFetchShader* fs, uint64_t fsKey) {
-    // nothing shader-relevant changed since the previous draw: same shader
+
     struct Last { uint64_t gen = 0, frame = ~0ull, fsKey = 0; Shader* s = nullptr; };
     static Last last[2];
     Last& L = last[vertex ? 0 : 1];
@@ -468,8 +429,6 @@ static void compile_deferred(Shader* s) {
     compile_msl(s, s->dec->strBuf_shaderSource->c_str(), s->key);
 }
 
-// render thread: start the retry of a failed Metal compile when it is due (see kCompileAttempts).
-// Shaders that failed to translate (no dec) never compiled and are not retried.
 static void retry_failed_compile(Shader* s, bool now = false) {
     if (!s || !s->dec || s->state.load(std::memory_order_acquire) != CS_FAILED || !retry_due(s, now)) return;
     LOG("[gfx] retrying shader %016llx compile (attempt %d of %d)", (unsigned long long)s->key, s->attempts + 1, kCompileAttempts);
@@ -496,8 +455,7 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
     LatteShader_UpdatePSInputs((uint32*)regs);
     LatteDecompilerOptions opt;
     if (!vertex) opt.areaSampledTextures = gfx::area_sample::units_for_pixel_shader(mem::ptr(addr), size);
-    // the GPU's MUL/MULADD give 0*anything=0 (rsqrt(0)*0 is NaN otherwise: black letter in the Rito
-    // mail sorting game); Cemu's default too. NSMBU_STRICT_MUL=0 turns it off for comparisons
+
     static const bool strictMul = !getenv("NSMBU_STRICT_MUL") || strcmp(getenv("NSMBU_STRICT_MUL"), "0");
     opt.strictMul = strictMul;
     LatteDecompilerOutput_t out{};
@@ -530,7 +488,7 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
         if (FILE* f = fopen(name, "w")) { fputs(s->dec->strBuf_shaderSource->c_str(), f); fclose(f); }
     }
     if (g_defer_compiles) {
-        s->state = CS_DEFERRED;  // cache replay: compile on first use or gradually in the background
+        s->state = CS_DEFERRED;
         g_deferred_shaders.push_back(s);
     } else {
         compile_msl(s, s->dec->strBuf_shaderSource->c_str(), key);
@@ -541,7 +499,6 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
     return s;
 }
 
-// ---------------------------------------------------------------- conversions
 static MTLBlendFactor blend_factor(uint32_t f) {
     switch (f) {
     case 0x00: return MTLBlendFactorZero;
@@ -589,20 +546,14 @@ static MTLStencilOperation stencil_op(uint32_t f) {
     return t[f & 7];
 }
 
-// ---------------------------------------------------------------- pipelines
 struct Pipeline {
-    id<MTLRenderPipelineState> state = nil;   // valid once status == CS_READY
+    id<MTLRenderPipelineState> state = nil;
     std::atomic<int> status{CS_PENDING};
-    int attempts = 0;                         // builds started (render thread)
-    uint64_t retryFrame = 0;                  // a failed build is retried from this frame on (0: not scheduled)
+    int attempts = 0;
+    uint64_t retryFrame = 0;
 };
 static std::unordered_map<uint64_t, Pipeline*> g_pipelines;
 
-// Ambient-occlusion quirks, switchable in game (Graphics menu, O cycles; NSMBU_AO_MODE=0..2 sets the start):
-//   0 = as the hardware renders it
-//   1 = centre depth sampled bilinear (removes the every-third-row lines)
-//   2 = 1 + noise tiled per 960x540 pixel instead of per 640x360 pixel (removes the remaining
-//       uneven noise bands the game's blur can't average out)
 static std::atomic<int> g_ao_mode{[] {
     if (const char* e = getenv("NSMBU_AO_MODE")) return atoi(e) % 3;
     return getenv("NSMBU_NO_AO_QUIRK") ? 0 : 2;
@@ -610,19 +561,9 @@ static std::atomic<int> g_ao_mode{[] {
 int ao_mode() { return g_ao_mode.load(std::memory_order_relaxed); }
 void set_ao_mode(int m) { g_ao_mode = m % 3; LOG("[gfx] ambient occlusion mode %d", m % 3); }
 
-// Draws whose shaders or pipeline are still compiling used to be skipped, which makes objects blink
-// for a few frames after entering a new area. Instead wait for the compile, up to a per-frame budget
-// (NSMBU_COMPILE_WAIT_MS, default 25; the game's frame is 33 ms and the GPU needs ~4 ms of it).
-// Pipelines built ahead of use (cache replay, head start) never wait.
-// Skipping is only harmless for targets the game redraws every frame. A draw into a target that is
-// new or wasn't drawn in the previous frame may be the only one its result gets (a buffer rendered
-// once, at a load or after a photo, or a pass's first frame), and a skipped one would leave that
-// result missing for as long as the game keeps using it (issue #47: the light buffer sampled before
-// its first render, black shadows for the session; the Picto Box colour-grading volume). Those draws
-// wait for their compile without the budget, like the Vulkan renderer does for every draw.
 static bool g_building_ahead = false;
-static bool g_draw_must_run = false;  // the current draw writes a target that isn't redrawn every frame
-static std::unordered_map<uint32_t, uint64_t> g_target_drawn;  // render target address -> frame of its last draw
+static bool g_draw_must_run = false;
+static std::unordered_map<uint32_t, uint64_t> g_target_drawn;
 static uint64_t g_must_run_waits = 0;
 static double g_must_run_wait_ms = 0;
 static bool wait_compiled(const std::atomic<int>& st) {
@@ -658,7 +599,6 @@ static bool wait_compiled(const std::atomic<int>& st) {
     return st.load(std::memory_order_acquire) == CS_READY;
 }
 
-// Render target formats a pipeline is built for (GX2 surface formats; 0 = no attachment)
 struct TargetFormats {
     uint32_t color[8] = {};
     uint32_t depth = 0;
@@ -687,7 +627,7 @@ static id<MTLRenderPipelineState> get_pipeline(const uint32_t* regs, Shader* vs,
     Pipeline* pl;
     if (it != g_pipelines.end()) {
         pl = it->second;
-        // a failed build is retried a few times on later frames (see kCompileAttempts)
+
         if (pl->status.load(std::memory_order_acquire) != CS_FAILED || !retry_due(pl, g_draw_must_run))
             return wait_compiled(pl->status) ? pl->state : nil;
         LOG("[gfx] retrying pipeline %016llx (attempt %d of %d)", (unsigned long long)h, pl->attempts + 1, kCompileAttempts);
@@ -835,7 +775,6 @@ static id<MTLDepthStencilState> get_depth_state(const uint32_t* regs, bool hasDe
     return s;
 }
 
-// ---------------------------------------------------------------- samplers and textures
 static std::unordered_map<uint64_t, id<MTLSamplerState>> g_samplers;
 
 static MTLSamplerAddressMode address_mode(uint32_t c) {
@@ -848,15 +787,10 @@ static MTLSamplerAddressMode address_mode(uint32_t c) {
     }
 }
 
-// enhancement, toggled in game (Graphics menu or N; off by default, NSMBU_ANISO=1 starts with it on): 16x anisotropic filtering on
-// mipmapped, linearly filtered textures. Sharpens ground and water seen at shallow angles.
 static std::atomic<bool> g_aniso{[] { const char* e = getenv("NSMBU_ANISO"); return e && atoi(e) != 0; }()};
 bool aniso_enabled() { return g_aniso.load(std::memory_order_relaxed); }
 void set_aniso(bool v) { g_aniso = v; LOG("[gfx] anisotropic filtering %s", v ? "on" : "off"); }
 
-// allowAniso: the bound texture is a real mipmapped asset (not a buffer the GPU rendered); the game also
-// reads its screen-sized lighting/occlusion buffers through mip-filtering samplers, and anisotropy there
-// blurs the screen-space effects
 static id<MTLSamplerState> get_sampler(const uint32_t* w, bool allowAniso = false) {
     const bool g_aniso_force = allowAniso && aniso_enabled();
     uint64_t h = hash_bytes(w, 12) ^ (g_aniso_force ? 0x5A5A5A5A5A5A5A5Aull : 0);
@@ -870,7 +804,7 @@ static id<MTLSamplerState> get_sampler(const uint32_t* w, bool allowAniso = fals
     d.sAddressMode = address_mode((uint32_t)w0.get_CLAMP_X());
     d.tAddressMode = address_mode((uint32_t)w0.get_CLAMP_Y());
     d.rAddressMode = address_mode((uint32_t)w0.get_CLAMP_Z());
-    // E_XY_FILTER: only POINT (0) and ANISO_POINT (4) are nearest; bilinear/bicubic/aniso-bilinear filter
+
     auto xy = [](uint32_t f) { return (f == 0 || f == 4) ? MTLSamplerMinMagFilterNearest : MTLSamplerMinMagFilterLinear; };
     d.magFilter = xy((uint32_t)w0.get_XY_MAG_FILTER());
     d.minFilter = xy((uint32_t)w0.get_XY_MIN_FILTER());
@@ -923,7 +857,6 @@ static id<MTLTexture> null_texture(MTLTextureType type) {
     return t;
 }
 
-// texture view with the shader's expected type and the resource's component swizzle
 static std::unordered_map<uint64_t, id<MTLTexture>> g_views;
 void forget_texture_views() { g_views.clear(); }
 
@@ -945,7 +878,7 @@ static id<MTLTexture> texture_view(Surface* s, MTLTextureType type, uint32_t wor
     if (s->tex.textureType == MTLTextureType3D && type != MTLTextureType3D) return nil;
     id<MTLTexture> v;
     if (s->fmt.depth) {
-        // depth formats can't be swizzled; samplers read .x
+
         v = [s->tex newTextureViewWithPixelFormat:s->tex.pixelFormat
                                       textureType:type
                                            levels:NSMakeRange(0, s->tex.mipmapLevelCount)
@@ -967,27 +900,19 @@ static id<MTLTexture> texture_view(Surface* s, MTLTextureType type, uint32_t wor
     return v;
 }
 
-// NSMBU_SNAPSHOT=1 copies uniform blocks and small vertex buffers at draw time instead of reading
-// guest memory when the GPU runs (costly; the per-core scheduler removed the race it guarded against)
 static const bool g_snapshot = getenv("NSMBU_SNAPSHOT") != nullptr;
 
-// ---------------------------------------------------------------- per-stage resources
-// enhancement, toggled in game (Graphics menu or M; NSMBU_AO_HIRES=0 starts with it off): the game
-// downsamples depth to 640x360 (PS 3BB9DE00) and computes ambient occlusion from it at 960x540
-// (PS 44BDFD00). The size mismatch is what leaves lines in shadowed grass. With this on, the
-// downsample is drawn a second time into a private 960x540 copy and the occlusion pass reads that
-// copy, one depth texel per pixel. Every other reader keeps the game's 640x360 buffer.
 static std::atomic<bool> g_ao_hires{[] { const char* e = getenv("NSMBU_AO_HIRES"); return !e || atoi(e) != 0; }()};
 bool ao_hires_enabled() { return g_ao_hires.load(std::memory_order_relaxed); }
 void set_ao_hires(bool v) { g_ao_hires = v; LOG("[gfx] full-size occlusion depth %s", v ? "on" : "off"); }
-static bool g_hires_redraw = false;          // inside the second draw of the downsample
-static uint32_t g_hires_src = 0;             // guest address of the game's 640x360 buffer
-static uint64_t g_hires_frame = ~0ull;       // frame the private copy was last drawn
+static bool g_hires_redraw = false;
+static uint32_t g_hires_src = 0;
+static uint64_t g_hires_frame = ~0ull;
 static Surface g_hires_color, g_hires_depth;
 
 static Surface* hires_surface(Surface& dst, const Surface* like) {
     uint32_t w = like->width * 3 / 2, h = like->height * 3 / 2;
-    // texture: 1.5x the game's buffer as allocated (which may already be scaled for the internal resolution)
+
     uint32_t pw = (uint32_t)like->tex.width * 3 / 2, ph = (uint32_t)like->tex.height * 3 / 2;
     if (!dst.tex || dst.width != w || dst.height != h || dst.tex.width != pw || dst.tex.height != ph ||
         dst.fmt.pixel != like->fmt.pixel) {
@@ -998,15 +923,14 @@ static Surface* hires_surface(Surface& dst, const Surface* like) {
         dst = *like;
         dst.mipChain.reset();
         dst.tex = [R.device newTextureWithDescriptor:d];
-        dst.addr = 0;  // private: never found by address lookups
+        dst.addr = 0;
         dst.width = w;
         dst.height = h;
         dst.slices = 1;
         dst.mips = 1;
         dst.sx = (float)pw / w;
         dst.sy = (float)ph / h;
-        // private textures start with undefined contents and every pass on them loads: clear once
-        // (colour 0, depth 1) so nothing the redraw doesn't cover reads leftover GPU memory
+
         end_encoder();
         MTLRenderPassDescriptor* rp = [MTLRenderPassDescriptor renderPassDescriptor];
         if (dst.fmt.depth) {
@@ -1031,7 +955,6 @@ static Surface* hires_surface(Surface& dst, const Surface* like) {
     return &dst;
 }
 
-// pixels of the current render target per guest pixel (viewport/scissor/fragment-coordinate scale)
 static float g_target_kx = 1.0f, g_target_ky = 1.0f;
 
 static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Shader* sh, bool vertex, Surface* const* colors) {
@@ -1042,11 +965,10 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
     uint32_t texBase = vertex ? REGADDR::SQ_TEX_RESOURCE_WORD0_N_VS : REGADDR::SQ_TEX_RESOURCE_WORD0_N_PS;
     uint32_t samplerBase = vertex ? SAMPLER_BASE_INDEX_VERTEX : SAMPLER_BASE_INDEX_PIXEL;
 
-    // textures and samplers
     for (sint32 i = 0; i < rm.getTextureCount(); i++) {
         sint32 unit = rm.getRelativeTextureUnitFromRelativeBindingPoint(i);
         if (unit < 0) continue;
-        if (!vertex && dec->textureRenderTargetIndex[unit] != 255) continue;  // read through framebuffer fetch
+        if (!vertex && dec->textureRenderTargetIndex[unit] != 255) continue;
         uint32_t binding = rm.getTextureBaseBindingPoint() + i;
         MTLTextureType type = texture_type_for_dim(dec->textureUnitDim[unit]);
         const uint32_t* tw = &regs[texBase + unit * 7];
@@ -1064,13 +986,11 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
              regs[REGADDR::SQ_TEX_SAMPLER_WORD0_0 + (samplerIdx + samplerBase) * 3 + 2]);
         if (!tex) tex = null_texture(type);
         const uint32_t* sw = &regs[REGADDR::SQ_TEX_SAMPLER_WORD0_0 + (samplerIdx + samplerBase) * 3];
-        // quirk: the ambient-occlusion pass (PS 44BDFD00) point-samples its centre depth from a 640x360
-        // buffer while drawing 960x540; every third row lands half a texel off and shows as screen-fixed
-        // lines on sloped ground in shadow. Bilinear for that one fetch matches its neighbour fetches.
+
         uint32_t patched[3];
         if (ao_mode() >= 1 && !vertex && unit == 0 && sh->kind == gfx::ProgramKind::OcclusionPixel) {
             memcpy(patched, sw, sizeof patched);
-            patched[0] = (patched[0] & ~0x7E00u) | (1u << 9) | (1u << 12);  // XY mag/min filter: bilinear
+            patched[0] = (patched[0] & ~0x7E00u) | (1u << 9) | (1u << 12);
             sw = patched;
         }
         id<MTLSamplerState> smp = get_sampler(sw, s && !s->gpuWritten && s->mips > 1);
@@ -1083,7 +1003,6 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
         }
     }
 
-    // support buffer (uniform registers, remapped uniforms, helper values)
     if (rm.uniformVarsBufferBindingPoint >= 0) {
         uint32_t size = std::max<uint32_t>(dec->uniform.uniformRangeSize, 16);
         static thread_local std::vector<uint8_t> buf;
@@ -1104,7 +1023,7 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
         uint32_t blockBase = vertex ? mmSQ_VTX_UNIFORM_BLOCK_START : mmSQ_PS_UNIFORM_BLOCK_START;
         if (dec->uniform.loc_remapped >= 0) {
             uint8_t* dst = (uint8_t*)at(dec->uniform.loc_remapped);
-            // the decompiler fills only the list matching the shader's uniform mode
+
             for (auto& e : dec->list_remappedUniformEntries_register)
                 memcpy(dst + e.mappedIndexOffset, &regs[aluBase + e.indexOffset / 4], 16);
             for (auto& g : dec->list_remappedUniformEntries_bufferGroups) {
@@ -1112,11 +1031,10 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
                 if (!addr) continue;
                 for (auto& e : g.entries) memcpy(dst + e.mappedIndexOffset, mem::ptr(addr + e.indexOffset), 16);
             }
-            // Apply once before the Gaussian/mip chain, preserving the game's threshold and haze.
+
             if (!vertex && (regs[mmSQ_PGM_START_PS] << 8) == 0x44F91200)
                 render::scale_bloom_uniforms(dst, buf.size() - dec->uniform.loc_remapped);
-            // AO mode 2: the occlusion pass's VS (44BDF900) scales its noise coordinates by remapped[0].w
-            // for a 640x360 grid; the pass draws 960x540, so tile the 4x4 noise per output pixel instead
+
             if (vertex && ao_mode() == 2 && sh->kind == gfx::ProgramKind::OcclusionVertex)
                 ((float*)dst)[3] *= 1.5f;
         }
@@ -1130,12 +1048,12 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
             v[1] = vh != 0 ? 2.0f / vh : 0;
         }
         if (dec->uniform.loc_fragCoordScale >= 0) {
-            // the shader sees guest pixel positions
+
             at(dec->uniform.loc_fragCoordScale)[0] = 1.0f / g_target_kx;
             at(dec->uniform.loc_fragCoordScale)[1] = 1.0f / g_target_ky;
         }
         for (auto& e : dec->uniform.list_ufTexRescale) {
-            // integer texel coordinates are guest texels: scale them to the texture as allocated
+
             bool ok = e.texUnit < 18;
             at(e.uniformLocation)[0] = ok ? texScale[e.texUnit][0] : 1.0f;
             at(e.uniformLocation)[1] = ok ? texScale[e.texUnit][1] : 1.0f;
@@ -1156,8 +1074,6 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
         }
     }
 
-    // uniform blocks: snapshot at draw time. Our GPU runs a frame after the CPU built it, and games
-    // rewrite uniform memory between draws, so binding guest memory directly shows later values.
     uint32_t blockBase = vertex ? mmSQ_VTX_UNIFORM_BLOCK_START : mmSQ_PS_UNIFORM_BLOCK_START;
     for (int i = 0; i < 16; i++) {
         sint32 binding = rm.uniformBuffersBindingPoint[i];
@@ -1178,7 +1094,6 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
     }
 }
 
-// ---------------------------------------------------------------- render pass
 static bool ensure_pass(Surface* const* colors, const uint32_t* colorSlices, Surface* depth, uint32_t depthSlice) {
     if (R.enc) {
         bool same = R.passDepth == depth && (!depth || R.passDepthSlice == depthSlice);
@@ -1192,7 +1107,7 @@ static bool ensure_pass(Surface* const* colors, const uint32_t* colorSlices, Sur
     for (int i = 0; i < 8; i++) {
         if (!colors[i]) continue;
         rp.colorAttachments[i].texture = colors[i]->tex;
-        // a volume's slice is a depth plane
+
         if (colors[i]->tex.textureType == MTLTextureType3D) rp.colorAttachments[i].depthPlane = colorSlices[i];
         else rp.colorAttachments[i].slice = colorSlices[i];
         rp.colorAttachments[i].loadAction = MTLLoadActionLoad;
@@ -1225,10 +1140,6 @@ static bool ensure_pass(Surface* const* colors, const uint32_t* colorSlices, Sur
     return R.enc != nil;
 }
 
-// ---------------------------------------------------------------- indices
-// Converts guest indices (possibly big-endian, possibly a primitive type Metal lacks)
-// into a 32-bit little-endian index list. Returns the Metal primitive type.
-// one pass into a presized buffer; the index format is resolved once per draw, not per index
 template <class Idx>
 static bool expand_indices(uint32_t prim, uint32_t count, bool indexed, Idx idx, std::vector<uint32_t>& out,
                            MTLPrimitiveType& type) {
@@ -1240,13 +1151,13 @@ static bool expand_indices(uint32_t prim, uint32_t count, bool indexed, Idx idx,
     case 3: type = MTLPrimitiveTypeLineStrip; break;
     case 4: type = MTLPrimitiveTypeTriangle; break;
     case 6: type = MTLPrimitiveTypeTriangleStrip; break;
-    case 5:  // triangle fan -> list
+    case 5:
         type = MTLPrimitiveTypeTriangle;
         out.resize(count > 2 ? size_t(count - 2) * 3 : 0);
         o = out.data();
         for (uint32_t i = 2; i < count; i++) { *o++ = idx(0); *o++ = idx(i - 1); *o++ = idx(i); }
         return true;
-    case 0x13:  // quads -> list
+    case 0x13:
         type = MTLPrimitiveTypeTriangle;
         out.resize(size_t(count / 4) * 6);
         o = out.data();
@@ -1255,7 +1166,7 @@ static bool expand_indices(uint32_t prim, uint32_t count, bool indexed, Idx idx,
             *o++ = a; *o++ = b; *o++ = c; *o++ = a; *o++ = c; *o++ = d;
         }
         return true;
-    case 0x14:  // quad strip -> list
+    case 0x14:
         type = MTLPrimitiveTypeTriangle;
         out.resize(count >= 4 ? size_t((count - 4) / 2 + 1) * 6 : 0);
         o = out.data();
@@ -1264,14 +1175,14 @@ static bool expand_indices(uint32_t prim, uint32_t count, bool indexed, Idx idx,
             *o++ = a; *o++ = b; *o++ = d; *o++ = a; *o++ = d; *o++ = c;
         }
         return true;
-    case 0x12:  // line loop
+    case 0x12:
         type = MTLPrimitiveTypeLineStrip;
         out.resize(count ? count + 1 : 0);
         for (uint32_t i = 0; i < count; i++) out[i] = idx(i);
         if (count) out[count] = idx(0);
         return true;
     default:
-        return false;  // rects and adjacency primitives: not supported yet
+        return false;
     }
     if (indexed) {
         out.resize(count);
@@ -1290,20 +1201,12 @@ static bool build_indices(uint32_t prim, uint32_t count, uint32_t indexType, uin
     case 9:
         return expand_indices(prim, count, true, [p](uint32_t i) { uint32_t v; memcpy(&v, p + 4 * i, 4); return __builtin_bswap32(v); },
                               out, type);
-    default:  // 4 and anything else: big-endian 16-bit
+    default:
         return expand_indices(prim, count, true, [p](uint32_t i) -> uint32_t { uint16_t v; memcpy(&v, p + 2 * i, 2); return __builtin_bswap16(v); },
                               out, type);
     }
 }
 
-// ---------------------------------------------------------------- draw
-
-// ---------------------------------------------------------------- persistent shader cache
-// Every newly translated shader and every new pipeline is appended to a recipe file: the shader
-// microcode plus the register state that shaped its translation. At startup the recipes are
-// replayed, so shaders and pipelines are ready before the game asks for them (macOS keeps the
-// compiled Metal code in its own cache, so the replay is fast after the first time).
-// NSMBU_SHADER_CACHE=<file> overrides the location, NSMBU_SHADER_CACHE=0 disables it.
 namespace {
 constexpr uint32_t kRecShader = 1, kRecPipeline = 2;
 FILE* g_cache_out = nullptr;
@@ -1316,8 +1219,7 @@ struct PipelineRecipe {
     uint32_t blend[8], colorControl, targetMask, strides[16];
 };
 std::vector<PipelineRecipe> g_pending_pipelines;
-// hashes of the pipeline recipes already in the cache file or head start, so a pipeline the game asks
-// for before its queued recipe is built isn't appended again
+
 std::unordered_set<uint64_t> g_known_pipelines;
 
 std::string cache_path() {
@@ -1328,7 +1230,6 @@ std::string cache_path() {
     return dir + "/shaders.bin";
 }
 
-// registers saved with a shader: everything except ALU constants and unused space
 bool cache_saves_reg(uint32_t r) {
     return (r >= 0x2000 && r < 0x4000) || (r >= 0xA000 && r < 0xC000) || (r >= 0xE000 && r < 0x10000);
 }
@@ -1360,7 +1261,7 @@ uint32_t fetch_shader_size(const uint32_t* regs) {
     if (!prog) return 0;
     return ld32(prog) == 0x57574653 ? 16 + ld32(prog + 4) * 16 : regs[mmSQ_PGM_START_FS + 1] << 3;
 }
-}  // namespace
+}
 
 static void cache_record_shader(const uint32_t* regs, bool vertex) {
     if (g_cache_replaying || !g_cache_out) return;
@@ -1399,7 +1300,6 @@ static void cache_record_pipeline(const uint32_t* regs, Shader* vs, Shader* ps, 
     cache_write(kRecPipeline, v);
 }
 
-// load and replay the recipes; runs once on the render thread before the first draw
 static void cache_load() {
     std::string path = cache_path();
     if (path == "0") { g_cache_disabled = true; return; }
@@ -1438,8 +1338,7 @@ static void cache_load() {
             uint32_t vertex, size, fsSize, n;
             if (!get(p, end, vertex) || !get(p, end, size) || !get(p, end, fsSize) || !get(p, end, n)) break;
             if (p + size + fsSize + n * 8 > end) break;
-            // the microcode goes to guest memory so the normal translation path can read it; one copy per
-            // distinct program (records repeat the same few thousand programs under many register states)
+
             uint32_t prog = guest_copy(p, size);
             p += size;
             uint32_t fsProg = 0;
@@ -1467,7 +1366,7 @@ static void cache_load() {
         g_cache_replaying = false;
         g_defer_compiles = false;
     }
-    void headstart_load();  // shader_headstart.mm
+    void headstart_load();
     headstart_load();
     g_cache_out = fopen(path.c_str(), "ab");
     if (shaders || pipelines)
@@ -1475,16 +1374,13 @@ static void cache_load() {
             now_ms() - t0, path.c_str());
 }
 
-// build queued pipelines whose shaders have finished compiling, at most `budget` of them and only
-// while fewer than `maxInFlight` compiles are running; recipes that can't be resolved are dropped
 static size_t g_recipes_built, g_recipes_dropped;
 static void build_pending_pipelines(int budget, int maxInFlight) {
     if (g_pending_pipelines.empty()) return;
     static std::vector<uint32_t> regs(0x10000);
     g_cache_replaying = true;
     g_building_ahead = true;
-    // the queue holds ~10^5 recipes at startup; per-frame calls check a window of it and resume from a
-    // cursor next frame instead of rescanning everything (`--warm-shaders` passes INT_MAX: full scan)
+
     static size_t cursor = 0;
     size_t scan = budget == INT_MAX ? SIZE_MAX : 2048;
     size_t i = scan != SIZE_MAX && cursor < g_pending_pipelines.size() ? cursor : 0;
@@ -1495,7 +1391,7 @@ static void build_pending_pipelines(int budget, int maxInFlight) {
         auto finallyFailed = [](Shader* sh) { return sh->state == CS_FAILED && (!sh->dec || sh->attempts >= kCompileAttempts); };
         if (vi == g_shaders.end() || pi == g_shaders.end() || fi == g_fetch.end() || !fi->second ||
             finallyFailed(vi->second) || finallyFailed(pi->second)) {
-            g_pending_pipelines[i] = g_pending_pipelines.back();  // unusable recipe
+            g_pending_pipelines[i] = g_pending_pipelines.back();
             g_pending_pipelines.pop_back();
             g_recipes_dropped++;
             continue;
@@ -1518,10 +1414,8 @@ static void build_pending_pipelines(int budget, int maxInFlight) {
     g_cache_replaying = false;
 }
 
-// build cached pipelines whose shaders have finished compiling; a few per frame
 void cache_warm_step() {
-    // a few background compiles per frame keep the startup burst from starving the game, and none
-    // start while the game's own compiles keep the compiler busy (NSMBU_BG_COMPILES, default 8 in flight)
+
     static const int maxInFlight = getenv("NSMBU_BG_COMPILES") ? atoi(getenv("NSMBU_BG_COMPILES")) : 8;
     for (int n = 0; n < 16 && !g_deferred_shaders.empty() && g_compiles_in_flight < maxInFlight;) {
         Shader* s = g_deferred_shaders.back();
@@ -1580,8 +1474,8 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
          regs[REGADDR::CB_TARGET_MASK]);
     if (!count || !instances) return;
     ((uint32_t*)regs)[REGADDR::VGT_PRIMITIVE_TYPE] = prim;
-    if (regs[REGADDR::VGT_GS_MODE] & 3) { g_skip[SK_GS]++; return; }  // geometry shaders: not supported yet
-    if (regs[REGADDR::PA_CL_CLIP_CNTL] & (1 << 22)) { g_skip[SK_RASTER_KILL]++; return; }  // rasterization disabled
+    if (regs[REGADDR::VGT_GS_MODE] & 3) { g_skip[SK_GS]++; return; }
+    if (regs[REGADDR::PA_CL_CLIP_CNTL] & (1 << 22)) { g_skip[SK_RASTER_KILL]++; return; }
 
     uint64_t fsKey = 0;
     LatteFetchShader* fs = get_fetch_shader(regs, &fsKey);
@@ -1595,8 +1489,8 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     }
     Shader* vs = get_shader(regs, true, fs, fsKey);
     Shader* ps = get_shader(regs, false, fs, fsKey);
-    if (!vs || !ps || !vs->dec || !ps->dec) { g_skip[SK_NO_SHADER]++; return; }  // translation failed
-    // must this draw run even if its compile takes longer than the budget? (see wait_compiled)
+    if (!vs || !ps || !vs->dec || !ps->dec) { g_skip[SK_NO_SHADER]++; return; }
+
     const LatteContextRegister& lcr = *(const LatteContextRegister*)regs;
     uint8_t mask = LatteMRT::GetActiveColorBufferMask(ps->dec, lcr);
     {
@@ -1628,7 +1522,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
         if (mask & (1 << i)) colors[i] = color_target(regs, i, &colorSlices[i]);
     Surface* depth = LatteMRT::GetActiveDepthBufferMask(lcr) ? depth_target(regs, &depthSlice) : nullptr;
     if (depth && depth->width == 1280 && depth->height == 720) R.mainDepthAddr = depth->addr;
-    uint32_t guestW = colors[0] ? colors[0]->width : 0;  // the game's target size (viewport registers refer to it)
+    uint32_t guestW = colors[0] ? colors[0]->width : 0;
     uint32_t guestH = colors[0] ? colors[0]->height : 0;
     if (g_hires_redraw) {
         g_hires_src = colors[0]->addr;
@@ -1636,8 +1530,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
         colorSlices[0] = 0;
         if (depth) { depth = hires_surface(g_hires_depth, depth); depthSlice = 0; }
     }
-    // Metal requires matching attachment sizes; drop mismatching ones. Sizes here are the textures'
-    // (internal resolution); kx/ky = texture pixels per guest pixel of the target.
+
     uint32_t w = 0, h = 0;
     float kx = 1.0f, ky = 1.0f;
     for (auto* c : colors)
@@ -1647,16 +1540,15 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     for (auto& c : colors)
         if (c && (c->tex.width != w || c->tex.height != h)) { c = nullptr; g_skip[SK_DROPPED_COLOR]++; }
     if (!w) { g_skip[SK_NO_TARGET]++; return; }
-    if (g_hires_redraw && guestW) {  // the viewport registers describe the game's smaller buffer
+    if (g_hires_redraw && guestW) {
         kx = (float)colors[0]->tex.width / guestW;
-        ky = (float)colors[0]->tex.height / guestH;  // differs from kx at other aspect ratios
+        ky = (float)colors[0]->tex.height / guestH;
     }
     g_target_kx = kx;
     g_target_ky = ky;
     rprof::mark(rprof::kTargets);
 
-    // textures must be uploaded before the render encoder opens
-    static std::vector<uint32_t> indices;  // render thread only; keeps its capacity between draws
+    static std::vector<uint32_t> indices;
     MTLPrimitiveType ptype;
     if (!build_indices(prim, count, indexType, indexAddr, indices, ptype)) { g_skip[SK_PRIM]++; return; }
     rprof::mark(rprof::kIndices);
@@ -1691,7 +1583,6 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     const float* bc = (const float*)&regs[REGADDR::CB_BLEND_RED];
     [enc setBlendColorRed:bc[0] green:bc[1] blue:bc[2] alpha:bc[3]];
 
-    // rasterizer
     LATTE_PA_SU_SC_MODE_CNTL pm;
     uint32_t pmr = regs[REGADDR::PA_SU_SC_MODE_CNTL];
     memcpy(&pm, &pmr, 4);
@@ -1714,7 +1605,6 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     bool zclip = !clipCntl.get_ZCLIP_FAR_DISABLE();
     [enc setDepthClipMode:zclip ? MTLDepthClipModeClip : MTLDepthClipModeClamp];
 
-    // viewport and scissor
     float xs = gx2::bitsf(regs[REGADDR::PA_CL_VPORT_XSCALE]), xo = gx2::bitsf(regs[REGADDR::PA_CL_VPORT_XOFFSET]);
     float ys = gx2::bitsf(regs[REGADDR::PA_CL_VPORT_YSCALE]), yo = gx2::bitsf(regs[REGADDR::PA_CL_VPORT_YOFFSET]);
     float zs = gx2::bitsf(regs[REGADDR::PA_CL_VPORT_ZSCALE]), zo = gx2::bitsf(regs[REGADDR::PA_CL_VPORT_ZOFFSET]);
@@ -1735,8 +1625,6 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     rprof::mark(rprof::kRecord);
     rprof::UploadKind vertexUploads(rprof::kUpVertex);
 
-    // vertex buffers: small ones (UI, particles, dynamic geometry) are snapshotted like uniforms;
-    // large static meshes are read from guest memory directly
     static const uint32_t kSnapshotLimit = getenv("NSMBU_VB_SNAPSHOT") ? (uint32_t)atoi(getenv("NSMBU_VB_SNAPSHOT")) : 256 * 1024;
     for (auto& g : fs->bufferGroups) {
         uint32_t addr = regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START + g.attributeBufferIndex * 7];
@@ -1753,7 +1641,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     }
     rprof::mark(rprof::kVertex);
     {
-        rprof::UploadKind uploads(rprof::kUpUbo);  // Metal: uniform snapshots and bindings of both stages
+        rprof::UploadKind uploads(rprof::kUpUbo);
         R.binding = true;
         bind_stage(enc, regs, vs, true, colors);
         bind_stage(enc, regs, ps, false, colors);
@@ -1785,7 +1673,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     for (int i = 0; i < 8; i++)
         if (colors[i] && regs[mmCB_COLOR0_BASE + i]) g_target_drawn[regs[mmCB_COLOR0_BASE + i]] = R.frame;
     if (depth && regs[mmDB_DEPTH_BASE]) g_target_drawn[regs[mmDB_DEPTH_BASE]] = R.frame;
-    // debug: NSMBU_DUMP_DRAWS=frame:i,j,k dumps color target 0 after those draws
+
     static uint64_t dumpFrame = ~0ull;
     static std::set<uint64_t> dumpDraws = [] {
         std::set<uint64_t> d;
@@ -1796,7 +1684,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
         }
         return d;
     }();
-    // debug: NSMBU_TRACE_PS=addr[:first-last] logs one compact line per matching draw (cheap enough to keep timing)
+
     static uint32_t tracePS = 0;
     static uint64_t traceFrom = 0, traceTo = ~0ull;
     static bool traceInit = [] {
@@ -1831,7 +1719,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
                 n += snprintf(line + n, sizeof line - n, " u%08X+%X(%.3f %.3f %.3f %.3f)", addr, e.indexOffset, f[0], f[1], f[2], f[3]);
             }
         }
-        // pixel shader remapped uniforms (index: value) too
+
         n += snprintf(line + n, sizeof line - n, " | PS:");
         for (auto& e : ps->dec->list_remappedUniformEntries_register) {
             if (n > (int)sizeof line - 80) break;
@@ -1876,7 +1764,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
         snprintf(name, sizeof name, "ps_%08X_%llu.png", dumpPS, (unsigned long long)thisDraw);
         for (auto* c : colors) if (c) { dump_texture(c->tex, name, false, false); break; }
     }
-    if (capturing() && count <= 6 && colors[0]) {  // full-screen pass
+    if (capturing() && count <= 6 && colors[0]) {
         void dump_texture(id<MTLTexture>, const char*, bool, bool);
         char name[160];
         snprintf(name, sizeof name, "%s/draw_%04llu_PS%08X_CB%08X.png", g_capture_dir.c_str(), (unsigned long long)thisDraw,
@@ -1893,7 +1781,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
             dump_texture(depth->tex, name, false, false);
         }
     }
-    if (g_hires_redraw) { g_hires_frame = R.frame; return; }  // the private copy is ready for the occlusion pass
+    if (g_hires_redraw) { g_hires_frame = R.frame; return; }
     if (ao_hires_enabled() && colors[0] && ps->kind == gfx::ProgramKind::DepthDownsample) {
         g_hires_redraw = true;
         draw(regs, prim, count, indexType, indexAddr, baseVertex, instances);
@@ -1901,10 +1789,6 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     }
 }
 
-// ---------------------------------------------------------------- shader head start hooks (shader_headstart.mm)
-// Translate one program from a head-start record: regs hold its state, with the program (and the
-// fetch shader) already placed in guest memory. Not recorded into the user cache. compileNow starts
-// the Metal compile right away instead of deferring it to first use.
 bool headstart_translate(const uint32_t* regs, bool vertex, bool compileNow) {
     bool replaying = g_cache_replaying, defer = g_defer_compiles;
     g_cache_replaying = true;
@@ -1918,11 +1802,8 @@ bool headstart_translate(const uint32_t* regs, bool vertex, bool compileNow) {
     return s && s->state != CS_FAILED;
 }
 
-// Metal compiles (shaders and pipelines) that haven't finished yet
 size_t headstart_compiling() { return std::max(0, g_compiles_in_flight.load()); }
 
-// queue a head-start pipeline recipe (a raw kRecPipeline record); built like the user cache's, once
-// its shaders are compiled
 bool headstart_queue_pipeline(const uint8_t* raw, size_t size) {
     if (size != sizeof(PipelineRecipe)) return false;
     PipelineRecipe r;
@@ -1931,8 +1812,6 @@ bool headstart_queue_pipeline(const uint8_t* raw, size_t size) {
     return true;
 }
 
-// `--warm-shaders`: build the queued pipelines whose shaders are compiled, keeping at most
-// maxInFlight compiles running. Returns the number still queued (waiting for their shaders).
 size_t headstart_build_pipelines(int maxInFlight, size_t& built, size_t& dropped) {
     build_pending_pipelines(INT_MAX, maxInFlight);
     built = g_recipes_built;
@@ -1940,4 +1819,4 @@ size_t headstart_build_pipelines(int maxInFlight, size_t& built, size_t& dropped
     return g_pending_pipelines.size();
 }
 
-}  // namespace gfx
+}

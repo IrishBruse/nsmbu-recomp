@@ -1,8 +1,5 @@
-/* Bit-exact Espresso fres / frsqrte estimates.
- *
- * Lookup tables and algorithm from Cemu (src/Cafe/HW/Espresso/Interpreter/PPCInterpreterFPU.cpp),
- * Copyright (c) Cemu contributors, licensed under the Mozilla Public License 2.0.
- */
+
+
 #include <stdint.h>
 #include <string.h>
 

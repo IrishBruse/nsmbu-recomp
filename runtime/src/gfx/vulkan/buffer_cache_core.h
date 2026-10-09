@@ -1,38 +1,5 @@
-// Guest buffer cache: the renderer-independent part (Vulkan glue: buffer_cache.cpp; tests:
-// runtime/tools/buffer_cache_test.cpp).
-//
-// Draws read vertex arrays, index arrays and uniform blocks straight from guest memory. Instead of
-// copying those bytes into the per-submission upload arena for every draw, the cache keeps one GPU
-// copy per guest range and hands out the same region until the range changes. Nothing is hashed or
-// compared on the hot path; a range is current while none of its pages has a newer stamp in the page
-// write tracker (write_watch.h):
-//   - CPU writes (guest code, HLE memcpy, save-state restore, the renderer's own CopySurface writes)
-//     fault once on the armed pages and stamp them;
-//   - kernel writes into guest memory are bracketed by HostWrite (FSReadFile), which stamps;
-//   - explicit guest signals stamp the hint array: DCFlushRange/DCStoreRange (coreinit) and
-//     GX2Invalidate of attribute or uniform buffers (on the render thread, in command order);
-//   - a save-state load drops everything (invalidate_all, any thread).
-// There are no GPU writes into guest memory (no stream-out, render targets stay GPU images).
-//
-// Upload protocol, the same as the texture checks: arm the range (write-protect, take the stamp), then
-// read guest memory. A write that lands before the protection is in the copy; one after it faults and
-// carries a newer stamp, so the next lookup uploads again. A lookup returns data as of the last upload
-// or newer; the uncached path copies at the same render-thread moment, so both see the same bytes
-// unless the game writes the range while the draw is being prepared (a race the console GPU has too).
-//
-// Old regions are never overwritten: a changed range gets a fresh region and the old one is retired
-// through the backing, which frees it after the GPU work that may read it has completed.
-//
-// Keys: the guest start address plus a kind and a parameter word (converted index data depends on the
-// primitive, index type and count). A raw range serves every request with the same start whose size is
-// not larger (a longer request uploads the longer range). Ranges with other starts are separate
-// entries even when they overlap: each is validated against its own pages.
-//
-// Ranges written over and over (per-frame uniform blocks, dynamic vertex data) would fault on every
-// write and upload on every use. After kChurnLimit uploads caused by writes, each within kChurnFrames
-// of the previous one, the entry becomes dynamic: it is no longer armed, lookups return kBypass (the
-// caller copies through the upload arena as before), and after a back-off (doubling, up to
-// kMaxBackoff frames) it is tried again.
+
+
 #pragma once
 #include <algorithm>
 #include <atomic>
@@ -46,7 +13,6 @@
 
 namespace gfxvk::bufcache {
 
-// Best-fit allocator over [0, capacity) with coalescing of freed neighbours.
 class RangeAllocator {
  public:
   static constexpr uint64_t kFail = ~uint64_t{0};
@@ -106,7 +72,6 @@ class RangeAllocator {
   uint64_t capacity_ = 0, used_ = 0;
 };
 
-// GPU memory of one entry: a range of one of the backing's buffers.
 struct Region {
   uint32_t block = UINT32_MAX;
   uint64_t offset = 0, size = 0;
@@ -116,9 +81,9 @@ struct Region {
 
 struct Backing {
   virtual ~Backing() = default;
-  // false: no memory within the budget (the caller falls back to its uncached path)
+
   virtual bool allocate(uint64_t size, Region& out) = 0;
-  // free once the GPU work that may read the region has completed
+
   virtual void retire(const Region& region) = 0;
 };
 
@@ -127,7 +92,7 @@ enum Kind : uint32_t { kRaw = 0, kIndexNative = 1, kIndexConverted = 2 };
 struct Key {
   uint32_t addr = 0;
   uint32_t kind = kRaw;
-  uint64_t params = 0;  // part of the identity: converted index data depends on these
+  uint64_t params = 0;
   uint32_t extra = 0;
   bool operator==(const Key& o) const {
     return addr == o.addr && kind == o.kind && params == o.params && extra == o.extra;
@@ -142,21 +107,21 @@ struct KeyHash {
 };
 
 struct Entry {
-  uint32_t addr = 0, size = 0;  // guest source range [addr, addr + size) of the current region
-  uint32_t outSize = 0;         // bytes in the region
+  uint32_t addr = 0, size = 0;
+  uint32_t outSize = 0;
   Region region;
-  uint64_t stamp = 0;           // write_watch stamp of the upload (arm)
-  uint64_t checkedSeq = 0;      // write_seq() of the last clean check
+  uint64_t stamp = 0;
+  uint64_t checkedSeq = 0;
   uint32_t epoch = 0;
   uint64_t lastUse = 0, uploadFrame = 0, dynamicUntil = 0;
   uint32_t churn = 0, backoffs = 0;
-  bool armed = false;           // lookup armed the range for the upload that follows
+  bool armed = false;
   uint64_t armStamp = 0, armSeq = 0;
   uint32_t armSize = 0;
-  // caller memo of data derived from the region's bytes (index extents); cleared on upload
+
   uint64_t memoKey = ~uint64_t{0};
   uint32_t memo[3] = {};
-  std::vector<uint8_t> shadow;  // CPU copy of the uploaded bytes (verify mode: Cache::keepShadow)
+  std::vector<uint8_t> shadow;
 };
 
 struct Stats {
@@ -171,24 +136,21 @@ enum Status { kHit, kMiss, kBypass };
 
 class Cache {
  public:
-  // verify mode: keep a CPU copy of every upload, so verify() never reads the mapped GPU memory
+
   bool keepShadow = false;
   static constexpr uint32_t kChurnLimit = 3, kChurnFrames = 4;
   static constexpr uint64_t kFirstBackoff = 64, kMaxBackoff = 2048;
-  static constexpr uint64_t kIdleFrames = 1800;  // evicted after this many frames without use
-  static constexpr uint64_t kAlign = 256;        // minUniformBufferOffsetAlignment is at most 256
+  static constexpr uint64_t kIdleFrames = 1800;
+  static constexpr uint64_t kAlign = 256;
 
   explicit Cache(Backing& backing) : backing_(backing) {}
   ~Cache() { clear(); }
 
   void set_frame(uint64_t frame) { frame_ = frame; }
   uint64_t frame() const { return frame_; }
-  // any thread (save-state load): every entry is re-uploaded on its next use
+
   void invalidate_all() { epoch_.fetch_add(1, std::memory_order_acq_rel); }
 
-  // Finds the entry for key covering size source bytes. kHit: e->region holds current bytes. kMiss: the
-  // range is armed; read guest memory now (not earlier) and call upload(). kBypass: dynamic range, use
-  // the uncached path. e stays valid until the next end_frame().
   Status lookup(const Key& key, uint32_t size, Entry*& e) {
     ++stats.lookups;
     const uint32_t epoch = epoch_.load(std::memory_order_acquire);
@@ -211,7 +173,7 @@ class Cache {
         if (note_write(x) && onDynamic) onDynamic(key, x, hintOnly);
         drop_region(x);
       } else {
-        ++stats.grows;  // a longer request: not a write
+        ++stats.grows;
         drop_region(x);
       }
     }
@@ -220,7 +182,7 @@ class Cache {
       x.armed = false;
       return kBypass;
     }
-    // arm first, then the caller reads guest memory (see the header comment)
+
     x.armSeq = wwatch::write_seq();
     x.armStamp = wwatch::arm(key.addr, size);
     x.armSize = size;
@@ -228,7 +190,6 @@ class Cache {
     return kMiss;
   }
 
-  // After kMiss: copies outSize bytes into a new region. false: no memory (use the uncached path).
   bool upload(Entry& e, const void* bytes, uint32_t outSize) {
     if (!e.armed) return false;
     e.armed = false;
@@ -259,11 +220,6 @@ class Cache {
     return true;
   }
 
-  // Verify mode: compares the region's first n bytes with freshly computed ones. A difference with a
-  // newer stamp on the range is a write racing this check (counted, not a mismatch). Diagnostics only
-  // (NSMBU_VK_BUFFER_CACHE_VERIFY=1). It compares against the CPU copy of the upload (keepShadow): the
-  // mapped GPU memory is uncached or write-combined on discrete GPUs, and reading it made verify mode
-  // run at ~1 fps on an RX 6700 XT (issue #91). Without a copy it falls back to the mapped bytes.
   bool verify(Entry& e, const void* expected, uint32_t n, uint32_t* firstDiff = nullptr) {
     ++stats.verifyChecks;
     n = std::min(n, e.outSize);
@@ -280,8 +236,6 @@ class Cache {
     return false;
   }
 
-  // Once per frame: evicts idle entries (and, over budget or after an allocation failure, the least
-  // recently used ones down to 3/4 of the budget). Invalidates Entry pointers.
   void end_frame(uint64_t budgetBytes) {
     const bool over = resident_ > budgetBytes || pressure_;
     if (!over && frame_ - lastSweep_ < 64) return;
@@ -316,23 +270,22 @@ class Cache {
   uint64_t resident_bytes() const { return resident_; }
   size_t entries() const { return map_.size(); }
   Stats stats;
-  // diagnostics: called when an entry becomes dynamic (hintOnly: its last invalidation was a hint, not
-  // a write fault)
+
   void (*onDynamic)(const Key& key, const Entry& entry, bool hintOnly) = nullptr;
 
  private:
   static uint64_t round(uint64_t n) { return (std::max<uint64_t>(n, 16) + kAlign - 1) / kAlign * kAlign; }
   bool current(Entry& e) {
     const uint64_t seq = wwatch::write_seq();
-    if (seq == e.checkedSeq) return true;  // nothing stamped anywhere since the last clean check
+    if (seq == e.checkedSeq) return true;
     if (wwatch::changed_since(e.addr, e.size, e.stamp)) return false;
     e.checkedSeq = seq;
     return true;
   }
-  // returns true when the entry just became dynamic
+
   bool note_write(Entry& e) {
     const uint64_t age = frame_ - e.uploadFrame;
-    if (age > kMaxBackoff) e.backoffs = 0;  // was stable for long: start the back-off over
+    if (age > kMaxBackoff) e.backoffs = 0;
     e.churn = age <= kChurnFrames ? e.churn + 1 : 1;
     if (e.churn < kChurnLimit) return false;
     e.churn = 0;
@@ -357,4 +310,4 @@ class Cache {
   bool pressure_ = false;
 };
 
-}  // namespace gfxvk::bufcache
+}

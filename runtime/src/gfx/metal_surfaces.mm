@@ -4,8 +4,7 @@
 #include <atomic>
 #include <cmath>
 #include <vector>
-// Guest surfaces <-> Metal textures: render targets, depth buffers, sampled textures.
-// Tiled layouts are decoded with the vendored LatteAddrLib.
+
 #include "Cafe/HW/Latte/ISA/LatteReg.h"
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
 #include "Cafe/HW/Latte/LatteAddrLib/LatteAddrLib.h"
@@ -21,7 +20,6 @@
 Latte::E_GX2SURFFMT LatteTexture_ReconstructGX2Format(const Latte::LATTE_SQ_TEX_RESOURCE_WORD1_N&, const Latte::LATTE_SQ_TEX_RESOURCE_WORD4_N&);
 
 namespace gfx {
-
 
 static MTLTextureType texture_type(uint32_t dim, uint32_t slices) {
     switch ((Latte::E_DIM)dim) {
@@ -39,24 +37,20 @@ uint64_t next_write_seq() {
     return ++seq;
 }
 
-// ---------------------------------------------------------------- internal resolution
-// Render targets are allocated at res_scale() x their guest size. Everything that talks to the game
-// (lookups, aliasing, guest memory) uses the guest size; draws scale their viewport and scissor, and
-// shaders sample with normalized coordinates, so they see the same picture at more pixels.
 static float parse_scale(const char* e) {
     float f = e ? (float)atof(e) : 1.0f;
     return std::clamp(f > 0 ? f : 1.0f, 1.0f, 4.0f);
 }
 static std::atomic<float> g_res_requested{parse_scale(getenv("NSMBU_RES_SCALE"))};
 static float g_res_frame = g_res_requested.load();
-static void latch_aspect();  // render thread: the factor for this frame
+static void latch_aspect();
 float res_scale() { return g_res_frame; }
 void set_res_scale(float f) {
     g_res_requested = std::clamp(f, 1.0f, 4.0f);
     LOG("[gfx] internal resolution %gx", g_res_requested.load());
 }
 void latch_res_scale() {
-    // test aid: NSMBU_RES_SCALE_AT=frame:factor,... switches the factor at those frames
+
     static std::vector<std::pair<uint64_t, float>> at = [] {
         std::vector<std::pair<uint64_t, float>> v;
         if (const char* e = getenv("NSMBU_RES_SCALE_AT"))
@@ -74,15 +68,8 @@ void latch_res_scale() {
     latch_aspect();
 }
 
-// ---------------------------------------------------------------- aspect ratio
-// The game renders a 16:9 screen (1280x720 guest pixels). At another aspect ratio (aspect.cpp) the
-// game's projections are widened (or made taller) and every screen-shaped render target is allocated
-// that much wider (taller) than its guest size: draws keep their guest viewports, which cover the
-// whole texture, so the picture comes out at the new shape without the game knowing. kx/ky: texture
-// pixels per guest pixel on top of the internal resolution, (A / (16/9), 1) for wider screens,
-// (1, (16/9) / A) for narrower ones. Latched at the frame boundary like the resolution.
 static std::atomic<float> g_aspect_requested{16.0f / 9.0f};
-static float g_aspect_kx = 1.0f, g_aspect_ky = 1.0f;  // render thread: factors for this frame
+static float g_aspect_kx = 1.0f, g_aspect_ky = 1.0f;
 void set_frame_aspect(float a) { g_aspect_requested.store(a, std::memory_order_relaxed); }
 static void latch_aspect() {
     float a = g_aspect_requested.load(std::memory_order_relaxed), base = 16.0f / 9.0f;
@@ -91,8 +78,7 @@ static void latch_aspect() {
     g_aspect_kx = kx;
     g_aspect_ky = ky;
 }
-// the game's screen-sized buffers and their reductions (1920x1080 ... 60x33); not the GamePad's
-// (854x480, shown in its own window), not shadow maps, mip chains or textures
+
 static bool screen_shaped(const Surface* s) {
     if (s->fmt.compressed || s->mips > 1 || s->slices > 1 || s->width < 32) return false;
     for (uint32_t w = 854, h = 480; w >= 32; w >>= 1, h >>= 1)
@@ -101,12 +87,6 @@ static bool screen_shaped(const Surface* s) {
     return r > 0.97f && r < 1.03f;
 }
 
-// the factor a render target gets. Shadow maps (depth arrays: the game's cascades) scale with the
-// internal resolution by default. NSMBU_SHADOW_SCALE=n gives them their own factor; =1 keeps the
-// console's 1024x1024, which uses far less GPU memory at 2x/3x. Issue #67: the hard, crawling
-// shadow edges at 2x in v0.2.6-v0.2.8 came mainly from the missing mip chains the game's
-// shadow-mask softening samples (restored in v0.2.9); since then both sizes give practically the
-// same soft edges, the larger maps only a hair crisper.
 static float target_scale(const Surface* s) {
     uint32_t width,height;
     if(!s->fmt.compressed&&s->mips==1&&mods::cemu::texture_extent(s->width,s->height,s->format,s->slices,s->tileMode,width,height))return 1.0f;
@@ -124,7 +104,7 @@ bool target_aspect_factors(uint32_t w, uint32_t h, float& kx, float& ky) {
     ky = on ? g_aspect_ky : 1.0f;
     return on;
 }
-// extra horizontal / vertical factor for the aspect ratio
+
 static void target_aspect(const Surface* s, float& kx, float& ky) {
     uint32_t width,height;
     if(!s->fmt.compressed&&s->mips==1&&mods::cemu::texture_extent(s->width,s->height,s->format,s->slices,s->tileMode,width,height)){
@@ -136,11 +116,11 @@ static void target_aspect(const Surface* s, float& kx, float& ky) {
 }
 
 static id<MTLTexture> make_texture(Surface* s, MTLTextureType type, bool forRendering, float scale, float ax = 1.0f, float ay = 1.0f) {
-    // render targets: 2D, 2D arrays and volumes (rendered slice by slice: the game's colour-grading volumes)
+
     if (forRendering && type != MTLTextureType2DArray && type != MTLTextureType3D) type = MTLTextureType2D;
     bool is1D = type == MTLTextureType1D || type == MTLTextureType1DArray;
     uint32_t pw = s->width, ph = s->height;
-    // volumes keep the guest size (they are sampled as lookup tables, not shown)
+
     if ((scale != 1.0f || ax != 1.0f || ay != 1.0f) && !is1D && type != MTLTextureType3D) {
         pw = (uint32_t)std::ceil(s->width * scale * ax - 0.01f);
         ph = (uint32_t)std::ceil(s->height * scale * ay - 0.01f);
@@ -171,8 +151,6 @@ static id<MTLTexture> make_texture(Surface* s, MTLTextureType type, bool forRend
     return t;
 }
 
-// a render target made at another factor (the setting changed, or a CPU texture now rendered to):
-// reallocate it at the current one, keeping its contents (filtered)
 static Surface* rescale(Surface* s) {
     float want = target_scale(s), ax, ay;
     target_aspect(s, ax, ay);
@@ -191,7 +169,6 @@ static Surface* rescale(Surface* s) {
     return s;
 }
 
-// fullscreen-triangle copy with filtering; one pipeline per destination format
 static const char* kResampleShader = R"(
 #include <metal_stdlib>
 using namespace metal;

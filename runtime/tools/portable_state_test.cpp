@@ -1,5 +1,5 @@
-// Portable save state format (runtime/src/portable_state.h): write and read back, version mismatch,
-// checksums (file and save data), the size guard and the no-binary-blob guard.
+
+
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -63,7 +63,6 @@ static std::string replace(std::string s, const std::string& a, const std::strin
     return s.replace(p, a.size(), b);
 }
 
-// recomputes the checksum line so a test can change a field and still pass the file checksum
 static std::string reseal(std::string text) {
     size_t p = text.find("checksum = ");
     assert(p != std::string::npos);
@@ -75,17 +74,17 @@ static std::string reseal(std::string text) {
 
 int main() {
     std::string why;
-    // ---- write and read back
+
     State s = sample();
     std::string text = write(s, why);
     CHECK(!text.empty());
-    CHECK(text.size() < 8 * 1024);  // a few KB
+    CHECK(text.size() < 8 * 1024);
     printf("sample file: %zu bytes\n", text.size());
     State r;
     CHECK(read(text, r, why));
     CHECK(r.title_id == s.title_id && r.runtime == s.runtime && r.created == s.created);
     CHECK(r.controller == 2);
-    bool pro = false; // switched to GamePad after saving
+    bool pro = false;
     pro = ss::restored_pro_controller(r.controller, pro);
     CHECK(pro);
     State legacy;
@@ -102,18 +101,18 @@ int main() {
     CHECK(write(bad_mode, why).empty());
     CHECK(r.file_slot == 1 && r.player_name == "Link" && r.stage == "sea");
     CHECK(r.start_point == 0 && r.start_room == 44 && r.layer == -1 && r.room == 44);
-    CHECK(r.pos[0] == s.pos[0] && r.pos[1] == s.pos[1] && r.pos[2] == s.pos[2]);  // exact (9 digits)
+    CHECK(r.pos[0] == s.pos[0] && r.pos[1] == s.pos[1] && r.pos[2] == s.pos[2]);
     CHECK(r.angle_y == -16384 && r.link_proc == 0x88 && r.on_ship);
     CHECK(r.has_ship && r.ship_angle_y == 12345 && r.ship_pos[0] == s.ship_pos[0] && r.ship_pos[1] == s.ship_pos[1] &&
           r.ship_pos[2] == s.ship_pos[2]);
     {
-        State x;  // on the boat without a boat: refused
+        State x;
         CHECK(!read(reseal(replace(text, "has_ship = 1", "has_ship = 0")), x, why));
     }
     CHECK(r.time_of_day == 187.5f && r.date == 12);
     CHECK(r.savedata == s.savedata && r.hd_player == s.hd_player && r.hd_status == s.hd_status &&
           r.hd_event == s.hd_event && r.hd_map == s.hd_map);
-    // Guest identities round-trip without mod code/data; missing metadata means the empty set.
+
     {
         State modded=s;modded.guest_mods={{"play-scene-ticker","0.1.0"},{"smooth-step-replace","1.2.3"}};
         auto with_mods=write(modded,why);State loaded;
@@ -125,54 +124,53 @@ int main() {
         modded.guest_mods={{"../invalid","1.0.0"}};CHECK(write(modded,why).empty());
         CHECK(!read(reseal(replace(with_mods,"guest_mod.play-scene-ticker = 0.1.0","guest_mod.play-scene-ticker = bad/version")),loaded,why));
     }
-    // CRLF line ends (a file passed through a Windows editor or mail client) still read
+
     {
         std::string crlf;
         for (char c : text) {
             if (c == '\n') crlf += '\r';
             crlf += c;
         }
-        // the checksum covers the bytes as written: CRLF changes it, so the reader must refuse it
+
         State x;
         CHECK(!read(crlf, x, why));
         CHECK(why.find("checksum") != std::string::npos);
     }
 
-    // ---- version mismatch
     {
         State x;
         CHECK(!read(reseal(replace(text, "format = 1", "format = 2")), x, why));
         CHECK(why.find("format version 2") != std::string::npos);
     }
-    // ---- file checksum: any change is refused
+
     {
         State x;
         CHECK(!read(replace(text, "room = 44", "room = 45"), x, why));
         CHECK(why.find("checksum") != std::string::npos);
-        CHECK(!read(text.substr(0, text.size() / 2), x, why));  // truncated
-        CHECK(!read(text + "extra = 1\n", x, why));               // data after the checksum
+        CHECK(!read(text.substr(0, text.size() / 2), x, why));
+        CHECK(!read(text + "extra = 1\n", x, why));
     }
-    // ---- save data checksum (the game's own pair at +0xA8C)
+
     {
         State bad = sample();
-        bad.savedata[0x10] ^= 0xFF;  // changed after sealing
+        bad.savedata[0x10] ^= 0xFF;
         std::string t = write(bad, why);
         CHECK(!t.empty());
         State x;
         CHECK(!read(t, x, why));
         CHECK(why.find("save data checksum") != std::string::npos);
     }
-    // ---- wrong blob sizes are refused on write
+
     {
         State bad = sample();
-        bad.savedata.resize(0x10000);  // a memory dump must never fit
+        bad.savedata.resize(0x10000);
         CHECK(write(bad, why).empty());
         CHECK(why.find("savedata") != std::string::npos);
         bad = sample();
         bad.hd_map.push_back(0);
         CHECK(write(bad, why).empty());
     }
-    // ---- guard: unknown fields, oversized fields and files over the limit
+
     {
         CHECK(blob_check(text, why));
         std::string big(40000, 'a');
@@ -182,19 +180,19 @@ int main() {
         CHECK(!read(t, x, why));
         t = reseal(replace(text, "player_name = Link", "player_name = " + std::string(200, 'x')));
         CHECK(!blob_check(t, why));
-        // a file over 64 KB is refused before anything else
+
         std::string huge = text;
         while (huge.size() <= kMaxFileSize) huge = "# padding " + std::string(1000, '-') + "\n" + huge;
         CHECK(!blob_check(huge, why));
         CHECK(why.find("larger") != std::string::npos);
         CHECK(!read(huge, x, why));
-        // a field repeated (to smuggle a second save data block) is refused
+
         size_t p = text.find("hd_map = ");
         std::string line = text.substr(p, text.find('\n', p) - p + 1);
         t = reseal(replace(text, line, line + line));
         CHECK(!read(t, x, why));
     }
-    // ---- long player names and control characters are cleaned on write
+
     {
         State x = sample();
         x.player_name = "Li\nnk\x01";
@@ -202,7 +200,7 @@ int main() {
         State y;
         CHECK(read(t, y, why) && y.player_name == "Link");
     }
-    // ---- CRC-32 reference value
+
     CHECK(crc32("123456789", 9) == 0xCBF43926u);
     if (failures) {
         fprintf(stderr, "%d failure(s)\n", failures);

@@ -1,5 +1,5 @@
-// coreinit MEM heaps (expanded heap, frame heap) and memory utilities.
-// Heap bookkeeping is kept host-side; the guest heap handle is the heap's start address.
+
+
 #include <map>
 #include <mutex>
 #include <unordered_map>
@@ -10,10 +10,10 @@
 namespace {
 
 struct ExpHeap {
-    uint32_t start, end;                 // managed range
-    std::map<uint32_t, uint32_t> free;   // addr -> size
-    std::map<uint32_t, uint32_t> used;   // user addr -> (block start) ; size in used_size
-    std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> blocks;  // user addr -> {block start, block size}
+    uint32_t start, end;
+    std::map<uint32_t, uint32_t> free;
+    std::map<uint32_t, uint32_t> used;
+    std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> blocks;
 
     void init(uint32_t s, uint32_t e) {
         start = s;
@@ -64,7 +64,7 @@ struct ExpHeap {
         if (it == blocks.end()) return false;
         uint32_t s = it->second.first, sz = it->second.second;
         blocks.erase(it);
-        // insert and coalesce
+
         auto n = free.emplace(s, sz).first;
         if (n != free.begin()) {
             auto p = std::prev(n);
@@ -111,14 +111,14 @@ constexpr uint32_t kHeapHeader = 0x40;
 uint32_t create_exp(uint32_t start, uint32_t size) {
     auto* h = new ExpHeap();
     h->init(start + kHeapHeader, start + size);
-    st32(start, 0x45585048);  // "EXPH"
+    st32(start, 0x45585048);
     g_exp[start] = h;
     return start;
 }
 
 uint32_t create_frm(uint32_t start, uint32_t size) {
     auto* h = new FrmHeap{start + kHeapHeader, start + size, start + kHeapHeader, start + size};
-    st32(start, 0x46524D48);  // "FRMH"
+    st32(start, 0x46524D48);
     g_frm[start] = h;
     return start;
 }
@@ -156,9 +156,8 @@ uint32_t frm_alloc(uint32_t heap, uint32_t size, int32_t align) {
     return p;
 }
 
-}  // namespace
+}
 
-// called at boot by main
 void mem_setup_heaps(uint32_t data_end) {
     uint32_t start = (data_end + 0xFFF) & ~0xFFFu;
     g_default_heap = create_exp(start, mem::kMem2End - start);
@@ -173,7 +172,6 @@ void mem_default_free(uint32_t p) {
     g_exp[g_default_heap]->release(p);
 }
 
-// default heap function pointers (data imports)
 static void default_alloc(Cpu* c) { ret(c, mem_default_alloc(arg(c, 0), 0x40)); }
 static void default_alloc_ex(Cpu* c) { ret(c, mem_default_alloc(arg(c, 0), (int32_t)arg(c, 1))); }
 static void default_free(Cpu* c) { if (arg(c, 0)) mem_default_free(arg(c, 0)); }
@@ -252,7 +250,7 @@ HLE(coreinit, MEMFreeToFrmHeap) {
 }
 
 HLE(coreinit, MEMGetBaseHeapHandle) {
-    // base heap slots: 0 = MEM1, 1 = MEM2 (default heap), 8 = foreground bucket
+
     uint32_t arena = arg(c, 0);
     ret(c, arena == 0 ? g_mem1_heap : arena == 1 ? g_default_heap : arena == 8 ? g_fg_heap : 0);
 }
@@ -263,8 +261,6 @@ HLE(coreinit, memcpy) { memcpy(mem::ptr(arg(c, 0)), mem::ptr(arg(c, 1)), arg(c, 
 HLE(coreinit, memmove) { memmove(mem::ptr(arg(c, 0)), mem::ptr(arg(c, 1)), arg(c, 2)); ret(c, arg(c, 0)); }
 HLE(coreinit, memset) { memset(mem::ptr(arg(c, 0)), (int)arg(c, 1), arg(c, 2)); ret(c, arg(c, 0)); }
 
-// caches are coherent on the host. Flushes and stores are the game saying "the GPU will read what I
-// wrote here": a hint for the Vulkan buffer cache (write_watch.h; a no-op unless it is on).
 HLE(coreinit, DCFlushRange) { wwatch::hint(arg(c, 0), arg(c, 1)); }
 HLE(coreinit, DCFlushRangeNoSync) { wwatch::hint(arg(c, 0), arg(c, 1)); }
 HLE(coreinit, DCInvalidateRange) {}
@@ -273,7 +269,6 @@ HLE(coreinit, DCStoreRangeNoSync) { wwatch::hint(arg(c, 0), arg(c, 1)); }
 HLE(coreinit, DCZeroRange) { memset(mem::ptr(arg(c, 0) & ~31u), 0, ((arg(c, 0) & 31) + arg(c, 1) + 31) & ~31u); }
 HLE(coreinit, OSIsAddressRangeDCValid) { ret(c, 1); }
 
-// ---------------------------------------------------------------- save states: heap bookkeeping
 #include <algorithm>
 #include <vector>
 

@@ -9,7 +9,6 @@ import unittest
 
 import wwsave as w
 
-
 def sample():
     slots = [bytearray(w.GAMEDATA_SIZE) for _ in range(3)]
     for n, g in enumerate(slots):
@@ -19,12 +18,11 @@ def sample():
         w.put(g, w.HD_FIELDS, "event.flags", bytes([0x11]) + bytes(255))
     return slots, [w.hd_extra_defaults() for _ in range(3)]
 
-
 class RepairTest(unittest.TestCase):
     def test_only_selected_sword_and_checksum_change(self):
         slots, extras = sample()
         raw = bytearray(w.write_hd(slots, extras))
-        # Preserve nonzero reserved bytes, rather than rewriting the entire save.
+
         for n in range(3):
             start = n * w.HD_SLOT
             raw[start + w.GAMEDATA_SIZE + 7] = 0x5A
@@ -43,7 +41,7 @@ class RepairTest(unittest.TestCase):
             self.assertEqual(w.get(repaired[file - 1], w.HD_FIELDS, "status_a.select_equip"), b"\x38\x3c\xff\xff")
             self.assertEqual(after_extras, w.read_hd(raw)[1])
             with self.assertRaises(w.HdError):
-                w.repair_medli(result, file)  # no second alteration
+                w.repair_medli(result, file)
 
     def test_refuse_later_progress_and_bad_checksums(self):
         for field, value in [("collect.symbol", b"\x02"), ("collect.triforce", b"\x01"),
@@ -85,7 +83,6 @@ class RepairTest(unittest.TestCase):
             cmd[cmd.index(str(out))] = str(root / "invalid")
             self.assertNotEqual(subprocess.run(cmd, capture_output=True).returncode, 0)
             self.assertFalse((root / "invalid").exists())
-
 
 if __name__ == "__main__":
     unittest.main()

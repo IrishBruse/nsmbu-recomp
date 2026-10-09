@@ -4,20 +4,18 @@ import re
 SCALARS = {'void', 'u8', 's8', 'u16', 's16', 'u32', 's32', 'f32', 'f64',
            'int', 'unsigned int', 'signed int', 'char', 'signed char', 'nsmbu_gpr_pair', 'unsigned char', 'short', 'unsigned short', 'bool'}
 
-
 def guest_type(kind, aliases=None):
     kind = (aliases or {}).get(kind.strip(), kind.strip())
     kind = re.sub(r'be<(\w+)>', r'\1', kind)
     kind = re.sub(r'\bbool\b', 'u8', kind)
     kind = {'BOOL': 's32', 'cPhs_State': 's32', 'fpc_ProcID': 'u32', 'bool': 'u8', 'double': 'f64', 'float': 'f32'}.get(kind, kind)
     if '*' in kind:
-        # Opaque object pointers preserve the PPC ABI without importing host C++ classes.
+
         base = kind.replace('*', '').replace('const', '').strip()
         if base not in SCALARS:
             return 'const void*' if 'const' in kind else 'void*'
         return kind
     return kind if kind in SCALARS else None
-
 
 def bindings(index):
     lines = ['/* Generated public HD declarations, CC0-1.0; see public-wwhd-LICENSE.',
@@ -73,7 +71,6 @@ def bindings(index):
         if len(names[short_name]) == 1:
             lines.append(f'#define nsmbu_{short_name} nsmbu_{name}')
     return '\n'.join(lines) + '\n', skipped
-
 
 def save_view(root, revision):
     text = (root / 'wwhd_src/d/d_save.cpp').read_text()

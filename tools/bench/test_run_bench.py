@@ -6,13 +6,12 @@ import unittest
 from unittest.mock import patch
 import run_bench as bench
 
-
 class BenchmarkTests(unittest.TestCase):
     def test_invalid_warmup_stops_before_measured_runs(self):
         with tempfile.TemporaryDirectory() as directory:
             argv = ['run_bench.py', '--binary', '/unused/game', '--state-dir', '/unused/states',
                     '--warmup', '--runs', '10', '--out', directory]
-            with patch.object(bench.sys, 'argv', argv), patch.object(bench.os.path, 'exists', return_value=True), \
+            with patch.object(bench.sys, 'argv', argv), patch.object(bench.os.path, 'exists', return_value=True),\
                  patch.object(bench, 'run_once', return_value={'status': 'load exceeded limit'}) as run:
                 with self.assertRaises(SystemExit) as stopped:
                     bench.main()
@@ -53,7 +52,7 @@ class BenchmarkTests(unittest.TestCase):
             if phase is not None:
                 phase[0] += 1
 
-        with patch.object(bench.subprocess, 'Popen', Process), patch.object(bench, 'other_games', games), \
+        with patch.object(bench.subprocess, 'Popen', Process), patch.object(bench, 'other_games', games),\
              patch.object(bench, 'load1', load), patch.object(bench.time, 'sleep', sleep):
             result = bench.run_once(args, 'new', {}, 1, str(root / 'out'))
         self.assertEqual(launched, [bench.os.path.abspath(root / 'new')])
@@ -88,7 +87,6 @@ from types import SimpleNamespace
 from unittest import mock
 from run_bench import benchmark_pids, logic_cpu_samples, quiet_reasons, run_statistics, worker_pids
 import run_bench
-
 
 class BenchmarkStatistics(unittest.TestCase):
     def test_pair_differences_match_pair_numbers_in_ab_ba_order(self):
@@ -153,7 +151,7 @@ class BenchmarkStatistics(unittest.TestCase):
             root = Path(directory)
             for name in ['save', 'states', 'game']:
                 (root / name).mkdir()
-            (root / 'states/slot1.bin').touch()  # synthetic empty fixture, never loaded by a game
+            (root / 'states/slot1.bin').touch()
             executables = []
             for name, frame, cpu in [('a', 6, 4), ('b', 8, 5)]:
                 executable = root / name
@@ -197,7 +195,7 @@ class BenchmarkStatistics(unittest.TestCase):
         repo = Path(__file__).resolve().parents[2]
         with tempfile.TemporaryDirectory(prefix='bench-retry-', dir=repo / 'build') as directory:
             root = Path(directory)
-            (root / 'slot1.bin').touch()  # synthetic fixture
+            (root / 'slot1.bin').touch()
             attempts, accepted = {}, []
 
             def sample(args, name, env, index, out):
@@ -232,7 +230,6 @@ class BenchmarkStatistics(unittest.TestCase):
             with mock.patch('run_bench.run_once', return_value=result) as sample, contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(run_bench.run_with_retries(SimpleNamespace(retry_disturbed=retry_disturbed), 'a', {}, 1, 'fixture'), result)
                 self.assertEqual(sample.call_count, 3)
-
 
 if __name__ == '__main__':
     unittest.main()

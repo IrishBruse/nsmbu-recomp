@@ -7,9 +7,7 @@
 #include <string>
 #include <vector>
 namespace mods::cemu {
-// Compare SPIR-V resource layouts, including array lengths, member offsets and
-// strides. IDs and debug names are deliberately ignored. Packs may omit resources
-// but cannot add descriptors or change the host's existing packed buffer layout.
+
 inline std::map<std::string,std::string> shader_interface(const std::vector<uint32_t>& words) {
     using Words=std::vector<uint32_t>;
     std::map<uint32_t,Words> types,constants,variables;
@@ -63,11 +61,7 @@ inline std::map<std::string,std::string> shader_interface(const std::vector<uint
     }
     return result;
 }
-// A pixel shader input that no vertex shader output feeds is a constant in the translated shader
-// (gfx/vulkan/shaders.cpp ps_link: the value SPI_PS_INPUT_CNTL DEFAULT_VAL gives it). The pack's
-// "layout(location = N) [flat|noperspective|smooth|centroid] in vec4 name;" for such an input
-// becomes the same constant, otherwise its interface has an input the original lacks.
-// values[N]: the constant for location N, or null for a fed input.
+
 inline std::string const_pixel_inputs(std::string source,const char* const (&values)[32]) {
     auto ident=[](char c){return std::isalnum((unsigned char)c)||c=='_';};
     auto space=[&](size_t& at){while(at<source.size()&&std::isspace((unsigned char)source[at]))at++;};

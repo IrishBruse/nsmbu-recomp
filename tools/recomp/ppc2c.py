@@ -7,14 +7,11 @@ Ctx callbacks: `branch(target)` returns C for a jump, `call(target)` for a call.
 Semantics follow Cemu's interpreter (src/Cafe/HW/Espresso/Interpreter).
 """
 
-
 def sext16(v):
     return v - 0x10000 if v & 0x8000 else v
 
-
 def sext(v, bits):
     return v - (1 << bits) if v & (1 << (bits - 1)) else v
-
 
 def mask(mb, me):
     """PowerPC MASK(mb, me) with bit 0 = MSB."""
@@ -27,20 +24,16 @@ def mask(mb, me):
         i = (i + 1) & 31
     return m
 
-
 class Unhandled(Exception):
     pass
-
 
 R = lambda n: "c->r[%d]" % n
 F0 = lambda n: "c->f[%d].ps0" % n
 F1 = lambda n: "c->f[%d].ps1" % n
 
-
 def ra0(a):
     """(rA|0) operand."""
     return "0u" if a == 0 else R(a)
-
 
 def cond_expr(bo, bi):
     """C condition for a bc-family branch; the CTR decrement is emitted separately."""
@@ -51,10 +44,8 @@ def cond_expr(bo, bi):
         parts.append("c->cr[%d]" % bi if bo & 0x08 else "!c->cr[%d]" % bi)
     return " && ".join(parts) if parts else None
 
-
 def rc(w, dst_expr):
     return " cr0_rc(c, %s);" % dst_expr if w & 1 else ""
-
 
 def translate(addr, w, ctx):
     """Return C source for the instruction word `w` at `addr`."""
@@ -66,20 +57,19 @@ def translate(addr, w, ctx):
     simm = sext16(w & 0xFFFF)
     uimm = w & 0xFFFF
 
-    # --- immediate-reloc overrides (data imports) ---
     if addr in ctx.imm_override:
         value = ctx.imm_override[addr]
-        # instruction forms using a relocated immediate: addi/addis/lwz etc.
+
         simm = sext16(value)
         uimm = value
 
-    if op == 18:  # b / ba / bl / bla
+    if op == 18:
         tgt = (sext(w & 0x03FFFFFC, 26) + (0 if w & 2 else addr)) & 0xFFFFFFFF
         if w & 1:
             return "c->lr = 0x%08Xu; %s" % (addr + 4, ctx.call(addr, tgt))
         return ctx.branch(addr, tgt)
 
-    if op == 16:  # bc
+    if op == 16:
         bo, bi = d, a
         tgt = (sext(w & 0xFFFC, 16) + (0 if w & 2 else addr)) & 0xFFFFFFFF
         pre = "" if bo & 0x04 else "c->ctr--; "
@@ -92,7 +82,7 @@ def translate(addr, w, ctx):
 
     if op == 19:
         xo = (w >> 1) & 0x3FF
-        if xo in (16, 528):  # bclr / bcctr
+        if xo in (16, 528):
             bo, bi = d, a
             if xo == 528 and not (bo & 0x04):
                 raise Unhandled("bcctr with ctr decrement")
@@ -109,42 +99,41 @@ def translate(addr, w, ctx):
         crop = {257: "&", 449: "|", 193: "^"}
         if xo in crop:
             return "c->cr[%d] = c->cr[%d] %s c->cr[%d];" % (d, a, crop[xo], b)
-        if xo == 225:  # crnand
+        if xo == 225:
             return "c->cr[%d] = !(c->cr[%d] & c->cr[%d]);" % (d, a, b)
-        if xo == 33:  # crnor
+        if xo == 33:
             return "c->cr[%d] = !(c->cr[%d] | c->cr[%d]);" % (d, a, b)
-        if xo == 289:  # creqv
+        if xo == 289:
             return "c->cr[%d] = !(c->cr[%d] ^ c->cr[%d]);" % (d, a, b)
-        if xo == 129:  # crandc
+        if xo == 129:
             return "c->cr[%d] = c->cr[%d] & !c->cr[%d];" % (d, a, b)
-        if xo == 417:  # crorc
+        if xo == 417:
             return "c->cr[%d] = c->cr[%d] | !c->cr[%d];" % (d, a, b)
-        if xo == 0:  # mcrf
+        if xo == 0:
             fd, fs = d >> 2, a >> 2
             return "memmove(&c->cr[%d], &c->cr[%d], 4);" % (4 * fd, 4 * fs)
-        if xo == 150:  # isync: orders later loads after earlier ones (acquire on Espresso's lock idioms)
+        if xo == 150:
             return "__atomic_thread_fence(__ATOMIC_ACQUIRE);"
         raise Unhandled("op19 xo=%d" % xo)
 
-    # --- integer immediate ---
-    if op == 14:  # addi / li
+    if op == 14:
         return "%s = %s + 0x%08Xu;" % (R(d), ra0(a), simm & 0xFFFFFFFF)
-    if op == 15:  # addis / lis
+    if op == 15:
         return "%s = %s + 0x%08Xu;" % (R(d), ra0(a), (uimm << 16) & 0xFFFFFFFF)
-    if op in (12, 13):  # addic / addic.
+    if op in (12, 13):
         s = "{ uint64_t t = (uint64_t)%s + 0x%08Xu; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }" % (
             R(a), simm & 0xFFFFFFFF, R(d))
         return s + (" cr0_rc(c, %s);" % R(d) if op == 13 else "")
-    if op == 8:  # subfic
+    if op == 8:
         return "{ uint64_t t = (uint64_t)(uint32_t)~%s + 0x%08Xu + 1; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }" % (
             R(a), simm & 0xFFFFFFFF, R(d))
-    if op == 7:  # mulli (unsigned: the same low 32 bits, without signed overflow in C)
+    if op == 7:
         return "%s = %s * 0x%08Xu;" % (R(d), R(a), simm & 0xFFFFFFFF)
-    if op == 10:  # cmpli
+    if op == 10:
         return "cr_set_u(c, %d, %s, 0x%04Xu);" % (d >> 2, R(a), uimm)
-    if op == 11:  # cmpi
+    if op == 11:
         return "cr_set_s(c, %d, (int32_t)%s, %d);" % (d >> 2, R(a), simm)
-    if op == 24:  # ori
+    if op == 24:
         return ";" if (a == d == 0 and uimm == 0) else "%s = %s | 0x%04Xu;" % (R(a), R(d), uimm)
     if op == 25:
         return "%s = %s | 0x%08Xu;" % (R(a), R(d), uimm << 16)
@@ -152,25 +141,23 @@ def translate(addr, w, ctx):
         return "%s = %s ^ 0x%04Xu;" % (R(a), R(d), uimm)
     if op == 27:
         return "%s = %s ^ 0x%08Xu;" % (R(a), R(d), uimm << 16)
-    if op == 28:  # andi.
+    if op == 28:
         return "%s = %s & 0x%04Xu; cr0_rc(c, %s);" % (R(a), R(d), uimm, R(a))
-    if op == 29:  # andis.
+    if op == 29:
         return "%s = %s & 0x%08Xu; cr0_rc(c, %s);" % (R(a), R(d), uimm << 16, R(a))
 
-    # --- rotates ---
     if op in (20, 21, 23):
         sh, mb, me = b, cc, (w >> 1) & 31
         m = mask(mb, me)
-        if op == 21:  # rlwinm
+        if op == 21:
             rot = "rotl32(%s, %d)" % (R(d), sh) if sh else R(d)
             s = "%s = %s & 0x%08Xu;" % (R(a), rot, m)
-        elif op == 20:  # rlwimi
+        elif op == 20:
             s = "%s = (rotl32(%s, %d) & 0x%08Xu) | (%s & 0x%08Xu);" % (R(a), R(d), sh, m, R(a), (~m) & 0xFFFFFFFF)
-        else:  # rlwnm
+        else:
             s = "%s = rotl32(%s, %s & 31) & 0x%08Xu;" % (R(a), R(d), R(b), m)
         return s + rc(w, R(a))
 
-    # --- load / store D-form ---
     ld = {32: ("ld32", ""), 34: ("ld8", ""), 40: ("ld16", ""), 42: ("ld16", "(uint32_t)(int32_t)(int16_t)")}
     if op in ld or op in (33, 35, 41, 43):
         upd = op in (33, 35, 41, 43)
@@ -186,27 +173,26 @@ def translate(addr, w, ctx):
         if upd:
             return "{ uint32_t ea = %s + 0x%08Xu; %s(ea, %s); %s = ea; }" % (R(a), simm & 0xFFFFFFFF, fn, R(d), R(a))
         return "%s(%s + 0x%08Xu, %s);" % (fn, ra0(a), simm & 0xFFFFFFFF, R(d))
-    if op == 46:  # lmw
+    if op == 46:
         return "{ uint32_t ea = %s + 0x%08Xu; %s }" % (
             ra0(a), simm & 0xFFFFFFFF, " ".join("%s = ld32(ea + %d);" % (R(r), 4 * (r - d)) for r in range(d, 32)))
-    if op == 47:  # stmw
+    if op == 47:
         return "{ uint32_t ea = %s + 0x%08Xu; %s }" % (
             ra0(a), simm & 0xFFFFFFFF, " ".join("st32(ea + %d, %s);" % (4 * (r - d), R(r)) for r in range(d, 32)))
 
-    # --- FP load/store D-form ---
-    if op in (48, 49, 50, 51):  # lfs lfsu lfd lfdu
+    if op in (48, 49, 50, 51):
         upd = op in (49, 51)
         single = op in (48, 49)
         base = R(a) if upd else ra0(a)
         load = ("{ double v = ldf32(ea); %s = v; %s = v; }" % (F0(d), F1(d))) if single else ("%s = ldf64(ea);" % F0(d))
         return "{ uint32_t ea = %s + 0x%08Xu; %s%s }" % (base, simm & 0xFFFFFFFF, load, " %s = ea;" % R(a) if upd else "")
-    if op in (52, 53, 54, 55):  # stfs stfsu stfd stfdu
+    if op in (52, 53, 54, 55):
         upd = op in (53, 55)
         fn = "stf32" if op in (52, 53) else "stf64"
         base = R(a) if upd else ra0(a)
         return "{ uint32_t ea = %s + 0x%08Xu; %s(ea, %s);%s }" % (
             base, simm & 0xFFFFFFFF, fn, F0(d), " %s = ea;" % R(a) if upd else "")
-    if op in (56, 57, 60, 61):  # psq_l psq_lu psq_st psq_stu
+    if op in (56, 57, 60, 61):
         off = sext(w & 0xFFF, 12) & 0xFFFFFFFF
         pw, pi = (w >> 15) & 1, (w >> 12) & 7
         upd = op in (57, 61)
@@ -223,13 +209,12 @@ def translate(addr, w, ctx):
         return translate63(w, d, a, b, cc)
     if op == 4:
         return translate4(w, d, a, b, cc)
-    if op == 3:  # twi
+    if op == 3:
         to = d
         return trap_cond(to, R(a), "0x%08Xu" % (simm & 0xFFFFFFFF), addr)
-    if op == 17:  # sc
+    if op == 17:
         return "ppc_unimplemented(c, 0x%08Xu, 0x%08Xu); /* sc */" % (addr, w)
     raise Unhandled("op=%d" % op)
-
 
 def trap_cond(to, x, y, addr):
     conds = []
@@ -244,7 +229,6 @@ def trap_cond(to, x, y, addr):
         return ";"
     return "if (%s) ppc_trap(c, 0x%08Xu);" % (" || ".join(conds), addr)
 
-
 def translate31(addr, w, ctx, d, a, b):
     xo = (w >> 1) & 0x3FF
     xo9 = (w >> 1) & 0x1FF
@@ -254,93 +238,89 @@ def translate31(addr, w, ctx, d, a, b):
     def ov_add(x, y, res):
         return " { uint8_t o = (uint8_t)((~(%s ^ %s) & (%s ^ %s)) >> 31); c->xer_ov = o; c->xer_so |= o; }" % (x, y, x, res)
 
-    # XO-form arithmetic (9-bit XO with OE)
-    if xo9 == 266:  # add
+    if xo9 == 266:
         s = "%s = %s + %s;" % (rD, rA, rB)
         if oe:
             s = "{ uint32_t x = %s, y = %s, r = x + y; %s = r;%s }" % (rA, rB, rD, ov_add("x", "y", "r"))
         return s + rc(w, rD)
-    if xo9 == 40:  # subf
+    if xo9 == 40:
         s = "%s = %s - %s;" % (rD, rB, rA)
         if oe:
             s = "{ uint32_t x = ~%s, y = %s, r = y - %s; %s = r;%s }" % (rA, rB, rA, rD, ov_add("x", "y", "r"))
         return s + rc(w, rD)
-    if xo9 == 10:  # addc
+    if xo9 == 10:
         return "{ uint64_t t = (uint64_t)%s + %s; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }%s" % (rA, rB, rD, rc(w, rD))
-    if xo9 == 138:  # adde
+    if xo9 == 138:
         return "{ uint64_t t = (uint64_t)%s + %s + c->xer_ca; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }%s" % (rA, rB, rD, rc(w, rD))
-    if xo9 == 8:  # subfc
+    if xo9 == 8:
         return "{ uint64_t t = (uint64_t)(uint32_t)~%s + %s + 1; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }%s" % (rA, rB, rD, rc(w, rD))
-    if xo9 == 136:  # subfe
+    if xo9 == 136:
         return "{ uint64_t t = (uint64_t)(uint32_t)~%s + %s + c->xer_ca; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }%s" % (rA, rB, rD, rc(w, rD))
-    if xo9 == 234:  # addme
+    if xo9 == 234:
         return "{ uint64_t t = (uint64_t)%s + c->xer_ca + 0xFFFFFFFFu; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }%s" % (rA, rD, rc(w, rD))
-    if xo9 == 202:  # addze
+    if xo9 == 202:
         return "{ uint64_t t = (uint64_t)%s + c->xer_ca; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }%s" % (rA, rD, rc(w, rD))
-    if xo9 == 232:  # subfme
+    if xo9 == 232:
         return "{ uint64_t t = (uint64_t)(uint32_t)~%s + c->xer_ca + 0xFFFFFFFFu; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }%s" % (rA, rD, rc(w, rD))
-    if xo9 == 200:  # subfze
+    if xo9 == 200:
         return "{ uint64_t t = (uint64_t)(uint32_t)~%s + c->xer_ca; %s = (uint32_t)t; c->xer_ca = (uint8_t)(t >> 32); }%s" % (rA, rD, rc(w, rD))
-    if xo9 == 104:  # neg
-        s = "%s = 0u - %s;" % (rD, rA) if not oe else \
+    if xo9 == 104:
+        s = "%s = 0u - %s;" % (rD, rA) if not oe else\
             "{ uint8_t o = %s == 0x80000000u; %s = 0u - %s; c->xer_ov = o; c->xer_so |= o; }" % (rA, rD, rA)
         return s + rc(w, rD)
-    if xo9 == 235:  # mullw (unsigned: the same low 32 bits, without signed overflow in C)
+    if xo9 == 235:
         s = "%s = %s * %s;" % (rD, rA, rB)
         if oe:
             s = "{ int64_t t = (int64_t)(int32_t)%s * (int32_t)%s; %s = (uint32_t)t; uint8_t o = t != (int32_t)t; c->xer_ov = o; c->xer_so |= o; }" % (rA, rB, rD)
         return s + rc(w, rD)
-    if xo9 == 75:  # mulhw
+    if xo9 == 75:
         return "%s = (uint32_t)(((int64_t)(int32_t)%s * (int32_t)%s) >> 32);%s" % (rD, rA, rB, rc(w, rD))
-    if xo9 == 11:  # mulhwu
+    if xo9 == 11:
         return "%s = (uint32_t)(((uint64_t)%s * %s) >> 32);%s" % (rD, rA, rB, rc(w, rD))
-    if xo9 == 491:  # divw
+    if xo9 == 491:
         s = "%s = ppc_divw(%s, %s);" % (rD, rA, rB)
         if oe:
             s = "{ uint8_t o = %s == 0 || (%s == 0x80000000u && %s == 0xFFFFFFFFu); %s c->xer_ov = o; c->xer_so |= o; }" % (rB, rA, rB, s)
         return s + rc(w, rD)
-    if xo9 == 459:  # divwu
+    if xo9 == 459:
         s = "%s = ppc_divwu(%s, %s);" % (rD, rA, rB)
         if oe:
             s = "{ uint8_t o = %s == 0; %s c->xer_ov = o; c->xer_so |= o; }" % (rB, s)
         return s + rc(w, rD)
 
-    # X-form logical: rS = d
     rS = rD
     logic = {28: "%s & %s", 444: "%s | %s", 316: "%s ^ %s", 60: "%s & ~%s", 412: "%s | ~%s",
              476: "~(%s & %s)", 124: "~(%s | %s)", 284: "~(%s ^ %s)"}
     if xo in logic:
-        if xo == 444 and d == b:  # mr
+        if xo == 444 and d == b:
             return "%s = %s;%s" % (rA, rS, rc(w, rA))
         return "%s = %s;%s" % (rA, logic[xo] % (rS, rB), rc(w, rA))
-    if xo == 24:  # slw
+    if xo == 24:
         return "%s = (%s & 0x20) ? 0 : %s << (%s & 31);%s" % (rA, rB, rS, rB, rc(w, rA))
-    if xo == 536:  # srw
+    if xo == 536:
         return "%s = (%s & 0x20) ? 0 : %s >> (%s & 31);%s" % (rA, rB, rS, rB, rc(w, rA))
-    if xo == 792:  # sraw
+    if xo == 792:
         return ("{ uint32_t n = %s & 0x3F; int32_t s = (int32_t)%s; if (n > 31) { %s = (uint32_t)(s >> 31); c->xer_ca = s < 0; }"
                 " else { %s = (uint32_t)(s >> n); c->xer_ca = s < 0 && n && ((uint32_t)s << (32 - n)) != 0; } }%s") % (
             rB, rS, rA, rA, rc(w, rA))
-    if xo == 824:  # srawi
+    if xo == 824:
         sh = b
         if sh == 0:
             return "%s = %s; c->xer_ca = 0;%s" % (rA, rS, rc(w, rA))
         return "{ int32_t s = (int32_t)%s; c->xer_ca = s < 0 && (s & 0x%08X); %s = (uint32_t)(s >> %d); }%s" % (
             rS, (1 << sh) - 1, rA, sh, rc(w, rA))
-    if xo == 26:  # cntlzw
+    if xo == 26:
         return "%s = %s ? (uint32_t)__builtin_clz(%s) : 32;%s" % (rA, rS, rS, rc(w, rA))
-    if xo == 954:  # extsb
+    if xo == 954:
         return "%s = (uint32_t)(int32_t)(int8_t)%s;%s" % (rA, rS, rc(w, rA))
-    if xo == 922:  # extsh
+    if xo == 922:
         return "%s = (uint32_t)(int32_t)(int16_t)%s;%s" % (rA, rS, rc(w, rA))
 
-    # compares
     if xo == 0:
         return "cr_set_s(c, %d, (int32_t)%s, (int32_t)%s);" % (d >> 2, rA, rB)
     if xo == 32:
         return "cr_set_u(c, %d, %s, %s);" % (d >> 2, rA, rB)
 
-    # indexed loads/stores
     ea = "%s + %s" % (ra0(a), rB)
     ldx = {23: ("ld32", ""), 87: ("ld8", ""), 279: ("ld16", ""), 343: ("ld16", "(uint32_t)(int32_t)(int16_t)")}
     ldux = {55: 23, 119: 87, 311: 279, 375: 343}
@@ -356,19 +336,19 @@ def translate31(addr, w, ctx, d, a, b):
         return "%s(%s, %s);" % (stx[xo], ea, rS)
     if xo in stux:
         return "{ uint32_t ea = %s + %s; %s(ea, %s); %s = ea; }" % (rA, rB, stx[stux[xo]], rS, rA)
-    if xo == 534:  # lwbrx
+    if xo == 534:
         return "%s = __builtin_bswap32(ld32(%s));" % (rD, ea)
-    if xo == 790:  # lhbrx
+    if xo == 790:
         return "%s = __builtin_bswap16(ld16(%s));" % (rD, ea)
-    if xo == 662:  # stwbrx
+    if xo == 662:
         return "st32(%s, __builtin_bswap32(%s));" % (ea, rS)
-    if xo == 918:  # sthbrx
+    if xo == 918:
         return "st16(%s, __builtin_bswap16((uint16_t)%s));" % (ea, rS)
-    if xo == 20:  # lwarx
+    if xo == 20:
         return "%s = ppc_lwarx(c, %s);" % (rD, ea)
-    if xo == 150:  # stwcx.
+    if xo == 150:
         return "ppc_stwcx(c, %s, %s);" % (ea, rS)
-    if xo == 597:  # lswi
+    if xo == 597:
         n = b or 32
         stmts, r = [], d - 1
         for i in range(n):
@@ -377,7 +357,7 @@ def translate31(addr, w, ctx, d, a, b):
                 stmts.append("%s = 0;" % R(r))
             stmts.append("%s |= (uint32_t)ld8(ea + %d) << %d;" % (R(r), i, 24 - 8 * (i % 4)))
         return "{ uint32_t ea = %s; %s }" % (ra0(a), " ".join(stmts))
-    if xo == 725:  # stswi
+    if xo == 725:
         n = b or 32
         stmts, r = [], d - 1
         for i in range(n):
@@ -386,7 +366,6 @@ def translate31(addr, w, ctx, d, a, b):
             stmts.append("st8(ea + %d, (uint8_t)(%s >> %d));" % (i, R(r), 24 - 8 * (i % 4)))
         return "{ uint32_t ea = %s; %s }" % (ra0(a), " ".join(stmts))
 
-    # FP indexed
     fpx = {535: ("s", 0), 567: ("s", 1), 599: ("d", 0), 631: ("d", 1)}
     if xo in fpx:
         kind, upd = fpx[xo]
@@ -398,22 +377,18 @@ def translate31(addr, w, ctx, d, a, b):
         fn, upd = fsx[xo]
         base = "%s + %s" % (rA if upd else ra0(a), rB)
         return "{ uint32_t ea = %s; %s(ea, %s);%s }" % (base, fn, F0(d), " %s = ea;" % rA if upd else "")
-    if xo == 983:  # stfiwx
+    if xo == 983:
         return "st32(%s, (uint32_t)f64_as_u64(%s));" % (ea, F0(d))
 
-    # cache ops are no-ops except dcbz; sync/lwsync/eieio are real barriers: the host (ARM) reorders
-    # memory accesses across cores more aggressively than Espresso, and games publish data to other
-    # cores with them
-    if xo == 1014:  # dcbz
+    if xo == 1014:
         return "ppc_dcbz(%s);" % ea
-    if xo in (598, 854):  # sync (incl. lwsync), eieio
+    if xo in (598, 854):
         return "__atomic_thread_fence(__ATOMIC_SEQ_CST);"
-    if xo in (86, 54, 278, 246, 470, 982):  # dcbf dcbst dcbt dcbtst dcbi icbi
+    if xo in (86, 54, 278, 246, 470, 982):
         return ";"
 
-    # SPR
     spr = ((w >> 16) & 0x1F) | (((w >> 11) & 0x1F) << 5)
-    if xo == 339:  # mfspr
+    if xo == 339:
         if spr == 8: return "%s = c->lr;" % rD
         if spr == 9: return "%s = c->ctr;" % rD
         if spr == 1: return "%s = ppc_mfxer(c);" % rD
@@ -421,31 +396,29 @@ def translate31(addr, w, ctx, d, a, b):
         if 896 <= spr <= 903: return "%s = c->gqr[%d];" % (rD, spr - 896)
         if spr in (268, 269): return "%s = (uint32_t)(ppc_timebase() >> %d);" % (rD, 0 if spr == 268 else 32)
         return "%s = 0; /* mfspr %d */" % (rD, spr)
-    if xo == 467:  # mtspr
+    if xo == 467:
         if spr == 8: return "c->lr = %s;" % rS
         if spr == 9: return "c->ctr = %s;" % rS
         if spr == 1: return "ppc_mtxer(c, %s);" % rS
         if 912 <= spr <= 919: return "c->gqr[%d] = %s;" % (spr - 912, rS)
         if 896 <= spr <= 903: return "c->gqr[%d] = %s;" % (spr - 896, rS)
         return "; /* mtspr %d */" % spr
-    if xo == 371:  # mftb
+    if xo == 371:
         return "%s = (uint32_t)(ppc_timebase() >> %d);" % (rD, 0 if spr == 268 else 32)
-    if xo == 19:  # mfcr
+    if xo == 19:
         return "%s = ppc_mfcr(c);" % rD
-    if xo == 144:  # mtcrf
+    if xo == 144:
         return "ppc_mtcrf(c, 0x%02X, %s);" % ((w >> 12) & 0xFF, rS)
-    if xo == 512:  # mcrxr
+    if xo == 512:
         f = d >> 2
         return "c->cr[%d] = c->xer_so; c->cr[%d] = c->xer_ov; c->cr[%d] = c->xer_ca; c->cr[%d] = 0; c->xer_so = c->xer_ov = c->xer_ca = 0;" % (
             4 * f, 4 * f + 1, 4 * f + 2, 4 * f + 3)
-    if xo == 4:  # tw
+    if xo == 4:
         return trap_cond(d, rA, rB, addr)
     raise Unhandled("op31 xo=%d" % xo)
 
-
 def fp_rc(w):
     return " c->cr[4] = c->cr[5] = c->cr[6] = c->cr[7] = 0;" if w & 1 else ""
-
 
 def translate59(w, d, a, b, cc):
     xo = (w >> 1) & 31
@@ -464,7 +437,6 @@ def translate59(w, d, a, b, cc):
     if xo not in ex:
         raise Unhandled("op59 xo=%d" % xo)
     return "{ double v = to_single(%s); %s = v; %s = v; }%s" % (ex[xo], F0(d), F1(d), fp_rc(w))
-
 
 def translate63(w, d, a, b, cc):
     xo5 = (w >> 1) & 31
@@ -485,15 +457,15 @@ def translate63(w, d, a, b, cc):
         }[xo5]
         return "%s = %s;%s" % (F0(d), ex, fp_rc(w))
     xo = (w >> 1) & 0x3FF
-    if xo in (0, 32):  # fcmpu / fcmpo
+    if xo in (0, 32):
         return "cr_set_f(c, %d, %s, %s);" % (d >> 2, fa, fb)
-    if xo == 12:  # frsp
+    if xo == 12:
         return "{ double v = to_single(%s); %s = v; %s = v; }%s" % (fb, F0(d), F1(d), fp_rc(w))
     if xo == 15:
         return "%s = u64_as_f64(ppc_fctiwz(%s));%s" % (F0(d), fb, fp_rc(w))
     if xo == 14:
         return "%s = u64_as_f64(ppc_fctiw(c, %s));%s" % (F0(d), fb, fp_rc(w))
-    if xo == 72:  # fmr
+    if xo == 72:
         return "%s = %s;%s" % (F0(d), fb, fp_rc(w))
     if xo == 40:
         return "%s = -%s;%s" % (F0(d), fb, fp_rc(w))
@@ -501,31 +473,30 @@ def translate63(w, d, a, b, cc):
         return "%s = fabs(%s);%s" % (F0(d), fb, fp_rc(w))
     if xo == 136:
         return "%s = -fabs(%s);%s" % (F0(d), fb, fp_rc(w))
-    if xo == 583:  # mffs
+    if xo == 583:
         return "%s = u64_as_f64(0xFFF8000000000000ull | c->fpscr);" % F0(d)
-    if xo == 711:  # mtfsf
+    if xo == 711:
         fm = (w >> 17) & 0xFF
         m = 0
         for i in range(8):
             if fm & (0x80 >> i):
                 m |= 0xF0000000 >> (4 * i)
         return "c->fpscr = (c->fpscr & 0x%08Xu) | ((uint32_t)f64_as_u64(%s) & 0x%08Xu);" % ((~m) & 0xFFFFFFFF, fb, m)
-    if xo == 134:  # mtfsfi
+    if xo == 134:
         crf = d >> 2
         imm = (w >> 12) & 0xF
         sh = 28 - 4 * crf
         return "c->fpscr = (c->fpscr & ~0x%08Xu) | 0x%08Xu;" % (0xF << sh, imm << sh)
-    if xo == 38:  # mtfsb1
+    if xo == 38:
         return "c->fpscr |= 0x%08Xu;" % (0x80000000 >> d)
-    if xo == 70:  # mtfsb0
+    if xo == 70:
         return "c->fpscr &= ~0x%08Xu;" % (0x80000000 >> d)
-    if xo == 64:  # mcrfs
+    if xo == 64:
         fd, fs = d >> 2, a >> 2
         sh = 28 - 4 * fs
         return "{ uint32_t v = (c->fpscr >> %d) & 0xF; c->cr[%d] = v >> 3; c->cr[%d] = (v >> 2) & 1; c->cr[%d] = (v >> 1) & 1; c->cr[%d] = v & 1; }" % (
             sh, 4 * fd, 4 * fd + 1, 4 * fd + 2, 4 * fd + 3)
     raise Unhandled("op63 xo=%d" % xo)
-
 
 def translate4(w, d, a, b, cc):
     xo5 = (w >> 1) & 31
@@ -554,7 +525,7 @@ def translate4(w, d, a, b, cc):
         if xo5 == 29: return pair("%s * round25(%s) + %s" % (A0, C0, B0), "%s * round25(%s) + %s" % (A1, C1, B1))
         if xo5 == 30: return pair("-(%s * round25(%s) - %s)" % (A0, C0, B0), "-(%s * round25(%s) - %s)" % (A1, C1, B1))
         if xo5 == 31: return pair("-(%s * round25(%s) + %s)" % (A0, C0, B0), "-(%s * round25(%s) + %s)" % (A1, C1, B1))
-    if xo5 in (6, 7):  # psq_lx psq_stx psq_lux psq_stux
+    if xo5 in (6, 7):
         xo6 = (w >> 1) & 0x3F
         upd = xo6 in (38, 39)
         pw, pi = (w >> 10) & 1, (w >> 7) & 7
@@ -573,9 +544,8 @@ def translate4(w, d, a, b, cc):
     merge = {528: (A0, B0), 560: (A0, B1), 592: (A1, B0), 624: (A1, B1)}
     if xo in merge:
         e0, e1 = merge[xo]
-        # ps_merge rounds ps0 of the double source to single on real hardware only
-        # when the source holds a non-single value; Cemu copies directly.
+
         return "{ double v0 = %s, v1 = %s; %s = v0; %s = v1; }%s" % (e0, e1, F0(d), F1(d), fp_rc(w))
-    if xo == 1014:  # dcbz_l
+    if xo == 1014:
         return "ppc_dcbz(%s + %s);" % (ra0(a), R(b))
     raise Unhandled("op4 xo=%d" % xo)

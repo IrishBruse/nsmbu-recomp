@@ -6,7 +6,6 @@ from pathlib import Path
 import shutil
 import time
 
-
 def atomic_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -14,13 +13,11 @@ def atomic_json(path, value):
     tmp.write_text(json.dumps(value), encoding='utf-8')
     os.replace(tmp, path)
 
-
 def file_sha256(stream):
     digest = hashlib.sha256()
     while chunk := stream.read(1024 * 1024):
         digest.update(chunk)
     return digest.hexdigest()
-
 
 def file_hashes(paths, base=None):
     result = {}
@@ -31,13 +28,11 @@ def file_hashes(paths, base=None):
             result[name] = file_sha256(stream)
     return result
 
-
 def hooks_option(value=None):
     value = os.environ.get('NSMBU_CODE_MODS', '0') if value is None else str(value)
     if value not in ('0', '1'):
         raise ValueError('NSMBU_CODE_MODS / --code-mods must be 0 or 1')
     return value == '1'
-
 
 def fingerprint(pkg, manifest, game_dir, compiler, hooks):
     """Include every packaged build input, game hash, host compiler and hooks mode."""
@@ -56,7 +51,6 @@ def fingerprint(pkg, manifest, game_dir, compiler, hooks):
                 h.update(chunk)
     return h.hexdigest()
 
-
 def make_build_space(setup, data):
     """Evict only inactive variants created by this builder, oldest first."""
     minimum = 2 << 30
@@ -67,7 +61,7 @@ def make_build_space(setup, data):
     except FileNotFoundError:
         active = None
     except (ValueError, KeyError, TypeError):
-        # An unreadable selection cannot safely identify the running cache.
+
         raise setup.SetupError('Not enough space; cannot identify the active code build for cache cleanup')
     candidates = []
     for cache in (data / 'code-builds').glob('*'):
@@ -87,7 +81,6 @@ def make_build_space(setup, data):
         if setup.free_space(str(data)) >= minimum:
             return
     raise setup.SetupError('Not enough space for rebuilding game code (2 GB needed); previous build retained')
-
 
 class BuildLock:
     """OS-owned lock: a crashed setup cannot leave a permanently busy directory."""
@@ -114,7 +107,6 @@ class BuildLock:
             self.file.seek(0)
             msvcrt.locking(self.file.fileno(), msvcrt.LK_UNLCK, 1)
         self.file.close()
-
 
 def rebuild(setup, ctx, hooks, status_file=None, cancel_file=None):
     """Publish a ready variant only after translation, compilation and link succeed.
@@ -159,8 +151,7 @@ def rebuild(setup, ctx, hooks, status_file=None, cancel_file=None):
                     cached = record.get('sha256') == file_sha256(f)
                 cached = cached and record.get('hooks') is bool(hooks) and record.get('fingerprint') == key
             except (OSError, ValueError, AttributeError):
-                # Interrupted or damaged metadata is a cache miss, never a reason
-                # to discard the previous working selection.
+
                 cached = False
         if not cached:
             work = data / ('code-build-' + key + '.partial')
@@ -191,7 +182,7 @@ def rebuild(setup, ctx, hooks, status_file=None, cancel_file=None):
 
             atomic_json(work / 'ready.json', record)
             check()
-            # Completed outputs only; caches remain small enough to keep both modes.
+
             shutil.rmtree(work / 'gen')
             shutil.rmtree(work / 'obj')
             archive = work / 'libgamecode.a'
@@ -209,8 +200,7 @@ def rebuild(setup, ctx, hooks, status_file=None, cancel_file=None):
                   'user_dir': str((data / 'user').resolve()) if setup.PORTABLE else ''}
         if status_file:
             atomic_json(status_file, result)
-        # Selection is the last fallible write: a reporting error must not switch
-        # builds while telling the caller that the rebuild failed.
+
         atomic_json(data / 'code-mods-active.json', result)
         return result
     except Exception as e:
@@ -221,7 +211,6 @@ def rebuild(setup, ctx, hooks, status_file=None, cancel_file=None):
         if work:
             shutil.rmtree(work, ignore_errors=True)
         lock.close()
-
 
 def remember_installed(setup, ctx, tc, hooks, exe, gen, objs):
     """Keep the initial variant too, so the first round trip can use its cache."""

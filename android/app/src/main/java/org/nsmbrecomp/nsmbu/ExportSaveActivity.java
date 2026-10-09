@@ -11,8 +11,6 @@ import android.widget.Toast;
 
 import java.io.OutputStream;
 
-// Launcher shortcut "Export save": the save folder as a zip in Downloads (NSMBU-save-<time>.zip), then
-// the share sheet (Drive, messages, e-mail...). The zip has the layout of the PC version's save/.
 public class ExportSaveActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {

@@ -15,10 +15,8 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from rpx import Rpx, R_PPC_ADDR32, R_PPC_ADDR16_LO, R_PPC_ADDR16_HA, R_PPC_ADDR16_HI, R_PPC_REL24, SHT_NOBITS
 
-
 def sext(v, bits):
     return v - (1 << bits) if v & (1 << (bits - 1)) else v
-
 
 class Program:
     def __init__(self, path):
@@ -30,12 +28,11 @@ class Program:
         d = open(path, "rb").read()
         self.entry, = struct.unpack_from(">I", d, 0x18)
 
-        # imports: call sites (REL24 into an import section) -> (lib, name)
         self.import_calls = {}
-        self.import_data = {}       # instruction address -> import symbol (data refs)
+        self.import_data = {}
         self.undef_calls = set()
-        # relocations that point into .text (address-taken code)
-        self.code_refs = {}         # target -> list of (reloc site, kind)
+
+        self.code_refs = {}
         for sec, addr, typ, sym, add in r.relocs:
             if sym.import_lib:
                 if typ == R_PPC_REL24:
@@ -64,20 +61,18 @@ class Program:
         for i, w in enumerate(self.words):
             a = self.text_lo + 4 * i
             op = w >> 26
-            if op == 18 and (w & 1):  # bl / bla
+            if op == 18 and (w & 1):
                 if a in self.import_calls or a in self.undef_calls:
                     continue
                 t = (sext(w & 0x03FFFFFC, 26) + (0 if w & 2 else a)) & 0xFFFFFFFF
                 if self.in_text(t):
                     self.call_targets.add(t)
-            elif op == 16 and (w & 1):  # conditional call (bcl)
+            elif op == 16 and (w & 1):
                 t = (sext(w & 0xFFFC, 16) + (0 if w & 2 else a)) & 0xFFFFFFFF
                 if self.in_text(t):
                     self.call_targets.add(t)
         entries |= self.call_targets
-        # address-taken code (vtables, pointer-to-member constants, function
-        # pointers, constructor tables). Analysis of red-pro2.rpx showed no switch
-        # jump tables in data, so every referenced code address is a function entry.
+
         self.addr_taken = set(self.code_refs)
         self.find_jump_tables()
         entries |= self.addr_taken - set(t for t, _ in self.jump_tables.values())
@@ -92,19 +87,19 @@ class Program:
         Returns {bctr address: (table address, entry count)}."""
         self.jump_tables = {}
         for t, refs in self.code_refs.items():
-            # the table address must be formed inside the dispatch sequence itself
+
             if not any(sec == ".text" and t - 40 <= site < t for site, sec, _ in refs):
                 continue
-            if t - 4 < self.text_lo or self.word(t - 4) != 0x4E800420:  # preceded by bctr
+            if t - 4 < self.text_lo or self.word(t - 4) != 0x4E800420:
                 continue
-            # bound from the closest preceding cmplwi (op 10) within the dispatch sequence
+
             count = None
             for k in range(2, 12):
                 w = self.word(t - 4 * k)
                 if (w >> 26) == 10:
                     count = (w & 0xFFFF) + 1
                     break
-            if count is None:  # fall back to the run of consecutive `b` instructions
+            if count is None:
                 count = 0
                 while self.in_text(t + 4 * count) and (self.word(t + 4 * count) >> 26) == 18 and not (self.word(t + 4 * count) & 3):
                     count += 1
@@ -136,7 +131,6 @@ class Program:
                     continue
                 self.jump_tables[bctr] = (base, count)
                 break
-
 
 if __name__ == "__main__":
     p = Program(sys.argv[1])

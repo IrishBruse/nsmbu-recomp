@@ -1,8 +1,5 @@
-// coreinit FS and nn_save: map Wii U volume paths onto host directories.
-//   /vol/content/...  -> <game>/content/...
-//   /vol/code/...     -> <game>/code/...
-//   /vol/meta/...     -> <game>/meta/...
-//   /vol/save/...     -> <save dir>/...
+
+
 #include "../platform/filesystem.h"
 
 #include <cstdio>
@@ -34,14 +31,14 @@ enum FSStatus : int32_t {
 
 struct OpenFile {
     FILE* f;
-    std::string path;  // guest path
+    std::string path;
     std::string mode;
 };
 struct OpenDir {
     DIR* d;
-    std::string path;  // host path
+    std::string path;
     std::string gpath;
-    uint32_t read = 0;  // entries returned so far
+    uint32_t read = 0;
 };
 
 std::mutex g_fs_mutex;
@@ -87,20 +84,17 @@ std::string host_path_exact(const std::string& guest) {
     if (map("/vol/code", config::game_dir + "/code")) return p;
     if (map("/vol/meta", config::game_dir + "/meta")) return p;
     if (map("/vol/save", config::save_dir)) return p;
-    if (!p.empty() && p[0] != '/') return config::game_dir + "/content/" + p;  // relative to cwd (/vol/content)
+    if (!p.empty() && p[0] != '/') return config::game_dir + "/content/" + p;
     return config::game_dir + p;
 }
 
 #ifndef _WIN32
-// Wii U volumes are case-insensitive (the game asks for Common/Audiores, the disc folder is AudioRes);
-// case-sensitive host file systems (Linux, case-sensitive APFS) need the path resolved one component
-// at a time. Exact matches cost one stat(); resolved directories are cached. Components that don't
-// exist yet (new save files) keep the guest's spelling.
+
 std::string resolve_case(const std::string& p) {
     struct stat st;
     if (stat(p.c_str(), &st) == 0) return p;
     static std::mutex mu;
-    static std::unordered_map<std::string, std::string> dirs;  // lower-cased dir path -> host dir path
+    static std::unordered_map<std::string, std::string> dirs;
     std::lock_guard<std::mutex> lk(mu);
     auto lower = [](std::string s) { for (char& ch : s) ch = (char)tolower((unsigned char)ch); return s; };
     std::string cur = p.compare(0, 1, "/") == 0 ? "/" : "";
@@ -122,10 +116,10 @@ std::string resolve_case(const std::string& p) {
                     if (!strcasecmp(de->d_name, comp.c_str())) { found = de->d_name; break; }
                 closedir(d);
             }
-            if (found.empty()) return cand + (e < p.size() ? p.substr(e) : "");  // not there: keep the rest as asked
+            if (found.empty()) return cand + (e < p.size() ? p.substr(e) : "");
             cand = base + found;
         }
-        if (e < p.size()) dirs[key] = cand;  // only directories are cached
+        if (e < p.size()) dirs[key] = cand;
         cur = cand;
     }
     return cur;
@@ -134,15 +128,12 @@ std::string resolve_case(const std::string& p) {
 
 std::string host_path(const std::string& guest) {
 #ifdef _WIN32
-    return host_path_exact(guest);  // Windows file systems are case-insensitive
+    return host_path_exact(guest);
 #else
     return resolve_case(host_path_exact(guest));
 #endif
 }
 
-// Optional content mods affect read-only content access only. A content mod's file comes first, then
-// the pack of the active language source (game_languages.h: the European or Japanese pack the player
-// chose, read under the name the game asks for), then the installed game.
 std::string read_path(const std::string& guest,const std::string& mode="rb") {
     auto override=mods::content::replacement(guest,mode);
     if(!override.empty())if(const char* trace=std::getenv("NSMBU_TEST_CONTENT_TRACE");trace&&std::string(trace)=="1")LOG("[content-mod] read %s -> %s",guest.c_str(),override.c_str());
@@ -174,7 +165,7 @@ int32_t open_file(const std::string& gpath, const std::string& mode, uint32_t ou
     if (mode.find_first_of("wa+") == std::string::npos) {
         const size_t slash = gpath.find_last_of('/');
         if (!mods::content::pack_language(slash == std::string::npos ? gpath : gpath.substr(slash + 1)).empty())
-            rtl_text::language_pack_opened(hp);  // right-to-left text for an Arabic or Hebrew pack
+            rtl_text::language_pack_opened(hp);
     }
     std::lock_guard<std::mutex> lk(g_fs_mutex);
     uint32_t h = g_next_handle++;
@@ -228,9 +219,8 @@ int32_t open_dir(const std::string& gpath, uint32_t out_handle) {
     return FS_OK;
 }
 
-}  // namespace
+}
 
-// ---------------------------------------------------------------- FS
 HLE(coreinit, FSInit) {}
 HLE(coreinit, FSShutdown) {}
 HLE(coreinit, FSAddClient) { ret(c, 0); }
@@ -238,7 +228,7 @@ HLE(coreinit, FSDelClient) { ret(c, 0); }
 HLE(coreinit, FSInitCmdBlock) { memset(mem::ptr(arg(c, 0)), 0, 0xA80); }
 HLE(coreinit, FSSetCmdPriority) { ret(c, 0); }
 HLE(coreinit, FSSetStateChangeNotification) {}
-HLE(coreinit, FSGetVolumeState) { ret(c, 1); }  // FS_VOLSTATE_READY
+HLE(coreinit, FSGetVolumeState) { ret(c, 1); }
 HLE(coreinit, FSGetLastError) { ret(c, 0); }
 HLE(coreinit, FSGetLastErrorCodeForViewer) { ret(c, 0); }
 HLE(coreinit, FSGetCwd) { mem::write_cstr(arg(c, 2), g_cwd.c_str(), arg(c, 3)); ret(c, FS_OK); }
@@ -270,9 +260,8 @@ HLE(coreinit, FSReadFile) {
     if (!f || size == 0) { ret(c, 0); return; }
     size_t n;
     {
-        BlockingScope b;  // the calling thread waits for the disc; others on its core run
-        // the kernel writes guest memory here: write-protected texture pages would fail the read
-        // (EFAULT) instead of faulting into the write tracker (write_watch.h)
+        BlockingScope b;
+
         wwatch::HostWrite w(dst, (uint32_t)std::min<uint64_t>((uint64_t)size * count, 0x100000000ull - dst));
         n = fread(mem::ptr(dst), 1, (size_t)size * count, f);
     }
@@ -341,8 +330,6 @@ HLE(coreinit, FSCloseDir) {
     ret(c, FS_OK);
 }
 
-// ---------------------------------------------------------------- nn_save
-// Saves live in <save dir>/<account slot or "common">/<path>
 static std::string save_path(uint32_t slot, const std::string& p) {
     std::string base = slot == 0xFF ? "/vol/save/common" : "/vol/save/user";
     return base + (p.empty() || p[0] == '/' ? "" : "/") + p;
@@ -377,7 +364,6 @@ HLE(nn_save, SAVEGetSharedSaveDataPath) {
     ret(c, 0);
 }
 
-// ---------------------------------------------------------------- save states: open files
 #include <algorithm>
 #include <vector>
 
@@ -419,7 +405,7 @@ void fs_ss_load(ss::Reader& r) {
         uint32_t h = r.u32();
         std::string gp = r.str(), mode = r.str();
         uint64_t pos = r.u64();
-        // reopening must not truncate or create: writers continue in update mode
+
         std::string m = mode.find_first_of("wa+") != std::string::npos ? "r+b" : "rb";
         FILE* f = fopen(read_path(gp,m).c_str(), m.c_str());
         if (!f) {

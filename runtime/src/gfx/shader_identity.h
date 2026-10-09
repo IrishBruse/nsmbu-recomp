@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MPL-2.0
-// Identify special rendering passes by their program, wherever the game loads it.
+
+
 #pragma once
 #include "area_sample.h"
 
@@ -15,4 +15,4 @@ inline ProgramKind program_kind(const void* bytes, uint32_t size, bool vertex) {
         return ProgramKind::OcclusionPixel;
     return ProgramKind::Other;
 }
-} // namespace gfx
+}

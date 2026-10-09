@@ -1,4 +1,4 @@
-// Portable host filesystem/thread helpers; never touches user game/save data.
+
 #include "platform/host.h"
 #include "platform/filesystem.h"
 #include <cassert>

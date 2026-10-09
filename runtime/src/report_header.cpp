@@ -1,4 +1,4 @@
-// Performance report header (report_header.h).
+
 #include "app_title.h"
 #include "report_header.h"
 
@@ -32,17 +32,17 @@ const char* const kVulkanCpuPaths[kVulkanCpuPathCount] = {
     "NSMBU_VK_SHADER_KEY_DIRTY",        "NSMBU_VK_REUSE_VERTEX_SNAPSHOTS", "NSMBU_VK_VERTEX_HISTORY_REUSE"};
 
 std::string vk_version(uint32_t v) {
-    // VK_API_VERSION_MAJOR / MINOR / PATCH (the variant, top 3 bits, is 0 for Vulkan)
+
     return std::to_string((v >> 22) & 0x7f) + "." + std::to_string((v >> 12) & 0x3ff) + "." + std::to_string(v & 0xfff);
 }
 
 std::string driver_version(uint32_t vendorID, uint32_t v, bool windows) {
-    if (vendorID == 0x10DE)  // NVIDIA: 10.8.8.6
+    if (vendorID == 0x10DE)
         return std::to_string(v >> 22) + "." + std::to_string((v >> 14) & 0xff) + "." +
                std::to_string((v >> 6) & 0xff) + "." + std::to_string(v & 0x3f);
-    if (vendorID == 0x8086 && windows)  // Intel on Windows: 18.14
+    if (vendorID == 0x8086 && windows)
         return std::to_string(v >> 14) + "." + std::to_string(v & 0x3fff);
-    // VK_MAKE_VERSION's 10.10.12 bits (a 10-bit major: Qualcomm reports 512.x)
+
     return std::to_string(v >> 22) + "." + std::to_string((v >> 12) & 0x3ff) + "." + std::to_string(v & 0xfff);
 }
 
@@ -56,7 +56,7 @@ std::string windows_name(uint32_t major, uint32_t minor, uint32_t build, const s
                          uint32_t ubr) {
     std::string s;
     if (major == 10 && minor == 0)
-        s = build >= 22000 ? "Windows 11" : "Windows 10";  // Windows 11 still reports 10.0
+        s = build >= 22000 ? "Windows 11" : "Windows 10";
     else
         s = "Windows " + std::to_string(major) + "." + std::to_string(minor);
     if (!displayVersion.empty()) s += " " + displayVersion;
@@ -75,7 +75,7 @@ std::string os_release_pretty_name(const std::string& text) {
         if (line.compare(0, 12, "PRETTY_NAME=") != 0) continue;
         std::string v = line.substr(12);
         while (!v.empty() && (v.back() == '\r' || v.back() == ' ')) v.pop_back();
-        // shell-style quoting (os-release(5)): "..." or '...', backslash escapes inside double quotes
+
         if (v.size() >= 2 && (v[0] == '"' || v[0] == '\'') && v.back() == v[0]) {
             const char q = v[0];
             std::string out;
@@ -112,7 +112,7 @@ static uint32_t reg_dword(const wchar_t* name) {
 
 std::string os_description() {
 #if defined(_WIN32)
-    // RtlGetVersion: the real version (GetVersionEx answers what the manifest declares)
+
     OSVERSIONINFOW vi{};
     vi.dwOSVersionInfoSize = sizeof vi;
     using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
@@ -120,8 +120,8 @@ std::string os_description() {
     auto rtl = ntdll ? reinterpret_cast<RtlGetVersionFn>(reinterpret_cast<void*>(GetProcAddress(ntdll, "RtlGetVersion")))
                      : nullptr;
     if (!rtl || rtl(&vi) != 0) return "Windows";
-    std::string display = reg_string(L"DisplayVersion");  // "23H2" (Windows 10 20H2 and later)
-    if (display.empty()) display = reg_string(L"ReleaseId");  // "1909" (older Windows 10)
+    std::string display = reg_string(L"DisplayVersion");
+    if (display.empty()) display = reg_string(L"ReleaseId");
     return windows_name(vi.dwMajorVersion, vi.dwMinorVersion, vi.dwBuildNumber, display, reg_dword(L"UBR"));
 #elif defined(__APPLE__)
     char ver[64] = "", build[64] = "";
@@ -170,7 +170,7 @@ std::vector<std::string> vulkan_overrides(GetEnv env) {
         if (!v) out.push_back(std::string(name) + " unset");
         else if (strcmp(v, "1") != 0) out.push_back(std::string(name) + "=" + v);
     }
-    // on unless set to a value that reads as 0 (gx2_core.cpp lazy_draw_done, backend.cpp async_present)
+
     for (const char* name : {"NSMBU_VK_LAZY_DRAW_DONE", "NSMBU_VK_ASYNC_PRESENT"}) {
         const char* v = env(name);
         if (v && atoi(v) == 0) out.push_back(std::string(name) + "=" + v);
@@ -191,4 +191,4 @@ std::string format(const Info& in) {
     return s + "\n";
 }
 
-}  // namespace reporthdr
+}

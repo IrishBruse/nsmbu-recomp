@@ -1,4 +1,4 @@
-// Pure pane policy shared by the guest hooks and their synthetic tests.
+
 #pragma once
 #include <algorithm>
 #include <cmath>
@@ -21,8 +21,7 @@ inline Transform transform(Role role, float x, float y, float sx, float sy, floa
     return t;
 }
 inline bool fill_name(std::string_view name) {
-    // Pause pictures contain the captured game/filter, not the menu frame (PR #16).
-    // The other names describe authored backgrounds and transition wipes.
+
     constexpr std::string_view names[] = {
         "PF_PauseTV_00", "PF_PauseDRC_00", "BootBase_00", "BootDeco_00",
         "P_Base_00", "P_Base_01", "PF_BG_00", "P_BG_00", "W_BG_00",
@@ -39,17 +38,14 @@ inline bool parked_hud(float x, float y) {
     return std::fabs(x) > 672 || std::fabs(y) > 392;
 }
 inline bool projected_root_name(std::string_view name) {
-    // These layouts are placed at a 3D actor's projected position. A translated root alone
-    // is not evidence of that role: selectors and independently drawn map floors translate too.
+
     return name == "N_EnemyHP_00" || name == "T_CommandA_00" || name == "P_SetSeatASpecial_00";
 }
-// Intersect the guest scissor with the centred native layout region. Call only for TV content;
-// render-target aspect factors exclude resolution scaling, so this also works at 2x/3x.
+
 inline void clip(uint32_t w, uint32_t h, float kx, float ky,
                  uint32_t& x, uint32_t& y, uint32_t& ex, uint32_t& ey) {
     if (kx == 1 && ky == 1) return;
-    // Match the renderer's scissor rounding tolerance: e.g. 800/(10/9) can be just below
-    // 720 in float, which must not trim an extra pixel from both edges at 16:10.
+
     uint32_t left = uint32_t(std::ceil((w - w / kx) * .5f - .01f));
     uint32_t top = uint32_t(std::ceil((h - h / ky) * .5f - .01f));
     x = std::max(x, left); y = std::max(y, top);

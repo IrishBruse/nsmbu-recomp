@@ -14,21 +14,17 @@ import math
 from pathlib import Path
 import statistics
 
-
 def read(path):
     rows = [list(map(float, line.split())) for line in Path(path).read_text().splitlines()
             if len(line.split()) == 18]
     assert rows, f"No Link trace rows in {path}"
     return rows
 
-
 def horizontal(row):
     return math.hypot(row[10], row[12])
 
-
 def distance(a, b):
     return math.hypot(b[6] - a[6], b[8] - a[8])
-
 
 def measure(rows):
     full = [r for r in rows if r[3] == 1]
@@ -58,7 +54,6 @@ def measure(rows):
         "swim_steps": len(pairs),
         "median_step_distance_over_velocity": normalized,
     }
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -95,7 +90,6 @@ def main():
         for key in ("run_units_per_second", "swim_units_per_second"):
             assert abs(result["stock"][key] / result["30"]["off"][key] - 1) < .001
     print(json.dumps(result, indent=2))
-
 
 if __name__ == "__main__":
     main()

@@ -27,7 +27,7 @@ namespace fs=std::filesystem;
 using json::Value;
 struct Requirement {std::string id,version;};
 struct Manifest {
-    std::string id,name,version,author,description,kind,binary,problem,fingerprint; // fingerprint: SHA-256 of the native library or guest ELF
+    std::string id,name,version,author,description,kind,binary,problem,fingerprint;
     std::vector<Requirement> dependencies;
     std::vector<std::string> conflicts;
     std::vector<Option> options;
@@ -54,7 +54,7 @@ std::array<unsigned,3> version(const std::string& s) {
     return result;
 }
 std::string string_field(const Value& v,const char* key,bool optional=false,size_t limit=8192){const auto& f=v.get(key);if(optional&&f.type==Value::Null)return {};require(f.type==Value::String&&f.text.size()<=limit&&f.text.find('\0')==std::string::npos,"Invalid field: "+std::string(key));return f.text;}
-// Streaming SHA-256 (FIPS 180-4) of a native library: the confirmation is bound to these exact bytes.
+
 std::string sha256_file(const fs::path& p){
     static constexpr uint32_t k[64]={0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
         0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
@@ -155,14 +155,13 @@ Manifest manifest(const fs::path& path){
 }
 Value& profile(){return database["profiles"][database.get("active").string("Default")];}
 bool wanted(const std::string& id){const auto& v=profile().get("enabled").get(id);return v.type==Value::Bool&&v.boolean;}
-// Test aid: NSMBU_TEST_TRUST_NATIVE_MODS=id[,id...] pre-confirms packages, only in isolated test runs
-// (NSMBU_NO_HOST_INPUT plus an explicit NSMBU_MOD_MANAGER_DIR). Nothing is written to profiles.json.
+
 bool test_trusted(const std::string& id){
     const char* list=std::getenv("NSMBU_TEST_TRUST_NATIVE_MODS");if(!list||!std::getenv("NSMBU_NO_HOST_INPUT")||!std::getenv("NSMBU_MOD_MANAGER_DIR"))return false;
     for(std::string_view rest=list;!rest.empty();){auto comma=rest.find(',');if(rest.substr(0,comma)==id)return true;if(comma==std::string_view::npos)break;rest.remove_prefix(comma+1);}
     return false;
 }
-// Settings presets never ask; native code runs only after the player confirmed this exact library.
+
 bool confirmed(const Record& r){const auto& m=r.manifest;return (m.kind!="native"&&m.kind!="guest")||test_trusted(m.id)||(!m.fingerprint.empty()&&database.get("native_trust").get(m.id).string()==m.fingerprint);}
 const char* kUnconfirmed="Not loaded: it contains native code you have not confirmed. Enable it again to review.";
 Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=profile().get("config").get(m.id).get(o.id);out[o.id]=valid_option(o,saved)?saved:o.default_value;}return out;}
@@ -186,7 +185,7 @@ void validate_conflicts(const std::set<std::string>& enabled){
 template<class Fn> bool operation(std::string& error,Fn fn){try{std::lock_guard guard(mutex);require(ready,"Mod manager storage is unavailable");fn();error.clear();return true;}catch(const std::exception& e){error=e.what();return false;}}
 struct Context {std::string id,path,status;Value config;NSMBUModHostV1 host{};};
 struct Live {std::unique_ptr<Context> context;NSMBUModV1 api{};void* library=nullptr;bool initialized=false;std::map<std::string,bool> previous;std::string kind;};
-std::map<std::string,Live> live; // game thread exclusively
+std::map<std::string,Live> live;
 std::vector<std::string> live_order;
 const Value& option(void* c,const char* id){return static_cast<Context*>(c)->config.get(id?id:"");}
 void unload(Live& item){if(item.initialized&&item.api.on_unload)item.api.on_unload(item.api.instance);for(const auto& [id,on]:item.previous)if(const auto* e=manager::find(id))e->apply(on);if(item.library){
@@ -265,7 +264,7 @@ void initialize(){
                 profile()["code_mod_pending"].object.clear();save();
             }
         }
-        // Next-launch (restart_required) settings must be selected before the game starts.
+
         try { auto enabled=enabled_set();auto sequence=order(enabled);validate_conflicts(enabled);
             guest_startup_ids.clear();
             for(const auto& id:sequence)if(records.at(id).manifest.kind=="guest") {
@@ -304,7 +303,7 @@ bool install(const std::string& source,std::string& error,std::string* installed
             auto name=file.path().filename().string();if(name.ends_with("_vs.txt")||name.ends_with("_ps.txt"))graphics=true;
             if(name=="rules.txt"){auto text=read_text(file.path());for(char& c:text)if(c>='A'&&c<='Z')c+='a'-'A';if(text.find("[preset]")!=std::string::npos||text.find("[textureredefine]")!=std::string::npos||text.find("[default]")!=std::string::npos)graphics=true;}
         }
-        // a mod's own content folder selected on its own is named after the mod (Arabic_Hesham/content -> Arabic_Hesham)
+
         auto named=fs::path(source).lexically_normal();if(named.filename().empty())named=named.parent_path();
         if(content_name(named.filename().string())&&!named.parent_path().filename().empty())named=named.parent_path();
         if(graphics)cemu::import_legacy(stage,named.filename().string());else content::import_legacy(stage,named.filename().string());
@@ -339,7 +338,7 @@ bool enable(const std::string& id,bool on,std::string& error){return operation(e
 std::vector<std::pair<std::string,std::string>> unconfirmed_native(const std::string& id){
     std::lock_guard guard(mutex);std::vector<std::pair<std::string,std::string>> result;if(!ready)return result;
     auto enabled=enabled_set();std::set<std::string> seen;
-    // Same walk as enable(); missing dependencies and cycles are left for enable() to report.
+
     std::function<void(const std::string&)> visit=[&](const std::string& current){auto it=records.find(current);if(it==records.end()||enabled.contains(current)||!seen.insert(current).second)return;for(const auto& d:it->second.manifest.dependencies)visit(d.id);if(!confirmed(it->second))result.emplace_back(current,it->second.manifest.name);};
     visit(id);return result;
 }
@@ -358,7 +357,7 @@ void start_guests(const GuestInspect& inspect,const GuestLoad& load) {
     guests_started=true;
     constexpr uint32_t start=0x7F000000,end=0x80000000;
     std::map<std::string,std::pair<uint32_t,uint32_t>> reservations;
-    // Keep valid saved assignments for installed packages, including disabled mods.
+
     for(const auto& [id,value]:database.get("guest_regions").object) {
         auto record=records.find(id);if(record==records.end()||record->second.manifest.kind!="guest")continue;
         const auto& b=value.get("base");const auto& n=value.get("size");
@@ -396,7 +395,7 @@ void start_guests(const GuestInspect& inspect,const GuestLoad& load) {
             auto [base,size]=reservations.at(id);
             database["guest_regions"][id]["base"]=double(base);
             database["guest_regions"][id]["size"]=double(size);
-            save(); // assignments survive a failed build and remain stable next launch
+            save();
             load(pkg,base);
             r.active=true;r.error.clear();r.status="Guest module loaded";
         } catch(const std::exception& e) {
@@ -417,8 +416,7 @@ void frame(uint64_t step){
         for(const auto& id:sequence){const auto& [record,cfg]=desired.at(id);bool deps_ok=true;for(const auto& dep:record.manifest.dependencies)if(!live.contains(dep.id)){std::lock_guard guard(mutex);if(!records.at(dep.id).active)deps_ok=false;}
             if(!deps_ok){std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error="A dependency is unavailable (content dependencies may require restart)";continue;}
             auto it=live.find(id);
-            // Profile switches, older profiles and updated libraries can name native code the player never
-            // confirmed: it stays unloaded and disabled with a note, like a failed load; the checkbox asks.
+
             if(it==live.end()&&unconfirmed.contains(id)){fprintf(stderr,"[mod-manager] %s not loaded: native code not confirmed\n",id.c_str());std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=kUnconfirmed;profile()["enabled"][id]=false;try{save();}catch(...){}continue;}
             if(it==live.end()){Live item;try{load(item,record,cfg);live.emplace(id,std::move(item));fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());}catch(const std::exception& e){unload(item);std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}continue;}}
             else if(!(it->second.context->config==cfg)){it->second.context->config=cfg;if(it->second.api.on_config_changed)it->second.api.on_config_changed(it->second.api.instance);}

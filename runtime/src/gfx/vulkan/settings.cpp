@@ -10,8 +10,7 @@ namespace {
 int normalize(int v) { return (v % 3 + 3) % 3; }
 struct Settings {
     std::atomic<int> ao{std::getenv("NSMBU_AO_MODE") ? normalize(std::atoi(std::getenv("NSMBU_AO_MODE"))) : std::getenv("NSMBU_NO_AO_QUIRK") ? 0 : 2};
-    // full-size occlusion depth: on by default, off on Android, where the phone GPU is the limit in heavy views
-    // (issue #56: halves the worst GPU wait on an Adreno 830); a saved choice or NSMBU_AO_HIRES wins
+
 #ifdef __ANDROID__
     static constexpr bool kHiresDefault = false;
 #else
@@ -30,7 +29,7 @@ int env_present_mode() {
     return !std::strcmp(e, "mailbox") ? kPresentMailbox : !std::strcmp(e, "immediate") ? kPresentImmediate : kPresentFifo;
 }
 std::atomic<int> g_present{env_present_mode() >= 0 ? env_present_mode() : kPresentFifo};
-std::atomic<unsigned> g_offered{1u << kPresentFifo};  // FIFO is always available
+std::atomic<unsigned> g_offered{1u << kPresentFifo};
 }
 int present_mode() { return g_present.load(std::memory_order_relaxed); }
 void set_present_mode(int m) {

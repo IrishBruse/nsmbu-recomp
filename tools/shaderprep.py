@@ -66,15 +66,12 @@ import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-TEMPLATE = os.path.join(ROOT, "game", "shadercache", "template.bin")  # made by `template`, not shipped
+TEMPLATE = os.path.join(ROOT, "game", "shadercache", "template.bin")
 
 REC_SHADER, REC_PIPELINE, REC_SPECULATIVE = 1, 2, 3
 VS, PS, GS = 0, 1, 2
 
-
-# ---------------------------------------------------------------- containers
 _yaz0 = None
-
 
 def yaz0(b):
     global _yaz0
@@ -90,7 +87,6 @@ def yaz0(b):
     r = _yaz0.yaz0_decompress(b, len(b), out, n)
     return out.raw[:r] if r >= 0 else b""
 
-
 def sarc(b):
     e = ">" if b[6:8] == b"\xfe\xff" else "<"
     hl = struct.unpack_from(e + "H", b, 4)[0]
@@ -105,7 +101,6 @@ def sarc(b):
             name = b[off:b.index(b"\0", off)].decode(errors="replace")
         yield name, b[doff + s:doff + t]
 
-
 def walk(b, path):
     """yield (path, bytes) for every file inside Yaz0/SARC nesting"""
     if b[:4] == b"Yaz0":
@@ -115,7 +110,6 @@ def walk(b, path):
             yield from walk(f, path + "/" + n)
     else:
         yield path, b
-
 
 def sharcfb_shaders(b):
     """yield (type, register words, microcode) for every vertex/pixel shader binary"""
@@ -141,7 +135,6 @@ def sharcfb_shaders(b):
             continue
         yield typ, [w(4 * i) for i in range(nregs)], data[ptr:ptr + size_c]
 
-
 def game_shaders(game):
     """all distinct (type, microcode) -> (register words, container path)"""
     out = {}
@@ -153,8 +146,6 @@ def game_shaders(game):
                 out.setdefault((typ, code), (regs, path))
     return out
 
-
-# ---------------------------------------------------------------- recipe records
 def read_records(path):
     d = open(path, "rb").read()
     o = 0
@@ -166,7 +157,6 @@ def read_records(path):
         yield t, zlib.decompress(d[o:o + comp])
         o += comp
 
-
 def parse_shader_record(r):
     vertex, size, fs_size, n = struct.unpack_from("<IIII", r, 0)
     o = 16
@@ -177,18 +167,15 @@ def parse_shader_record(r):
     regs = [struct.unpack_from("<II", r, o + 8 * i) for i in range(n)]
     return vertex, code, fs, regs
 
-
 def write_record(f, t, raw):
     comp = zlib.compress(raw, 6)
     f.write(struct.pack("<III", t, len(raw), len(comp)))
     f.write(comp)
 
-
 def shader_record(vertex, code, fs, regs):
     raw = struct.pack("<IIII", vertex, len(code), len(fs), len(regs)) + code + fs
     raw += b"".join(struct.pack("<II", r, v) for r, v in regs)
     return raw
-
 
 def prog_hash(code):
     h = 0xCBF29CE484222325
@@ -196,17 +183,12 @@ def prog_hash(code):
         h = ((h ^ int.from_bytes(code[i:i + 8].ljust(8, b"\0"), "little")) * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
     return h ^ len(code)
 
-
-# ---------------------------------------------------------------- shader register blocks
-# registers GX2SetVertexShader / GX2SetPixelShader write from the shader structure
-# (same sequence as runtime/src/gx2/gx2_shader_regs.cpp)
 mmSQ_PGM_START_PS, mmSQ_PGM_RESOURCES_PS = 0xA210, 0xA214
 mmSQ_PGM_START_VS, mmSQ_PGM_RESOURCES_VS, mmSQ_PGM_START_FS = 0xA216, 0xA21A, 0xA225
 mmVGT_PRIMITIVEID_EN, mmSPI_VS_OUT_CONFIG, mmPA_CL_VS_OUT_CNTL = 0xA2A1, 0xA1B1, 0xA207
 mmSPI_VS_OUT_ID_0, mmSQ_VTX_SEMANTIC_0, mmSQ_VTX_SEMANTIC_CLEAR = 0xA185, 0xA0E0, 0xA238
 mmSPI_PS_IN_CONTROL_0, mmSPI_PS_INPUT_CNTL_0 = 0xA1B3, 0xA191
 mmCB_SHADER_MASK, mmCB_SHADER_CONTROL, mmDB_SHADER_CONTROL, mmSPI_INPUT_Z = 0xA08F, 0xA1E8, 0xA203, 0xA1B6
-
 
 def own_block(vertex, w):
     """register -> value pairs a shader structure sets (w = structure register words)"""
@@ -235,8 +217,6 @@ def own_block(vertex, w):
         r[mmSPI_INPUT_Z] = w[40]
     return r
 
-
-# ---------------------------------------------------------------- template
 def cmd_template(cache, out, merge=None):
     """'WWHT' + zlib( u32 nfetch, {u32 len, bytes}*, u32 nstates,
                       {u64 program hash, u32 vertex, i32 fetch index, u32 nregs, (u32 reg, u32 value)*}*,
@@ -250,7 +230,7 @@ def cmd_template(cache, out, merge=None):
             fi = fetch.setdefault(fs, len(fetch)) if fs else -1
             entries.setdefault((h, vertex, fi, tuple(regs)), None)
         pipelines.update((p, None) for p in old_pipelines)
-    drop = (mmSQ_PGM_START_VS, mmSQ_PGM_START_PS, mmSQ_PGM_START_FS)  # addresses in the recording's memory
+    drop = (mmSQ_PGM_START_VS, mmSQ_PGM_START_PS, mmSQ_PGM_START_FS)
     for t, r in read_records(cache):
         if t == REC_PIPELINE:
             pipelines.setdefault(bytes(r), None)
@@ -277,7 +257,6 @@ def cmd_template(cache, out, merge=None):
     print("template: %d states, %d fetch shaders, %d pipelines, %d bytes -> %s" %
           (len(entries), len(fetch), len(pipelines), len(data), out))
 
-
 def read_template(path):
     if not os.path.isfile(path):
         sys.exit("no state template at %s\n"
@@ -303,7 +282,7 @@ def read_template(path):
         o += 8 * nr
         states.append((h, vertex, fetch[fi] if fi >= 0 else b"", regs))
     pipelines = []
-    if o + 4 <= len(raw):  # older templates end here
+    if o + 4 <= len(raw):
         n = struct.unpack_from("<I", raw, o)[0]
         o += 4
         for _ in range(n):
@@ -312,8 +291,6 @@ def read_template(path):
             o += 4 + ln
     return states, pipelines
 
-
-# ---------------------------------------------------------------- commands
 def cmd_scan(game):
     shaders = game_shaders(game)
     per = collections.Counter(p.split("/")[0] + "/" + os.path.basename(p) for (_, (_, p)) in shaders.items())
@@ -321,7 +298,6 @@ def cmd_scan(game):
     print("distinct shaders: %d (VS %d, PS %d)" % (len(shaders), kinds[VS], kinds[PS]))
     for k, v in per.most_common(20):
         print("%6d  %s" % (v, k))
-
 
 def cmd_coverage(game, cache):
     shaders = game_shaders(game)
@@ -335,7 +311,6 @@ def cmd_coverage(game, cache):
     missing = [k for k in progs if k not in shaders]
     print("missing by type:", dict(collections.Counter("VS" if t == VS else "PS" for t, _ in missing)))
 
-
 def cmd_build(game, out, template, limit, with_pipelines=True):
     states, pipelines = read_template(template)
     shaders = game_shaders(game)
@@ -344,7 +319,7 @@ def cmd_build(game, out, template, limit, with_pipelines=True):
     by_hash = collections.defaultdict(list)
     for h, vertex, fs, regs in states:
         by_hash[(h, bool(vertex))].append((fs, regs))
-    # speculative states: those recorded for programs with an identical shader register block
+
     blocks = {}
     for (typ, code), (w, path) in shaders.items():
         blocks.setdefault((typ == VS, tuple(sorted(own_block(typ == VS, w)))), None)
@@ -362,7 +337,7 @@ def cmd_build(game, out, template, limit, with_pipelines=True):
             vertex = typ == VS
             for fs, regs in by_hash.get((prog_hash(code), vertex), []):
                 r = dict(regs)
-                r[pgm[vertex] + 1] = len(code) >> 3  # the loader supplies the program address
+                r[pgm[vertex] + 1] = len(code) >> 3
                 write_record(f, REC_SHADER, shader_record(1 if vertex else 0, code, fs, sorted(r.items())))
                 known += 1
         for p in pipelines:
@@ -380,7 +355,6 @@ def cmd_build(game, out, template, limit, with_pipelines=True):
                 spec += 1
     print("archive shaders %d; known records %d; pipeline records %d; speculative records %d -> %s (%d bytes)" %
           (len(shaders), known, len(pipelines), spec, out, os.path.getsize(out)))
-
 
 def main():
     args = sys.argv[1:]
@@ -408,7 +382,6 @@ def main():
         cmd_build(game, out, opts["--template"], int(opts["--max"]), not no_pipelines)
     else:
         print(__doc__)
-
 
 if __name__ == "__main__":
     main()

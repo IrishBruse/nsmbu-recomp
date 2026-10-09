@@ -1,37 +1,13 @@
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-//
-// MetalFX/MTLFXPrivate.hpp
-//
-// Copyright 2020-2024 Apple Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 #pragma once
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #include "MTLFXDefines.hpp"
 
 #include <objc/runtime.h>
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 #define _MTLFX_PRIVATE_CLS( symbol )                    ( MTLFX::Private::Class::s_k##symbol )
 #define _MTLFX_PRIVATE_SEL( accessor )                  ( MTLFX::Private::Selector::s_k##accessor )
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #if defined( MTLFX_PRIVATE_IMPLEMENTATION )
 
@@ -39,7 +15,7 @@
 #define _MTLFX_PRIVATE_VISIBILITY                       __attribute__( ( visibility("hidden" ) ) )
 #else
 #define _MTLFX_PRIVATE_VISIBILITY                       __attribute__( ( visibility("default" ) ) )
-#endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
+#endif
 
 #define _MTLFX_PRIVATE_IMPORT                           __attribute__( ( weak_import ) )
 
@@ -49,7 +25,7 @@
 #else
 #define _MTLFX_PRIVATE_OBJC_LOOKUP_CLASS( symbol )      objc_lookUpClass(#symbol)
 #define _MTLFX_PRIVATE_OBJC_GET_PROTOCOL( symbol )      objc_getProtocol(#symbol)
-#endif // __OBJC__
+#endif
 
 #define _MTLFX_PRIVATE_DEF_CLS( symbol )                void* s_k##symbol _MTLFX_PRIVATE_VISIBILITY = _MTLFX_PRIVATE_OBJC_LOOKUP_CLASS( symbol )
 #define _MTLFX_PRIVATE_DEF_PRO( symbol )                void* s_k##symbol _MTLFX_PRIVATE_VISIBILITY = _MTLFX_PRIVATE_OBJC_GET_PROTOCOL( symbol )
@@ -69,7 +45,7 @@ namespace MTLFX::Private
 
         return pAddress ? *pAddress : nullptr;
     }
-} // MTLFX::Private
+}
 
 #if defined(__MAC_26_0) || defined(__IPHONE_26_0) || defined(__TVOS_26_0)
 
@@ -108,9 +84,7 @@ namespace MTLFX::Private
 #define _MTLFX_PRIVATE_DEF_CONST( type, symbol )        extern type const MTLFX::symbol
 #define _MTLFX_PRIVATE_DEF_WEAK_CONST( type, symbol )   extern type const MTLFX::symbol
 
-#endif // MTLFX_PRIVATE_IMPLEMENTATION
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+#endif
 
 namespace MTLFX
 {
@@ -127,11 +101,9 @@ namespace MTLFX
             _MTLFX_PRIVATE_DEF_CLS( MTL4FXTemporalScalerDescriptor );
             _MTLFX_PRIVATE_DEF_CLS( MTL4FXFrameInterpolatorDescriptor );
             _MTLFX_PRIVATE_DEF_CLS( MTL4FXTemporalDenoisedScalerDescriptor );
-        } // Class
-    } // Private
-} // MTLFX
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+        }
+    }
+}
 
 namespace MTLFX
 {
@@ -141,11 +113,9 @@ namespace MTLFX
         {
             _MTLFX_PRIVATE_DEF_PRO( MTLFXSpatialScaler );
             _MTLFX_PRIVATE_DEF_PRO( MTLFXTemporalScaler );
-        } // Protocol
-    } // Private
-} // MTLFX
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+        }
+    }
+}
 
 namespace MTLFX
 {
@@ -553,8 +523,7 @@ namespace MTLFX
                                     "width" );
             _MTLFX_PRIVATE_DEF_SEL( worldToViewMatrix,
                                     "worldToViewMatrix" );
-        } // Selector
-    } // Private
-} // MTLFX
+        }
+    }
+}
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------

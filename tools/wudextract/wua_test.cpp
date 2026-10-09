@@ -1,10 +1,5 @@
-// End-to-end test of nsmbu-extract on synthetic Cemu Wii U archives (.wua, ZArchive format) written
-// here by a minimal ZArchive writer (zstd-compressed and stored 64 KiB blocks, offset records, name
-// table, breadth-first file tree, SHA-256 footer, as the reference writer lays them out), with
-// made-up title folders and made-up file contents (no game data): listing, title selection,
-// extraction byte for byte, and the error codes for a missing title and damaged archives.
-//
-// usage: wua_test NSMBU_EXTRACT_EXE WORKDIR      (run by ctest as "extract_wua")
+
+
 #include "crypto.h"
 
 #include <zstd.h>
@@ -43,7 +38,6 @@ static std::vector<uint8_t> pattern(size_t n, uint32_t seed) {
     return v;
 }
 
-// half random, half zeros, in 40000-byte runs: some blocks compress, some are stored as they are
 static std::vector<uint8_t> mixed(size_t n, uint32_t seed) {
     std::vector<uint8_t> v = pattern(n, seed);
     for (size_t i = 0; i < n; i++)
@@ -67,7 +61,7 @@ static std::string q(const fs::path& p) { return "\"" + p.string() + "\""; }
 
 static int run(const std::string& cmd) {
 #ifdef _WIN32
-    return system(("\"" + cmd + "\"").c_str());  // cmd.exe /c strips one level of outer quotes
+    return system(("\"" + cmd + "\"").c_str());
 #else
     int r = system(cmd.c_str());
     return WIFEXITED(r) ? WEXITSTATUS(r) : 99;
@@ -83,8 +77,6 @@ static uint64_t get_be(const std::vector<uint8_t>& b, size_t off, int n) {
     return v;
 }
 
-// ---- a minimal ZArchive writer (test only)
-
 struct ZWriter {
     static constexpr size_t BLOCK = 64 * 1024;
     struct Node {
@@ -94,9 +86,9 @@ struct ZWriter {
         std::vector<int> kids;
         uint32_t first = 0;
     };
-    std::vector<Node> nodes{Node{}};  // 0: root
-    std::vector<uint8_t> stream;      // uncompressed data, files in the order they were added
-    std::vector<std::pair<uint64_t, uint32_t>> blocks;  // after finish(): compressed offset and length
+    std::vector<Node> nodes{Node{}};
+    std::vector<uint8_t> stream;
+    std::vector<std::pair<uint64_t, uint32_t>> blocks;
 
     int child(int dir, const std::string& name, bool file) {
         for (int k : nodes[dir].kids)
@@ -125,7 +117,7 @@ struct ZWriter {
     std::vector<uint8_t> finish() {
         std::vector<uint8_t> out, data = stream;
         data.resize((data.size() + BLOCK - 1) / BLOCK * BLOCK);
-        // blocks: zstd, or stored when that is not smaller
+
         std::vector<uint8_t> tmp(ZSTD_compressBound(BLOCK));
         blocks.clear();
         for (size_t b = 0; b < data.size() / BLOCK; b++) {
@@ -137,7 +129,7 @@ struct ZWriter {
         uint64_t sec[6][2] = {};
         sec[0][0] = 0, sec[0][1] = out.size();
         while (out.size() % 8) out.push_back(0);
-        // offset records: per 16 blocks the offset of the first, then 16 x (length - 1)
+
         sec[1][0] = out.size();
         for (size_t r = 0; r < (blocks.size() + 15) / 16; r++) {
             std::vector<uint8_t> rec(40, 0);
@@ -146,7 +138,7 @@ struct ZWriter {
             out.insert(out.end(), rec.begin(), rec.end());
         }
         sec[1][1] = out.size() - sec[1][0];
-        // names (one per node, in node order) and the breadth-first tree
+
         sec[2][0] = out.size();
         std::vector<uint32_t> name_off(nodes.size(), 0x7FFFFFFF);
         for (size_t i = 1; i < nodes.size(); i++) {
@@ -203,7 +195,6 @@ struct ZWriter {
         return out;
     }
 
-    // the footer's SHA-256 over the whole archive (its own field counted as zeros)
     static void rehash(std::vector<uint8_t>& a) {
         size_t h = a.size() - 144 + 96;
         memset(&a[h], 0, 32);
@@ -230,18 +221,17 @@ int main(int argc, char** argv) {
     fs::create_directories(work);
     std::string x = q(exe);
 
-    // base game (USA), its update, a DLC-style title and a stray file at the top
     std::vector<FileSpec> base = {{"code/red-pro2.rpx", pattern(100000, 1)},
                                   {"code/app.xml", pattern(37, 2)},
                                   {"meta/meta.xml", pattern(300, 3)},
-                                  {"content/Audiores/big.bin", mixed(2 * 1024 * 1024 + 1234, 4)},  // > 16 blocks
+                                  {"content/Audiores/big.bin", mixed(2 * 1024 * 1024 + 1234, 4)},
                                   {"content/empty.bin", {}},
                                   {"content/a/b/c/deep.bin", pattern(70000, 5)}};
     std::vector<FileSpec> update = {{"code/red-pro2.rpx", pattern(100004, 11)},
                                     {"content/patched.bin", pattern(5000, 12)},
                                     {"meta/meta.xml", pattern(10, 13)}};
     ZWriter w;
-    for (auto& f : update) w.add("0005000e10143500_v16/" + f.path, f.data);  // data order != tree order
+    for (auto& f : update) w.add("0005000e10143500_v16/" + f.path, f.data);
     for (auto& f : base) w.add("0005000010143500_v0/" + f.path, f.data);
     w.add("0005000c10143500_v5/content/0010/dlc.bin", pattern(999, 21));
     w.mkdir("0005000010143500_v0/content/emptydir");
@@ -264,7 +254,6 @@ int main(int argc, char** argv) {
         expect(ok && n == files.size(), what);
     };
 
-    // info: all titles, and the selected one
     expect(run(x + " --title 0005000010143500 info " + q(wua) + " > " + q(work / "info.txt")) == 0, "info --title (no keys)");
     {
         std::string s = read_text(work / "info.txt");
@@ -290,7 +279,6 @@ int main(int argc, char** argv) {
                "list shows the files of every title");
     }
 
-    // extract the base game: only its folder, byte for byte, with progress
     expect(run(x + " --title 0005000010143500 --progress extract " + q(wua) + " " + q(work / "out") + " > " +
                q(work / "progress.txt")) == 0,
            "extract the base title");
@@ -301,18 +289,16 @@ int main(int argc, char** argv) {
                    s.find("phase extract\nprogress 0 ") != std::string::npos,
                "progress: verify, then extract");
     }
-    // by folder name, upper case: the update
+
     expect(run(x + " --title 0005000E10143500_V16 extract " + q(wua) + " " + q(work / "out_upd") + " 2> " +
                q(work / "log.txt")) == 0,
            "extract a title by its folder name (any case)");
     check_tree(work / "out_upd", update, "update files match");
 
-    // the extension does not matter (recognized by the footer)
     fs::copy_file(wua, work / "game.bin");
     expect(run(x + " --title 0005000010143500 info " + q(work / "game.bin") + " > " + q(work / "info3.txt")) == 0,
            "archive recognized without the .wua extension");
 
-    // a single title needs no --title
     {
         ZWriter one;
         for (auto& f : base) one.add("0005000010143500_v0/" + f.path, f.data);
@@ -322,7 +308,6 @@ int main(int argc, char** argv) {
         check_tree(work / "out_one", base, "single-title files match");
     }
 
-    // wrong title: the European game only
     {
         ZWriter eu;
         for (auto& f : base) eu.add("0005000010143600_v0/" + f.path, f.data);
@@ -346,7 +331,6 @@ int main(int argc, char** argv) {
                "no title folders -> exit 10");
     }
 
-    // --only on a European archive (a language source): just the packs and meta.xml, without case
     {
         ZWriter eu;
         std::vector<FileSpec> want = {{"content/Common/Pack/permanent_2d_EuGerman.pack", pattern(400, 31)},
@@ -365,7 +349,6 @@ int main(int argc, char** argv) {
                "  ... progress counts only them");
     }
 
-    // damaged archives
     {
         std::vector<uint8_t> t(arc.begin(), arc.end() - 1);
         write_file(work / "truncated.wua", t);
@@ -375,7 +358,6 @@ int main(int argc, char** argv) {
         expect(read_text(work / "e2.txt").find("not a Cemu Wii U archive") != std::string::npos, "  ... message");
         expect(run(x + " info " + q(work / "missing.wua") + " 2> " + q(work / "e3.txt")) == 7, "missing file -> exit 7");
 
-        // one flipped byte in a stored block: the structure reads fine, the SHA-256 check stops the extraction
         size_t stored = 0;
         for (auto& b : w.blocks)
             if (b.second == ZWriter::BLOCK) stored = b.first + 1000;
@@ -390,12 +372,11 @@ int main(int argc, char** argv) {
                "flipped data byte: extract -> exit 8 before writing anything");
         expect(read_text(work / "e4.txt").find("SHA-256") != std::string::npos, "  ... message");
 
-        // a broken zstd frame with a matching hash (the hash alone would not catch a damaged writer)
         size_t packed = 0;
         for (auto& b : w.blocks)
             if (b.second < ZWriter::BLOCK) packed = b.first;
         d = arc;
-        d[packed] ^= 0xFF;  // the frame magic
+        d[packed] ^= 0xFF;
         ZWriter::rehash(d);
         write_file(work / "badframe.wua", d);
         expect(run(x + " --title 0005000010143500 extract " + q(work / "badframe.wua") + " " + q(work / "out_bf") + " 2> " +
@@ -403,15 +384,13 @@ int main(int argc, char** argv) {
                "broken zstd block -> exit 8");
         expect(read_text(work / "e5.txt").find("cannot be decompressed") != std::string::npos, "  ... message");
 
-        // a folder pointing past the end of the tree
         d = arc;
         size_t tree = (size_t)get_be(d, d.size() - 144 + 48, 8);
-        put_be(d, tree + 8, 100000, 4);  // the root's entry count
+        put_be(d, tree + 8, 100000, 4);
         ZWriter::rehash(d);
         write_file(work / "badtree.wua", d);
         expect(run(x + " info " + q(work / "badtree.wua") + " 2> " + q(work / "e6.txt")) == 7, "corrupt file tree -> exit 7");
 
-        // a ".." name inside the title folder
         ZWriter evil;
         evil.add("0005000010143500_v0/code/red-pro2.rpx", pattern(10, 1));
         evil.add("0005000010143500_v0/../escape.bin", pattern(10, 2));

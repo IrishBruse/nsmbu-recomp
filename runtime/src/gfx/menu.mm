@@ -1,8 +1,7 @@
-// Menu bar: app menu (Quit, which asks first while a game is in progress: quit_prompt.mm), a Window
-// menu (Close Window on the TV window quits the same way) and a Graphics menu to switch fixes and
-// enhancements while playing. Each option also has a single-key shortcut in the game window.
+
+
 #import <Cocoa/Cocoa.h>
-#include <Carbon/Carbon.h>  // kVK_* key codes
+#include <Carbon/Carbon.h>
 #include "../input.h"
 #include "../platform/host.h"
 #include <sys/stat.h>
@@ -19,22 +18,20 @@
 #include "../aspect.h"
 #include "renderer.h"
 #ifdef NSMBU_HAS_VULKAN
-#include "vulkan/settings.h"  // Presentation (present mode), kept with the other graphics options
+#include "vulkan/settings.h"
 #endif
 #include "runtime.h"
 
-// graphics options and capture go to the renderer in use (Metal or Vulkan: renderer.h)
 namespace gfx {
 bool drc_window_available();
 bool drc_window_shown();
 void show_drc_window(bool on);
 void install_display_menu(NSMenu* bar);
-void set_host_setting(const char* key, const std::string& value);  // display.mm
-}  // namespace gfx
+void set_host_setting(const char* key, const std::string& value);
+}
 
-// internal resolution steps (Graphics menu; R cycles)
 static const float kResScales[] = {1.0f, 1.5f, 2.0f, 3.0f};
-static float g_res_shown = 0;  // last value set from the UI (res_scale() lags a frame)
+static float g_res_shown = 0;
 static float current_res_scale() { return g_res_shown ? g_res_shown : render::res_scale(); }
 static void set_res(float f) { g_res_shown = f; render::set_res_scale(f); }
 static void cycle_res() {
@@ -44,29 +41,24 @@ static void cycle_res() {
     set_res(kResScales[i % n]);
 }
 
-
-
 namespace gx2 { uint64_t flips_presented(); bool uncapped(); }
 #include "../mods/mods.h"
 #include "../overlay/overlay.h"
 namespace ax { void start_sound_trace(const char* path, double seconds); }
-namespace gfx { bool menu_hotkey(uint16_t code); NSMenuItem* controls_menu_item(); /* controls_ui.mm */ void install_overlay_input(); }
+namespace gfx { bool menu_hotkey(uint16_t code); NSMenuItem* controls_menu_item();  void install_overlay_input(); }
 
 static NSWindow* g_tv;
-static double g_fps = 0;  // frames presented per second, measured over the last half second
+static double g_fps = 0;
 static NSString* const kTitle = @"New Super Mario Bros. U (recompiled)";
 
-// Graphics options are kept across launches (macOS user defaults, domain "nsmbu"); an option's NSMBU_*
-// environment variable overrides the saved value for that run and is not saved. Scripted test runs
-// (NSMBU_NO_HOST_INPUT) neither read nor write them.
 static const bool g_prefs = getenv("NSMBU_NO_HOST_INPUT") == nullptr;
-static bool g_prefs_loaded = false;  // nothing is saved before the saved values were applied
+static bool g_prefs_loaded = false;
 static bool env_set(std::initializer_list<const char*> env) {
     for (const char* e : env)
         if (getenv(e)) return true;
     return false;
 }
-// Saved graphics options: NSUserDefaults, or in portable mode a plist in the folder (portable.txt).
+
 static NSString* portable_prefs_path() {
     return host::portable() ? @((host::portable_user_dir() + "/graphics.plist").c_str()) : nil;
 }
@@ -81,7 +73,7 @@ static id pref(NSString* key) {
 }
 static void set_pref(NSString* key, id value) {
     if (portable_prefs_path()) {
-        pref(key);  // loads the file
+        pref(key);
         g_portable_prefs[key] = value;
     } else {
         [NSUserDefaults.standardUserDefaults setObject:value forKey:key];
@@ -97,8 +89,7 @@ static void load_prefs() {
     if (saved(@"aniso", {"NSMBU_ANISO"})) render::set_aniso([pref(@"aniso") boolValue]);
     if (saved(@"bloomStrength", {"NSMBU_BLOOM_STRENGTH"})) render::set_bloom_strength([pref(@"bloomStrength") floatValue]);
     if (saved(@"fxaa", {"NSMBU_FXAA"})) render::set_fxaa([pref(@"fxaa") boolValue]);
-    // frame rate: fps60 is the mode (0 30 fps, 1 frame interpolation, 2 true 60; the key predates
-    // 120/240 fps), interpFps the interpolation's rate; "keep game speed" for 60 and for 120/240 fps
+
     if (saved(@"interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps([pref(@"interpFps") intValue]);
     if (saved(@"fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"})) interp::set_mode([pref(@"fps60") intValue]);
     if (saved(@"fps60Paced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(60, [pref(@"fps60Paced") boolValue]);
@@ -127,9 +118,6 @@ static void save_prefs() {
     if (NSString* p = portable_prefs_path()) [g_portable_prefs writeToFile:p atomically:YES];
 }
 
-// the TV title summarises the active options so a key press is visible without opening the menu;
-// it starts with the renderer in use (and notes a fallback or a choice waiting for a restart).
-// Every option change ends here, so this also saves them
 static void update_title() {
     save_prefs();
     static const char* ao[3] = {"original", "centre fix", "centre + noise fix"};
@@ -140,15 +128,15 @@ static void update_title() {
         rnd = [rnd stringByAppendingFormat:@" (%s unavailable)", render::api_name(render::requested())];
     else if (render::restart_pending())
         rnd = [rnd stringByAppendingFormat:@" (%s after restart)", render::api_name(render::preferred())];
-    // the middle dots of the optional parts are NSStrings: %s would read UTF-8 as Mac Roman ("¬∑")
+
     NSString* t = [NSString stringWithFormat:@"%@ \u2014 %@ \u00b7 %.0f fps%@ \u00b7 AO: %s%s \u00b7 AF: %s%@%@", kTitle, rnd, g_fps, res,
                                              ao[render::ao_mode()], render::ao_hires() ? " + full-size depth" : "",
                                              render::aniso() ? "16x" : "game",
                                              interp::mode() ? [@" \u00b7 " stringByAppendingString:@(interp::mode_name())] : @"", render::fxaa() ? @" \u00b7 FXAA" : @""];
     if (gx2::uncapped()) t = [t stringByAppendingString:@" \u00b7 UNCAPPED (debug)"];
-    std::string msg = ss::last_message();  // save state confirmations
+    std::string msg = ss::last_message();
     if (!msg.empty()) t = [NSString stringWithFormat:@"%@ \u2014 %@ \u2014 %s", kTitle, rnd, msg.c_str()];
-    if (getenv("NSMBU_LOG_TITLE") && ![t isEqualToString:g_tv.title]) {  // tests: the window title as it changes
+    if (getenv("NSMBU_LOG_TITLE") && ![t isEqualToString:g_tv.title]) {
         NSString* noFps = [t stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"%.0f fps", g_fps] withString:@"N fps"];
         static NSString* last;
         if (![noFps isEqualToString:last]) LOG("[display] title: %s", noFps.UTF8String);
@@ -157,13 +145,12 @@ static void update_title() {
     [g_tv setTitle:t];
 }
 
-// Graphics > Renderer: saved for the next start; offers to restart right away
 static void choose_renderer(render::Api a) {
     if (a == render::preferred()) return;
     render::set_preferred(a);
     update_title();
-    if (a == render::active()) return;  // back to the renderer in use: nothing to restart
-    if (getenv("NSMBU_NO_HOST_INPUT")) return;  // test runs: no dialogs
+    if (a == render::active()) return;
+    if (getenv("NSMBU_NO_HOST_INPUT")) return;
     NSAlert* alert = [NSAlert new];
     alert.messageText = [NSString stringWithFormat:@"The game will use %s after a restart.", render::api_name(a)];
     alert.informativeText = @"Restart now? Progress since your last save (in-game save or save state) is lost.";
@@ -180,7 +167,6 @@ static void choose_renderer(render::Api a) {
     }];
 }
 
-// Save States menu: items are rebuilt each time it opens (slot time and area)
 @interface WWStateMenu : NSObject <NSMenuDelegate>
 @end
 @implementation WWStateMenu
@@ -215,7 +201,7 @@ static void choose_renderer(render::Api a) {
         it.enabled = info[i].used && info[i].compatible;
         it.toolTip = i == 1 ? @"In game: F1 (or \u2318,) opens the settings overlay (Saves)" : [NSString stringWithFormat:@"Shortcut in game: F%d", i];
     }
-    // full save states (savestate.h): off by default, for debugging
+
     [m addItem:[NSMenuItem separatorItem]];
     NSMenuItem* fs = [m addItemWithTitle:@"Full Save States (large, contain game data, don't share)" action:@selector(toggleFullStates:)
                            keyEquivalent:@""];
@@ -224,7 +210,7 @@ static void choose_renderer(render::Api a) {
     fs.enabled = !ss::full_states_forced();
     fs.toolTip = @"For debugging: Save makes a snapshot of the whole running game (about 300 MB). Off: Save makes a small "
                  @"portable state (progress and position, no game data) that can be attached to bug reports.";
-    // crash recovery (crashrec.cpp): automatic states every few minutes + recorded input
+
     [m addItem:[NSMenuItem separatorItem]];
     NSMenuItem* cr = [m addItemWithTitle:[NSString stringWithFormat:@"Crash Recovery (automatic state every %d min)",
                                                                     (crashrec::interval_seconds() + 30) / 60]
@@ -257,16 +243,16 @@ static WWStateMenu* g_state_menu;
 - (void)screenshot:(NSMenuItem*)item { screenshot::request(); }
 - (void)openScreenshots:(NSMenuItem*)item { hostui::open_folder(screenshot::dir()); }
 - (void)toggleScreenshotGamePad:(NSMenuItem*)item { screenshot::set_gamepad_too(!screenshot::gamepad_too()); }
-- (void)openSettings:(NSMenuItem*)item { overlay::set_open(!overlay::is_open()); }  // Cmd+, toggles
+- (void)openSettings:(NSMenuItem*)item { overlay::set_open(!overlay::is_open()); }
 - (void)setRenderer:(NSMenuItem*)item { choose_renderer((render::Api)item.tag); }
 - (void)recordSound:(NSMenuItem*)item { gfx::menu_hotkey(kVK_ANSI_9); }
 - (void)setController:(NSMenuItem*)item {
     input::set_pro_controller(item.tag == 1);
-    gfx::show_drc_window(item.tag == 0);  // the GamePad window follows the controller choice
-    gfx::set_host_setting("proController", item.tag == 1 ? "1" : "0");  // as the settings overlay saves it
+    gfx::show_drc_window(item.tag == 0);
+    gfx::set_host_setting("proController", item.tag == 1 ? "1" : "0");
 }
 - (void)setFaceLayout:(NSMenuItem*)item {
-    // issue #78: which host face buttons drive the Wii U's A/B/X/Y (the same as the Controls window)
+
     input_map::Mapping m = input_map::current();
     input_map::apply_face_layout(m, item.tag == 1 ? input_map::FaceLayout::kLabels : input_map::FaceLayout::kPosition);
     input_map::set_current(m);
@@ -324,7 +310,7 @@ static WWStateMenu* g_state_menu;
     }
     if (item.action == @selector(capture:)) return render::feature_available(render::kFeatureCapture);
     if (item.action == @selector(screenshot:)) {
-        // the Screenshot binding's key (Controls), shown in the title: it can be rebound
+
         int k = input_map::current().keys[input_map::kScreenshot][0];
         if (k == input_map::kNoKey) k = input_map::current().keys[input_map::kScreenshot][1];
         item.title = k == input_map::kNoKey ? @"Take Screenshot"
@@ -342,7 +328,7 @@ static NSMenuItem* add(NSMenu* m, NSString* title, SEL action, NSString* key, NS
     NSMenuItem* it = [m addItemWithTitle:title action:action keyEquivalent:@""];
     it.target = g_target;
     it.tag = tag;
-    // shown for reference; the game window's key monitor handles the actual key (no Cmd needed)
+
     if (key.length) it.toolTip = [NSString stringWithFormat:@"Shortcut in game: %@", key];
     return it;
 }
@@ -356,8 +342,7 @@ void install_menu(NSWindow* tv) {
 
     NSMenuItem* appItem = [bar addItemWithTitle:@"" action:nil keyEquivalent:@""];
     NSMenu* app = [NSMenu new];
-    // the settings overlay (overlay/overlay.h), at the place and with the shortcut macOS apps use;
-    // F1 also works (Fn+F1 unless the top row sends standard function keys)
+
     NSMenuItem* settings = [app addItemWithTitle:@"Settings\u2026" action:@selector(openSettings:) keyEquivalent:@","];
     settings.target = g_target;
     settings.toolTip = @"In-game settings overlay over the picture (F1, or \u2318, in the game window)";
@@ -368,7 +353,7 @@ void install_menu(NSWindow* tv) {
     NSMenuItem* gfxItem = [bar addItemWithTitle:@"Graphics" action:nil keyEquivalent:@""];
     NSMenu* g = [[NSMenu alloc] initWithTitle:@"Graphics"];
     if (render::can_choose()) {
-        // both renderers are built in: the choice is saved and used from the next start
+
         [g addItemWithTitle:@"Renderer (takes effect after a restart)" action:nil keyEquivalent:@""].enabled = NO;
         NSString* why = render::fallback_reason().empty() ? @"" : [NSString stringWithFormat:@"\nThis start: %s", render::fallback_reason().c_str()];
         add(g, @"    Metal", @selector(setRenderer:), @"", (NSInteger)render::Api::Metal).toolTip =
@@ -439,11 +424,10 @@ void install_menu(NSWindow* tv) {
     add(in, @"Show GamePad screen (\u2318G)", @selector(toggleDrcWindow:), @"");
     [in addItem:gfx::controls_menu_item()];
     inItem.submenu = in;
-    install_display_menu(bar);  // Display: full screen, scaling, GamePad screen mode (display.mm)
+    install_display_menu(bar);
 
     mods::mouse_init((__bridge void*)tv);
 
-    // Save States: 5 slots (savestate.cpp); Shift+F1..F5 save, F1..F5 load
     NSMenuItem* ssItem = [bar addItemWithTitle:@"Save States" action:nil keyEquivalent:@""];
     NSMenu* sm = [[NSMenu alloc] initWithTitle:@"Save States"];
     sm.autoenablesItems = NO;
@@ -451,8 +435,6 @@ void install_menu(NSWindow* tv) {
     sm.delegate = g_state_menu;
     ssItem.submenu = sm;
 
-    // Window: the standard items. Close Window (Cmd+W) on the TV window quits, asking first while a
-    // game is in progress (quit_prompt.mm); on the GamePad window it only hides it
     NSMenuItem* winItem = [bar addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
     NSMenu* wm = [[NSMenu alloc] initWithTitle:@"Window"];
     [wm addItemWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"];
@@ -460,18 +442,17 @@ void install_menu(NSWindow* tv) {
     [wm addItem:[NSMenuItem separatorItem]];
     [wm addItemWithTitle:@"Close Window" action:@selector(performClose:) keyEquivalent:@"w"];
     winItem.submenu = wm;
-    NSApp.windowsMenu = wm;  // macOS lists the open windows below
+    NSApp.windowsMenu = wm;
 
     NSApp.mainMenu = bar;
-    install_overlay_input();  // settings overlay (F1): mouse in the TV window (overlay_appkit.mm)
+    install_overlay_input();
     update_title();
-    // apply the saved options once the renderer is settled: the menu is installed with the windows,
-    // before a Vulkan start can still fail and fall back to Metal; the main queue runs after that
+
     dispatch_async(dispatch_get_main_queue(), ^{
         load_prefs();
         update_title();
     });
-    // live frame rate: presented frames over the last half second
+
     [NSTimer scheduledTimerWithTimeInterval:0.5 repeats:YES block:^(NSTimer*) {
         static uint64_t last = gx2::flips_presented();
         static CFAbsoluteTime t0 = CFAbsoluteTimeGetCurrent();
@@ -484,12 +465,10 @@ void install_menu(NSWindow* tv) {
     }];
 }
 
-// settings overlay (overlay_appkit.mm): the same internal resolution value and title / saved options
 float menu_res_scale() { return current_res_scale(); }
 void menu_set_res_scale(float f) { set_res(f); }
 void menu_options_changed() { update_title(); }
 
-// single-key shortcuts from the game window; true if the key was used
 bool menu_hotkey(uint16_t code) {
     switch (code) {
     case kVK_ANSI_O: if (render::feature_available(render::kFeatureAO)) render::set_ao_mode((render::ao_mode() + 1) % 3); break;
@@ -503,11 +482,11 @@ bool menu_hotkey(uint16_t code) {
     case kVK_F1: case kVK_F2: case kVK_F3: case kVK_F4: case kVK_F5: {
         int slot = code == kVK_F1 ? 1 : code == kVK_F2 ? 2 : code == kVK_F3 ? 3 : code == kVK_F4 ? 4 : 5;
         if ([NSEvent modifierFlags] & NSEventModifierFlagShift) ss::request_save(slot);
-        else if (slot != 1) ss::request_load(slot);  // F1: the settings overlay (overlay_appkit.mm)
+        else if (slot != 1) ss::request_load(slot);
         return true;
     }
     case kVK_ANSI_9: {
-        // 3 s of sound activity (voice starts), without the frame capture's stall
+
         char path[96];
         time_t t = time(nullptr);
         mkdir("captures", 0755);
@@ -521,4 +500,4 @@ bool menu_hotkey(uint16_t code) {
     return true;
 }
 
-}  // namespace gfx
+}

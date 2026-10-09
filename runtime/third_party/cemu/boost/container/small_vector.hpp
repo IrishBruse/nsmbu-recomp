@@ -1,4 +1,4 @@
-// shim: boost::container::small_vector as std::vector
+
 #pragma once
 #include <vector>
 namespace boost { namespace container {

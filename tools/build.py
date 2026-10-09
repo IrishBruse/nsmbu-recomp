@@ -11,20 +11,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 BUILD = os.path.join(ROOT, "build")
 
-
 def debug_compile_flags(install_flags, sanitizer=False):
     flags = install_flags
     if sanitizer:
         flags = f"{flags} -fsanitize=address,undefined -fno-omit-frame-pointer"
     return flags
 
-
 def debug_link_flags(link_dir, sanitizer=False):
     flags = f"-L{link_dir}"
     if sanitizer:
         flags = f"{flags} -fsanitize=address,undefined"
     return flags
-
 
 def link_compile_commands(build_dir):
     src = os.path.join(build_dir, "compile_commands.json")
@@ -34,7 +31,6 @@ def link_compile_commands(build_dir):
             os.remove(dst)
         os.symlink(os.path.relpath(src, ROOT), dst)
 
-
 def libstdcxx_libdir():
     for ver in range(20, 10, -1):
         hits = glob.glob(f"/usr/lib/gcc/*-linux-gnu/{ver}/libstdc++.so")
@@ -42,10 +38,8 @@ def libstdcxx_libdir():
             return os.path.dirname(hits[0])
     return None
 
-
 def gcc_install_flags(libdir):
     return [f"--gcc-install-dir={libdir}"]
-
 
 def clang_pair(libdir):
     cxx_flags = gcc_install_flags(libdir)
@@ -74,14 +68,12 @@ def clang_pair(libdir):
                 return cc, cxx
     return None, None
 
-
 def gen_is_stub(gen):
     report = os.path.join(gen, "report.txt")
     if not os.path.isfile(report):
         return True
     with open(report, encoding="utf-8", errors="replace") as handle:
         return handle.readline().startswith("placeholder from stubgen.py")
-
 
 def ensure_gen_dir():
     gen = os.path.join(ROOT, "build", "gen")
@@ -108,7 +100,6 @@ def ensure_gen_dir():
         check=True,
         cwd=ROOT,
     )
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -163,7 +154,6 @@ def main():
     )
     if debug_build:
         link_compile_commands(BUILD)
-
 
 if __name__ == "__main__":
     main()

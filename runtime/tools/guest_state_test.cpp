@@ -1,4 +1,4 @@
-// Full-state mod memory and identity metadata, entirely synthetic and never written to disk.
+
 #include "mods/guest_mods.h"
 #include "mods/guest_heap.h"
 #include "mods/guest_state_section.h"
@@ -20,11 +20,10 @@ int main() {
     auto pointer=[&](uint32_t a){assert(a>=guestmods::kRegionStart&&a<guestmods::kRegionStart+memory.size());return memory.data()+a-guestmods::kRegionStart;};
     auto touched=[](const uint8_t*,size_t){return true;};
     guestmods::Heap heap(memory.data()+0x10000,guestmods::kRegionStart+0x10000,0x10000);heap.initialize();
-    auto allocation=heap.allocate(64);assert(allocation);pointer(allocation)[0]=123;memory[0]=42; // code/data sentinel
+    auto allocation=heap.allocate(64);assert(allocation);pointer(allocation)[0]=123;memory[0]=42;
     std::vector<ss::MemoryRegion> regions={{guestmods::kRegionStart,guestmods::kRegionSize}};
     ss::Writer snapshot;ss::capture_regions(snapshot,regions,pointer,touched);
-    // The CPU/controller extension ends at byte 104; both mod sections follow it,
-    // rather than occupying bytes in the historical 96-byte prefix.
+
     static_assert(sizeof(ss::FullStateHeader)==104);
     for(unsigned mode:{1u,2u}) {
         ss::FullStateHeader header{};memcpy(header.magic,"WWHDSTAT",8);
@@ -53,7 +52,7 @@ int main() {
     assert(heap.release(allocation));memory[0]=0;memory[0x30000]=99;
     ss::restore_regions(parsed,chunks,pointer,touched);
     assert(memory[0]==42&&pointer(allocation)[0]==123&&memory[0x30000]==0);
-    assert(heap.release(allocation)); // allocator state restored with guest memory
+    assert(heap.release(allocation));
     auto malformed=snapshot.b;uint32_t invalid_index=guestmods::kRegionSize/ss::kMemoryChunk;
     memcpy(malformed.data()+16,&invalid_index,4);ss::Reader bad(malformed.data(),malformed.size());
     parsed.clear();chunks.clear();assert(!ss::read_regions(bad,parsed,chunks));

@@ -1,15 +1,10 @@
-// Formatting library for C++ - experimental format string compilation
-//
-// Copyright (c) 2012 - present, Victor Zverovich and fmt contributors
-// All rights reserved.
-//
-// For the license information refer to format.h.
+
 
 #ifndef FMT_COMPILE_H_
 #define FMT_COMPILE_H_
 
 #ifndef FMT_MODULE
-#  include <iterator>  // std::back_inserter
+#  include <iterator>
 #endif
 
 #include "format.h"
@@ -17,47 +12,23 @@
 FMT_BEGIN_NAMESPACE
 FMT_BEGIN_EXPORT
 
-// A compile-time string which is compiled into fast formatting code.
 class compiled_string {};
 
 template <typename S>
 struct is_compiled_string : std::is_base_of<compiled_string, S> {};
 
-/**
- * Converts a string literal `s` into a format string that will be parsed at
- * compile time and converted into efficient formatting code. Requires C++17
- * `constexpr if` compiler support.
- *
- * **Example**:
- *
- *     // Converts 42 into std::string using the most efficient method and no
- *     // runtime format string processing.
- *     std::string s = fmt::format(FMT_COMPILE("{}"), 42);
- */
 #if defined(__cpp_if_constexpr) && defined(__cpp_return_type_deduction)
 #  define FMT_COMPILE(s) FMT_STRING_IMPL(s, fmt::compiled_string)
 #else
 #  define FMT_COMPILE(s) FMT_STRING(s)
 #endif
 
-/**
- * Converts a string literal into a format string that will be parsed at
- * compile time and converted into efficient formatting code. Requires support
- * for class types in constant template parameters (a C++20 feature).
- *
- *  **Example**:
- *
- *     // Converts 42 into std::string using the most efficient method and no
- *     // runtime format string processing.
- *     using namespace fmt::literals;
- *     std::string s = fmt::format("{}"_cf, 42);
- */
 #if FMT_USE_NONTYPE_TEMPLATE_ARGS
 inline namespace literals {
 template <detail::fixed_string Str> constexpr auto operator""_cf() {
   return FMT_COMPILE(Str.data);
 }
-}  // namespace literals
+}
 #endif
 
 FMT_END_EXPORT
@@ -72,7 +43,6 @@ constexpr auto first(const T& value, const Tail&...) -> const T& {
 #if defined(__cpp_if_constexpr) && defined(__cpp_return_type_deduction)
 template <typename... T> struct type_list {};
 
-// Returns a reference to the argument at index N from [first, rest...].
 template <int N, typename T, typename... Args>
 constexpr auto get([[maybe_unused]] const T& first,
                    [[maybe_unused]] const Args&... rest) -> const auto& {
@@ -91,7 +61,7 @@ constexpr auto get_arg_index_by_name(basic_string_view<Char> name) -> int {
   }
   if constexpr (sizeof...(Args) > 0)
     return get_arg_index_by_name<N + 1, Args...>(name);
-  (void)name;  // Workaround an MSVC bug about "unused" parameter.
+  (void)name;
   return -1;
 }
 #  endif
@@ -154,7 +124,6 @@ template <typename Char> struct code_unit {
   }
 };
 
-// This ensures that the argument type is convertible to `const T&`.
 template <typename T, int N, typename... Args>
 constexpr auto get_arg_checked(const Args&... args) -> const T& {
   const auto& arg = detail::get<N>(args...);
@@ -168,7 +137,6 @@ constexpr auto get_arg_checked(const Args&... args) -> const T& {
 template <typename Char>
 struct is_compiled_format<code_unit<Char>> : std::true_type {};
 
-// A replacement field that refers to argument N.
 template <typename Char, typename V, int N> struct field {
   using char_type = Char;
 
@@ -187,7 +155,6 @@ template <typename Char, typename V, int N> struct field {
 template <typename Char, typename T, int N>
 struct is_compiled_format<field<Char, T, N>> : std::true_type {};
 
-// A replacement field that refers to argument with name.
 template <typename Char> struct runtime_named_field {
   using char_type = Char;
   basic_string_view<Char> name;
@@ -195,7 +162,7 @@ template <typename Char> struct runtime_named_field {
   template <typename OutputIt, typename T>
   constexpr static auto try_format_argument(
       OutputIt& out,
-      // [[maybe_unused]] due to unused-but-set-parameter warning in GCC 7,8,9
+
       [[maybe_unused]] basic_string_view<Char> arg_name, const T& arg) -> bool {
     if constexpr (is_named_arg<typename std::remove_cv<T>::type>::value) {
       if (arg_name == arg.name) {
@@ -219,7 +186,6 @@ template <typename Char> struct runtime_named_field {
 template <typename Char>
 struct is_compiled_format<runtime_named_field<Char>> : std::true_type {};
 
-// A replacement field that refers to argument N and has format specifiers.
 template <typename Char, typename V, int N> struct spec_field {
   using char_type = Char;
   formatter<V, Char> fmt;
@@ -372,8 +338,6 @@ constexpr auto parse_replacement_field_then_tail(S fmt) {
   }
 }
 
-// Compiles a non-empty format string and returns the compiled representation
-// or unknown_format() on unrecognized input.
 template <typename Args, size_t POS, int ID, typename S>
 constexpr auto compile_format_string(S fmt) {
   using char_type = typename S::char_type;
@@ -419,7 +383,7 @@ constexpr auto compile_format_string(S fmt) {
           return parse_tail<Args, arg_id_end_pos + 1, ID>(
               runtime_named_field<char_type>{arg_id_result.arg_id.name}, fmt);
         } else if constexpr (c == ':') {
-          return unknown_format();  // no type info for specs parsing
+          return unknown_format();
         }
       }
     }
@@ -449,8 +413,8 @@ constexpr auto compile(S fmt) {
     return result;
   }
 }
-#endif  // defined(__cpp_if_constexpr) && defined(__cpp_return_type_deduction)
-}  // namespace detail
+#endif
+}
 
 FMT_BEGIN_EXPORT
 
@@ -563,20 +527,6 @@ template <size_t N> class static_format_result {
   auto c_str() const -> const char* { return data; }
 };
 
-/**
- * Formats arguments according to the format string `fmt_str` and produces
- * a string of the exact required size at compile time. Both the format string
- * and the arguments must be compile-time expressions.
- *
- * The resulting string can be accessed as a C string via `c_str()` or as
- * a `fmt::string_view` via `str()`.
- *
- * **Example**:
- *
- *     // Produces the static string "42" at compile time.
- *     static constexpr auto result = FMT_STATIC_FORMAT("{}", 42);
- *     const char* s = result.c_str();
- */
 #define FMT_STATIC_FORMAT(fmt_str, ...)                            \
   fmt::static_format_result<                                       \
       fmt::formatted_size(FMT_COMPILE(fmt_str), __VA_ARGS__) + 1>( \
@@ -585,4 +535,4 @@ template <size_t N> class static_format_result {
 FMT_END_EXPORT
 FMT_END_NAMESPACE
 
-#endif  // FMT_COMPILE_H_
+#endif

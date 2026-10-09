@@ -1,5 +1,5 @@
-// GX2 resources: surfaces, render targets, textures, samplers, shaders,
-// uniforms and vertex attribute buffers.
+
+
 #include "Cafe/HW/Latte/Core/FetchShader.h"
 #include "gx2.h"
 #include "gx2_cmd.h"
@@ -17,7 +17,6 @@ template <typename T>
 static T* gp(uint32 addr) { return (T*)mem::ptr(addr); }
 static float fa(Cpu* c, int i) { return (float)c->f[1 + i].ps0; }
 
-// ---------------------------------------------------------------- surfaces
 HLE(gx2, GX2CalcSurfaceSizeAndAlignment) { gx2calc::CalcSurfaceSizeAndAlignment(gp<GX2Surface>(arg(c, 0))); }
 
 HLE(gx2, GX2SetSurfaceSwizzle) {
@@ -29,7 +28,6 @@ HLE(gx2, GX2CalcColorBufferAuxInfo) { st32(arg(c, 1), 0x1000); st32(arg(c, 2), 0
 HLE(gx2, GX2CalcDepthBufferHiZInfo) { st32(arg(c, 1), 0x1000); st32(arg(c, 2), 0x100); }
 HLE(gx2, GX2InitDepthBufferHiZEnable) {}
 
-// ---------------------------------------------------------------- render targets
 HLE(gx2, GX2InitColorBufferRegs) { GX2::GX2InitColorBufferRegs(gp<GX2::GX2ColorBuffer>(arg(c, 0))); }
 HLE(gx2, GX2InitDepthBufferRegs) { GX2::GX2InitDepthBufferRegs(gp<GX2::GX2DepthBuffer>(arg(c, 0))); }
 
@@ -43,17 +41,16 @@ uint32 color_buffer_address(const GX2::GX2ColorBuffer* cb) {
     if (TM_IsMacroTiled(cb->surface.tileMode) && mip < ((swizzle >> 16) & 0xFF)) base ^= (swizzle & 0xFFFF);
     return base;
 }
-}  // namespace gx2
+}
 
 HLE(gx2, GX2SetColorBuffer) {
     auto* cb = gp<GX2::GX2ColorBuffer>(arg(c, 0));
     uint32 target = arg(c, 1) & 7;
-    set_reg(mmCB_COLOR0_BASE + target, gx2::color_buffer_address(cb));  // full address; our renderer's convention
+    set_reg(mmCB_COLOR0_BASE + target, gx2::color_buffer_address(cb));
     set_reg(mmCB_COLOR0_SIZE + target, cb->reg_size);
     set_reg(mmCB_COLOR0_VIEW + target, cb->reg_view);
     set_reg(mmCB_COLOR0_INFO + target, cb->reg_info);
-    // our convention (gx2.h kColorTarget3D): the unused TILE/FRAG registers carry the view's real width
-    // (| slices << 16 | volume flag) and height. A volume's slices are its depth at the view's mip.
+
     auto dim = cb->surface.dim.value();
     bool volume = dim == Latte::E_DIM::DIM_3D;
     uint32 slices = dim == Latte::E_DIM::DIM_2D_ARRAY ? std::max<uint32>(cb->surface.depth, 1)
@@ -77,15 +74,14 @@ HLE(gx2, GX2SetDepthBuffer) {
     }
     uint32 view = (db->viewFirstSlice & 0x7FF) | (((db->viewNumSlices + db->viewFirstSlice - 1) & 0x7FF) << 13);
     set_reg(mmDB_DEPTH_SIZE, db->reg_size);
-    set_reg(mmDB_DEPTH_BASE, db->surface.imagePtr);  // full address; our renderer's convention
+    set_reg(mmDB_DEPTH_BASE, db->surface.imagePtr);
     set_reg(mmDB_DEPTH_INFO, info);
     set_reg(mmDB_DEPTH_VIEW, view);
-    set_reg(mmDB_HTILE_DATA_BASE, (uint32)db->surface.width << 16 | (db->surface.height & 0xFFFF));  // our convention
-    // our convention: unused register 0xA002 (between DB_DEPTH_VIEW and DB_DEPTH_BASE) = array slices
+    set_reg(mmDB_HTILE_DATA_BASE, (uint32)db->surface.width << 16 | (db->surface.height & 0xFFFF));
+
     set_reg(gx2::kDepthSlicesReg, db->surface.dim.value() == Latte::E_DIM::DIM_2D_ARRAY ? std::max<uint32>(db->surface.depth, 1) : 1);
 }
 
-// ---------------------------------------------------------------- textures and samplers
 HLE(gx2, GX2InitTextureRegs) { GX2::GX2InitTextureRegs(gp<GX2::GX2Texture>(arg(c, 0))); }
 
 static void set_texture(uint32 texAddr, uint32 baseReg, uint32 unit) {
@@ -138,9 +134,8 @@ HLE(gx2, GX2SetPixelSamplerBorderColor) { set_border(REGADDR::TD_PS_SAMPLER0_BOR
 HLE(gx2, GX2SetVertexSamplerBorderColor) { set_border(REGADDR::TD_VS_SAMPLER0_BORDER_RED, c); }
 HLE(gx2, GX2SetGeometrySamplerBorderColor) { set_border(REGADDR::TD_GS_SAMPLER0_BORDER_RED, c); }
 
-// ---------------------------------------------------------------- shaders
 HLE(gx2, GX2SetVertexShader) {
-    static thread_local uint32 tmp[gx2::kNumRegs];  // only touched regs are forwarded; per thread (display lists are recorded on several cores)
+    static thread_local uint32 tmp[gx2::kNumRegs];
     uint32 vs = arg(c, 0);
     uint32 n = std::min<uint32>(ld32(vs + 0x0C), 10), nsem = std::min<uint32>(ld32(vs + 0x40), 32);
     gx2::bind_vertex_shader_regs(tmp, vs);
@@ -178,19 +173,15 @@ HLE(gx2, GX2SetPixelShader) {
 }
 
 HLE(gx2, GX2SetGeometryShader) {
-    // TODO: geometry shaders (Metal object/mesh shader path)
+
     static bool warned = false;
     if (!warned) { warned = true; LOG("[gx2] geometry shaders not implemented yet"); }
 }
 HLE(gx2, GX2SetGeometryShaderInputRingBuffer) {}
 HLE(gx2, GX2SetGeometryShaderOutputRingBuffer) {}
 
-// ---------------------------------------------------------------- fetch shader
-// Our fetch "program": header (magic, count) followed by 16 bytes per attribute:
-//   +0 location | buffer << 8 | indexType << 16 | endianSwap << 24
-//   +4 offset, +8 format | aluDivisor << 16, +C destSel
 namespace gx2 {
-constexpr uint32 kFetchMagic = 0x57574653;  // "WWFS"
+constexpr uint32 kFetchMagic = 0x57574653;
 
 static LatteConst::VertexFetchEndianMode default_endian(uint32 fmt) {
     switch (fmt) {
@@ -219,14 +210,14 @@ LatteFetchShader* build_fetch_shader(uint32 program) {
         a.format = (E_HWFMT)(kRawToFetchFormat[std::min<uint32>(fmt & 0x3F, 19)] & 0x3F);
         a.nfa = (fmt & 0x800) ? 2 : (fmt & 0x100) ? 1 : 0;
         a.isSigned = (fmt & 0x200) ? 1 : 0;
-        a.endianSwap = endian == 3 /* SWAP_DEFAULT */ ? default_endian(fmt & 0x3F) : (LatteConst::VertexFetchEndianMode)endian;
+        a.endianSwap = endian == 3  ? default_endian(fmt & 0x3F) : (LatteConst::VertexFetchEndianMode)endian;
         a.fetchType = indexType ? LatteConst::VertexFetchType2::INSTANCE_DATA : LatteConst::VertexFetchType2::VERTEX_DATA;
         a.aluDivisor = indexType ? (sint32)std::max<uint32>(divisor, 1) : 0;
         a.offset = offset;
         for (int k = 0; k < 4; k++) a.ds[k] = (destSel >> (24 - 8 * k)) & 7;
         if (buffer < 16) groups[buffer].push_back(&a);
     }
-    // attributes are grouped per buffer, contiguous in the attrs array order
+
     auto* sorted = new LatteParsedFetchShaderAttribute[n];
     uint32 k = 0;
     for (uint32 b = 0; b < 16; b++) {
@@ -249,10 +240,10 @@ LatteFetchShader* build_fetch_shader(uint32 program) {
     fs->key = program;
     return fs;
 }
-}  // namespace gx2
+}
 
 HLE(gx2, GX2InitFetchShaderEx) {
-    // (GX2FetchShader*, void* program, count, GX2AttribStream*, type, tessMode)
+
     uint32 fs = arg(c, 0), prog = arg(c, 1), n = arg(c, 2), attrs = arg(c, 3);
     st32(prog, gx2::kFetchMagic);
     st32(prog + 4, n);
@@ -260,16 +251,16 @@ HLE(gx2, GX2InitFetchShaderEx) {
     st32(prog + 12, 0);
     for (uint32 i = 0; i < n; i++) {
         uint32 s = attrs + i * 0x20, d = prog + 16 + i * 16;
-        // GX2AttribStream: +0 location, +4 buffer, +8 offset, +C format, +10 indexType, +14 aluDivisor, +18 destSel, +1C endianSwap
+
         st32(d, (ld32(s) & 0xFF) | (ld32(s + 4) & 0xFF) << 8 | (ld32(s + 0x10) & 0xFF) << 16 | (ld32(s + 0x1C) & 0xFF) << 24);
         st32(d + 4, ld32(s + 8));
         st32(d + 8, (ld32(s + 0xC) & 0xFFFF) | (ld32(s + 0x14) & 0xFFFF) << 16);
         st32(d + 12, ld32(s + 0x18));
     }
     memset(mem::ptr(fs), 0, 0x20);
-    st32(fs + 0x08, 16 + n * 16);  // shaderSize
-    st32(fs + 0x0C, prog);         // shaderPtr
-    st32(fs + 0x10, n);            // attribCount
+    st32(fs + 0x08, 16 + n * 16);
+    st32(fs + 0x0C, prog);
+    st32(fs + 0x10, n);
 }
 
 HLE(gx2, GX2SetFetchShader) {
@@ -278,7 +269,6 @@ HLE(gx2, GX2SetFetchShader) {
     set_reg(mmSQ_PGM_START_FS + 1, ld32(fs + 0x08) >> 3);
 }
 
-// ---------------------------------------------------------------- uniforms and attribute buffers
 static void uniform_block(uint32 blockStart, uint32 index, uint32 addr, uint32 size) {
     uint32 w[7] = {addr, size - 1, 0, 1, 0, 0, 0xC0000000};
     set_regs(blockStart + index * 7, w, 7);
@@ -291,9 +281,9 @@ static void uniform_regs(uint32 stageBase, uint32 offset, uint32 count, uint32 v
     if (offset & 0x8000) return;
     count &= ~3u;
     if (offset + count > 0x400) count = 0x400 - std::min<uint32>(offset, 0x400);
-    static thread_local uint32 tmp[0x400];  // per thread: several cores record display lists at once
+    static thread_local uint32 tmp[0x400];
     for (uint32 i = 0; i < count; i++) tmp[i] = ld32(values + 4 * i);
-    if (stageBase == 0x400 && count == 16 && aspect::tagged_projection()) {  // a layout projection (aspect.cpp)
+    if (stageBase == 0x400 && count == 16 && aspect::tagged_projection()) {
         uint32 w[17];
         w[0] = mmSQ_ALU_CONSTANT0_0 + stageBase + offset;
         memcpy(w + 1, tmp, 16 * 4);
@@ -306,13 +296,12 @@ HLE(gx2, GX2SetVertexUniformReg) { uniform_regs(0x400, arg(c, 0), arg(c, 1), arg
 HLE(gx2, GX2SetPixelUniformReg) { uniform_regs(0, arg(c, 0), arg(c, 1), arg(c, 2)); }
 
 HLE(gx2, GX2SetAttribBuffer) {
-    // (index, size, stride, data)
+
     uint32 w[7] = {arg(c, 3), arg(c, 1) - 1, (arg(c, 2) & 0xFFFF) << 11, 0, 0, 0, 0xC0000000};
     set_regs(mmSQ_VTX_ATTRIBUTE_BLOCK_START + arg(c, 0) * 7, w, 7);
 }
 
-// ---------------------------------------------------------------- shader queries
-HLE(gx2, GX2GetVertexShaderGPRs) { ret(c, ld32(arg(c, 0)) & 0xFF); }        // SQ_PGM_RESOURCES_VS.NUM_GPRS
+HLE(gx2, GX2GetVertexShaderGPRs) { ret(c, ld32(arg(c, 0)) & 0xFF); }
 HLE(gx2, GX2GetVertexShaderStackEntries) { ret(c, (ld32(arg(c, 0)) >> 8) & 0xFF); }
 HLE(gx2, GX2GetPixelShaderGPRs) { ret(c, ld32(arg(c, 0)) & 0xFF); }
 HLE(gx2, GX2GetPixelShaderStackEntries) { ret(c, (ld32(arg(c, 0)) >> 8) & 0xFF); }

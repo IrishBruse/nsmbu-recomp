@@ -1,4 +1,4 @@
-// Small bounded JSON reader/writer for manifests and player profiles.
+
 #pragma once
 #include <cmath>
 #include <cstdlib>
@@ -85,4 +85,4 @@ public:
     Value read(){if(s.size()>1024*1024)fail("JSON size limit");auto v=value(0);ws();if(p!=s.size())fail("Trailing JSON input");return v;}
 };
 inline Value parse(const std::string& s){return Reader(s).read();}
-} // namespace mods::json
+}

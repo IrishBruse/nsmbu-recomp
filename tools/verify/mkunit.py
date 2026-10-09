@@ -26,7 +26,6 @@ from funcdb import (GenIndex, load_names, signature, arg_regs, stack_words, Data
 IMP_RE = re.compile(r"\b(imp_\w+)\(c\)")
 SITE_RE = re.compile(r"\b(site_[0-9A-F]{8})\(c\)")
 
-
 def read_unit(path):
     u = {"src": [], "real": []}
     for line in open(path):
@@ -43,7 +42,6 @@ def read_unit(path):
                 u.setdefault("over", {})[(int(line[1], 16), k)] = int(v, 0)
     return u
 
-
 def instrument(text, new_name, cov):
     """rename the function, add coverage points at block starts"""
     lines = text.split("\n")
@@ -56,7 +54,7 @@ def instrument(text, new_name, cov):
         out.append("    VM_COV(0, %d);" % nb)
         nb += 1
     for ln in lines[1:]:
-        # a hooked neighbour (runtime hook or recording tap) is reached as f_X_orig: same function
+
         ln = re.sub(r"\bf_([0-9A-F]{8})_orig\(c\)", r"f_\1(c)", ln)
         out.append(ln)
         if not cov:
@@ -70,7 +68,6 @@ def instrument(text, new_name, cov):
             nb += 1
     return "\n".join(out), nb
 
-
 def pointee_size(t):
     if t is None or t.kind not in ("ptr", "ref") or t.inner is None:
         return 0
@@ -79,10 +76,9 @@ def pointee_size(t):
         return i.size
     if i.kind == "class":
         return i.size
-    if i.kind == "array":  # Mtx: float[4]* (row pointer)
+    if i.kind == "array":
         return 48 if i.name.startswith("float[4]") else (i.size or 0)
     return 0
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -103,7 +99,7 @@ def main():
     gen = GenIndex(os.path.join(build, "gen"))
     names, gc = load_names(build)
     df = Dataflow(gen)
-    df_lo = Dataflow(gen, unknown_reads_args=False)  # registers the code itself reads (no guesses for indirect calls)
+    df_lo = Dataflow(gen, unknown_reads_args=False)
     rw = RetWidth(df)
     imports = {}
     ij = os.path.join(build, "gen", "imports.json")
@@ -175,11 +171,9 @@ def main():
             md = df.maydef(x)
             defr = mask(r for k, r in md if k == "r")
             deff = mask(r for k, r in md if k == "f")
-            # compared registers: what the callee's code reads (sound unless it reads them only
-            # through indirect calls) plus the GameCube signature's arguments (the matcher can be
-            # wrong about the name, so the signature never narrows the set)
+
             if df.cfg(x).varargs:
-                declared = 1  # variadic: also compare what the candidate passes
+                declared = 1
             lo = df_lo.livein(x)
             im = mask(r for k, r in lo if k == "r")
             fm = mask(r for k, r in lo if k == "f")
@@ -195,7 +189,7 @@ def main():
                         ptrsz[n] = pointee_size(t)
                         outp[n] = int(t.kind in ("ptr", "ref") and t.inner is not None and not t.inner.const)
         rl = "real_%08X" % x if x in real else "0"
-        # a constructor initialises its object: what was in the storage before is not an input
+
         if sym.startswith("__ct__") or nm.endswith("::ct") or nm.endswith("_ct"):
             ptrsz[3] = 255
         nstack = max(nstack, overrides.get((x, "stack"), 0))
@@ -241,7 +235,6 @@ def main():
     body.append('const char unit_name[] = "%s";' % a.unit)
     open(os.path.join(out, "unit.c"), "w").write("\n".join(body) + "\n")
     print("unit %s: %d functions under test, %d callees, %d imports -> %s" % (a.unit, len(origs), len(callees), len(imps), out))
-
 
 if __name__ == "__main__":
     main()

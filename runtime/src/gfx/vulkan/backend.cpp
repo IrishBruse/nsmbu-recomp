@@ -7,7 +7,7 @@
 #define NSMBU_CREATE_WINDOW_SURFACE drivers::create_surface
 #endif
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
-#define VK_USE_PLATFORM_METAL_EXT  // VK_EXT_metal_surface: AppKit views' CAMetalLayers
+#define VK_USE_PLATFORM_METAL_EXT
 #endif
 #include "app_title.h"
 #include "backend.h"
@@ -85,7 +85,7 @@ constexpr size_t maxPipelineCacheBytes = 64u * 1024u * 1024u;
 std::string pipelineCachePath;
 uint64_t pipelineCacheAttemptFrame = 0;
 bool compatible_pipeline_cache(const std::vector<uint8_t>& bytes) {
-  // Vulkan cache header fields are stored little-endian, independent of host.
+
   if (bytes.size() < 16 + VK_UUID_SIZE) return false;
   auto word = [&](size_t offset) {
     return uint32_t(bytes[offset]) | uint32_t(bytes[offset+1]) << 8 |
@@ -97,7 +97,7 @@ bool compatible_pipeline_cache(const std::vector<uint8_t>& bytes) {
          word(8)==R.properties.vendorID && word(12)==R.properties.deviceID &&
          !std::memcmp(bytes.data()+16,R.properties.pipelineCacheUUID,VK_UUID_SIZE);
 }
-// strictMul changes translated shaders; discard old driver pipelines before the 64 MB cap.
+
 constexpr std::array<uint8_t,8> pipelineCacheMagic{'W','W','V','K','P','C','0','2'};
 constexpr size_t pipelineCacheWrapperSize=24;
 uint64_t pipeline_cache_checksum(const uint8_t* bytes,size_t size) {
@@ -134,7 +134,7 @@ void init_pipeline_cache() try {
     if (std::strcmp(explicitPath,"0")) {
       pipelineCachePath=explicitPath;
 #ifdef __ANDROID__
-      // Keep overrides in the driver's cache namespace so removing a driver removes every cache.
+
       char key[32];
       std::snprintf(key,sizeof key,"override-%016llx.bin",static_cast<unsigned long long>(
           pipeline_cache_checksum(reinterpret_cast<const uint8_t*>(explicitPath),std::strlen(explicitPath))));
@@ -145,8 +145,7 @@ void init_pipeline_cache() try {
              !shaderPath || std::strcmp(shaderPath,"0")) {
     char ids[32];
     std::snprintf(ids,sizeof ids,"vulkan-%08x-%08x-",R.properties.vendorID,R.properties.deviceID);
-    // a NSMBU_SHADER_CACHE file (test runs, separate setups) keeps the pipeline cache next to it,
-    // so such runs never write the user's own cache in the config folder
+
     pipelineCachePath=shaderPath ? std::string(shaderPath)+"."+ids
                                  :
 #ifdef __ANDROID__
@@ -205,7 +204,7 @@ void init_pipeline_cache() try {
     R.pipelineCache=VK_NULL_HANDLE;
   LOG("[vulkan cache] load disabled after error: %s",error.what());
 }
-// profWait: also report the wait to the render-thread profiler (render_prof.h)
+
 template<class F> VkResult timed_call(WaitTiming& timing, F&& call, int profWait = -1) {
   const bool profiled = profWait >= 0 && rprof::enabled();
   if (!perf_enabled() && !profiled) return call();
@@ -217,7 +216,7 @@ template<class F> VkResult timed_call(WaitTiming& timing, F&& call, int profWait
   if (profiled) rprof::add_wait(rprof::Wait(profWait), ns);
   return result;
 }
-} // namespace
+}
 namespace {
 struct PipelineCacheWriteResult {
   bool written = false;
@@ -227,8 +226,7 @@ struct PipelineCacheWriteResult {
   std::string error;
 };
 std::future<PipelineCacheWriteResult> pipelineCacheWrite;
-// File work owns immutable bytes and a copied path. It never accesses Vulkan
-// objects, renderer state, or render-thread logging.
+
 PipelineCacheWriteResult write_pipeline_cache(std::vector<uint8_t> bytes,
                                               std::string path,
                                               uint64_t revision,
@@ -272,7 +270,7 @@ void poll_pipeline_cache_write(bool wait) {
   if (!wait && pipelineCacheWrite.wait_for(std::chrono::seconds(0)) !=
                    std::future_status::ready) return;
   auto result=pipelineCacheWrite.get();
-  // A newer pipeline, even in the same guest frame, must remain dirty.
+
   if (result.written && result.revision==R.pipelineCreates &&
       result.changedFrame==R.pipelineCacheChangedFrame)
     R.pipelineCacheDirty=false;
@@ -285,8 +283,7 @@ void poll_pipeline_cache_write(bool wait) {
 void start_pipeline_cache_write() {
   if (pipelineCacheWrite.valid() || !R.pipelineCache ||
       !R.pipelineCacheDirty || pipelineCachePath.empty()) return;
-  // This is the only Vulkan cache read, serialized with pipeline creation on
-  // the render thread. Worker serialization/checksum never holds that thread.
+
   size_t size=0;
   if (vkGetPipelineCacheData(R.device,R.pipelineCache,&size,nullptr)!=VK_SUCCESS ||
       size<16+VK_UUID_SIZE || size>maxPipelineCacheBytes) return;
@@ -307,10 +304,9 @@ void checkpoint_pipeline_cache() try {
 } catch (const std::exception& error) {
   LOG("[vulkan cache] checkpoint skipped after error: %s",error.what());
 }
-} // namespace
+}
 void save_pipeline_cache() try {
-  // Explicit shutdown/checkpoint waits before _Exit, then persists any newer
-  // revision created while the periodic job was running.
+
   poll_pipeline_cache_write(true);
   start_pipeline_cache_write();
   poll_pipeline_cache_write(true);
@@ -368,25 +364,13 @@ Buffer create_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
              "map buffer");
   return b;
 }
-// GPU -> CPU copies (captures, overlay signatures): the CPU reads these, so host-cached memory where
-// the device has it (uncached reads of the plain host-visible type are very slow on discrete GPUs).
+
 Buffer create_readback_buffer(VkDeviceSize size) {
   return create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                        VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 }
-// The per-submission upload arena (and the buffer cache's blocks, buffer_cache.cpp) is written by the
-// CPU and read by the GPU only. The memory is host-visible but usually not host-cached: uncached or
-// write-combined system memory, or device-local BAR memory on discrete GPUs, where CPU reads are about
-// 100 times slower than cached ones. Rule: the CPU never reads mapped upload memory. Reuse checks and
-// index scans use CPU copies kept beside the slices (vertex_snapshot_history.h, uniform_snapshot.h,
-// draw.cpp's index paths, the buffer cache's index shadows); see docs/vulkan.md. The one exception is
-// the buffer cache's opt-in verify mode (NSMBU_VK_BUFFER_CACHE_VERIFY=1, a diagnostic).
-// Unless the memory is host-cached: if the arena's memory type is HOST_CACHED and HOST_COHERENT (Apple
-// silicon/MoltenVK has only cached types; many UMA drivers too), reads cost what heap reads cost and the
-// copies only add time, so R.uploadReadsDirect lets the reuse caches and the native index scan read the
-// slices. CACHED without COHERENT never counts: the arena requires COHERENT (no flush/invalidate).
-// NSMBU_VK_UPLOAD_READS=auto (default) | shadow (always keep CPU copies) | direct (always read slices).
+
 namespace {
 enum class UploadReads { Auto, Shadow, Direct };
 UploadReads upload_reads_mode() {
@@ -414,7 +398,7 @@ void note_upload_block(const Buffer& buffer) {
   R.uploadCached = cached;
   R.uploadReadsDirect = direct;
 }
-}  // namespace
+}
 UploadSlice allocate_upload(VkDeviceSize size, VkDeviceSize alignment) {
   size = std::max<VkDeviceSize>(size,16);
   alignment = std::max<VkDeviceSize>(alignment,4);
@@ -447,7 +431,7 @@ void defer_surface_image(VkImage image, VkDeviceMemory memory,
   R.garbageImages.push_back({image, memory, std::move(views)});
 }
 void forget_texture_views() {
-} // descriptor sets are rebuilt for every draw and retired on submit
+}
 namespace {
 struct GpuScopeBucket {
   GpuScopeMetadata metadata{};
@@ -476,7 +460,7 @@ void add_gpu_scope(const Renderer::Submission::GpuScope& scope,double ns) {
   bucket.intervalNs+=ns;bucket.maxNs=std::max(bucket.maxNs,ns);
   ++bucket.count;bucket.draws+=scope.draws;
 }
-} // namespace
+}
 static bool timestamp_capable(uint32_t bits, double period) {
   return bits > 0 && bits <= 64 && period > 0 && std::isfinite(period);
 }
@@ -485,7 +469,7 @@ static uint64_t timestamp_elapsed_ticks(uint64_t start, uint64_t end, uint32_t b
   return (end - start) & mask;
 }
 static void destroy_gpu_timestamp_queries() {
-  // Caller has already drained submissions; never destroy in-flight queries.
+
   R.gpuTimestampsEnabled = false;
   R.gpuPassTimestampsEnabled = false;
   for (auto& slot : R.submissions) {
@@ -511,7 +495,7 @@ static void init_gpu_timestamp_queries() {
     info.queryCount = passRequested ? 2 + 2 * Renderer::Submission::maxGpuScopes : 2;
     const VkResult result = vkCreateQueryPool(R.device, &info, nullptr, &slot.timestampQueries);
     if (result != VK_SUCCESS) {
-      // Initialization has submitted no work, so partial pools are safe to destroy.
+
       slot.timestampQueries = VK_NULL_HANDLE;
       bc_decode_shutdown();
   destroy_gpu_timestamp_queries();
@@ -527,7 +511,7 @@ static void init_gpu_timestamp_queries() {
 }
 static void collect_gpu_timestamp_queries(Renderer::Submission& slot) {
   if (!slot.timestampRecorded) return;
-  slot.timestampRecorded = false; // Consume this submission exactly once.
+  slot.timestampRecorded = false;
   if (!R.gpuTimestampsEnabled) return;
   struct Result { uint64_t ticks, available; } values[2]{};
   const VkResult result = vkGetQueryPoolResults(R.device, slot.timestampQueries, 0, 2,
@@ -540,7 +524,7 @@ static void collect_gpu_timestamp_queries(Renderer::Submission& slot) {
   }
   if (result != VK_SUCCESS) {
     ++R.gpuTimestampStats.unavailable;
-    R.gpuTimestampsEnabled = false; // Retain pools until the shutdown drain.
+    R.gpuTimestampsEnabled = false;
     LOG("[vulkan GPU timestamps] optional results failed (%d); disabled", int(result));
     return;
   }
@@ -699,9 +683,7 @@ void end_encoder() {
 bool narrow_barriers() {
   static const bool enabled = [] {
     const char* e = std::getenv("NSMBU_VK_NARROW_BARRIERS");
-    // Precise resource dependencies: on by default on Android (tile-based GPUs, where the gain is
-    // expected; device numbers pending), opt-in on desktop until native Windows/Linux drivers have
-    // been checked (neutral on MoltenVK). NSMBU_VK_NARROW_BARRIERS=1|0 overrides it everywhere.
+
     if (e && *e) return std::strcmp(e, "0") != 0;
 #ifdef __ANDROID__
     return true;
@@ -737,7 +719,7 @@ void transition_image(Surface *s, VkImageLayout layout,
   const auto dependency = derive_dependency(s->use, stage, access, changed);
   if (narrow_barriers()) {
     if (!dependency.needed) {
-      // Barrier elision must not also change dynamic-rendering pass boundaries.
+
       if (conservativePassBreak) end_encoder();
       return;
     }
@@ -761,7 +743,7 @@ void transition_image(Surface *s, VkImageLayout layout,
 static void cleanup_submission(Renderer::Submission& slot) {
   for (auto& complete : slot.completions) complete();
   slot.completions.clear();
-  // The submit fence has completed; slices can now be overwritten safely.
+
   for (auto& block : slot.uploadBlocks) block.used = 0;
   for (auto b : slot.garbageBuffers) {
     if (b.mapped)
@@ -816,9 +798,7 @@ static void activate_submission(size_t index) {
   R.recording=false;R.rendering=false;R.passTracked=false;
 }
 static void drain_submissions() {
-  // A fence signal covers earlier submissions on this same graphics queue.
-  // Wait once at the newest pending fence rather than waking at each older
-  // fence in ring-array order. Keep each slot's status check and fenced cleanup.
+
   Renderer::Submission* newest=nullptr;
   for (auto& slot:R.submissions)
     if (slot.pending && (!newest || slot.serial>newest->serial)) newest=&slot;
@@ -868,8 +848,7 @@ static void submit(VkSemaphore wait = VK_NULL_HANDLE,
   }
 }
 void flush_async() {
-  // Deferred objects may reference earlier queued work even if this slot has
-  // no draw commands. Submit an empty command buffer to retire them in order.
+
   if (!R.recording && (!R.garbageBuffers.empty() || !R.garbageImages.empty() ||
                        !R.garbageCacheRegions.empty())) command_buffer();
   submit(VK_NULL_HANDLE,VK_NULL_HANDLE,true);
@@ -914,8 +893,7 @@ static void make_swapchain(Screen &s) {
                                        fs.data());
   if (fs.empty())
     throw std::runtime_error("No presentation formats");
-  // Presentation uses image blits, so both advertised surface support and
-  // optimal-tiling BLIT_DST format support must hold.
+
   if (fs.size() == 1 && fs[0].format == VK_FORMAT_UNDEFINED)
     fs[0].format = VK_FORMAT_B8G8R8A8_SRGB;
   VkSurfaceFormatKHR format{};
@@ -923,8 +901,7 @@ static void make_swapchain(Screen &s) {
 #ifdef NSMBU_SDL_HOST
   const VkFormat preferred = VK_FORMAT_B8G8R8A8_SRGB;
 #else
-  // AppKit windows: like the Metal layer, an sRGB drawable only for an sRGB scan buffer (the
-  // composition, overlay blending included, then matches the Metal renderer's)
+
   const VkFormat preferred = s.srgb ? VK_FORMAT_B8G8R8A8_SRGB : VK_FORMAT_B8G8R8A8_UNORM;
 #endif
   for (auto f : fs) {
@@ -951,11 +928,7 @@ static void make_swapchain(Screen &s) {
                                    caps.minImageExtent.height,
                                    caps.maxImageExtent.height)};
 #ifdef __ANDROID__
-  // Phones report the extent in the display's natural (portrait) orientation together with a 90°
-  // or 270° current transform. The pictures are laid out for the landscape window, so the
-  // swapchain gets the window's own size and an identity transform: the compositor rotates it.
-  // (The window can also still be portrait while the activity turns to landscape: its size
-  // changes then and the swapchain is made again for the new size.)
+
   {
     int pw = 0, ph = 0;
     if (s.window && SDL_GetWindowSizeInPixels(s.window, &pw, &ph) && pw > 0 && ph > 0)
@@ -1010,9 +983,7 @@ static void make_swapchain(Screen &s) {
   std::vector<VkPresentModeKHR> modes(modeCount);
   vk_check(vkGetPhysicalDeviceSurfacePresentModesKHR(R.physicalDevice,
       s.surface, &modeCount, modes.data()), "presentation modes");
-  // Presentation (Graphics > Presentation in the settings overlay, NSMBU_VK_PRESENT_MODE): FIFO (vsync)
-  // by default; mailbox (low latency) or immediate (may tear) when chosen and the surface offers them.
-  // Guest GX2 pacing still controls game flips in every mode.
+
   static const VkPresentModeKHR kModes[kPresentModes] = {VK_PRESENT_MODE_FIFO_KHR, VK_PRESENT_MODE_MAILBOX_KHR,
                                                          VK_PRESENT_MODE_IMMEDIATE_KHR};
   unsigned offered = 0;
@@ -1034,15 +1005,14 @@ static void make_swapchain(Screen &s) {
   s.presentMode = chosen;
   s.presentWanted = setting;
   s.presentShared = share;
-  // frame interpolation caps 120/240 fps to the display's refresh rate only when presenting waits
-  // for it (interp::output_fps)
+
   if (&s == &R.tv) interp::set_present_vsync(chosen == kPresentFifo);
   ci.clipped = VK_TRUE;
   ci.oldSwapchain = s.swapchain;
   VkSwapchainKHR sc;
   vk_check(vkCreateSwapchainKHR(R.device, &ci, nullptr, &sc),
            "create swapchain");
-  reset_present_screen(s); // Device was drained above; old views are no longer in use.
+  reset_present_screen(s);
   if (s.swapchain)
     vkDestroySwapchainKHR(R.device, s.swapchain, nullptr);
   s.swapchain = sc;
@@ -1057,14 +1027,12 @@ static void make_swapchain(Screen &s) {
   s.resize = false;
 }
 #ifdef __ANDROID__
-// Android destroys an app's surface when it goes to the background (Home, another app) and gives
-// it a new one when it comes back. Meanwhile nothing is presented (the game keeps running); then
-// the Vulkan surface and swapchain are created again for the window's new native surface.
+
 static std::atomic<bool> surfaceLost{false}, surfaceRecreate{false};
 static void recreate_surface(Screen &s) {
   if (!SDL_GetPointerProperty(SDL_GetWindowProperties(s.window),
                               SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr)) {
-    surfaceRecreate = true;  // the new native surface is not there yet: next frame
+    surfaceRecreate = true;
     return;
   }
   vk_check(vkDeviceWaitIdle(R.device), "surface recreation idle");
@@ -1085,26 +1053,20 @@ static void recreate_surface(Screen &s) {
   s.resize = true;
   LOG("[vulkan] presentation surface recreated");
 }
-// App lifecycle: called by SDL as the events happen, on the thread that sends them; SDL's
-// documentation asks for an event watch here (the queue is not read while the app is paused).
+
 static bool SDLCALL lifecycle_watch(void *, SDL_Event *event) {
   if (event->type == SDL_EVENT_WILL_ENTER_BACKGROUND || event->type == SDL_EVENT_DID_ENTER_BACKGROUND) {
     if (!surfaceLost.exchange(true))
       LOG("[vulkan] app in the background: presentation paused");
   } else if (event->type == SDL_EVENT_DID_ENTER_FOREGROUND) {
     LOG("[vulkan] app in the foreground: new presentation surface");
-    R.tv.visible = true;  // (the window may have reported itself minimized meanwhile)
+    R.tv.visible = true;
     surfaceRecreate = true;
   }
   return true;
 }
 #endif
-// Asynchronous presentation (the default on every platform since 2026-10-07; NSMBU_VK_ASYNC_PRESENT=0
-// restores the waiting path): the presentation submission goes into the four-slot ring like GX2Flush
-// work instead of waiting for the GPU, and swap() does not drain the queue, so the render thread
-// records frame N+1 while the GPU draws frame N. Each frame in flight has its own acquire semaphore
-// (reused only after the submission that waited on it retired) and each swapchain image its own
-// render-finished semaphore. Captures and frame dumps keep the waiting path.
+
 static bool async_present() {
   static const bool on = [] {
     const char *e = std::getenv("NSMBU_VK_ASYNC_PRESENT");
@@ -1114,12 +1076,12 @@ static bool async_present() {
 }
 struct AsyncPresentState {
   std::array<VkSemaphore, 3> acquire{};
-  std::array<uint64_t, 3> serial{};  // submission that waited on acquire[k]
+  std::array<uint64_t, 3> serial{};
   std::array<size_t, 3> slot{};
   unsigned next = 0;
-  std::vector<VkSemaphore> finished;  // per swapchain image
+  std::vector<VkSemaphore> finished;
 };
-static AsyncPresentState asyncPresent[2];  // TV, GamePad
+static AsyncPresentState asyncPresent[2];
 static VkSemaphore new_semaphore() {
   VkSemaphoreCreateInfo si{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
   VkSemaphore sem;
@@ -1157,7 +1119,7 @@ static void present(Screen &s) {
                         : VK_FILTER_NEAREST;
 #ifndef NSMBU_SDL_HOST
   if (s.swapchain && (s.swapFormat == VK_FORMAT_B8G8R8A8_SRGB) != s.srgb.load())
-    s.resize = true;  // the scan buffer's encoding changed (GX2SetTVBuffer)
+    s.resize = true;
 #endif
 #ifdef __ANDROID__
   if (s.resize || !s.swapchain) {
@@ -1167,7 +1129,7 @@ static void present(Screen &s) {
       if (&s != &R.tv)
         throw;
       LOG("[vulkan] no swapchain (%s); waiting for a new surface", e.what());
-      surfaceLost = true;  // the surface went away while the app is in the background
+      surfaceLost = true;
       return;
     }
   }
@@ -1186,7 +1148,7 @@ static void present(Screen &s) {
     ap.next = (ap.next + 1) % ap.acquire.size();
     if (!ap.acquire[acquireIndex])
       ap.acquire[acquireIndex] = new_semaphore();
-    // the submission that last waited on this semaphore must be done with it
+
     auto &previous = R.submissions[ap.slot[acquireIndex]];
     if (ap.serial[acquireIndex] && previous.pending && previous.serial == ap.serial[acquireIndex])
       retire_submission(previous);
@@ -1226,7 +1188,7 @@ static void present(Screen &s) {
     vkCmdClearColorImage(cmd, s.images[index],
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &black, 1,
                          &b.subresourceRange);
-    // Clear and blit overlap the swap image. Order the two transfer writes.
+
     b.oldLayout = b.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     b.srcAccessMask = b.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -1262,7 +1224,7 @@ static void present(Screen &s) {
   record_present_capture(s,index);
   VkSemaphore finishedSemaphore = s.finished;
   if (async) {
-    if (ap.finished.size() != s.images.size()) {  // new swapchain
+    if (ap.finished.size() != s.images.size()) {
       vk_check(vkDeviceWaitIdle(R.device), "presentation semaphores idle");
       for (VkSemaphore f : ap.finished)
         vkDestroySemaphore(R.device, f, nullptr);
@@ -1289,8 +1251,7 @@ static void present(Screen &s) {
     return vkQueuePresentKHR(R.queue, &pi);
   }, rprof::kWaitPresent);
 #ifdef __ANDROID__
-  // SUBOPTIMAL here only says the compositor rotates the picture (identity pre-transform, see
-  // make_swapchain); size changes come as window events. Rebuilding would happen every frame.
+
   if (pr == VK_ERROR_OUT_OF_DATE_KHR)
     s.resize = true;
   else if (pr == VK_SUBOPTIMAL_KHR) {
@@ -1330,8 +1291,7 @@ void copy_to_scan(uint32_t cb, uint32_t target) {
   resample(src, s.scan.get(), 1);
   mark_gpu_written(s.scan.get());
 }
-// debug: NSMBU_DUMP_FRAMES=100,300 writes the TV image of those frames to frame_<n>.png (and
-// frame_<n>_drc.png; NSMBU_DUMP_PRESENT=1 adds the composed window, frame_<n>_present.png), as Metal
+
 static void dump_scan(Screen &s, const std::string &path) {
   if (!s.scan || !s.scan->image)
     return;
@@ -1343,7 +1303,7 @@ static void dump_scan(Screen &s, const std::string &path) {
     LOG("[gfx] cannot write %s: %s", path.c_str(), e.what());
   }
 }
-// the composed windows (what present() puts on the screen), written after the frame (swap)
+
 static void request_present_dump(const std::string& path) { gfx::request_present_dump(path); }
 static std::atomic<bool> captureRequested{false};
 void request_capture() { captureRequested = true; }
@@ -1363,8 +1323,7 @@ static void frame_dumps(uint64_t frame) {
     if (getenv("NSMBU_DUMP_PRESENT"))
       request_present_dump("frame_" + std::to_string(frame) + "_present.png");
   }
-  // Test captures relative to the completed full-state load, whose actual
-  // renderer frame can vary even when NSMBU_STATE_LOAD_AT is fixed.
+
   static const std::vector<uint64_t> loadFrames = [] {
     std::vector<uint64_t> f;
     if (const char* e = getenv("NSMBU_DUMP_LOAD_FRAMES"))
@@ -1389,8 +1348,7 @@ static void frame_dumps(uint64_t frame) {
         (unsigned long long)loaded, (unsigned long long)frame,
         (unsigned long long)(frame - loaded));
   }
-  // P / F12 (Graphics menu): the pictures of this frame in captures/<time>/ (NSMBU_CAPTURE=<frame>
-  // scripts it when NSMBU_CAPTURE_PATH is not used); the Metal renderer also writes a draw log
+
   static const uint64_t scripted = getenv("NSMBU_CAPTURE") && !getenv("NSMBU_CAPTURE_PATH")
                                        ? strtoull(getenv("NSMBU_CAPTURE"), nullptr, 10) : ~0ull;
   if (captureRequested.exchange(false) || frame == scripted) {
@@ -1405,9 +1363,7 @@ static void frame_dumps(uint64_t frame) {
     LOG("[gfx] capture of frame %llu written to %s", (unsigned long long)frame, dir);
   }
 }
-// Screenshots (screenshot.h): recorded into the frame's command buffer at the swap, read back once
-// that submission's fence has signalled (checked at later swaps: no wait), encoded on the screenshot
-// thread; the readback buffers come back from it to be freed on this thread.
+
 namespace {
 struct PendingShot {
   std::string path;
@@ -1417,12 +1373,12 @@ struct PendingShot {
   uint32_t width = 0, height = 0;
   bool bgra = false;
   size_t slot = 0;
-  uint64_t serial = 0;  // 0: not submitted yet
+  uint64_t serial = 0;
 };
 std::vector<PendingShot> pendingShots;
 std::mutex shotBuffersMu;
 std::vector<Buffer> shotBuffersDone;
-}  // namespace
+}
 static void take_screenshots(const gfx::PresentPlan &plan) {
   std::string tvPath, drcPath;
   if (!R.tv.scan || !R.tv.scan->image || !screenshot::take(R.frame + 1, tvPath, drcPath))
@@ -1447,7 +1403,7 @@ static void take_screenshots(const gfx::PresentPlan &plan) {
   };
   const auto t0 = std::chrono::steady_clock::now();
   shoot(R.tv, tvPath, true);
-  // the GamePad picture while it is shown (GamePad window, picture-in-picture, GamePad only)
+
   if (!drcPath.empty() && R.drc.scan && R.drc.scan->image && (plan.drc_window || plan.pip_on || plan.drc_only))
     shoot(R.drc, drcPath, false);
   else if (!drcPath.empty()) {
@@ -1466,12 +1422,12 @@ static void service_screenshots() {
   }
   for (auto it = pendingShots.begin(); it != pendingShots.end();) {
     auto &slot = R.submissions[it->slot];
-    if (!it->serial) {  // recorded in this swap: the submission of that slot holds it now
+    if (!it->serial) {
       it->serial = slot.serial;
       ++it;
       continue;
     }
-    // a slot reused for a newer submission retired ours first
+
     const bool done = !slot.pending || slot.serial != it->serial || vkGetFenceStatus(R.device, slot.fence) == VK_SUCCESS;
     if (!done) {
       ++it;
@@ -1491,12 +1447,11 @@ void swap() {
   service_screenshots();
   service_captures();
   frame_dumps(R.frame + 1);
-  // the layout of both pictures (GamePad window, picture-in-picture, automatic overlay, GamePad only)
-  // comes from gfx/display_modes.cpp, which both window hosts and the Metal renderer share
+
   Surface *tvScan = R.tv.scan && R.tv.scan->image ? R.tv.scan.get() : nullptr;
   Surface *drcScan = R.drc.scan && R.drc.scan->image ? R.drc.scan.get() : nullptr;
 #ifdef NSMBU_SDL_HOST
-  gfx::g_filter = scale_filter();  // the SDL host keeps the scaling filter with the Vulkan settings
+  gfx::g_filter = scale_filter();
   const float layerW = float(R.tv.width.load()), layerH = float(R.tv.height.load());
 #else
   const float layerW = float(R.tv.swapExtent.width), layerH = float(R.tv.swapExtent.height);
@@ -1506,12 +1461,12 @@ void swap() {
       drcScan, drcScan ? float(drcScan->extent.width) : 0, drcScan ? float(drcScan->extent.height) : 0,
       layerW, layerH, R.frame + 1);
 #ifdef __ANDROID__
-  // the view button's dot: 60 fps chosen (long press), green while drawn, yellow while paused
+
   if (perf_hint::fps60_chosen())
     plan.button_dot = interp::mode() != 0 ? 1 : 2;
 #endif
   set_present_plan(&plan);
-  // settings overlay: built once, drawn into the TV window and its present dumps
+
   set_overlay_draw(overlay::frame(plan.dw > 0 ? plan.dw : layerW, plan.dh > 0 ? plan.dh : layerH, overlay_renderer_init));
   take_screenshots(plan);
   bool sampled[2] = {};
@@ -1522,10 +1477,7 @@ void swap() {
   present(R.tv);
   if (plan.drc_window)
     present(R.drc);
-  // asynchronous presentation: queued like GX2Flush work, the ring's fences retire it (the automatic
-  // overlay's signatures are read back right away, so those frames wait; present dumps and captures
-  // read back through flush()). Both window hosts: the AppKit host presents to its CAMetalLayers
-  // through the same swapchain path.
+
   if (async_present() && !sampled[0])
     flush_async();
   else
@@ -1540,8 +1492,7 @@ void swap() {
     try {
       write_rgba_png(path, uint32_t(plan.dw), uint32_t(plan.dh),
                      compose_offscreen(R.tv, uint32_t(plan.dw), uint32_t(plan.dh), R.tv.srgb.load()));
-      // the GamePad window's size: its swapchain, or (SDL host test runs with hidden windows, which
-      // present nothing) the window's pixel size
+
       uint32_t drcW = R.drc.swapchain ? R.drc.swapExtent.width : 0, drcH = R.drc.swapchain ? R.drc.swapExtent.height : 0;
 #ifdef NSMBU_SDL_HOST
       if (!R.drc.swapchain && R.drc.window)
@@ -1559,7 +1510,7 @@ void swap() {
     }
   }
   set_present_plan(nullptr);
-  service_screenshots();  // this frame's: the submission that holds them
+  service_screenshots();
   std::atomic_ref<uint64_t>(R.frame).fetch_add(1);
   R.completed = R.frame;
 #ifdef __ANDROID__
@@ -1620,7 +1571,7 @@ void swap() {
           (unsigned long long)(R.uploadAllocations-allocs), double(R.renderPassCount-passes)/(R.frame-frame));
       if (intervalCount) {
         std::sort(swapIntervals.begin(), swapIntervals.begin()+intervalCount);
-        // Nearest-rank percentiles; the first report contains 119 intervals.
+
         size_t p50=(intervalCount+1)/2-1, p95=(intervalCount*95+99)/100-1;
         LOG("[vulkan pacing] %llu intervals p50 %.2f ms p95 %.2f ms max %.2f ms; >40 ms %llu",
             (unsigned long long)intervalCount,swapIntervals[p50],swapIntervals[p95],
@@ -1642,7 +1593,7 @@ void swap() {
       LOG("[vulkan pipelines] creates %llu total %.1f ms",
           (unsigned long long)R.pipelineCreates,R.pipelineCreateNs/1e6);
       {
-        // texture change detection (surfaces.cpp upload_surface, write_watch.h)
+
         extern uint64_t g_stat_full_checks, g_stat_uploads;
         static uint64_t checks=0, uploads=0;
         uint64_t faults, protectedPages;
@@ -1653,7 +1604,7 @@ void swap() {
         checks=g_stat_full_checks;uploads=g_stat_uploads;
       }
       buffer_cache_report(double(R.frame-frame));
-      // CPU-only reports leave per-draw counters/comparison clocks disabled.
+
       if (perf_enabled()) {
       double frames = double(R.frame-frame);
       LOG("[vulkan fetch memo] %.1f lookups/frame %.1f last hits/frame",
@@ -1786,9 +1737,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_message(
           data->pMessageIdName ? data->pMessageIdName : "validation", data->pMessage);
   return VK_FALSE;
 }
-// Test aids for the paths of older drivers (docs/vulkan.md): NSMBU_VK_FORCE_API=1.2 treats every GPU as
-// if it reported that Vulkan version (Vulkan 1.3 GPUs then take the VK_KHR_dynamic_rendering path);
-// NSMBU_VK_HIDE_EXTENSIONS=VK_KHR_dynamic_rendering,... hides device extensions from the renderer.
+
 static uint32_t device_api_version(const VkPhysicalDeviceProperties &p) {
   static const uint32_t forced = [] {
     unsigned major, minor;
@@ -1820,7 +1769,7 @@ static std::string version_text(uint32_t v) {
   return std::to_string(VK_API_VERSION_MAJOR(v)) + "." + std::to_string(VK_API_VERSION_MINOR(v)) + "." +
          std::to_string(VK_API_VERSION_PATCH(v));
 }
-// driverVersion: vendor-specific packing, decoded as vulkaninfo does (report_header.cpp)
+
 #ifdef _WIN32
 static constexpr bool kWindows = true;
 #else
@@ -1829,14 +1778,13 @@ static constexpr bool kWindows = false;
 static std::string driver_version_text(const VkPhysicalDeviceProperties &p) {
   return reporthdr::driver_version(p.vendorID, p.driverVersion, kWindows);
 }
-// the GPU line of the performance report header: name, driver, Vulkan version ("" before init)
+
 std::string device_description() {
   if (!R.properties.deviceName[0]) return "";
   return reporthdr::vulkan_gpu(R.properties.deviceName, R.properties.vendorID, R.properties.driverVersion,
                                R.properties.apiVersion, kWindows);
 }
-// How a GPU provides dynamic rendering, the renderer's only way of drawing: Vulkan 1.3 core, or
-// VK_KHR_dynamic_rendering on a Vulkan 1.1 / 1.2 driver. Shaders are SPIR-V 1.3 (Vulkan 1.1).
+
 enum class DynamicRendering { None, Core, KHR };
 static DynamicRendering dynamic_rendering(VkPhysicalDevice device, const VkPhysicalDeviceProperties &properties,
                                           const std::vector<VkExtensionProperties> &des) {
@@ -1852,8 +1800,7 @@ static DynamicRendering dynamic_rendering(VkPhysicalDevice device, const VkPhysi
     if (f13.dynamicRendering)
       return DynamicRendering::Core;
   }
-  // the extension requires VK_KHR_depth_stencil_resolve (core in 1.2), which requires
-  // VK_KHR_create_renderpass2 (core in 1.2)
+
   if (!has_extension(des, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME) ||
       (api < VK_API_VERSION_1_2 && (!has_extension(des, VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME) ||
                                     !has_extension(des, VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME))))
@@ -1876,11 +1823,7 @@ static const char kUpdateDriver[] =
     "driver) and start the game again. "
 #endif
     "If no newer driver exists, this GPU cannot run the game's Vulkan renderer.";
-// The Vulkan layers the loader offers, once in the log (so also in a crash log's last lines).
-// Overlays install implicit layers that load into every Vulkan program (Steam, Discord, RivaTuner,
-// OBS, Overwolf, ReShade...); a crash inside one then shows up in the crash log's module names, and
-// this line says which were around. The list holds the explicit layers as well; implicit ones are
-// active unless their disable variable is set.
+
 static void log_instance_layers() {
   if (!vkEnumerateInstanceLayerProperties)
     return;
@@ -1891,7 +1834,7 @@ static void log_instance_layers() {
   if (count && vkEnumerateInstanceLayerProperties(&count, layers.data()) < VK_SUCCESS)
     return;
   layers.resize(count);
-  // one log line holds 240 characters: several lines of up to 200 (each layer name is <= 256)
+
   std::string line;
   int lines = 0;
   for (const VkLayerProperties &l : layers) {
@@ -1914,19 +1857,13 @@ static void log_instance_layers() {
   LOG("[vulkan] layers: %s", count ? line.c_str() : "none");
 }
 
-// Instance, device, submission slots and swapchains. `extensions`: the window system's instance
-// extensions; `create_surfaces` makes R.tv.surface / R.drc.surface once the instance exists.
-// The host has loaded the Vulkan loader's global functions (load_global_functions).
 static void init_device(std::vector<const char *> extensions,
                         const std::function<void()> &create_surfaces) {
   reset_pipeline_lookup_cache();
 #ifdef __APPLE__
-  // This draw-heavy workload is faster with direct Metal resource bindings.
-  // Respect an explicit MoltenVK override for devices/scenes needing larger
-  // argument-buffer resource limits. Set before the loader loads the driver.
+
   setenv("MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS", "0", 0);
-  // Immediate encoding overlaps recording with submitted GPU work. Every
-  // recording entrypoint has a host autorelease pool; explicit overrides win.
+
   setenv("MVK_CONFIG_PREFILL_METAL_COMMAND_BUFFERS", "3", 0);
 #endif
   uint32_t n;
@@ -1997,8 +1934,8 @@ static void init_device(std::vector<const char *> extensions,
   std::vector<VkPhysicalDevice> devices(n);
   vkEnumeratePhysicalDevices(R.instance, &n, devices.data());
   devices.resize(n);
-  // First the GPUs with Vulkan 1.3 (in the driver's order), then those with VK_KHR_dynamic_rendering
-  std::string unsuitable;  // the GPUs passed over, for the message when none is left
+
+  std::string unsuitable;
   for (DynamicRendering want : {DynamicRendering::Core, DynamicRendering::KHR}) {
     for (auto device : devices) {
       VkPhysicalDeviceProperties properties;
@@ -2076,7 +2013,7 @@ static void init_device(std::vector<const char *> extensions,
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
   VkPhysicalDeviceFeatures2 features{
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-  // VkPhysicalDeviceVulkan12Features: Vulkan 1.2 devices and newer
+
   const bool vulkan12 = deviceApi >= VK_API_VERSION_1_2;
   void **tail = &features.pNext;
   if (vulkan12) {
@@ -2101,15 +2038,14 @@ static void init_device(std::vector<const char *> extensions,
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
   enabled12.samplerMirrorClampToEdge = available12.samplerMirrorClampToEdge;
   if (!vulkan12 && has_extension(des, VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME)) {
-    de.push_back(VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME);  // Vulkan 1.1: the extension
+    de.push_back(VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME);
     enabled12.samplerMirrorClampToEdge = VK_TRUE;
   }
   R.samplerMirrorClampToEdge = enabled12.samplerMirrorClampToEdge;
   VkPhysicalDeviceFeatures available;
   vkGetPhysicalDeviceFeatures(R.physicalDevice, &available);
   VkPhysicalDeviceFeatures enabled{};
-  // The game's BC1-BC5 textures need this core feature enabled, not just supported (Vulkan spec);
-  // devices without it (many Mali/PowerVR GPUs) decode BC uploads with a compute shader (bc_decode).
+
   enabled.textureCompressionBC = available.textureCompressionBC;
   if (!available.textureCompressionBC) LOG("[vulkan] device has no BC texture support; compute upload decoder enabled");
   enabled.samplerAnisotropy = available.samplerAnisotropy;
@@ -2209,8 +2145,7 @@ static bool hidden_windows() {
   static const bool hidden = [] { const char* e = getenv("NSMBU_HIDDEN_WINDOWS"); return e && *e && strcmp(e, "0"); }();
   return hidden;
 }
-// The game's own icon on the windows (title bar, taskbar): meta/iconTex.tga of the game folder, an
-// uncompressed 32-bit TGA (128x128 in NSMBU). Nothing happens without it.
+
 static void set_window_icons() {
   FILE *f = std::fopen((config::game_dir + "/meta/iconTex.tga").c_str(), "rb");
   if (!f)
@@ -2220,7 +2155,7 @@ static void set_window_icons() {
   for (size_t n; (n = std::fread(buf, 1, sizeof buf, f)) > 0;)
     d.insert(d.end(), buf, buf + n);
   std::fclose(f);
-  if (d.size() < 18 || d[1] != 0 || d[2] != 2 || d[16] != 32)  // no colour map, true colour, 32 bpp
+  if (d.size() < 18 || d[1] != 0 || d[2] != 2 || d[16] != 32)
     return;
   const uint32_t w = d[12] | d[13] << 8, h = d[14] | d[15] << 8, start = 18 + d[0];
   if (!w || !h || w > 1024 || h > 1024 || d.size() < start + size_t(w) * h * 4)
@@ -2228,7 +2163,7 @@ static void set_window_icons() {
   SDL_Surface *icon = SDL_CreateSurface(int(w), int(h), SDL_PIXELFORMAT_BGRA32);
   if (!icon)
     return;
-  const bool topDown = d[17] & 0x20;  // otherwise the first row is the bottom one
+  const bool topDown = d[17] & 0x20;
   for (uint32_t y = 0; y < h; y++)
     std::memcpy(static_cast<uint8_t *>(icon->pixels) + size_t(y) * icon->pitch,
                 d.data() + start + size_t(topDown ? y : h - 1 - y) * w * 4, size_t(w) * 4);
@@ -2237,18 +2172,17 @@ static void set_window_icons() {
       SDL_SetWindowIcon(s->window, icon);
   SDL_DestroySurface(icon);
 }
-// SDL host (Vulkan-only builds): SDL windows, input and audio
+
 void init() {
 #ifdef __ANDROID__
   SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
 #endif
-  // hidden test runs: no Dock icon, no activation (the app never takes the focus from the user)
+
   if (hidden_windows())
     SDL_SetHint(SDL_HINT_MAC_BACKGROUND_APP, "1");
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO))
     throw std::runtime_error(SDL_GetError());
-  // the Vulkan loader (vulkan-1.dll, libvulkan.so.1), loaded here rather than imported (loader.h); the
-  // windows below use the same one
+
   if (!SDL_Vulkan_LoadLibrary(nullptr))
     throw std::runtime_error(std::string("Vulkan is not installed on this computer: the Vulkan runtime "
 #ifdef _WIN32
@@ -2264,8 +2198,7 @@ void init() {
   SDL_AddEventWatch(lifecycle_watch, nullptr);
   const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN | SDL_WINDOW_FULLSCREEN;
 #else
-  // test runs: NSMBU_HIDDEN_WINDOWS=1 never puts the windows on screen (nothing pops up or takes the
-  // focus); the swapchains still exist, so frame dumps and present dumps work as with visible windows
+
   const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE |
                                       (hidden_windows() ? SDL_WINDOW_HIDDEN : 0);
 #endif
@@ -2273,12 +2206,10 @@ void init() {
   if (!R.tv.window)
     throw std::runtime_error(SDL_GetError());
 #ifdef __ANDROID__
-  // one surface: the GamePad picture is drawn into it (display_modes.h: picture-in-picture, GamePad
-  // only), never a window of its own
+
 #else
   if (!getenv("NSMBU_NO_GAMEPAD")) {
-    // made hidden: the GamePad screen mode (load_saved_options below) shows it in window mode only;
-    // the other modes draw the GamePad picture into the TV window (gfx/display_modes.h)
+
     R.drc.window = SDL_CreateWindow("GamePad - Vulkan", 854, 480, windowFlags | SDL_WINDOW_HIDDEN);
     if (!R.drc.window)
       throw std::runtime_error(SDL_GetError());
@@ -2287,7 +2218,7 @@ void init() {
   }
 #endif
   if (hidden_windows())
-    R.tv.visible = R.drc.visible = false;  // no drawables: pictures only reach frame / present dumps
+    R.tv.visible = R.drc.visible = false;
   set_window_icons();
   uint32_t n;
   const char *const *se = SDL_Vulkan_GetInstanceExtensions(&n);
@@ -2313,11 +2244,11 @@ void init() {
   input::set_prompt_window(R.tv.window);
   input::init();
   install_graphics_menu(R.tv.window);
-  ::hostui::load_saved_options();  // graphics and GamePad screen options saved by the settings overlay (settings.ini)
+  ::hostui::load_saved_options();
 }
 #endif
 void save_renderer_caches() {
-  // Called during orderly shutdown under the renderer execution lock.
+
   reset_feedback_images();
   wait_idle();
   bc_decode_shutdown();
@@ -2326,11 +2257,7 @@ void save_renderer_caches() {
   save_pipeline_cache();
 }
 #ifdef NSMBU_SDL_HOST
-// GamePad touch screen: the left mouse button on the GamePad picture, in the GamePad window (window
-// mode; the picture fitted as display_layout fits it) or inside the TV window (picture-in-picture,
-// GamePad only: display_modes.cpp maps the point as on macOS), mapped to 0..1 touch coordinates. A
-// press that starts on the picture keeps touching while it is dragged, clamped to the picture's edge.
-// The settings overlay keeps its clicks in the TV window.
+
 enum class TouchIn { None, DrcWindow, TvWindow };
 static TouchIn touchHeld = TouchIn::None;
 static bool drc_window_point(float x, float y, float &tx, float &ty) {
@@ -2345,25 +2272,21 @@ static bool drc_window_point(float x, float y, float &tx, float &ty) {
   ty = (y * density - b.y) / b.h;
   return tx >= 0 && tx <= 1 && ty >= 0 && ty <= 1;
 }
-// a point of the TV window (window coordinates) as 0..1 from its top left
+
 static void tv_window_point(float x, float y, float &nx, float &ny) {
   int w = 0, h = 0;
   SDL_GetWindowSize(R.tv.window, &w, &h);
   nx = w > 0 ? x / float(w) : 0;
   ny = h > 0 ? y / float(h) : 0;
 }
-//
-// Touch screens (display_modes.h's view button, on by default on Android): a tap on the button
-// switches to the next view (picture-in-picture, GamePad only, TV only), a long press (0.6 s)
-// switches 60 fps on Android. On Android fingers are read as fingers (several at once, one of them
-// touching the GamePad); the mouse events SDL makes from them only reach the settings overlay.
-static uint64_t buttonDown = 0;  // SDL_GetTicks() of the press on the view button, 0: none
+
+static uint64_t buttonDown = 0;
 static void view_button_released() {
   if (SDL_GetTicks() - buttonDown >= 600) {
 #ifdef __ANDROID__
-    // the choice only: platform/perf_hint.cpp switches interpolation where the phone keeps up
+
     perf_hint::set_fps60_chosen(!perf_hint::fps60_chosen());
-    ::hostui::graphics_changed();  // saved with the graphics options (fps60)
+    ::hostui::graphics_changed();
 #endif
   } else {
     ::hostui::set_drc_mode(gfx::next_view());
@@ -2371,15 +2294,15 @@ static void view_button_released() {
   buttonDown = 0;
 }
 #ifdef __ANDROID__
-static bool synthHeld = false;                 // a mouse press SDL made from a finger, kept from the game
-static SDL_FingerID touchFinger = 0, buttonFinger = 0;  // 0: none
+static bool synthHeld = false;
+static SDL_FingerID touchFinger = 0, buttonFinger = 0;
 static bool finger_touch(const SDL_Event& event) {
   const SDL_TouchFingerEvent& f = event.tfinger;
   if (f.windowID != SDL_GetWindowID(R.tv.window)) return false;
   float tx = 0, ty = 0;
   switch (event.type) {
   case SDL_EVENT_FINGER_DOWN:
-    if (input::touch_from_controller(f.touchID)) return true;  // a controller's own touch pad / buttons
+    if (input::touch_from_controller(f.touchID)) return true;
     if (overlay::captures()) return false;
     if (!buttonFinger && gfx::view_button_hit(f.x, f.y)) {
       buttonFinger = f.fingerID;
@@ -2421,8 +2344,7 @@ static bool gamepad_touch(const SDL_Event& event) {
   float tx = 0, ty = 0;
 #ifdef __ANDROID__
   if (finger_touch(event)) return true;
-  // the mouse events SDL makes from fingers: those on the GamePad picture or the button are the
-  // fingers' (above) and kept from the game's mouse camera; the settings overlay gets them all
+
   if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
       event.button.which == SDL_TOUCH_MOUSEID) {
     if (overlay::captures() || event.button.windowID != tvId) return false;
@@ -2446,12 +2368,12 @@ static bool gamepad_touch(const SDL_Event& event) {
       }
     }
     if (drcId && event.button.windowID == drcId) {
-      if (!drc_window_point(event.button.x, event.button.y, tx, ty)) return true;  // outside the picture
+      if (!drc_window_point(event.button.x, event.button.y, tx, ty)) return true;
       touchHeld = TouchIn::DrcWindow;
     } else if (event.button.windowID == tvId && !overlay::captures()) {
       float nx, ny;
       tv_window_point(event.button.x, event.button.y, nx, ny);
-      if (!gfx::overlay_hit(nx, ny, &tx, &ty)) return false;  // the game's window: mouse camera etc.
+      if (!gfx::overlay_hit(nx, ny, &tx, &ty)) return false;
       touchHeld = TouchIn::TvWindow;
       gfx::display_touched();
     } else {
@@ -2490,8 +2412,6 @@ static bool gamepad_touch(const SDL_Event& event) {
   }
 }
 
-// Ctrl+G (Cmd+G on macOS, as the AppKit host's Display menu): show / hide the GamePad screen in the
-// current mode (the GamePad window, or the picture-in-picture overlay; auto mode: keep it up)
 static bool drc_key(const SDL_Event& event) {
   if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat || event.key.scancode != SDL_SCANCODE_G) return false;
 #ifdef __APPLE__
@@ -2503,7 +2423,7 @@ static bool drc_key(const SDL_Event& event) {
   ::hostui::toggle_drc();
   return true;
 }
-// debug: a test variable's list of TV frames ("3500,3700"); due once per listed frame
+
 static bool test_frame_due(const std::vector<uint64_t> &frames, size_t &i) {
   if (i >= frames.size() || frame_count() < frames[i]) return false;
   i++;
@@ -2518,7 +2438,7 @@ static std::vector<uint64_t> test_frames(const char *var) {
     }
   return f;
 }
-// debug: NSMBU_TEST_DRC_KEY=3500,3700 simulates Ctrl+G at those frames (as display.mm's Cmd+G)
+
 static void test_drc_key() {
   static const std::vector<uint64_t> frames = test_frames("NSMBU_TEST_DRC_KEY");
   static size_t i = 0;
@@ -2528,7 +2448,6 @@ static void test_drc_key() {
   }
 }
 
-// full screen (the TV window's is remembered for the next start: hostui::tv_fullscreen_changed)
 static void toggle_fullscreen(SDL_Window* window) {
   const bool full = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0;
   const char* which = window == R.drc.window ? "GamePad window" : "TV window";
@@ -2539,7 +2458,7 @@ static void toggle_fullscreen(SDL_Window* window) {
   if (window == R.tv.window)
     ::hostui::tv_fullscreen_changed();
 }
-// F11 or Alt+Enter toggles the focused window (TV or GamePad)
+
 static bool fullscreen_key(const SDL_Event& event) {
   if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat) return false;
   const bool f11 = event.key.scancode == SDL_SCANCODE_F11 && !(event.key.mod & (SDL_KMOD_CTRL | SDL_KMOD_GUI));
@@ -2550,8 +2469,7 @@ static bool fullscreen_key(const SDL_Event& event) {
   toggle_fullscreen(window ? window : R.tv.window);
   return true;
 }
-// debug: NSMBU_TEST_FULLSCREEN_KEY=3500,3700 simulates F11 on the TV window at those frames (with
-// NSMBU_HIDDEN_WINDOWS the window stays hidden: SDL only notes the state for when it is shown)
+
 static void test_fullscreen_key() {
   static const std::vector<uint64_t> frames = test_frames("NSMBU_TEST_FULLSCREEN_KEY");
   static size_t i = 0;
@@ -2561,11 +2479,8 @@ static void test_fullscreen_key() {
   }
 }
 
-// Closing the TV window ends the game. SDL only sends SDL_EVENT_QUIT once every window is closed, so
-// with the GamePad window open the close button of the TV window did nothing. Closing the GamePad
-// window only hides it (NSMBU_NO_GAMEPAD=1 starts without it).
 static void quit_game() {
-  screenshot::finish();  // the screenshots taken are written first
+  screenshot::finish();
   gx2::checkpoint_vulkan_caches();
   std::_Exit(0);
 }
@@ -2573,7 +2488,7 @@ static bool close_request(const SDL_Event& event) {
   if (event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED) return false;
   if (event.window.windowID == SDL_GetWindowID(R.tv.window)) quit_game();
   if (R.drc.window && event.window.windowID == SDL_GetWindowID(R.drc.window)) {
-    ::hostui::drc_window_closed();  // hidden until Ctrl+G or the settings overlay shows it again
+    ::hostui::drc_window_closed();
     LOG("[display] GamePad window closed (hidden); the game keeps running");
   }
   return true;
@@ -2582,7 +2497,7 @@ static bool close_request(const SDL_Event& event) {
 void run_main_loop() {
   auto titleTime = std::chrono::steady_clock::now();
   uint64_t titleFrames = gx2::flips_presented();
-  // Deterministic shutdown hook for cache durability tests.
+
   const char* exitAt=getenv("NSMBU_EXIT_AT_FRAME");
   const uint64_t exitFrame=exitAt ? std::strtoull(exitAt,nullptr,10) : 0;
   for (;;) {
@@ -2603,7 +2518,7 @@ void run_main_loop() {
           }
           if (s == &R.tv && (event.type == SDL_EVENT_WINDOW_ENTER_FULLSCREEN ||
                              event.type == SDL_EVENT_WINDOW_LEAVE_FULLSCREEN))
-            ::hostui::tv_fullscreen_changed();  // also when the window manager switched it
+            ::hostui::tv_fullscreen_changed();
           if (event.type == SDL_EVENT_WINDOW_MINIMIZED)
             s->visible = false;
           if (event.type == SDL_EVENT_WINDOW_RESTORED ||
@@ -2612,7 +2527,7 @@ void run_main_loop() {
         }
     }
     input::update();
-    ::hostui::run_posted();  // option changes from the settings overlay (render thread)
+    ::hostui::run_posted();
     test_drc_key();
     test_fullscreen_key();
     if (const int m = gfx::display_test_mode(frame_count()); m >= 0)
@@ -2620,7 +2535,7 @@ void run_main_loop() {
     overlay::set_density(SDL_GetWindowPixelDensity(R.tv.window));
     auto now = std::chrono::steady_clock::now();
     double elapsed = std::chrono::duration<double>(now - titleTime).count();
-    static auto polled = now;  // twice a second: frame interpolation's cap (and Android's display mode)
+    static auto polled = now;
     if (now - polled >= std::chrono::milliseconds(500) || polled == now) {
       polled = now;
       display_rate::poll(R.tv.window);
@@ -2646,11 +2561,10 @@ void run_main_loop() {
     SDL_Delay(1);
   }
 }
-#endif  // NSMBU_SDL_HOST
+#endif
 
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
-// AppKit host: the TV / GamePad windows of gfx/display.mm, shared with the Metal renderer. Each view
-// has a CAMetalLayer; Vulkan presents to it through VK_EXT_metal_surface (MoltenVK).
+
 static bool image_loaded(const char *part) {
   for (uint32_t i = 0, n = _dyld_image_count(); i < n; i++)
     if (const char *name = _dyld_get_image_name(i))
@@ -2661,7 +2575,7 @@ static bool image_loaded(const char *part) {
 void init_appkit(void *tvLayer, void *drcLayer) {
   if (const char *e = getenv("NSMBU_VK_FORCE_INIT_FAIL"); e && *e && strcmp(e, "0"))
     throw std::runtime_error("Vulkan start-up failure forced for testing (NSMBU_VK_FORCE_INIT_FAIL)");
-  // weak imports (CMakeLists.txt): a Mac without them still starts the game with Metal
+
   if (!image_loaded("/libvulkan"))
     throw std::runtime_error("The Vulkan loader (libvulkan) is not installed. "
                              "Install it with: brew install vulkan-loader molten-vk");
@@ -2690,7 +2604,7 @@ void init_appkit(void *tvLayer, void *drcLayer) {
 void screen_changed(int screen, bool visible) {
   Screen &s = screen ? R.drc : R.tv;
   s.visible = visible;
-  s.resize = true;  // drawable size or backing scale may have changed
+  s.resize = true;
 }
 #endif
-} // namespace gfxvk
+}

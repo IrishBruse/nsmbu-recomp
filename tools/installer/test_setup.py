@@ -9,10 +9,9 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import setup  # noqa: E402
+import setup
 
-KEY_HEX = "0011223344556677" "8899aabbccddeeff"  # made-up test value
-
+KEY_HEX = "0011223344556677"   "8899aabbccddeeff"
 
 class GuestBuildConfig(unittest.TestCase):
     def test_toolchain_argument_vector(self):
@@ -26,7 +25,6 @@ class GuestBuildConfig(unittest.TestCase):
             self.assertTrue(config["builder"].endswith("build_guest_mod.py"))
             self.assertFalse(os.path.exists(os.path.join(d, "guest-sdk.json.tmp")))
 
-
     def test_portable_paths_survive_release_move(self):
         with tempfile.TemporaryDirectory() as directory:
             release = os.path.join(directory, "release")
@@ -37,7 +35,7 @@ class GuestBuildConfig(unittest.TestCase):
             for path in paths.values():
                 os.makedirs(os.path.dirname(path), exist_ok=True)
                 with open(path, "w") as f:
-                    f.write("")  # fixture paths only
+                    f.write("")
             os.makedirs(os.path.join(release, "sdk", "include"))
             cache = os.path.join(data, "toolchain", "zig-cache")
             tc = setup.Toolchain([paths["compiler"], "cc", "-target", "x86_64-linux-gnu.2.35"], [], [],
@@ -58,8 +56,6 @@ class GuestBuildConfig(unittest.TestCase):
             self.assertEqual(os.path.normpath(os.path.join(moved_data, config["zig_cache"])),
                              os.path.join(moved_data, "toolchain", "zig-cache"))
             self.assertNotIn("UNRELATED_ENV", config)
-
-
 
 class Keys(unittest.TestCase):
     def test_raw_and_hex(self):
@@ -94,7 +90,6 @@ class Keys(unittest.TestCase):
         k.disc, k.common = bytes(16), bytes.fromhex(KEY_HEX)
         self.assertEqual(k.stdin_blob(), ("disc %s\ncommon %s\n" % ("00" * 16, KEY_HEX)).encode())
 
-
 class Paths(unittest.TestCase):
     def test_clean_path(self):
         self.assertEqual(setup.clean_path('"/tmp/a b/c.wux"'), os.path.abspath("/tmp/a b/c.wux"))
@@ -114,7 +109,6 @@ class Paths(unittest.TestCase):
                 f.write('<menu><title_id type="hexBinary" length="8">0005000010143500</title_id></menu>')
             self.assertTrue(setup.valid_game_folder(d))
             self.assertEqual(setup.game_folder_title(d), "0005000010143500")
-
 
 class DataDir(unittest.TestCase):
     """default_data_dir: portable.txt next to the release means <release>/data; without it (a source
@@ -148,14 +142,13 @@ class DataDir(unittest.TestCase):
                 os.environ["XDG_DATA_HOME"] = saved
 
     def test_legacy_folder_name(self):
-        # the same name as host::config_dir on Linux; "NSMBU" on Windows (setup_gui.cpp data_dir_of)
-        self.assertEqual(os.path.basename(setup.legacy_data_dir()), "NSMBU" if setup.IS_WIN else "nsmbu")
 
+        self.assertEqual(os.path.basename(setup.legacy_data_dir()), "NSMBU" if setup.IS_WIN else "nsmbu")
 
 class Titles(unittest.TestCase):
     def test_supported_ok(self):
-        setup.check_title("0005000010143500")   # USA, the canonical build
-        setup.check_title("0005000010143600")   # Europe (tools/recomp/builds/eu.json)
+        setup.check_title("0005000010143500")
+        setup.check_title("0005000010143600")
 
     def test_unsupported(self):
         with self.assertRaisesRegex(setup.SetupError, "Japan.*can be built from"):
@@ -163,10 +156,8 @@ class Titles(unittest.TestCase):
         with self.assertRaisesRegex(setup.SetupError, "not New Super Mario Bros. U"):
             setup.check_title("000500001010ec00")
 
-
 def _title(tid, version, files=10, size=1000):
     return {"id": tid, "version": version, "folder": "%s_v%d" % (tid, version), "files": files, "bytes": size}
-
 
 class ArchiveTitles(unittest.TestCase):
     """Which title of a Cemu archive (.wua) is used (info as nsmbu-extract --title 0005000010143500 info prints it)."""
@@ -224,7 +215,6 @@ class ArchiveTitles(unittest.TestCase):
         self.assertEqual(setup.plan_steps("archive"), ["archive", "compiler", "extract", "translate", "compile", "app"])
         self.assertEqual(setup.EXTRACT_ERRORS[10], "wrong_title")
 
-
 class LanguageSourceBuild(unittest.TestCase):
     """A language source lends a European or Japanese game's text to the USA code, so it is only for
     the USA build (docs/language-packs.md, docs/builds.md)."""
@@ -261,7 +251,6 @@ class LanguageSourceBuild(unittest.TestCase):
             self.make(d, b"eu")
             with self.assertRaisesRegex(setup.SetupError, "EU build.*own languages.*only for the USA build"):
                 setup.check_language_source_allowed(d)
-
 
 class GameVersion(unittest.TestCase):
     """code/red-pro2.rpx must be one of the builds the port knows (version 0 of a region,
@@ -333,9 +322,8 @@ class GameVersion(unittest.TestCase):
     @unittest.skipUnless(os.environ.get("NSMBU_GAME_DIR"), "NSMBU_GAME_DIR (your own extracted game) not set")
     def test_real_game(self):
         setup.SUPPORTED_BUILDS, setup.game_builds.by_sha256 = self.saved
-        build = setup.check_game_version(os.environ["NSMBU_GAME_DIR"])  # read only
+        build = setup.check_game_version(os.environ["NSMBU_GAME_DIR"])
         self.assertIn(build.title_id, setup.SUPPORTED_BUILDS)
-
 
 class Recipe(unittest.TestCase):
     def test_substitution(self):
@@ -358,7 +346,6 @@ class Recipe(unittest.TestCase):
     def test_jobs(self):
         self.assertGreaterEqual(setup.default_jobs(), 1)
 
-
 class Arch(unittest.TestCase):
     def test_normalize(self):
         for a, want in (("x86_64", "x86_64"), ("AMD64", "x86_64"), ("aarch64", "aarch64"), ("arm64", "aarch64")):
@@ -371,7 +358,6 @@ class Arch(unittest.TestCase):
         self.assertEqual(tcs["toolchains"]["zig-0.16.0-aarch64"]["target"].split("-")[0], "aarch64")
         self.assertIn("aarch64", tcs["toolchains"]["zig-0.16.0-aarch64"]["url"])
         self.assertIn("aarch64", tcs["python"]["linux-aarch64"]["url"])
-
 
 class NoScriptHost(unittest.TestCase):
     """Antivirus heuristics read "unsigned program starts PowerShell" as a dropper (issue #58): the Windows setup
@@ -393,10 +379,9 @@ class NoScriptHost(unittest.TestCase):
             setup.win_shortcut(link, sys.executable, "--game game --save save", d, sys.executable)
             with open(link, "rb") as f:
                 head = f.read(20)
-            self.assertEqual(head[:4], b"\x4c\x00\x00\x00")  # a shell link header
-            self.assertEqual(head[4:20], bytes.fromhex("0114020000000000c000000000000046"))  # its CLSID
-            setup.win_shortcut(link, sys.executable, workdir=d)  # replaces it
-
+            self.assertEqual(head[:4], b"\x4c\x00\x00\x00")
+            self.assertEqual(head[4:20], bytes.fromhex("0114020000000000c000000000000046"))
+            setup.win_shortcut(link, sys.executable, workdir=d)
 
 class BundledPython(unittest.TestCase):
     """The Windows release ships the pinned embeddable Python in tools/python; guard.py allows exactly its files."""
@@ -430,10 +415,9 @@ class BundledPython(unittest.TestCase):
             self.assertIn("lacks files", text)
 
     def test_windows_finds_bundled_python(self):
-        # what the GUI and --console-setup start (tools/installer/gui/console_setup_win.cpp)
+
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "gui", "console_setup_win.cpp")) as f:
             self.assertIn('"tools\\\\python\\\\python.exe"', f.read())
-
 
 class NonInteractive(unittest.TestCase):
     def test_ui_refuses_to_prompt(self):
@@ -442,7 +426,6 @@ class NonInteractive(unittest.TestCase):
             ui.ask("question")
         self.assertTrue(ui.yesno("q", True))
         self.assertFalse(ui.yesno("q", True, noninteractive=False))
-
 
 def _game_folder(root, title_id, packs, extra=()):
     """A SYNTHETIC game folder: meta.xml with a title id, dummy files named like the language packs
@@ -460,10 +443,8 @@ def _game_folder(root, title_id, packs, extra=()):
         with open(os.path.join(root, rel), "wb") as f:
             f.write(data)
 
-
 EU_PACKS = ["permanent_2d_EuEnglish.pack", "permanent_2d_EuFrench.pack", "permanent_2d_EuGerman.pack",
             "permanent_2d_EuItalian.pack", "permanent_2d_EuSpanish.pack"]
-
 
 class LanguageSources(unittest.TestCase):
     """setup --language-source on synthetic folders (no game files in the tests)."""
@@ -502,13 +483,13 @@ class LanguageSources(unittest.TestCase):
             taken = sorted(os.path.relpath(os.path.join(dp, f), dst).replace(os.sep, "/")
                            for dp, _, fs in os.walk(dst) for f in fs)
             self.assertEqual(taken, sorted(["content/Common/Pack/" + n for n in EU_PACKS] +
-                                           ["language-source.json", "meta/meta.xml"]))  # nothing else, no code
+                                           ["language-source.json", "meta/meta.xml"]))
             german = [p for p in m["packs"] if p["language"] == "German"][0]
             self.assertEqual(german["sha256"], hashlib.sha256(b"SARC synthetic permanent_2d_EuGerman.pack").hexdigest())
             self.assertFalse(os.path.exists(os.path.join(data, "game-lang", "EU.partial")))
             self.assertEqual([x["region"] for x in setup.language_sources(data)], ["EU"])
-            # again: replaces the earlier one
-            setup.add_language_source(("folder", os.path.join(src, "content")), data)  # a subfolder is taken up
+
+            setup.add_language_source(("folder", os.path.join(src, "content")), data)
             self.assertEqual(len(setup.language_sources(data)), 1)
             setup.remove_language_source(data, "eu")
             self.assertEqual(setup.language_sources(data), [])
@@ -546,7 +527,7 @@ class LanguageSources(unittest.TestCase):
                 f.write(b"not a pack")
             with self.assertRaisesRegex(setup.SetupError, "not a language pack"):
                 setup.add_language_source(("folder", bad), data)
-            self.assertEqual(os.listdir(os.path.join(data, "game-lang")), [])  # nothing left behind
+            self.assertEqual(os.listdir(os.path.join(data, "game-lang")), [])
 
     def test_image_and_archive_take_only_language_files(self):
         """The extractor is asked for the language files only (nsmbu-extract --only), for the right title."""
@@ -575,13 +556,12 @@ class LanguageSources(unittest.TestCase):
                     setup.add_language_source(("image", "usa.wux"), d, keys=setup.Keys(),
                                               info={"title_id": "0005000010143500"})
                 ms = setup.add_language_source(("archive", os.path.join(d, "both.wua")), d)
-                self.assertEqual([m["region"] for m in ms], ["EU", "JP"])  # the USA title is left alone
+                self.assertEqual([m["region"] for m in ms], ["EU", "JP"])
                 self.assertEqual([c[1] for c in calls[-2:]], ["0005000010143600_v0", "0005000010143400_v0"])
                 self.assertEqual([m["region"] for m in setup.language_sources(d)], ["EU", "JP"])
         finally:
             setup.run_extract, setup.archive_info = saved
         self.assertEqual(setup.LANGUAGE_SOURCE_FILES, ["content/Common/Pack/permanent_2d_*.pack", "meta/meta.xml"])
-
 
 class CodeModsBuild(unittest.TestCase):
     def test_option_default_and_override(self):
@@ -634,12 +614,12 @@ class CodeModsBuild(unittest.TestCase):
             def link(tc, manifest, objs, work, target):
                 Path(target).write_bytes(b"hooks on" if mode[0] else b"hooks off")
             tc = SimpleNamespace(cc=["fixture compiler"], env={})
-            with mock.patch.multiple(setup, PKG=root, PORTABLE=False), \
-                 mock.patch.object(setup, "get_toolchain", return_value=tc), \
-                 mock.patch.object(setup, "run_logged", return_value="fixture compiler version"), \
-                 mock.patch.object(setup, "free_space", return_value=20 << 30), \
-                 mock.patch.object(setup, "recompile", side_effect=translate) as recomp, \
-                 mock.patch.object(setup, "compile_gamecode", side_effect=compile_code), \
+            with mock.patch.multiple(setup, PKG=root, PORTABLE=False),\
+                 mock.patch.object(setup, "get_toolchain", return_value=tc),\
+                 mock.patch.object(setup, "run_logged", return_value="fixture compiler version"),\
+                 mock.patch.object(setup, "free_space", return_value=20 << 30),\
+                 mock.patch.object(setup, "recompile", side_effect=translate) as recomp,\
+                 mock.patch.object(setup, "compile_gamecode", side_effect=compile_code),\
                  mock.patch.object(setup, "link_game", side_effect=link) as linker:
                 data.mkdir()
                 initial = root / "initial.exe"
@@ -655,7 +635,7 @@ class CodeModsBuild(unittest.TestCase):
                 again = setup.code_mods.rebuild(setup, ctx, False)
                 self.assertTrue(again["cached"])
                 self.assertEqual(recomp.call_count, 1)
-                # Bad metadata rebuilds rather than trusting an unrelated executable.
+
                 ready = Path(on["exe"]).parents[1] / "ready.json"
                 ready.write_text("broken json")
                 previous = (data / "code-mods-active.json").read_bytes()
@@ -718,7 +698,6 @@ class CodeModsBuild(unittest.TestCase):
             with self.assertRaisesRegex(setup.SetupError, "cancelled"):
                 setup.code_mods.rebuild(setup, ctx, True, status, cancel)
             self.assertEqual(json.loads(status.read_text())["state"], "error")
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

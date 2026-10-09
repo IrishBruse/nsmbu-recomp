@@ -1,4 +1,4 @@
-/* Tables emitted by tools/recomp/recomp.py (build/gen/table.c). */
+
 #pragma once
 #include "ppc.h"
 

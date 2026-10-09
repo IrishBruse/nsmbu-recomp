@@ -1,5 +1,5 @@
-// erreula: the system error viewer. Errors are logged and confirmed automatically (as if the
-// player pressed the first button), so the game never waits on a dialog nobody can see.
+
+
 #include <chrono>
 
 #include "../runtime.h"
@@ -26,7 +26,7 @@ void set_state(State s) {
     g_since = std::chrono::steady_clock::now();
 }
 double elapsed() { return std::chrono::duration<double>(std::chrono::steady_clock::now() - g_since).count(); }
-}  // namespace
+}
 
 #define ERREULA(name) HLE(erreula, name)
 
@@ -42,7 +42,7 @@ ERREULA(ErrEulaAppearError__3RplFRCQ3_2nn7erreula9AppearArg) {
 ERREULA(ErrEulaDisappearError__3RplFv) {
     if (g_state == kVisible) set_state(kDisappearing);
 }
-// advance fades; once visible for a moment, confirm with the first (left) button
+
 ERREULA(ErrEulaCalc__3RplFRCQ3_2nn7erreula14ControllerInfo) {
     if (g_state == kAppearing && elapsed() > 0.2) set_state(kVisible);
     else if (g_state == kDisappearing && elapsed() > 0.2) set_state(kHidden);

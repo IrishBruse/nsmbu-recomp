@@ -1,9 +1,5 @@
-// Guest mods (Mod SDK v2 prototype, docs/mod-sdk-v2.md): PowerPC mods translated to C on install and
-// compiled into a module by the player's own compiler (tools/guestmod/). They hook or replace game
-// functions at runtime through the per-function flag check that recomp.py --mod-hooks puts at the
-// start of every game function body (PPC_MOD_HOOK in ppc.h).
-//
-// The mod manager builds and loads its frozen, trusted guest set before guest code runs.
+
+
 #include "guest_mods.h"
 #include "guest_validation.h"
 #include "guest_build.h"
@@ -36,7 +32,7 @@
 #include "nsmbu_guest_abi.h"
 
 extern "C" {
-unsigned g_mod_hook_count = 0;  // initialized only by a hook-enabled game-code build
+unsigned g_mod_hook_count = 0;
 uint8_t* g_mod_hook_flags = nullptr;
 const PpcFunc* g_mod_bodies = nullptr;
 void ppc_mod_register(unsigned count, uint8_t* flags, const PpcFunc* bodies) {
@@ -47,7 +43,6 @@ double ppc_fres(double);
 double ppc_frsqrte(double);
 }
 
-// Cpu::mod_skip uses former padding: save states (which store sizeof(Cpu) bytes) stay compatible
 static_assert(sizeof(void*) != 8 || sizeof(Cpu) == 752, "Cpu layout changed");
 
 namespace guestmods {
@@ -59,7 +54,7 @@ struct Chain {
     std::string replace_mod;
     std::vector<PpcFunc> entry, ret;
 };
-std::unordered_map<uint32_t, Chain> g_chains;  // built before the game starts, read-only afterwards
+std::unordered_map<uint32_t, Chain> g_chains;
 struct Loaded {
     std::string path,id,version;
     const NSMBUGuestModuleV1* m=nullptr;
@@ -86,11 +81,10 @@ int ordinal_of(uint32_t addr) {
 void call_original(Cpu* c, uint32_t func) {
     int i = ordinal_of(func);
     if (i < 0) fatal("[guestmods] call_original: %08X is not a game function", func);
-    if (g_mod_hook_flags[i]) c->mod_skip = func;  // consumed by the check at the start of the body
+    if (g_mod_hook_flags[i]) c->mod_skip = func;
     g_mod_bodies[i](c);
 }
 
-// ---- host services (imports of guest mods by name; arguments in r3..r10 / f1..f8, result in r3 / f1)
 std::string cstr(uint32_t a) { return a ? mem::read_cstr(a) : std::string("(null)"); }
 void svc_log(Cpu* c) { LOG("[guestmod:%s] %s",owner(c).id.c_str(),cstr(c->r[3]).c_str()); }
 void svc_log_int(Cpu* c) { LOG("[guestmod:%s] %s %d",owner(c).id.c_str(),cstr(c->r[3]).c_str(),(int32_t)c->r[4]); }
@@ -198,13 +192,13 @@ bool load_one(const std::string& path, std::string& err,const mods::packages::Gu
         ch.ordinal = (uint32_t)ordinal_of(h.target);
         if (h.kind == NSMBU_GUEST_REPLACE) { ch.replace = h.fn; ch.replace_mod = pkg.id; }
         else if (h.kind == NSMBU_GUEST_HOOK_ENTRY) ch.entry.push_back(h.fn);
-        else ch.ret.insert(ch.ret.begin(), h.fn);  // return hooks run in reverse load order
+        else ch.ret.insert(ch.ret.begin(), h.fn);
         g_mod_hook_flags[ch.ordinal] = 1;
         LOG("[guestmods] %s %08X", h.kind == NSMBU_GUEST_REPLACE ? "replace" : h.kind == NSMBU_GUEST_HOOK_ENTRY ? "entry hook" : "return hook",
             h.target);
     }
     g_loaded.push_back(std::move(loaded));
-    guard.handle = nullptr; // module functions remain resident for the process lifetime
+    guard.handle = nullptr;
     LOG("[guestmods] loaded %s (translator %s): %u functions, %u hooks, guest memory %08X-%08X", path.c_str(),
         m->translator, m->func_count, m->hook_count, m->mem_base, m->mem_base + m->mem_size);
     return true;
@@ -221,12 +215,11 @@ struct Args {
     }
 };
 
-}  // namespace
+}
 
 void init() {
     namespace packages=mods::packages;
-    // start_guests invokes callbacks under the package-manager mutex. Resolve its
-    // directory before entering those callbacks to avoid recursively locking it.
+
     const auto cache=(std::filesystem::path(packages::directory()).parent_path()/"GuestBuild").string();
     std::unique_ptr<BuildBridge> bridge;
     auto tools=[&]() -> BuildBridge& {
@@ -275,13 +268,10 @@ bool hooks_built() { return g_mod_hook_count != 0 && g_mod_hook_flags && g_mod_b
 
 void frame(uint64_t step) {g_logic_step.store(step,std::memory_order_relaxed);}
 
-}  // namespace guestmods
+}
 
 using namespace guestmods;
 
-// A hooked or replaced game function. The calling convention is the game's: hooks get the function's
-// arguments (r3..r10, f1..f8 are restored for every hook), a return hook also leaves the return value
-// (r3, r4, f1) as the function produced it. r1/r2/r13 are preserved by every callee (ABI).
 extern "C" void ppc_mod_run(Cpu* c) {
     uint32_t addr = c->pc;
     auto it = g_chains.find(addr);

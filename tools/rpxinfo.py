@@ -8,7 +8,7 @@ secs = []
 for i in range(shnum):
     name, typ, flags, addr, off, size, link, info, align, entsize = struct.unpack_from(">10I", d, shoff + i * shentsize)
     raw = d[off:off + size] if typ != 8 else b""
-    if flags & 0x08000000 and raw:  # SHF_RPL_ZLIB
+    if flags & 0x08000000 and raw:
         raw = zlib.decompress(raw[4:])
     secs.append(dict(name=name, type=typ, flags=flags, addr=addr, size=len(raw) if raw else size, raw=raw, link=link))
 strtab = secs[shstrndx]["raw"]
@@ -18,10 +18,10 @@ for s in secs:
 if "-s" in sys.argv:
     for s in secs:
         print("%-24s type=%08x addr=%08x size=%8x flags=%08x" % (s["n"], s["type"], s["addr"], s["size"], s["flags"]))
-# imports: symbols whose section is a .fimport_/.dimport_ section
+
 imports = collections.defaultdict(set)
 for s in secs:
-    if s["type"] != 2:  # SHT_SYMTAB
+    if s["type"] != 2:
         continue
     st = secs[s["link"]]["raw"]
     for j in range(len(s["raw"]) // 16):

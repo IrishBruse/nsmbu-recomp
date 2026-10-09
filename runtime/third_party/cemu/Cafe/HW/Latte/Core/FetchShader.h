@@ -10,20 +10,20 @@ struct LatteParsedFetchShaderAttribute
 	uint8								nfa;
 	uint8								isSigned;
 	LatteConst::VertexFetchEndianMode	endianSwap;
-	uint8								ds[4]; // destination component select
+	uint8								ds[4];
 	sint32								aluDivisor;
 	uint32								offset;
 };
 
 struct LatteParsedFetchShaderBufferGroup
 {
-	uint8 attributeBufferIndex{}; // index of buffer (0 to 15 are valid)
+	uint8 attributeBufferIndex{};
 	sint8 attribCount{};
 	bool hasVtxIndexAccess : 1;
 	bool hasInstanceIndexAccess : 1;
 	uint32 minOffset{};
-	uint32 totalAttribRangeSize{}; // max attribOffset+attribSize
-	LatteParsedFetchShaderAttribute* attrib{}; // attributes for this buffer
+	uint32 totalAttribRangeSize{};
+	LatteParsedFetchShaderAttribute* attrib{};
 
 	uint32 getCurrentBufferStride(uint32* contextRegister) const;
 };
@@ -35,20 +35,17 @@ struct LatteFetchShader
 	~LatteFetchShader();
 
 	std::vector<LatteParsedFetchShaderBufferGroup> bufferGroups;
-	std::vector<LatteParsedFetchShaderBufferGroup> bufferGroupsInvalid; // groups with buffer index not being a valid buffer (dst components of these can affect shader code, but no actual vertex imports are done)
+	std::vector<LatteParsedFetchShaderBufferGroup> bufferGroupsInvalid;
 
 	uint64 key{};
-	uint32 attributeBufferMask{}; // mask of buffers sourced by this fetch shader
+	uint32 attributeBufferMask{};
 
-	// Vulkan
-	uint64 vkPipelineHashFragment{}; // hash of all fetch shader state that influences the Vulkan graphics pipeline
+	uint64 vkPipelineHashFragment{};
 
-	// Metal
 	bool mtlFetchVertexManually{};
 
-	// cache info
 	CacheHash m_cacheHash{};
-	bool m_isRegistered{}; // if true, fetch shader is referenced by cache (RegisterInCache() succeeded)
+	bool m_isRegistered{};
 
 	void CalculateFetchShaderVkHash();
 
@@ -60,11 +57,9 @@ struct LatteFetchShader
 
 	static bool isValidBufferIndex(const uint32 index) { return index < 0x10; };
 
-	// keys in shader state cache
 	std::vector<uint64> m_shaderStateCacheKeys;
 
-	// fetch shader cache (move these to separate Cache class?)
-	LatteFetchShader* RegisterInCache(CacheHash fsHash); // fails if another fetch shader object is already registered with the same fsHash. Returns the previously registered fetch shader or null
+	LatteFetchShader* RegisterInCache(CacheHash fsHash);
 	void UnregisterInCache();
 	static CacheHash CalculateCacheHash(void* programCode, uint32 programSize);
 	static LatteFetchShader* FindInCacheByHash(CacheHash fsHash);

@@ -1,4 +1,4 @@
-// Synthetic module metadata only: no game image needed.
+
 #include "mods/guest_validation.h"
 #include <cassert>
 #include <iostream>
@@ -26,7 +26,7 @@ int main() {
     assert(!check());
     assert(error.find("second-mod and second-mod") != std::string::npos);
     hooks[1].kind = NSMBU_GUEST_HOOK_ENTRY;
-    assert(check()); // replacement plus entry/return hooks are allowed
+    assert(check());
     hooks[1].kind = NSMBU_GUEST_HOOK_RETURN;
     assert(check());
     hooks[1].kind = 99; assert(!check());
@@ -34,7 +34,7 @@ int main() {
     hooks[0].target += 4; assert(!check()); hooks[0].target -= 4;
     hooks[0].fn = other; assert(!check()); hooks[0].fn = fn;
     hooks[0].func += 4; assert(!check()); hooks[0].func -= 4;
-    m.mem_base = 0x80000004; assert(!check()); // subtraction must not wrap
+    m.mem_base = 0x80000004; assert(!check());
     m.mem_base = 0x7F000000; m.mem_size = 0; assert(!check());
     m.mem_size = 0x01000001; assert(!check()); m.mem_size = 4096;
     m.image_size = 4097; assert(!check()); m.image_size = 4;

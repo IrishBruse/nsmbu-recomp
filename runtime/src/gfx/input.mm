@@ -1,14 +1,9 @@
-// Keyboard and GameController input, merged into one GamePad state.
-//
-// Which key or controller input drives which GamePad input is the controls mapping (input_map.h,
-// edited in Input > Controls…). Defaults: WASD move, arrows camera, K/Space = A, J = B, L = X, I = Y,
-// Q = L, E = R, Left Shift = ZL, C = ZR, Enter = +, Tab = -, H = Home, 1-4 = D-pad up/down/left/right,
-// X = L-stick click, V = R-stick click; controllers use button positions (Xbox "A" = Wii U B),
-// switchable to by-label with input_map::FaceLayout (issue #78).
+
+
 #import <AppKit/AppKit.h>
 #import <GameController/GameController.h>
-#import <QuartzCore/QuartzCore.h>  // CACurrentMediaTime
-#include <Carbon/Carbon.h>  // kVK_* key codes
+#import <QuartzCore/QuartzCore.h>
+#include <Carbon/Carbon.h>
 
 #include <cmath>
 #include <mutex>
@@ -34,7 +29,7 @@ namespace input {
 
 static std::mutex g_mu;
 static bool g_keys[256];
-static PadState g_pad;  // controller part, refreshed on the main thread
+static PadState g_pad;
 static bool g_touch;
 static float g_tx, g_ty;
 
@@ -45,7 +40,6 @@ void set_touch(bool down, float x, float y) {
     g_ty = y;
 }
 
-// keys held by NSMBU_KEYS (debug), merged with the real keyboard before the mapping is applied
 static bool g_script_keys[256];
 
 static PadState keyboard_state(bool use_host) {
@@ -54,7 +48,6 @@ static PadState keyboard_state(bool use_host) {
     return input_map::keyboard_state(input_map::current(), keys);
 }
 
-// every mappable controller input, 0..1, the strongest over all connected controllers
 void controller_values(float* v) {
     using namespace input_map;
     for (int i = 0; i < kPadCount; i++) v[i] = 0;
@@ -81,7 +74,6 @@ void controller_values(float* v) {
     }
 }
 
-// the latest controller_values (the timer below), for the settings overlay's navigation
 static float g_host_values[input_map::kPadCount];
 void host_controller_values(float* v) {
     std::lock_guard<std::mutex> lk(g_mu);
@@ -98,30 +90,22 @@ void release_keys() {
     memset(g_keys, 0, sizeof(g_keys));
 }
 
-// Rumble would go to the host game controllers through GameController.framework (GCController
-// haptics); this host has none of its own yet (see platform/input_sdl.cpp for the SDL host, which
-// does rumble). The game's requests are kept by rumble.h all the same.
 bool has_rumble() { return false; }
 void stop_rumble_now() {}
 
-// modifier keys arrive as flagsChanged; the device-dependent bits tell left from right
 static bool modifier_down(uint16_t code, NSEventModifierFlags f) {
     switch (code) {
-    case kVK_Shift: return f & 0x02;          // NX_DEVICELSHIFTKEYMASK
-    case kVK_RightShift: return f & 0x04;     // NX_DEVICERSHIFTKEYMASK
-    case kVK_Control: return f & 0x01;        // NX_DEVICELCTLKEYMASK
-    case kVK_RightControl: return f & 0x2000; // NX_DEVICERCTLKEYMASK
-    case kVK_Option: return f & 0x20;         // NX_DEVICELALTKEYMASK
-    case kVK_RightOption: return f & 0x40;    // NX_DEVICERALTKEYMASK
+    case kVK_Shift: return f & 0x02;
+    case kVK_RightShift: return f & 0x04;
+    case kVK_Control: return f & 0x01;
+    case kVK_RightControl: return f & 0x2000;
+    case kVK_Option: return f & 0x20;
+    case kVK_RightOption: return f & 0x40;
     case kVK_CapsLock: return f & NSEventModifierFlagCapsLock;
     default: return false;
     }
 }
 
-// debug: NSMBU_TEST_POST_KEYS=300:F1,400:Cmd+Comma,410:Down,420:Return,430:K/30 (held 30 frames) posts key presses (down, then up) at TV frames
-// into the app's event queue, so they take the real path (event monitors, menu key equivalents) even
-// in hidden test runs. Only the settings overlay and the menus react to them, not the game.
-// 500:Text=Tetra types text (one key press per character, carrying it) into the game's text prompt.
 static const NSTimeInterval kTestKeyTimestamp = 4242.0;
 static void start_test_keys() {
     const char* e = getenv("NSMBU_TEST_POST_KEYS");
@@ -137,13 +121,13 @@ static void start_test_keys() {
         std::string k(p, len);
         p += len + (p[len] == ',');
         Press pr{f, 0, 0, @"", 0};
-        if (k.rfind("Text=", 0) == 0) {  // one press per character (key code: the A key; the characters count)
+        if (k.rfind("Text=", 0) == 0) {
             NSString* t = [NSString stringWithUTF8String:k.c_str() + 5];
             for (NSUInteger i = 0; i < t.length; i++)
                 presses->push_back({f + i * 2, kVK_ANSI_A, 0, [t substringWithRange:NSMakeRange(i, 1)], 0});
             continue;
         }
-        if (size_t sl = k.find('/'); sl != std::string::npos) {  // Key/<frames>: held that many frames
+        if (size_t sl = k.find('/'); sl != std::string::npos) {
             pr.hold = strtoull(k.c_str() + sl + 1, nullptr, 10);
             k.resize(sl);
         }
@@ -151,16 +135,16 @@ static void start_test_keys() {
         if (k == "F1") { pr.code = kVK_F1; pr.chars = [NSString stringWithFormat:@"%C", (unichar)NSF1FunctionKey]; pr.flags |= NSEventModifierFlagFunction; }
         else if (k == "Comma") { pr.code = kVK_ANSI_Comma; pr.chars = @","; }
         else if (k == "Escape") { pr.code = kVK_Escape; pr.chars = @"\x1b"; }
-        else if (int c = input_map::key_from_id(k); c != input_map::kNoKey) pr.code = (uint16_t)c;  // controls.json key names
+        else if (int c = input_map::key_from_id(k); c != input_map::kNoKey) pr.code = (uint16_t)c;
         else { LOG("[input] NSMBU_TEST_POST_KEYS: unknown key %s", k.c_str()); continue; }
         presses->push_back(pr);
     }
-    // a held key: its key up as a separate entry, later
+
     for (size_t i = 0, n = presses->size(); i < n; i++)
         if ((*presses)[i].hold) {
             Press up = (*presses)[i];
             up.frame += up.hold;
-            up.hold = ~0ull;  // marks the release
+            up.hold = ~0ull;
             presses->push_back(up);
         }
     std::stable_sort(presses->begin(), presses->end(), [](const Press& a, const Press& b) { return a.frame < b.frame; });
@@ -185,19 +169,12 @@ static void start_test_keys() {
     }];
 }
 
-// ---- motion sensors (motion/motion.h) ----
-// GameController.framework reports the gyro and accelerometer of DualSense, DualShock 4, Switch Pro and
-// Joy-Con controllers (macOS 11+). Its frame (as CoreMotion's, for a controller lying flat): x right, y
-// towards the top (away from the player), z up out of the face; acceleration in g with gravity's sign
-// (at rest flat: z = -1). motion.h takes SDL's frame (x right, y up, z towards the player, m/s^2 of
-// specific force), so: sdl = (x, z, -y), acceleration negated.
-// NSMBU_GYRO_LOG=1 logs a raw sample twice a second (to check the axes with a new controller).
 static void update_motion_sensors() API_AVAILABLE(macos(11.0)) {
     const bool want = motion::wants_controller_sensors() && !getenv("NSMBU_NO_HOST_INPUT");
-    static NSMutableSet* active = [NSMutableSet set];  // controllers whose handler is installed
+    static NSMutableSet* active = [NSMutableSet set];
     int n = 0;
     NSArray<GCController*>* connected = [GCController controllers];
-    // controllers that went away: their handler goes with them (a reconnected controller is a new object)
+
     for (GCController* c in [active allObjects])
         if (![connected containsObject:c]) {
             [active removeObject:c];
@@ -209,8 +186,7 @@ static void update_motion_sensors() API_AVAILABLE(macos(11.0)) {
         if (!m || !m.hasRotationRate) continue;
         n++;
         const bool on = [active containsObject:c];
-        // the system can switch a controller's sensors off (another app, sleep); while the gyro is wanted they
-        // are switched on again (this runs every quarter second)
+
         if (want && on && m.sensorsRequireManualActivation && !m.sensorsActive) {
             LOG("[gyro] %s: its motion sensors were off, switching them on again", c.vendorName.UTF8String ?: "controller");
             m.sensorsActive = YES;
@@ -253,42 +229,41 @@ void init() {
     start_test_keys();
     NSEventMask mask = NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged;
     [NSEvent addLocalMonitorForEventsMatchingMask:mask handler:^NSEvent*(NSEvent* e) {
-        if (e.modifierFlags & NSEventModifierFlagCommand) return e;  // keep Cmd-Q etc.
-        if (NSApp.keyWindow.sheetParent || NSApp.modalWindow) return e;  // text prompt has focus
-        if (gfx::controls_window_is_key()) return e;  // Controls window: keys go to it, not the game
+        if (e.modifierFlags & NSEventModifierFlagCommand) return e;
+        if (NSApp.keyWindow.sheetParent || NSApp.modalWindow) return e;
+        if (gfx::controls_window_is_key()) return e;
         uint16_t code = e.keyCode & 0xFF;
-        const bool posted = e.timestamp == kTestKeyTimestamp;  // NSMBU_TEST_POST_KEYS
+        const bool posted = e.timestamp == kTestKeyTimestamp;
         if (getenv("NSMBU_NO_HOST_INPUT") && !posted) return e;
         {
-            // settings overlay (overlay/overlay.h): F1 opens and closes it; while open it has the keyboard
+
             NSEventModifierFlags f = e.modifierFlags;
             int m = (f & NSEventModifierFlagShift ? overlay::kShift : 0) | (f & NSEventModifierFlagControl ? overlay::kCtrl : 0) |
                     (f & NSEventModifierFlagOption ? overlay::kAlt : 0) | (f & NSEventModifierFlagCommand ? overlay::kSuper : 0);
             bool down = e.type == NSEventTypeKeyDown || (e.type == NSEventTypeFlagsChanged && modifier_down(code, f));
             bool repeat = e.type != NSEventTypeFlagsChanged && e.isARepeat;
-            if (gfx::text_input_key((__bridge void*)e)) return nil;  // the game's text prompt: typed text
+            if (gfx::text_input_key((__bridge void*)e)) return nil;
             if (overlay::key(code, down, repeat, m)) return nil;
-            // the Screenshot binding (F10 by default; posted test keys take this path too)
+
             if (e.type == NSEventTypeKeyDown && !e.isARepeat && screenshot::key_down(code)) return nil;
-            if (posted) return nil;  // test keys only reach the overlay
+            if (posted) return nil;
         }
         std::lock_guard<std::mutex> lk(g_mu);
         if (e.type == NSEventTypeKeyDown && !e.isARepeat && gfx::menu_hotkey(code)) return nil;
-        // a repeat never presses a key: one held down while the overlay or the text prompt had the keyboard
-        // (Enter that confirmed a name) stays out of the game until pressed again
+
         if (e.type == NSEventTypeKeyDown) g_keys[code] = g_keys[code] || !e.isARepeat;
         else if (e.type == NSEventTypeKeyUp) g_keys[code] = false;
         else g_keys[code] = modifier_down(code, e.modifierFlags);
-        return nil;  // swallow, no system beep
+        return nil;
     }];
-    // drop held keys when the window loses focus
+
     [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidResignActiveNotification
                                                       object:nil queue:nil usingBlock:^(NSNotification*) {
         std::lock_guard<std::mutex> lk(g_mu);
         memset(g_keys, 0, sizeof(g_keys));
     }];
     [GCController startWirelessControllerDiscoveryWithCompletionHandler:nil];
-    // GameController values are polled on the main thread
+
     [NSTimer scheduledTimerWithTimeInterval:1.0 / 240 repeats:YES block:^(NSTimer*) {
         float v[input_map::kPadCount];
         controller_values(v);
@@ -298,7 +273,7 @@ void init() {
             g_pad = s;
             std::copy(v, v + input_map::kPadCount, g_host_values);
         }
-        // gyro: sensors on or off with the source, the recalibrate binding, the mouse gyro's capture
+
         static int tick = 0;
         if (@available(macOS 11.0, *)) if (tick++ % 60 == 0) update_motion_sensors();
         if (!overlay::blocks_input() && !getenv("NSMBU_NO_HOST_INPUT")) {
@@ -308,13 +283,12 @@ void init() {
                 std::copy(g_keys, g_keys + 256, keys);
             }
             motion::poll_recalibrate(v, keys);
-            screenshot::poll_controller(v);  // a controller input bound to Screenshot
+            screenshot::poll_controller(v);
         }
         mods::update_gyro_mouse();
     }];
 }
 
-// debug: NSMBU_PRESS=1000-1010:8000,1500-1505:0008 holds VPAD buttons (hex) during TV frame ranges
 struct Press { uint64_t from, to; uint32_t bits; };
 static std::vector<Press> scripted() {
     std::vector<Press> v;
@@ -330,9 +304,6 @@ static std::vector<Press> scripted() {
     return v;
 }
 
-// debug: NSMBU_KEYS=1200-1210:K,1300-1305:LeftShift+J holds keyboard keys (input_map key names)
-// during TV frame ranges. Unlike NSMBU_PRESS they go through the controls mapping, so a test can
-// check a remapped controls file (also with NSMBU_NO_HOST_INPUT=1).
 struct KeyPress { uint64_t from, to; std::vector<int> codes; };
 static std::vector<KeyPress> scripted_keys() {
     std::vector<KeyPress> v;
@@ -358,8 +329,6 @@ static std::vector<KeyPress> scripted_keys() {
     return v;
 }
 
-// debug: NSMBU_STICK=9400-9600:0:1,... holds the left stick at (x, y) during TV frame ranges
-// (NSMBU_RSTICK: the same for the right stick)
 struct Stick { uint64_t from, to; float x, y; };
 static std::vector<Stick> scripted_stick(const char* var = "NSMBU_STICK") {
     std::vector<Stick> v;
@@ -375,13 +344,6 @@ static std::vector<Stick> scripted_stick(const char* var = "NSMBU_STICK") {
     return v;
 }
 
-// debug: timed test scenario, in real seconds from TV frame NSMBU_TEST_ORIGIN (so a 30 fps and a 60 fps
-// run get the same input at the same real time):
-//   NSMBU_TEST_STICK=2-5:0:1,...   left stick (x, y) from 2 s to 5 s
-//   NSMBU_TEST_RSTICK=2-5:1:0,...  right stick
-//   NSMBU_TEST_PRESS=3-3.1:8000    buttons (hex)
-//   NSMBU_TEST_MODE=2@0.5          60 fps mode at 0.5 s (0 off, 1 interpolation, 2 true 60)
-//   NSMBU_TEST_END=12              writes the file "test_done" at 12 s (the test script stops the game)
 namespace {
 struct TimedStick { double from, to; float x, y; };
 struct TimedPress { double from, to; uint32_t bits; };
@@ -417,35 +379,33 @@ struct Scenario {
         if (const char* e = getenv("NSMBU_TEST_END")) end = atof(e);
     }
 };
-}  // namespace
-}  // namespace input
+}
+}
 namespace interp { void set_mode(int m); uint64_t logic_steps(); }
 namespace true60_test { void tick(double t, bool ended); void set_origin_step(uint64_t s); }
 namespace input {
-// NSMBU_TEST_TOUCH=t0-t1:x:y,...: touches the GamePad screen at (x, y) (0..1) during scenario times
+
 static bool g_test_touch = false;
 static float g_test_tx = 0, g_test_ty = 0;
 static void apply_scenario(PadState& s) {
     static Scenario sc;
-    // NSMBU_TEST_ORIGIN_LOAD=n: the scenario starts n logic steps after the last save-state load (a
-    // load completes asynchronously, so a fixed frame can fall a step apart between two runs)
+
     static const char* ol = getenv("NSMBU_TEST_ORIGIN_LOAD");
     uint64_t ol_step = 0;
-    // (the clock is the number of Link's full-pass executes since the load, true60::link_steps: the
-    // pass at which a load lands differs between runs, and the steps after it are the game's)
+
     if (ol) {
         if (!true60::state_loaded()) return;
         static uint64_t found = 0;
         if (!found) {
             int64_t past = (int64_t)true60::link_steps() - (int64_t)strtoull(ol, nullptr, 10);
             if (past < 0) return;
-            found = interp::logic_steps() - (uint64_t)past;  // the logic step at which the count reached it
+            found = interp::logic_steps() - (uint64_t)past;
         }
         ol_step = found;
         sc.origin = 1;
     }
     if (!sc.origin || (!ol && render::frame_count() < sc.origin)) return;
-    // scenario time = game time: full logic steps / 30 (frame-time hitches don't shift the input)
+
     static const uint64_t s0 = [ol_step] {
         if (ol_step) {
             LOG("[test] origin at logic step %llu (load + NSMBU_TEST_ORIGIN_LOAD), logic step %llu", (unsigned long long)ol_step,
@@ -458,7 +418,7 @@ static void apply_scenario(PadState& s) {
         true60_test::set_origin_step(interp::logic_steps());
         return interp::logic_steps();
     }();
-    // (with NSMBU_TEST_ORIGIN_LOAD: the game's own step counter, which the load restores, is the clock)
+
     double t = (double)(interp::logic_steps() - s0) / 30.0;
     static std::atomic<bool> mode_set{false}, ended{false};
     static std::atomic<int> dbg{0};
@@ -467,7 +427,7 @@ static void apply_scenario(PadState& s) {
         LOG("[test] t=%.3f s: 60 fps mode %d", t, sc.mode);
         interp::set_mode(sc.mode);
     }
-    // NSMBU_TEST_MODES=m@t,m@t,...: further mode switches (0 off, 1 interpolation, 2 true 60)
+
     static std::vector<std::pair<double, int>> modes = [] {
         std::vector<std::pair<double, int>> v;
         for (const char* e = getenv("NSMBU_TEST_MODES"); e && *e;) {
@@ -486,7 +446,7 @@ static void apply_scenario(PadState& s) {
             interp::set_mode(m);
             m = -1;
         }
-    true60_test::tick(t, sc.end > 0 && t >= sc.end);  // test aids (true60_test.cpp)
+    true60_test::tick(t, sc.end > 0 && t >= sc.end);
     if (sc.end > 0 && t >= sc.end && !ended.exchange(true)) {
         LOG("[test] t=%.3f s: end", t);
         if (FILE* f = fopen("test_done", "w")) fclose(f);
@@ -524,7 +484,7 @@ PadState read() {
     static const std::vector<KeyPress> keys = scripted_keys();
     static const std::vector<Stick> rsticks = scripted_stick("NSMBU_RSTICK");
     std::lock_guard<std::mutex> lk(g_mu);
-    // debug: NSMBU_NO_HOST_INPUT=1 ignores keyboard and host controllers (scripted test runs)
+
     static const bool no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
     if (!keys.empty()) {
         memset(g_script_keys, 0, sizeof g_script_keys);
@@ -548,14 +508,14 @@ PadState read() {
     s.tx = g_tx;
     s.ty = g_ty;
     if (g_test_touch) s.touch = true, s.tx = g_test_tx, s.ty = g_test_ty;
-    // debug: NSMBU_LOG_BUTTONS=1 logs every change of the merged button bits
+
     static const bool log_buttons = getenv("NSMBU_LOG_BUTTONS") != nullptr;
     static uint32_t last_buttons = 0;
     if (log_buttons && s.buttons != last_buttons) {
         LOG("[input] frame %llu buttons %04X", (unsigned long long)render::frame_count(), s.buttons);
         last_buttons = s.buttons;
     }
-    if (overlay::blocks_input()) s = PadState{};  // the settings overlay has the input
+    if (overlay::blocks_input()) s = PadState{};
     return s;
 }
 
@@ -565,7 +525,7 @@ void prompt_text(const std::u16string& initial, int max_len,
     dispatch_async(dispatch_get_main_queue(), ^{
         {
             std::lock_guard<std::mutex> lk(g_mu);
-            memset(g_keys, 0, sizeof(g_keys));  // keys pressed now belong to the prompt
+            memset(g_keys, 0, sizeof(g_keys));
         }
         NSAlert* alert = [[NSAlert alloc] init];
         alert.messageText = @"Enter text";
@@ -589,4 +549,4 @@ void prompt_text(const std::u16string& initial, int max_len,
     });
 }
 
-}  // namespace input
+}

@@ -15,7 +15,6 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
@@ -81,7 +80,6 @@ def main():
     (out / "result.json").write_text(json.dumps(checks, indent=2) + "\n")
     print(json.dumps(checks))
     raise SystemExit(0 if all(checks.values()) else 1)
-
 
 if __name__ == "__main__":
     main()

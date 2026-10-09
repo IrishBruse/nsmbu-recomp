@@ -1,19 +1,11 @@
-/* Recording taps for the verification harness (tools/verify).
- *
- * A tapped function F runs as an instrumented copy (build/gen/code_tap.c, made by
- * tools/verify/mktap.py): every guest load and store of F's own body and every call it makes
- * are logged. Callees run normally and are not logged. The harness rebuilds F's input
- * (registers + the memory it read) and the effects of each callee as seen by F from the log.
- *
- * File format (little endian, one file per recorded call):
- *   TapHeader, then TapEvent records until type == TAP_END.
- */
+
+
 #pragma once
 #include <stdint.h>
 
 #include "ppc.h"
 
-#define TAP_MAGIC 0x31504154u /* "TAP1" */
+#define TAP_MAGIC 0x31504154u
 
 typedef struct TapRegs {
     uint32_t r[32];
@@ -26,25 +18,24 @@ typedef struct TapRegs {
 typedef struct TapHeader {
     uint32_t magic;
     uint32_t func;
-    uint32_t seq;      /* n-th recorded call of this function */
-    uint32_t frame;    /* g_Counter.mCounter0 at entry (game step) */
+    uint32_t seq;
+    uint32_t frame;
     TapRegs entry;
 } TapHeader;
 
 enum {
-    TAP_READ = 1,  /* F loaded `size` bytes at ea, value (big-endian value as a number) */
-    TAP_WRITE = 2, /* F stored */
-    TAP_CALL = 3,  /* F calls target (regs = state at the call) */
-    TAP_RET = 4,   /* the call returned (regs = state after it) */
-    TAP_END = 5,   /* F returned (regs = state at exit) */
+    TAP_READ = 1,
+    TAP_WRITE = 2,
+    TAP_CALL = 3,
+    TAP_RET = 4,
+    TAP_END = 5,
 };
 
 typedef struct TapEvent {
     uint8_t type, size, kind, pad;
-    uint32_t ea;    /* READ/WRITE: address; CALL: target */
-    uint64_t value; /* READ/WRITE */
+    uint32_t ea;
+    uint64_t value;
 } TapEvent;
-/* TAP_CALL, TAP_RET and TAP_END are followed by a TapRegs */
 
 static inline void tap_regs_from(TapRegs* t, const Cpu* c) {
     for (int i = 0; i < 32; i++) {

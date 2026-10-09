@@ -1,6 +1,5 @@
-// Guest threads run on host pthreads. OS synchronization objects live in guest
-// memory (the game allocates them) and are backed by host objects keyed by
-// their guest address.
+
+
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
@@ -12,7 +11,6 @@
 #ifdef __APPLE__
 #include <pthread/qos.h>
 #endif
-
 
 #include <algorithm>
 #include <array>
@@ -33,7 +31,6 @@
 #include "render_prof.h"
 #include "platform/perf_hint.h"
 
-// ---------------------------------------------------------------- time
 namespace timebase {
 static const auto g_boot = std::chrono::steady_clock::now();
 uint64_t now() {
@@ -45,7 +42,7 @@ uint64_t guest_now() { return now() + (uint64_t)g_guest_offset.load(std::memory_
 uint64_t to_guest(uint64_t host_ticks) { return host_ticks + (uint64_t)g_guest_offset.load(std::memory_order_relaxed); }
 uint64_t to_host(uint64_t guest_ticks) { return guest_ticks - (uint64_t)g_guest_offset.load(std::memory_order_relaxed); }
 void set_guest_now(uint64_t guest_ticks) { g_guest_offset = (int64_t)(guest_ticks - now()); }
-}  // namespace timebase
+}
 
 extern "C" uint64_t ppc_timebase(void) { return timebase::guest_now(); }
 
@@ -53,8 +50,6 @@ static std::chrono::nanoseconds ticks_to_ns(uint64_t t) {
     return std::chrono::nanoseconds((int64_t)((unsigned __int128)t * 1000000000ull / timebase::kTicksPerSec));
 }
 
-// ---------------------------------------------------------------- OSThread
-// Offsets into the guest OSThread structure (see Cemu coreinit_Thread.h)
 namespace osthread {
 constexpr uint32_t kSize = 0x6A0;
 constexpr uint32_t kState = 0x324;
@@ -71,10 +66,10 @@ constexpr uint32_t kSpecific = 0x57C;
 constexpr uint32_t kName = 0x5C0;
 constexpr uint32_t kAffinity = 0x304;
 enum State : uint8_t { NONE = 0, READY = 1, RUNNING = 2, WAITING = 4, MORIBUND = 8 };
-}  // namespace osthread
+}
 
 struct HostThread {
-    uint32_t guest = 0;  // OSThread*
+    uint32_t guest = 0;
     Cpu cpu{};
     std::mutex m;
     std::condition_variable cv;
@@ -83,33 +78,32 @@ struct HostThread {
     bool exited = false;
     uint32_t exit_value = 0;
     uint32_t entry = 0, argc = 0, argv = 0;
-    uint32_t core = 1;  // emulated core this thread is bound to (for OSGetCoreId)
+    uint32_t core = 1;
 #ifdef _WIN32
     HANDLE pt = nullptr;
 #else
     pthread_t pt{};
 #endif
-    // scheduling
-    int prio = 16;            // lower runs first; service threads (alarms, audio) use -1
+
+    int prio = 16;
     bool holds_core = false;
-    uint32_t held_core = 0;   // core actually held (affinity may change while holding)
-    int irq_off = 0;          // OSDisableInterrupts: no preemption
-    std::chrono::steady_clock::time_point ready_since;  // when it started waiting for its core
+    uint32_t held_core = 0;
+    int irq_off = 0;
+    std::chrono::steady_clock::time_point ready_since;
     bool service = false;
-    // statistics
+
     std::chrono::steady_clock::time_point acquired;
     std::atomic<uint64_t> held_ns{0}, wait_ns{0};
 #ifdef __APPLE__
-    mach_port_t mach = 0;     // for CPU time statistics
+    mach_port_t mach = 0;
     uint64_t last_cpu_us = 0;
 #endif
-    // save states: whether the thread is parked at a point where its whole state is its Cpu plus
-    // guest memory plus the HLE objects (see park_wait)
-    std::atomic<int> wst{0};   // kRunning, kParked or kRequester
-    uint8_t wait_kind = 0;     // WaitKind of the park
-    uint32_t wait_obj = 0;     // guest address of the object waited on
-    bool woken = false;        // wakeup token of OSWaitEvent / OSSleepThread (guarded by the object's mutex)
-    // loading a save state: park at this function entry (thread saved there, see try_entry_park)
+
+    std::atomic<int> wst{0};
+    uint8_t wait_kind = 0;
+    uint32_t wait_obj = 0;
+    bool woken = false;
+
     bool has_target = false;
     uint32_t tgt_fn = 0, tgt_r1 = 0, tgt_lr = 0;
     void* host_fp = nullptr;
@@ -117,7 +111,6 @@ struct HostThread {
 enum WaitState { kRunning = 0, kParked = 1, kRequester = 2 };
 enum WaitKind : uint8_t { W_NONE, W_MUTEX, W_EVENT, W_MSG_SEND, W_MSG_RECV, W_SLEEPQ, W_JOIN, W_RDV, W_SLEEP, W_SERVICE, W_ENTRY };
 
-// core from an affinity mask (bit0 = core 0, bit1 = core 1, bit2 = core 2); fallback if none set
 static uint32_t core_from_affinity(uint32_t mask, uint32_t fallback) {
     mask &= 7;
     if (!mask || mask == 7) return fallback;
@@ -126,7 +119,7 @@ static uint32_t core_from_affinity(uint32_t mask, uint32_t fallback) {
 
 bool g_trace_msg = getenv("NSMBU_TRACE_MSG") != nullptr;
 static std::mutex g_threads_mutex;
-static std::unordered_map<uint32_t, HostThread*> g_threads;  // by guest OSThread*
+static std::unordered_map<uint32_t, HostThread*> g_threads;
 static thread_local HostThread* t_self = nullptr;
 static thread_local Cpu* t_cpu = nullptr;
 static uint32_t g_sda_base, g_sda2_base;
@@ -135,12 +128,8 @@ static uint16_t g_next_id = 1;
 namespace threads {
 Cpu* current() { return t_cpu; }
 uint32_t current_thread() { return t_self ? t_self->guest : 0; }
-}  // namespace threads
+}
 
-// ---------------------------------------------------------------- per-core scheduling
-// Each emulated core runs one guest thread at a time; a ready thread with a higher priority than
-// the running one sets g_core_preempt, and the running thread yields at its next function entry.
-// NSMBU_NO_SCHED=1 lets all threads run freely (the old behaviour).
 volatile int g_core_preempt[3];
 static const bool g_sched_on = getenv("NSMBU_NO_SCHED") == nullptr;
 
@@ -148,14 +137,14 @@ struct CoreSched {
     std::mutex m;
     std::condition_variable cv;
     HostThread* owner = nullptr;
-    std::deque<HostThread*> ready;  // FIFO among equal priorities
+    std::deque<HostThread*> ready;
 };
 static CoreSched g_sched[3];
 static threads::SchedulerTick g_tick;
 
-static HostThread* best_ready(CoreSched& k) {  // k.m held
+static HostThread* best_ready(CoreSched& k) {
     HostThread* b = nullptr;
-    for (HostThread* t : k.ready)  // priority, then FIFO
+    for (HostThread* t : k.ready)
         if (!b || t->prio < b->prio) b = t;
     return b;
 }
@@ -217,19 +206,15 @@ static void core_release(HostThread* t) {
     k.cv.notify_all();
 }
 
-// Like Cafe OS (and Cemu): strict priority, and equal-priority threads round-robin every time slice
-// (games busy-wait on other threads of the same core and priority). Lower priorities never preempt.
 static constexpr auto kSlice = std::chrono::microseconds(500);
 
-static bool should_yield(CoreSched& k, HostThread* t) {  // k.m held
+static bool should_yield(CoreSched& k, HostThread* t) {
     HostThread* next = best_ready(k);
     if (!next) return false;
     if (next->prio < t->prio) return true;
     return next->prio == t->prio && std::chrono::steady_clock::now() - t->acquired >= kSlice;
 }
 
-// save states: threads that do not reach an HLE wait (pollers) park at a guest function entry.
-// 0 off, 1 any thread may (saving), 2 only threads at their saved place (loading)
 static std::atomic<int> g_entry_parks{0};
 static void try_entry_park(HostThread* t, Cpu* c);
 namespace threads { static std::string thread_name(HostThread* t); }
@@ -248,11 +233,8 @@ extern "C" void ppc_preempt(Cpu* c) {
     core_acquire(t);
 }
 
-// scheduler tick: requests time-slice / starvation preemption on cores that need it
 namespace threads { void report_sched(); }
 
-// debug: NSMBU_WATCH_MEM=addr|*ptr+off[,...] polls guest words and logs every change together with
-// where each guest thread is (lr), to find who writes a flag
 static void mem_watch_thread() {
     host::set_thread_name("mem watch");
     struct W { bool deref; uint32_t a, off; uint32_t last; bool init = false; };
@@ -299,8 +281,7 @@ static void sched_tick_thread() {
     auto tick_start = std::chrono::steady_clock::now();
     uint64_t tick_cpu = tick_stats ? rprof::thread_cpu_ns() : 0, tick_wakes = 0;
     for (;;) {
-        // Ready contenders still need the original 500 us round-robin cadence even
-        // when no guest deadline exists. New waits/alarms interrupt the idle wait.
+
         if (!g_tick.wait_idle()) std::this_thread::sleep_for(kSlice);
         ++tick_wakes;
         if (tick_stats && std::chrono::steady_clock::now() - tick_start >= std::chrono::seconds(5)) {
@@ -314,11 +295,7 @@ static void sched_tick_thread() {
             next_report += std::chrono::seconds(5);
             threads::report_sched();
         }
-        // Timed waits retain the polling cadence, but cannot require preemption
-        // without a ready contender. Queue insertion accounts for contenders
-        // under the core lock and requests higher-priority preemption directly.
-        // A contender arriving after this check is examined on the next tick,
-        // just as one arriving after its core was scanned in the original loop.
+
         if (!g_tick.has_ready_contender()) continue;
         for (int core = 0; core < 3; core++) {
             CoreSched& k = g_sched[core];
@@ -328,12 +305,11 @@ static void sched_tick_thread() {
     }
 }
 
-// debug: NSMBU_LOG_LONGWAIT=1 reports blocking calls that took longer than 2 s (who waited, from where)
 static const bool g_log_longwait = getenv("NSMBU_LOG_LONGWAIT") != nullptr;
 static thread_local std::chrono::steady_clock::time_point t_block_start;
 
 namespace threads {
-// share of wall time each thread held / waited for its core since the last report
+
 void report_sched() {
     static auto last = std::chrono::steady_clock::now();
     auto now = std::chrono::steady_clock::now();
@@ -345,7 +321,7 @@ void report_sched() {
         uint64_t h = t->held_ns.exchange(0), w = t->wait_ns.exchange(0);
         if (h < span * 0.02 && w < span * 0.02) continue;
         std::string name = mem::read_cstr(ld32(t->guest + osthread::kName));
-        // actual CPU time the host gave this thread (vs. time it held its emulated core)
+
         double cpu = 0;
 #ifdef __APPLE__
         if (t->mach) {
@@ -386,7 +362,7 @@ bool ensure_core() {
 }
 void release_core() { if (t_self) core_release(t_self); }
 void set_service_core(uint32_t core) { if (t_self) t_self->core = t_self->cpu.core = core; }
-}  // namespace threads
+}
 
 static HostThread* host_thread(uint32_t t) {
     std::lock_guard<std::mutex> lk(g_threads_mutex);
@@ -398,11 +374,6 @@ struct GuestExit {
     uint32_t value;
 };
 
-// ---------------------------------------------------------------- save-state freeze
-// A save state is taken (or restored) while every guest thread is parked: blocked in an HLE wait
-// whose outcome is decided only by HLE objects (re-checked after waking), or idle (service threads).
-// A parked thread that wakes while frozen stops at the gate before it consumes anything, so the HLE
-// objects and guest memory fully describe where it will continue.
 static std::mutex g_frz_m;
 static std::condition_variable g_frz_cv;
 static bool g_frozen = false;
@@ -414,8 +385,6 @@ static void park_gate(HostThread* t) {
     t->wst.store(kRunning);
 }
 
-// wait on a host condition with the core given up; `lk` is held on entry and exit. The predicate is
-// re-checked after every wakeup (also after a save state was loaded). False on timeout.
 template <class Pred>
 static bool park_wait(std::unique_lock<std::mutex>& lk, std::condition_variable& cv, Pred pred, uint8_t kind, uint32_t obj,
                       const std::chrono::steady_clock::time_point* deadline = nullptr) {
@@ -444,8 +413,6 @@ static bool park_wait(std::unique_lock<std::mutex>& lk, std::condition_variable&
     return true;
 }
 
-// Return addresses on a host stack: 1 = thread/dispatch glue, >1 = recompiled guest function
-// (its address), 0 = any other host code.
 static std::mutex g_ra_m;
 static std::unordered_map<uintptr_t, uint32_t> g_ra_cache;
 static uint32_t classify_ra(uintptr_t ra) {
@@ -471,9 +438,6 @@ static uint32_t classify_ra(uintptr_t ra) {
     return v;
 }
 
-// Park at the entry of the guest function being entered, if only recompiled guest code is on the
-// host stack (no hook or HLE function with host state of its own): the thread's whole state is then
-// its Cpu, guest memory and the call chain.
 __attribute__((noinline)) static void try_entry_park(HostThread* t, Cpu* c) {
     int mode = g_entry_parks.load();
     if (!mode || t->service || t->irq_off || t->wst.load() != kRunning) return;
@@ -483,8 +447,7 @@ __attribute__((noinline)) static void try_entry_park(HostThread* t, Cpu* c) {
     }
     if (mode == 2 && (!t->has_target || c->r[1] != t->tgt_r1 || c->lr != t->tgt_lr)) return;
 #ifdef _WIN32
-    // Entry parking requires host-frame symbol classification; Windows stack unwinding needs
-    // a dedicated implementation. Ordinary waits remain saveable; never guess a safe frame.
+
     return;
     uintptr_t hi=0,lo=0;
 #elif defined(__APPLE__)
@@ -515,7 +478,7 @@ __attribute__((noinline)) static void try_entry_park(HostThread* t, Cpu* c) {
             }
             return;
         }
-        if (k > 1 && !fn) fn = k;  // innermost guest function: the one being entered
+        if (k > 1 && !fn) fn = k;
         uintptr_t next = ((uintptr_t*)fp)[0];
         if (next <= fp) break;
         fp = next;
@@ -546,11 +509,7 @@ void park_sleep_until(std::chrono::steady_clock::time_point tp, bool precise,
     {
         SchedulerTick::TimedWait timed(g_tick);
         if (precise) {
-            // macOS sleep timers can resume about 1 ms after the requested vsync, so the last part is
-            // spun with the guest core released. The spin window follows the measured lateness: the
-            // largest of the last 120 wakes plus a margin, 0.5..2 ms; a wake past the deadline goes
-            // straight back to 2 ms. (A fixed 2 ms window spun ~1.5 ms per vsync, 15% of Vulkan's CPU.)
-            // NSMBU_VSYNC_SPIN_US=n fixes the window at n microseconds.
+
             using us = std::chrono::microseconds;
             static const long fixedUs = getenv("NSMBU_VSYNC_SPIN_US") ? atol(getenv("NSMBU_VSYNC_SPIN_US")) : -1;
             static thread_local us window{fixedUs >= 0 ? fixedUs : 2000}, peak{0};
@@ -573,21 +532,20 @@ void park_sleep_until(std::chrono::steady_clock::time_point tp, bool precise,
     }
     if (t) park_gate(t);
     if (t) t->host_fp = nullptr;
-    // The freeze gate marks the thread busy before host-only completion work.
-    // Keep its guest core released until that work finishes; never call guest code.
+
     if (before_resume) before_resume();
     block_end();
 }
 void service_begin() {
     if (!t_self) return;
-    park_gate(t_self);  // waits while frozen; marks the thread busy
+    park_gate(t_self);
 }
 void service_end() {
     if (!t_self) return;
     t_self->wait_kind = W_SERVICE;
     t_self->wst.store(kParked);
 }
-}  // namespace threads
+}
 
 static void* thread_main(void* p) {
     HostThread* ht = (HostThread*)p;
@@ -596,16 +554,14 @@ static void* thread_main(void* p) {
     std::string name = mem::read_cstr(ld32(ht->guest + osthread::kName));
     host::set_thread_name(name.empty() ? "guest" : name.c_str());
     {
-        // the game's main thread (the first, unnamed one) builds every frame's GX2 commands
+
         static std::atomic<bool> hinted{false};
         if (name.empty() && !hinted.exchange(true)) perf_hint::add_current_thread();
     }
 #ifdef __APPLE__
     ht->mach = pthread_mach_thread_np(pthread_self());
 #endif
-    // keep guest threads on performance cores (see host::boost_thread_priority): the default QoS
-    // let macOS park them on efficiency cores, which showed up as the main thread holding its core
-    // without getting CPU time
+
     host::boost_thread_priority();
     LOG("[thread] start \"%s\" core %d prio %d affinity %X", name.c_str(), ht->core, (int)ld32(ht->guest + osthread::kBasePrio),
         ld32(ht->guest + osthread::kAffinity));
@@ -639,7 +595,7 @@ static void start_host_thread(HostThread* ht) {
 #else
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, 64 << 20);  // deep guest call chains recurse on the host stack
+    pthread_attr_setstacksize(&attr, 64 << 20);
     pthread_create(&ht->pt, &attr, thread_main, ht);
     pthread_attr_destroy(&attr);
 #endif
@@ -650,7 +606,7 @@ static void init_cpu(Cpu& c, uint32_t stack_top) {
     c.r[1] = (stack_top - 0x20) & ~0xFu;
     c.r[2] = g_sda2_base;
     c.r[13] = g_sda_base;
-    // coreinit defaults for new threads: GQR2-5 quantize as u8, u16, s8, s16; FPSCR.NI set
+
     c.gqr[2] = 0x40004;
     c.gqr[3] = 0x50005;
     c.gqr[4] = 0x60006;
@@ -666,7 +622,7 @@ static HostThread* create_thread(uint32_t t, uint32_t entry, uint32_t argc, uint
     ht->argc = argc;
     ht->argv = argv;
     memset(mem::ptr(t), 0, osthread::kSize);
-    st32(t + 0, 0x4F53436F);  // "OSContxt" tag
+    st32(t + 0, 0x4F53436F);
     st32(t + 4, 0x6E747874);
     st8(t + osthread::kState, osthread::READY);
     st8(t + osthread::kAttr, attr);
@@ -693,7 +649,7 @@ namespace threads {
 void init(const LoadedModule& m) {
     g_sda_base = m.sda_base;
     g_sda2_base = m.sda2_base;
-    // debug: NSMBU_THREAD_DUMP=s logs every guest thread's state (running/parked, wait object, lr) every s seconds
+
     if (const char* e = getenv("NSMBU_THREAD_DUMP")) {
         int s = atoi(e);
         std::thread([s] { thread_dump_loop(s); }).detach();
@@ -704,7 +660,7 @@ void run_main(const LoadedModule& m, int argc, uint32_t argv) {
     uint32_t stack_size = std::max<uint32_t>(m.stack_size, 0x100000);
     uint32_t stack = mem::runtime_alloc(stack_size, 0x100);
     uint32_t t = mem::runtime_alloc(osthread::kSize, 8);
-    HostThread* ht = create_thread(t, m.entry, argc, argv, stack + stack_size, stack_size, 16, 0x2 /* core 1 */);
+    HostThread* ht = create_thread(t, m.entry, argc, argv, stack + stack_size, stack_size, 16, 0x2 );
     mem::write_cstr(mem::runtime_alloc(16), "{ Main thread }", 16);
     ht->suspend = 0;
     ht->started = true;
@@ -717,11 +673,11 @@ void run_main(const LoadedModule& m, int argc, uint32_t argv) {
 }
 
 Cpu* make_service_cpu(const char* name, uint32_t stack_size) {
-    // host-only memory: service threads start at different times in different sessions
+
     uint32_t stack = mem::host_alloc(stack_size, 0x100);
     uint32_t t = mem::host_alloc(osthread::kSize, 8);
     HostThread* ht = create_thread(t, 0, 0, 0, stack + stack_size, stack_size, 0, 0x7);
-    ht->prio = -1;  // interrupt-like: preempts guest threads
+    ht->prio = -1;
     ht->service = true;
     uint32_t nm = mem::host_alloc((uint32_t)strlen(name) + 1);
     mem::write_cstr(nm, name, (uint32_t)strlen(name) + 1);
@@ -730,13 +686,12 @@ Cpu* make_service_cpu(const char* name, uint32_t stack_size) {
     t_cpu = &ht->cpu;
     ht->started = true;
     ht->wait_kind = W_SERVICE;
-    ht->wst.store(kParked);  // idle until service_begin
+    ht->wst.store(kParked);
     host::boost_thread_priority();
     return &ht->cpu;
 }
-}  // namespace threads
+}
 
-// ---------------------------------------------------------------- thread API
 HLE(coreinit, OSCreateThread) {
     uint32_t t = arg(c, 0), entry = arg(c, 1), argc = arg(c, 2), argv = arg(c, 3), stack = arg(c, 4),
              stack_size = arg(c, 5), prio = arg(c, 6), attr = arg(c, 7);
@@ -783,7 +738,7 @@ HLE(coreinit, OSJoinThread) {
 HLE(coreinit, OSGetCurrentThread) { ret(c, threads::current_thread()); }
 HLE(coreinit, OSGetCoreId) { ret(c, t_self ? t_self->core : 1); }
 HLE(coreinit, OSYieldThread) {
-    // let other ready threads of the same (or higher) priority on this core run
+
     BlockingScope b;
     std::this_thread::yield();
 }
@@ -793,7 +748,7 @@ HLE(coreinit, OSSleepTicks) {
 HLE(coreinit, OSSetThreadName) { st32(arg(c, 0) + osthread::kName, arg(c, 1)); }
 HLE(coreinit, OSSetThreadAffinity) {
     st32(arg(c, 0) + osthread::kAffinity, arg(c, 1));
-    if (HostThread* ht = host_thread(arg(c, 0))) ht->core = core_from_affinity(arg(c, 1), ht->core);  // applies at next schedule
+    if (HostThread* ht = host_thread(arg(c, 0))) ht->core = core_from_affinity(arg(c, 1), ht->core);
     ret(c, 1);
 }
 HLE(coreinit, OSGetThreadPriority) { ret(c, ld32(arg(c, 0) + osthread::kBasePrio)); }
@@ -801,7 +756,7 @@ HLE(coreinit, OSSetThreadSpecific) { st32(threads::current_thread() + osthread::
 HLE(coreinit, OSGetThreadSpecific) { ret(c, ld32(threads::current_thread() + osthread::kSpecific + 4 * arg(c, 0))); }
 HLE(coreinit, OSBlockThreadsOnExit) {}
 HLE(coreinit, OSSetExceptionCallback) { ret(c, 0); }
-// interrupts off = no rescheduling on this core
+
 HLE(coreinit, OSDisableInterrupts) {
     int prev = t_self ? (t_self->irq_off ? 0 : 1) : 1;
     if (t_self) t_self->irq_off = 1;
@@ -817,12 +772,10 @@ HLE(coreinit, OSRestoreInterrupts) {
 }
 HLE(coreinit, OSMemoryBarrier) { __atomic_thread_fence(__ATOMIC_SEQ_CST); }
 
-
-// ---------------------------------------------------------------- host objects
 template <typename T>
 struct ObjTable {
     std::mutex m;
-    std::unordered_map<uint32_t, T*> map;  // objects are never deleted (waiters may hold them)
+    std::unordered_map<uint32_t, T*> map;
     T* get(uint32_t addr) {
         std::lock_guard<std::mutex> lk(m);
         T*& p = map[addr];
@@ -837,7 +790,6 @@ struct ObjTable {
     }
 };
 
-// OSMutex: recursive, owned by a thread
 struct HMutex {
     std::mutex m;
     std::condition_variable cv;
@@ -876,8 +828,6 @@ static void mutex_unlock(uint32_t addr) {
     mx->cv.notify_one();
 }
 
-// Init functions reinitialize the host object in place: replacing it would strand threads already
-// waiting on the old one (a waiter can get there first, or an object is re-initialized while in use)
 HLE(coreinit, OSInitMutex) {
     HMutex* mx = g_mutexes.get(arg(c, 0));
     {
@@ -886,17 +836,16 @@ HLE(coreinit, OSInitMutex) {
         mx->count = 0;
     }
     mx->cv.notify_all();
-    st32(arg(c, 0), 0x6D557458);  // "mUtX"
+    st32(arg(c, 0), 0x6D557458);
 }
 HLE(coreinit, OSLockMutex) { mutex_lock(arg(c, 0)); }
 HLE(coreinit, OSTryLockMutex) { ret(c, mutex_trylock(arg(c, 0))); }
 HLE(coreinit, OSUnlockMutex) { mutex_unlock(arg(c, 0)); }
 
-// GHS C library locks
 static uint32_t g_ghs_lock = 0xC0FFEE00;
 HLE(coreinit, __ghsLock) { mutex_lock(g_ghs_lock); }
 HLE(coreinit, __ghsUnlock) { mutex_unlock(g_ghs_lock); }
-HLE(coreinit, __ghs_mtx_init) { /* arg: void** handle */ st32(arg(c, 0), mem::runtime_alloc(8)); }
+HLE(coreinit, __ghs_mtx_init) {  st32(arg(c, 0), mem::runtime_alloc(8)); }
 HLE(coreinit, __ghs_mtx_dst) {}
 HLE(coreinit, __ghs_mtx_lock) { mutex_lock(ld32(arg(c, 0))); }
 HLE(coreinit, __ghs_mtx_unlock) { mutex_unlock(ld32(arg(c, 0))); }
@@ -905,9 +854,6 @@ HLE(coreinit, __ghs_funlock_file) { mutex_unlock(0xC0FFEE10); }
 HLE(coreinit, __ghs_flock_ptr) { ret(c, mem::runtime_alloc(4)); }
 HLE(coreinit, __ghs_flock_destroy) {}
 
-// OSEvent. Like Cafe OS, a signal wakes the threads waiting at that moment (a manual-reset event:
-// all of them; an auto-reset event: one, without becoming signaled); they return even if the event
-// is reset before they run (the game pulses events: signal, then reset at once).
 struct HEvent {
     std::mutex m;
     std::condition_variable cv;
@@ -925,7 +871,7 @@ static bool event_wait(uint32_t addr, const std::chrono::steady_clock::time_poin
         if (ev->auto_reset) ev->signaled = false;
         return true;
     }
-    if (!t) {  // not a guest thread
+    if (!t) {
         bool ok = park_wait(lk, ev->cv, [&] { return ev->signaled; }, W_EVENT, addr, deadline);
         if (ok && ev->auto_reset) ev->signaled = false;
         return ok;
@@ -933,7 +879,7 @@ static bool event_wait(uint32_t addr, const std::chrono::steady_clock::time_poin
     t->woken = false;
     ev->waiters.push_back(t);
     if (park_wait(lk, ev->cv, [&] { return t->woken; }, W_EVENT, addr, deadline)) return true;
-    for (auto it = ev->waiters.begin(); it != ev->waiters.end(); ++it)  // timed out
+    for (auto it = ev->waiters.begin(); it != ev->waiters.end(); ++it)
         if (*it == t) { ev->waiters.erase(it); break; }
     return false;
 }
@@ -945,10 +891,10 @@ HLE(coreinit, OSInitEvent) {
     {
         std::lock_guard<std::mutex> lk(ev->m);
         ev->signaled = arg(c, 1) != 0;
-        ev->auto_reset = arg(c, 2) != 0;  // OS_EVENT_MODE_AUTO = 1
+        ev->auto_reset = arg(c, 2) != 0;
     }
     if (ev->signaled) ev->cv.notify_all();
-    st32(e, 0x65566E54);              // "eVnT"
+    st32(e, 0x65566E54);
 }
 HLE(coreinit, OSSignalEvent) {
     if (g_trace_msg) LOG("[evt] signal %08X lr=%08X thread=%08X", arg(c, 0), c->lr, threads::current_thread());
@@ -981,7 +927,6 @@ HLE(coreinit, OSWaitEventWithTimeout) {
     ret(c, event_wait(arg(c, 0), &deadline));
 }
 
-// OSMessageQueue: messages are 16 bytes
 struct HQueue {
     std::mutex m;
     std::condition_variable cv;
@@ -1000,7 +945,7 @@ HLE(coreinit, OSInitMessageQueue) {
         hq->capacity = arg(c, 2);
     }
     hq->cv.notify_all();
-    st32(q, 0x6D536751);  // "mSgQ"
+    st32(q, 0x6D536751);
 }
 HLE(coreinit, OSSendMessage) {
     HQueue* q = g_queues.get(arg(c, 0));
@@ -1013,7 +958,7 @@ HLE(coreinit, OSSendMessage) {
             if (!(flags & 1)) { ret(c, 0); return; }
             park_wait(lk, q->cv, [&] { return q->msgs.size() < q->capacity; }, W_MSG_SEND, arg(c, 0));
         }
-        if (flags & 2) q->msgs.push_front(msg); else q->msgs.push_back(msg);  // OS_MESSAGE_FLAG_HIGH_PRIORITY
+        if (flags & 2) q->msgs.push_front(msg); else q->msgs.push_back(msg);
     }
     q->cv.notify_all();
     ret(c, 1);
@@ -1037,16 +982,14 @@ HLE(coreinit, OSReceiveMessage) {
     ret(c, 1);
 }
 
-// OSThreadQueue / OSSleepThread: sleepers wait on a condition keyed by the queue; a wakeup sets the
-// token of every thread sleeping at that moment
 struct HSleep {
     std::mutex m;
     std::condition_variable cv;
     std::vector<HostThread*> waiters;
-    uint64_t gen = 0;  // for sleepers that are not guest threads
+    uint64_t gen = 0;
 };
 static ObjTable<HSleep> g_sleepq;
-HLE(coreinit, OSInitThreadQueue) { g_sleepq.get(arg(c, 0)); }  // sleepers (if any) keep waiting for a wakeup
+HLE(coreinit, OSInitThreadQueue) { g_sleepq.get(arg(c, 0)); }
 HLE(coreinit, OSSleepThread) {
     HSleep* q = g_sleepq.get(arg(c, 0));
     std::unique_lock<std::mutex> lk(q->m);
@@ -1071,7 +1014,6 @@ void os_wakeup_thread_queue(uint32_t queue) {
     q->cv.notify_all();
 }
 
-// OSRendezvous
 struct HRendezvous {
     std::mutex m;
     std::condition_variable cv;
@@ -1084,7 +1026,7 @@ HLE(coreinit, OSInitRendezvous) {
     r->arrived = 0;
 }
 HLE(coreinit, OSWaitRendezvous) {
-    // arg1 is a core mask; we treat each set bit as one participant
+
     HRendezvous* r = g_rdv.get(arg(c, 0));
     uint32_t need = __builtin_popcount(arg(c, 1) & 7);
     std::unique_lock<std::mutex> lk(r->m);
@@ -1094,8 +1036,6 @@ HLE(coreinit, OSWaitRendezvous) {
     ret(c, 1);
 }
 
-// ---------------------------------------------------------------- alarms
-// One host thread fires all alarms and runs their guest callbacks.
 struct Alarm {
     uint32_t core;
     uint32_t guest;
@@ -1107,7 +1047,7 @@ struct Alarm {
 static std::mutex g_alarm_mutex;
 static std::condition_variable g_alarm_cv;
 static std::multimap<uint64_t, Alarm> g_alarm_queue;
-static std::unordered_map<uint32_t, uint64_t> g_alarm_serial;  // alarm -> active serial (0 = cancelled)
+static std::unordered_map<uint32_t, uint64_t> g_alarm_serial;
 static uint64_t g_next_serial = 1;
 static bool g_alarm_thread_started = false;
 
@@ -1118,8 +1058,7 @@ static void alarm_thread() {
     for (;;) {
         if (g_alarm_queue.empty()) { g_alarm_cv.wait(lk); continue; }
         auto it = g_alarm_queue.begin();
-        // Cancelled/replaced deadlines are not pending guest waits. Do not keep
-        // the scheduler polling until a stale deadline that can never fire.
+
         if (g_alarm_serial[it->second.guest] != it->second.serial) {
             g_alarm_queue.erase(it);
             continue;
@@ -1130,18 +1069,18 @@ static void alarm_thread() {
             g_alarm_cv.wait_for(lk, ticks_to_ns(it->first - now));
             continue;
         }
-        // busy from here: the alarm queue changes and the callback runs (a save state waits for it)
+
         lk.unlock();
         threads::service_begin();
         lk.lock();
         it = g_alarm_queue.begin();
-        if (it == g_alarm_queue.end() || it->first > timebase::now()) {  // changed meanwhile (save state loaded)
+        if (it == g_alarm_queue.end() || it->first > timebase::now()) {
             threads::service_end();
             continue;
         }
         Alarm a = it->second;
         g_alarm_queue.erase(it);
-        if (g_alarm_serial[a.guest] != a.serial) { threads::service_end(); continue; }  // cancelled or re-armed
+        if (g_alarm_serial[a.guest] != a.serial) { threads::service_end(); continue; }
         if (a.period) {
             a.when += a.period;
             if (a.when < now) a.when = now + a.period;
@@ -1172,10 +1111,9 @@ static void arm_alarm(uint32_t alarm, uint64_t when, uint64_t period, uint32_t c
     g_tick.notify();
 }
 
-// OSAlarm layout (Cemu): +0x04 name, +0x0C callback, +0x10 tag, +0x18 nextFire, +0x28 period, +0x30 tick, +0x38 userData
 HLE(coreinit, OSCreateAlarm) {
     memset(mem::ptr(arg(c, 0)), 0, 0x58);
-    st32(arg(c, 0), 0x614C724D);  // "aLrM"
+    st32(arg(c, 0), 0x614C724D);
 }
 HLE(coreinit, OSSetAlarm) {
     uint32_t alarm = arg(c, 0), cb = c->r[7];
@@ -1204,16 +1142,15 @@ HLE(coreinit, OSCancelAlarm) {
 HLE(coreinit, OSSetAlarmUserData) { st32(arg(c, 0) + 0x38, arg(c, 1)); }
 HLE(coreinit, OSGetAlarmUserData) { ret(c, ld32(arg(c, 0) + 0x38)); }
 
-// ---------------------------------------------------------------- time API
 HLE(coreinit, OSGetTime) { ret64(c, timebase::guest_now()); }
 HLE(coreinit, OSGetSystemTime) { ret64(c, timebase::guest_now()); }
 HLE(coreinit, OSGetTick) { ret(c, (uint32_t)timebase::guest_now()); }
 
 HLE(coreinit, OSTicksToCalendarTime) {
-    // OSCalendarTime: sec, min, hour, mday, mon, year, wday, yday, msec, usec (int32 each)
+
     uint64_t ticks = arg64(c, 3);
     uint32_t out = arg(c, 2);
-    // guest epoch is 2000-01-01; report the host's wall clock instead of time since boot
+
     (void)ticks;
     time_t t = time(nullptr);
     struct tm tmv;
@@ -1227,8 +1164,6 @@ HLE(coreinit, OSTicksToCalendarTime) {
                       (uint32_t)tmv.tm_yday, 0, 0};
     for (int i = 0; i < 10; i++) st32(out + 4 * i, v[i]);
 }
-
-// ---------------------------------------------------------------- save states
 
 namespace threads {
 static std::string thread_name(HostThread* t) {
@@ -1247,13 +1182,13 @@ bool quiesce(int timeout_ms, std::string& busy, int entry_mode, int entry_after_
         g_frz_owner = me;
     }
     if (me) me->wst.store(kRequester);
-    block_begin();  // the other threads on our core can run to their waits
+    block_begin();
     auto start = std::chrono::steady_clock::now();
     auto end = start + std::chrono::milliseconds(timeout_ms);
     for (;;) {
         if (entry_mode && std::chrono::steady_clock::now() - start >= std::chrono::milliseconds(entry_after_ms)) {
             g_entry_parks = entry_mode;
-            for (int k = 0; k < 3; k++) g_core_preempt[k] = 1;  // running threads look at their next function entry
+            for (int k = 0; k < 3; k++) g_core_preempt[k] = 1;
         }
         busy.clear();
         {
@@ -1308,7 +1243,7 @@ void thaw() {
     block_end();
     if (me) me->wst.store(kRunning);
 }
-}  // namespace threads
+}
 
 namespace {
 struct ThreadRec {
@@ -1450,7 +1385,7 @@ uint32_t owner_guest(const void* o, bool& ok) {
     if (!o) return 0;
     for (auto& [g, t] : g_threads)
         if (t == o) return g;
-    ok = false;  // held by a host thread that is not a guest thread
+    ok = false;
     return 0;
 }
 HostThread* owner_host(uint32_t g) {
@@ -1468,9 +1403,8 @@ std::vector<std::pair<uint32_t, T*>> sorted(ObjTable<T>& t) {
     std::sort(v.begin(), v.end(), [](auto& x, auto& y) { return x.first < y.first; });
     return v;
 }
-}  // namespace
+}
 
-// all threads are parked (or this is a check without side effects)
 bool threads_ss_save(ss::Writer& w, std::string& why) {
     std::lock_guard<std::mutex> lk(g_threads_mutex);
     std::vector<ThreadRec> recs;
@@ -1571,7 +1505,6 @@ bool threads_ss_save(ss::Writer& w, std::string& why) {
     return true;
 }
 
-// can the threads of this snapshot be put back into the current process? (all threads parked)
 bool threads_ss_check(ss::Reader r, std::string& why) {
     uint32_t n = r.u32();
     std::vector<ThreadRec> recs(n);
@@ -1635,7 +1568,6 @@ bool threads_ss_check(ss::Reader r, std::string& why) {
     return true;
 }
 
-// put the threads and HLE objects back (all threads parked, guest memory already restored)
 void threads_ss_load(ss::Reader& r) {
     uint32_t n = r.u32();
     std::vector<ThreadRec> recs(n);
@@ -1749,7 +1681,7 @@ void threads_ss_load(ss::Reader& r) {
         std::lock_guard<std::mutex> l(x->m);
         x->arrived = arrived;
     }
-    // alarms; the guest clock continues from the saved time
+
     uint64_t saved_now;
     {
         std::lock_guard<std::mutex> l(g_alarm_mutex);
@@ -1757,7 +1689,7 @@ void threads_ss_load(ss::Reader& r) {
         for (auto& a : alarms) {
             a.core = r.u32();
             a.guest = r.u32();
-            a.when = r.u64();  // guest time (converted below)
+            a.when = r.u64();
             a.period = r.u64();
             a.callback = r.u32();
             a.serial = r.u64();
@@ -1783,7 +1715,7 @@ void threads_ss_load(ss::Reader& r) {
     }
     g_alarm_cv.notify_all();
     g_tick.notify();
-    // parked threads re-check their conditions against the restored objects
+
     auto wake = [](auto& table) {
         std::lock_guard<std::mutex> lk(table.m);
         for (auto& [a, o] : table.map)
@@ -1824,7 +1756,6 @@ static void thread_dump_loop(int secs) {
     }
 }
 
-// loading: threads saved at a function entry park when they get there again
 void threads_ss_targets(ss::Reader r) {
     uint32_t n = r.u32();
     std::lock_guard<std::mutex> lk(g_threads_mutex);

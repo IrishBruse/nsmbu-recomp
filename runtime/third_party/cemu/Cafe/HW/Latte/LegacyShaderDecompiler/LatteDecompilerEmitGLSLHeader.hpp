@@ -9,7 +9,7 @@ namespace LatteDecompilerGLSL
 
 		if (rendererType == RendererAPI::Vulkan)
 		{
-			// for Vulkan uniform vars are in a uniform buffer
+
 			if (decompilerContext->hasUniformVarBlock)
 			{
 				cemu_assert_debug(resourceMapping.uniformVarsBufferBindingPoint >= 0);
@@ -23,8 +23,7 @@ namespace LatteDecompilerGLSL
 		auto shaderSrc = decompilerContext->shaderSource;
 		if (decompilerContext->shader->uniformMode == LATTE_DECOMPILER_UNIFORM_MODE_REMAPPED)
 		{
-			// uniform registers or buffers are accessed statically with predictable offsets
-			// this allows us to remap the used entries into a more compact array
+
 			if (shaderType == LatteConst::ShaderType::Vertex)
 				shaderSrc->addFmt("uniform ivec4 uf_remappedVS[{}];" _CRLF, (sint32)shader->list_remappedUniformEntries.size());
 			else if (shaderType == LatteConst::ShaderType::Pixel)
@@ -39,7 +38,7 @@ namespace LatteDecompilerGLSL
 		else if (decompilerContext->shader->uniformMode == LATTE_DECOMPILER_UNIFORM_MODE_FULL_CFILE)
 		{
 			uint32 cfileSize = decompilerContext->analyzer.uniformRegisterAccessTracker.DetermineSize(decompilerContext->shaderBaseHash, 256);
-			// full or partial uniform register file has to be present
+
 			if (shaderType == LatteConst::ShaderType::Vertex)
 				shaderSrc->addFmt("uniform ivec4 uf_uniformRegisterVS[{}];" _CRLF, cfileSize);
 			else if (shaderType == LatteConst::ShaderType::Pixel)
@@ -50,7 +49,7 @@ namespace LatteDecompilerGLSL
 			uniformOffsets.count_uniformRegister = cfileSize;
 			uniformCurrentOffset += 16 * cfileSize;
 		}
-		// special uniforms
+
 		bool hasAnyViewportScaleDisabled =
 			!decompilerContext->contextRegistersNew->PA_CL_VTE_CNTL.get_VPORT_X_SCALE_ENA() ||
 			!decompilerContext->contextRegistersNew->PA_CL_VTE_CNTL.get_VPORT_Y_SCALE_ENA() ||
@@ -58,7 +57,7 @@ namespace LatteDecompilerGLSL
 
 		if (decompilerContext->shaderType == LatteConst::ShaderType::Vertex && hasAnyViewportScaleDisabled)
 		{
-			// aka GX2 special state 0
+
 			uniformCurrentOffset = (uniformCurrentOffset + 7)&~7;
 			shaderSrc->add("uniform vec2 uf_windowSpaceToClipSpaceTransform;" _CRLF);
 			uniformOffsets.offset_windowSpaceToClipSpaceTransform = uniformCurrentOffset;
@@ -83,13 +82,13 @@ namespace LatteDecompilerGLSL
 				uniformCurrentOffset += 4;
 			}
 		}
-		// define uf_fragCoordScale which holds the xy scale for render target resolution vs effective resolution
-		bool compatNeedFragCoordScalePadding = false; // 2026-06-15 - uf_fragCoordScale is only emitted when accessed now. To keep compatible with old shader replacements we insert padding if its not the last element
+
+		bool compatNeedFragCoordScalePadding = false;
 		if (shader->shaderType == LatteConst::ShaderType::Pixel)
 		{
 			if (!decompilerContext->analyzer.hasFragCoordAccess)
 			{
-				// omit uf_fragCoordScale
+
 				compatNeedFragCoordScalePadding = true;
 			}
 			else if (rendererType == RendererAPI::OpenGL)
@@ -101,14 +100,14 @@ namespace LatteDecompilerGLSL
 			}
 			else
 			{
-				// in Vulkan uf_fragCoordScale stores the origin in zw
+
 				uniformCurrentOffset = (uniformCurrentOffset + 15)&~15;
 				shaderSrc->add("uniform vec4 uf_fragCoordScale;" _CRLF);
 				uniformOffsets.offset_fragCoordScale = uniformCurrentOffset;
 				uniformCurrentOffset += 16;
 			}
 		}
-		// provide scale factor for every texture that is accessed via texel coordinates (texelFetch)
+
 		for (sint32 t = 0; t < LATTE_NUM_MAX_TEX_UNITS; t++)
 		{
 			if (decompilerContext->analyzer.texUnitUsesTexelCoordinates.test(t) == false)
@@ -132,12 +131,12 @@ namespace LatteDecompilerGLSL
 			uniformOffsets.offset_texScale[t] = uniformCurrentOffset;
 			uniformCurrentOffset += 8;
 		}
-		// define uf_verticesPerInstance + uf_streamoutBufferBaseX
+
 		if (decompilerContext->analyzer.useSSBOForStreamout &&
 			(shader->shaderType == LatteConst::ShaderType::Vertex && decompilerContext->options->usesGeometryShader == false) ||
 			(shader->shaderType == LatteConst::ShaderType::Geometry) )
 		{
-			// note - we dont need to handle compatNeedFragCoordScalePadding here because it's pixel shader only
+
 			shaderSrc->add("uniform int uf_verticesPerInstance;" _CRLF);
 			uniformOffsets.offset_verticesPerInstance = uniformCurrentOffset;
 			uniformCurrentOffset += 4;
@@ -156,14 +155,14 @@ namespace LatteDecompilerGLSL
 		if (rendererType == RendererAPI::Vulkan)
 		{
 			if (decompilerContext->hasUniformVarBlock)
-				shaderSrc->add("};" _CRLF); // end of push-constant block
+				shaderSrc->add("};" _CRLF);
 		}
 	}
 
 	void _emitUniformBuffers(LatteDecompilerShaderContext* decompilerContext)
 	{
 		auto shaderSrc = decompilerContext->shaderSource;
-		// uniform buffer definition
+
 		if (decompilerContext->shader->uniformMode == LATTE_DECOMPILER_UNIFORM_MODE_FULL_CBANK)
 		{
 			for (uint32 i = 0; i < LATTE_NUM_MAX_UNIFORM_BUFFERS; i++)
@@ -185,15 +184,15 @@ namespace LatteDecompilerGLSL
 		}
 		else if (decompilerContext->shader->uniformMode == LATTE_DECOMPILER_UNIFORM_MODE_REMAPPED)
 		{
-			// already generated in _emitUniformVariables
+
 		}
 		else if (decompilerContext->shader->uniformMode == LATTE_DECOMPILER_UNIFORM_MODE_FULL_CFILE)
 		{
-			// already generated in _emitUniformVariables
+
 		}
 		else if (decompilerContext->shader->uniformMode == LATTE_DECOMPILER_UNIFORM_MODE_NONE)
 		{
-			// no uniforms used
+
 		}
 		else
 		{
@@ -204,7 +203,7 @@ namespace LatteDecompilerGLSL
 	void _emitTextureDefinitions(LatteDecompilerShaderContext* shaderContext)
 	{
 		auto src = shaderContext->shaderSource;
-		// texture sampler definition
+
 		for (sint32 i = 0; i < LATTE_NUM_MAX_TEX_UNITS; i++)
 		{
 			if (!shaderContext->output->textureUnitMask[i])
@@ -215,7 +214,7 @@ namespace LatteDecompilerGLSL
 			src->add("uniform ");
 			if (shaderContext->shader->textureIsIntegerFormat[i])
 			{
-				// integer samplers
+
 				if (shaderContext->shader->textureUnitDim[i] == Latte::E_DIM::DIM_1D)
 					src->add("usampler1D");
 				else if (shaderContext->shader->textureUnitDim[i] == Latte::E_DIM::DIM_2D || shaderContext->shader->textureUnitDim[i] == Latte::E_DIM::DIM_2D_MSAA)
@@ -243,10 +242,10 @@ namespace LatteDecompilerGLSL
 				cemu_assert_unimplemented();
 			}
 			if (shaderContext->shader->textureUsesDepthCompare[i])
-				src->add("Shadow"); // shadow sampler
+				src->add("Shadow");
 
 			src->addFmt(" {}{};", _getTextureUnitVariablePrefixName(shaderContext->shaderType), i);
-			
+
 			src->add(_CRLF);
 		}
 	}
@@ -256,7 +255,7 @@ namespace LatteDecompilerGLSL
 		auto shaderSrc = decompilerContext->shaderSource;
 		if (decompilerContext->shader->shaderType == LatteConst::ShaderType::Vertex)
 		{
-			// attribute inputs
+
 			for (uint32 i = 0; i < LATTE_NUM_MAX_ATTRIBUTE_LOCATIONS; i++)
 			{
 				if (decompilerContext->analyzer.inputAttributSemanticMask[i])
@@ -274,9 +273,9 @@ namespace LatteDecompilerGLSL
 	void _emitHeaderMacros(LatteDecompilerShaderContext* decompilerContext)
 	{
 		auto src = decompilerContext->shaderSource;
-		// OpenGL/Vulkan ifdefs
+
 		src->add("#ifdef VULKAN" _CRLF);
-		// Vulkan defines
+
 		src->add("#define ATTR_LAYOUT(__location) layout(location = __location)" _CRLF);
 		src->add("#define UNIFORM_BUFFER_LAYOUT(__glLocation, __vkSet, __vkLocation) layout(set = __vkSet, binding = __vkLocation, std140)" _CRLF);
 		src->add("#define TEXTURE_LAYOUT(__glLocation, __vkSet, __vkLocation) layout(set = __vkSet, binding = __vkLocation)" _CRLF);
@@ -314,7 +313,7 @@ namespace LatteDecompilerGLSL
 			src->add("spirv_execution_mode(capabilities = [4467], extensions = [\"SPV_KHR_float_controls\"], 4462, 64);" _CRLF);
 		}
 		src->add("#else" _CRLF);
-		// OpenGL defines
+
 		src->add("#define ATTR_LAYOUT(__location) layout(location = __location)" _CRLF);
 		src->add("#define UNIFORM_BUFFER_LAYOUT(__glLocation, __vkSet, __vkLocation) layout(binding = __glLocation, std140) " _CRLF);
 		src->add("#define TEXTURE_LAYOUT(__glLocation, __vkSet, __vkLocation) layout(binding = __glLocation)" _CRLF);
@@ -333,7 +332,6 @@ namespace LatteDecompilerGLSL
 		}
 		src->add("#endif" _CRLF);
 
-		// geometry shader input/output primitive info
 		if (decompilerContext->shaderType == LatteConst::ShaderType::Geometry)
 		{
 			auto drawPrimitiveMode = decompilerContext->contextRegistersNew->VGT_PRIMITIVE_TYPE.get_PRIMITIVE_MODE();
@@ -349,12 +347,12 @@ namespace LatteDecompilerGLSL
 				debug_printf("drawPrimitiveMode %d\n", drawPrimitiveMode);
 				cemu_assert_debug(false);
 			}
-			// note: The input primitive type is not stored with the geometry shader object (and registers). Therefore we have to rely on whatever primitive mode was set for the draw call.
+
 			src->addFmt("layout({}) in;" _CRLF, gsInputPrimitive);
 
 			uint32 gsOutPrimType = decompilerContext->contextRegisters[mmVGT_GS_OUT_PRIM_TYPE];
 			uint32 bytesPerVertex = decompilerContext->contextRegisters[mmSQ_GS_VERT_ITEMSIZE] * 4;
-			
+
 			uint32 maxVerticesInGS = ((decompilerContext->contextRegisters[mmSQ_GSVS_RING_ITEMSIZE] & 0x7FFF) * 4) / bytesPerVertex;
 
 			if (!decompilerContext->analyzer.hasLoops && decompilerContext->analyzer.numEmitVertex < maxVerticesInGS)
@@ -387,7 +385,7 @@ namespace LatteDecompilerGLSL
 			uint32 vsSemanticId = _getVertexShaderOutParamSemanticId(shaderContext->contextRegisters, i);
 			if (vsSemanticId > LATTE_ANALYZER_IMPORT_INDEX_PARAM_MAX)
 				continue;
-			// get import based on semanticId
+
 			sint32 psInputIndex = -1;
 			for (sint32 f = 0; f < psInputTable->count; f++)
 			{
@@ -398,7 +396,7 @@ namespace LatteDecompilerGLSL
 				}
 			}
 			if (psInputIndex == -1)
-				continue; // no ps input
+				continue;
 
 			src->addFmt("layout(location = {}) ", psInputIndex);
 			if (psInputTable->import[psInputIndex].isFlat)
@@ -421,8 +419,7 @@ namespace LatteDecompilerGLSL
 			const auto* options = shaderContext->options;
 			if (options && options->linkPSInputsToVS && !options->vsOutputSemantics.test(psInputTable->import[i].semanticId))
 			{
-				// WWHD: no vertex shader output for this input (LatteDecompilerOptions::linkPSInputsToVS):
-				// the value the GPU gives such an input, SPI_PS_INPUT_CNTL DEFAULT_VAL (LattePSInputDefault.h)
+
 				src->addFmt("const vec4 passParameterSem{} = {};" _CRLF, psInputTable->import[i].semanticId,
 					LattePSInputDefaultGLSL(shaderContext->contextRegisters[mmSPI_PS_INPUT_CNTL_0 + i]));
 				continue;
@@ -440,7 +437,7 @@ namespace LatteDecompilerGLSL
 	void _emitMisc(LatteDecompilerShaderContext* decompilerContext)
 	{
 		auto src = decompilerContext->shaderSource;
-		// per-vertex output (VS or GS)
+
 		if ((decompilerContext->shaderType == LatteConst::ShaderType::Vertex && !decompilerContext->options->usesGeometryShader) ||
 			(decompilerContext->shaderType == LatteConst::ShaderType::Geometry))
 		{
@@ -451,7 +448,7 @@ namespace LatteDecompilerGLSL
 				src->add("	float gl_PointSize;" _CRLF);
 			src->add("};" _CRLF);
 		}
-		// varyings (variables passed from vertex to pixel shader, only if geometry stage is disabled
+
 		if (decompilerContext->options->usesGeometryShader == false)
 		{
 			if (decompilerContext->shaderType == LatteConst::ShaderType::Vertex)
@@ -467,7 +464,7 @@ namespace LatteDecompilerGLSL
 		{
 			if (decompilerContext->shaderType == LatteConst::ShaderType::Vertex || decompilerContext->shaderType == LatteConst::ShaderType::Geometry)
 			{
-				// parameters shared between vertex shader and geometry shader
+
 				src->add("V2G_LAYOUT ");
 
 				if (decompilerContext->shaderType == LatteConst::ShaderType::Vertex)
@@ -493,7 +490,7 @@ namespace LatteDecompilerGLSL
 			}
 			if (decompilerContext->shaderType == LatteConst::ShaderType::Geometry)
 			{
-				// parameters shared between geometry and pixel shader
+
 				uint32 ringItemSize = decompilerContext->contextRegisters[mmSQ_GSVS_RING_ITEMSIZE] & 0x7FFF;
 				if ((ringItemSize & 0xF) != 0)
 					debugBreakpoint();
@@ -509,13 +506,13 @@ namespace LatteDecompilerGLSL
 			}
 			else if (decompilerContext->shaderType == LatteConst::ShaderType::Pixel)
 			{
-				// pixel shader with geometry shader
+
 				LatteShaderPSInputTable* psInputTable = LatteSHRC_GetPSInputTable();
 				for (sint32 i = 0; i < psInputTable->count; i++)
 				{
 					if (psInputTable->import[i].semanticId > LATTE_ANALYZER_IMPORT_INDEX_PARAM_MAX)
 						continue;
-					uint32 location = psInputTable->import[i].semanticId & 0x7F; // todo - the range above 128 has special meaning?
+					uint32 location = psInputTable->import[i].semanticId & 0x7F;
 
 					src->addFmt("layout(location = {}) ", location);
 					if (psInputTable->import[i].isFlat)
@@ -533,10 +530,10 @@ namespace LatteDecompilerGLSL
 				}
 			}
 		}
-		// output defines
+
 		if (decompilerContext->shaderType == LatteConst::ShaderType::Pixel)
 		{
-			// generate pixel outputs for pixel shader
+
 			for (uint32 i = 0; i < LATTE_NUM_COLOR_TARGET; i++)
 			{
 				if ((decompilerContext->shader->pixelColorOutputMask&(1 << i)) != 0)
@@ -545,7 +542,7 @@ namespace LatteDecompilerGLSL
 				}
 			}
 		}
-		// streamout buffer (transform feedback)
+
 		if ((decompilerContext->shaderType == LatteConst::ShaderType::Vertex || decompilerContext->shaderType == LatteConst::ShaderType::Geometry) && decompilerContext->analyzer.hasStreamoutEnable)
 		{
 			if (decompilerContext->options->useTFViaSSBO)
@@ -560,7 +557,7 @@ namespace LatteDecompilerGLSL
 			}
 			else
 			{
-				sint32 locationOffset = 0; // glslang wants a location for xfb outputs
+				sint32 locationOffset = 0;
 				for (uint32 i = 0; i < LATTE_NUM_STREAMOUT_BUFFER; i++)
 				{
 					if (!decompilerContext->output->streamoutBufferWriteMask[i])
@@ -581,21 +578,21 @@ namespace LatteDecompilerGLSL
 		const bool dump_shaders_enabled = ActiveSettings::DumpShadersEnabled();
 		if(dump_shaders_enabled)
 			decompilerContext->shaderSource->add("// start of shader inputs/outputs, predetermined by Cemu. Do not touch" _CRLF);
-		// macros
+
 		_emitHeaderMacros(decompilerContext);
-		// uniform variables
+
 		decompilerContext->shaderSource->add("#ifdef VULKAN" _CRLF);
 		_emitUniformVariables(decompilerContext, RendererAPI::Vulkan, decompilerContext->output->uniformOffsetsVK);
 		decompilerContext->shaderSource->add("#else" _CRLF);
 		_emitUniformVariables(decompilerContext, RendererAPI::OpenGL, decompilerContext->output->uniformOffsetsGL);
 		decompilerContext->shaderSource->add("#endif" _CRLF);
-		// uniform buffers
+
 		_emitUniformBuffers(decompilerContext);
-		// textures
+
 		_emitTextureDefinitions(decompilerContext);
-		// attributes
+
 		_emitAttributes(decompilerContext);
-		// misc stuff
+
 		_emitMisc(decompilerContext);
 
 		if (dump_shaders_enabled)

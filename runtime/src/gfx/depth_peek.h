@@ -14,4 +14,4 @@ inline int pixel(uint32_t coordinate, uint32_t extent, uint32_t guestExtent) {
 }
 uint64_t next_ticket();
 void publish(uint64_t ticket, const std::vector<uint32_t>& destinations, const std::vector<uint32_t>& depths);
-} // namespace gfx::depth_peek
+}

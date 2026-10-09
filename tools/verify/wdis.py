@@ -10,22 +10,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, HERE)
-from ppcdis import dis  # noqa: E402
-from rpx import Rpx  # noqa: E402
-from funcdb import GenIndex, load_names  # noqa: E402
+from ppcdis import dis
+from rpx import Rpx
+from funcdb import GenIndex, load_names
 
 gen = GenIndex(os.path.join(ROOT, "build", "gen"))
 names, gc = load_names(os.path.join(ROOT, "build"))
 rpx = Rpx(os.path.join(ROOT, "game", "code", "red-pro2.rpx"))
 secs = [s for s in rpx.sections if s.name in (".rodata", ".data") and s.data]
 
-
 def word(a):
     for s in secs:
         if s.addr <= a < s.addr + len(s.data) - 3:
             return struct.unpack(">I", s.data[a - s.addr:a - s.addr + 4])[0]
     return None
-
 
 for arg in sys.argv[1:]:
     a = int(arg, 16)

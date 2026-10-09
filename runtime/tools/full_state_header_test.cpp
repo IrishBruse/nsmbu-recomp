@@ -11,7 +11,7 @@ int main() {
         FILE* file = tmpfile();
         assert(file);
         assert(fwrite(&h, h.header_size, 1, file) == 1);
-        fputc(0x42, file); // payload must start at exactly the old/new header end
+        fputc(0x42, file);
         rewind(file);
         ss::FullStateHeader loaded{};
         std::string why;
@@ -19,7 +19,7 @@ int main() {
         if (legacy || mode <= 2) {
             assert(loaded.controller == (legacy ? 0 : mode));
             assert(fgetc(file) == 0x42);
-            bool pro = true; // save in Pro, then switch to GamePad, load
+            bool pro = true;
             pro = false;
             pro = ss::restored_pro_controller(loaded.controller, pro);
             assert(pro == (!legacy && mode == 2));

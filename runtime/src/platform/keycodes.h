@@ -1,5 +1,5 @@
 #pragma once
-// Stable physical key IDs used in controls.json; identical across host platforms.
+
 #ifdef __APPLE__
 #include <Carbon/Carbon.h>
 #else

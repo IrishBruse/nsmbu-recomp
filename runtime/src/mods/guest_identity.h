@@ -1,4 +1,4 @@
-// Save-state mod identity metadata contains declarations only, never code or mod memory.
+
 #pragma once
 #include <algorithm>
 #include <string>
@@ -19,4 +19,4 @@ inline bool different_mods(std::vector<ModIdentity> a,std::vector<ModIdentity> b
     std::sort(a.begin(),a.end(),less);std::sort(b.begin(),b.end(),less);return a!=b;
 }
 inline constexpr const char* kModWarning="Warning: guest mod set differs from this state; behavior may differ.";
-} // namespace guestmods
+}

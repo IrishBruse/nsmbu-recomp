@@ -43,7 +43,7 @@ void environment(std::ostringstream& out) {
         if (!line.starts_with("NSMBU_")) continue;
         auto equal = line.find('=');
         auto key = line.substr(0, equal);
-        // Settings are useful; key/token material must never enter a crash artifact.
+
         if (key.find("KEY") != key.npos || key.find("TOKEN") != key.npos || key.find("SECRET") != key.npos || key.find("PASSWORD") != key.npos)
             out << key << "=<redacted>\n";
         else {
@@ -75,7 +75,7 @@ void refresh() {
 }
 void redact(int fd, std::string_view text, Output out) { redactor.write(fd, text, out); }
 void note(int fd, Output out) {
-    // Atomic bytes avoid a data race; no retry/spin if a crash interrupts the publisher.
+
     char text[capacity];
     auto before = revision.load(std::memory_order_seq_cst);
     if (before & 1) { out(fd, "\ncrash context: update interrupted\n", 34); return; }

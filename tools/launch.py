@@ -16,14 +16,12 @@ LAUNCH_DEBUG_ENV = {
     "NSMBU_CRASH_RECOVERY": "1",
 }
 
-
 def nsmbu_exe():
     for name in ("nsmbu", "nsmbu.exe"):
         path = os.path.join(BUILD, name)
         if os.path.isfile(path):
             return path
     return os.path.join(BUILD, "nsmbu")
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -61,7 +59,6 @@ def main():
             sys.exit("lldb not found on PATH")
         raise SystemExit(subprocess.run([lldb, "--", *cmd], env=env).returncode)
     os.execve(exe, cmd, env)
-
 
 if __name__ == "__main__":
     main()

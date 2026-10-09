@@ -1,5 +1,4 @@
 #pragma once
-// todo - this file is superseded by LatteReg.h
 
 #include "Cafe/HW/Latte/ISA/LatteReg.h"
 
@@ -293,10 +292,10 @@
 #define mmCB_SHADER_MASK                                0xA08F
 #define mmCB_SHADER_CONTROL                             0xA1E8
 
-#define mmSQ_VTX_BASE_VTX_LOC                           0xF3FC // baseVertex
-#define mmSQ_VTX_START_INST_LOC                         0xF3FD // baseInstance
+#define mmSQ_VTX_BASE_VTX_LOC                           0xF3FC
+#define mmSQ_VTX_START_INST_LOC                         0xF3FD
 
-#define mmSQ_CONFIG										0x2300 // used by GX2SetShaderModeEx
+#define mmSQ_CONFIG										0x2300
 #define mmSQ_GPR_RESOURCE_MGMT_1						0x2301
 #define mmSQ_THREAD_RESOURCE_MGMT						0x2303
 #define mmSQ_STACK_RESOURCE_MGMT_1						0x2304
@@ -310,20 +309,19 @@
 #define mmSQ_GSTMP_RING_BASE							0x2316
 #define mmSQ_GSTMP_RING_SIZE							0x2317
 
-
 #define mmSQ_TEX_RESOURCE_WORD0							0xE000
 #define mmSQ_ALU_CONSTANT0_0							0xC000
 
 #define mmSQ_VTX_ATTRIBUTE_BLOCK_START					(mmSQ_TEX_RESOURCE_WORD0+0x8C0)
 #define mmSQ_VTX_ATTRIBUTE_BLOCK_END					(mmSQ_VTX_ATTRIBUTE_BLOCK_START + 7*16)
 
-#define mmSQ_VTX_UNIFORM_BLOCK_START					(mmSQ_TEX_RESOURCE_WORD0+0x7E0) // 7 dwords for each uniform block
+#define mmSQ_VTX_UNIFORM_BLOCK_START					(mmSQ_TEX_RESOURCE_WORD0+0x7E0)
 #define mmSQ_VTX_UNIFORM_BLOCK_END						(mmSQ_VTX_UNIFORM_BLOCK_START + 7*16 - 1)
 
-#define mmSQ_PS_UNIFORM_BLOCK_START						(mmSQ_TEX_RESOURCE_WORD0+0x250) // 7 dwords for each uniform block
+#define mmSQ_PS_UNIFORM_BLOCK_START						(mmSQ_TEX_RESOURCE_WORD0+0x250)
 #define mmSQ_PS_UNIFORM_BLOCK_END						(mmSQ_PS_UNIFORM_BLOCK_START + 7*16 - 1)
 
-#define mmSQ_GS_UNIFORM_BLOCK_START						(mmSQ_TEX_RESOURCE_WORD0+0xCB0) // 7 dwords for each uniform block
+#define mmSQ_GS_UNIFORM_BLOCK_START						(mmSQ_TEX_RESOURCE_WORD0+0xCB0)
 #define mmSQ_GS_UNIFORM_BLOCK_END						(mmSQ_GS_UNIFORM_BLOCK_START + 7*16 - 1)
 
 #define mmSQ_CS_DISPATCH_PARAMS							(mmSQ_TEX_RESOURCE_WORD0+0x865)

@@ -29,7 +29,7 @@ struct Redactor {
             std::string_view replacement, rest = text.substr(i);
             size_t skip = 0;
             if (!own_home.empty() && prefix(rest, own_home, windows, windows)) {
-                // A longer account name (alice2 versus alice) must use the generic home rule.
+
                 const size_t end = own_home.size();
                 if (end == rest.size() || separator(rest[end]) || rest[end] == ' ' || rest[end] == '\n' ||
                     rest[end] == '\r' || rest[end] == '\t' || rest[end] == '"' || rest[end] == '\'' ||
@@ -45,7 +45,7 @@ struct Redactor {
                          prefix(rest.substr(2), "/Users/", true, true)) begin = 9;
                 if (begin) {
                     skip = begin;
-                    // Spaces belong to account names too; prefer over-redaction for an unquoted root path.
+
                     while (skip < rest.size() && !separator(rest[skip]) && rest[skip] != '\n' &&
                            rest[skip] != '\r' && rest[skip] != '\t' && rest[skip] != '"' && rest[skip] != '\'') ++skip;
                     replacement = "~";

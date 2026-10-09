@@ -1,6 +1,4 @@
-# A basic mkdocstrings handler for {fmt}.
-# Copyright (c) 2012 - present, Victor Zverovich
-# https://github.com/fmtlib/fmt/blob/master/LICENSE
+
 
 import os
 import xml.etree.ElementTree as ElementTree
@@ -9,7 +7,6 @@ from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 from typing import Any, List, Mapping, Optional
 
 from mkdocstrings.handlers.base import BaseHandler
-
 
 class Definition:
     """A definition extracted by Doxygen."""
@@ -27,8 +24,6 @@ class Definition:
         self.trailing_return_type = None
         self.type = None
 
-
-# A map from Doxygen to HTML tags.
 tag_map = {
     'bold': 'b',
     'emphasis': 'em',
@@ -38,17 +33,14 @@ tag_map = {
     'verbatim': 'pre'
 }
 
-# A map from Doxygen tags to text.
 tag_text_map = {
     'codeline': '',
     'highlight': '',
     'sp': ' '
 }
 
-
 def escape_html(s: str) -> str:
     return s.replace("<", "&lt;")
-
 
 def doxyxml2html(nodes: List[ElementTree.Element]):
     out = ''
@@ -67,7 +59,6 @@ def doxyxml2html(nodes: List[ElementTree.Element]):
             out += n.tail
     return out
 
-
 def convert_template_params(node: ElementTree.Element) -> Optional[List[Definition]]:
     template_param_list = node.find('templateparamlist')
     if template_param_list is None:
@@ -80,16 +71,13 @@ def convert_template_params(node: ElementTree.Element) -> Optional[List[Definiti
         params.append(param)
     return params
 
-
 def get_description(node: ElementTree.Element) -> List[ElementTree.Element]:
-    return node.findall('briefdescription/para') + \
+    return node.findall('briefdescription/para') +\
         node.findall('detaileddescription/para')
-
 
 def normalize_type(type_: str) -> str:
     type_ = type_.replace('< ', '<').replace(' >', '>')
     return type_.replace(' &', '&').replace(' *', '*')
-
 
 def convert_type(type_: ElementTree.Element) -> Optional[str]:
     if type_ is None:
@@ -102,7 +90,6 @@ def convert_type(type_: ElementTree.Element) -> Optional[str]:
     result += type_.tail.strip()
     return normalize_type(result)
 
-
 def convert_params(func: ElementTree.Element) -> List[Definition]:
     params = []
     for p in func.findall('param'):
@@ -111,7 +98,6 @@ def convert_params(func: ElementTree.Element) -> List[Definition]:
         params.append(d)
     return params
 
-
 def convert_return_type(d: Definition, node: ElementTree.Element) -> None:
     d.trailing_return_type = None
     if d.type == 'auto' or d.type == 'constexpr auto':
@@ -119,10 +105,8 @@ def convert_return_type(d: Definition, node: ElementTree.Element) -> None:
         if len(parts) > 1:
             d.trailing_return_type = normalize_type(parts[1])
 
-
 def render_param(param: Definition) -> str:
     return param.type + (f'&nbsp;{param.name}' if len(param.name) > 0 else '')
-
 
 def render_decl(d: Definition) -> str:
     text = ''
@@ -165,7 +149,6 @@ def render_decl(d: Definition) -> str:
         text += f'</a>\n'
     return text
 
-
 class CxxHandler(BaseHandler):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(handler='cxx', **kwargs)
@@ -175,7 +158,6 @@ class CxxHandler(BaseHandler):
             'os.h', 'ostream.h', 'printf.h', 'ranges.h', 'std.h', 'xchar.h'
         ]
 
-        # Run doxygen.
         cmd = ['doxygen', '-']
         support_dir = Path(__file__).parents[3]
         top_dir = os.path.dirname(support_dir)
@@ -211,7 +193,6 @@ class CxxHandler(BaseHandler):
         if p.returncode != 0:
             raise CalledProcessError(p.returncode, cmd)
 
-        # Merge all file-level XMLs into one to simplify search.
         self._file_doxyxml = None
         for h in headers:
             filename = h.replace(".h", "_8h.xml")
@@ -235,12 +216,11 @@ class CxxHandler(BaseHandler):
             d.template_params = convert_template_params(node)
             d.desc = get_description(node)
             d.members = []
-            for m in \
-                    node.findall('sectiondef[@kind="public-attrib"]/memberdef') + \
+            for m in\
+                    node.findall('sectiondef[@kind="public-attrib"]/memberdef') +\
                     node.findall('sectiondef[@kind="public-func"]/memberdef'):
                 name = m.find('name').text
-                # Doxygen incorrectly classifies members of private unnamed unions as
-                # public members of the containing class.
+
                 if name.endswith('_'):
                     continue
                 desc = get_description(m)
@@ -269,7 +249,6 @@ class CxxHandler(BaseHandler):
         colons = qual_name.rfind('::')
         namespace, name = qual_name[:colons], qual_name[colons + 2:]
 
-        # Load XML.
         doxyxml = self._ns2doxyxml.get(namespace)
         if doxyxml is None:
             path = f'namespace{namespace.replace("::", "_1_1")}.xml'
@@ -284,7 +263,7 @@ class CxxHandler(BaseHandler):
                 f"compounddef/sectiondef/memberdef/name[.='{name}']/..")
         candidates = []
         for node in nodes:
-            # Process a function or a typedef.
+
             params = None
             d = Definition(name, node=node)
             if d.kind == 'function':
@@ -324,7 +303,6 @@ class CxxHandler(BaseHandler):
         text += '</div>\n'
         text += '</div>\n'
         return text
-
 
 def get_handler(theme: str, custom_templates: Optional[str] = None,
                 **_config: Any) -> CxxHandler:

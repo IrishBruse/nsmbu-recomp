@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MPL-2.0
+
 """Native language, Outset gameplay, interpolation and true60 regression.
 
 Uses copied saves and private output paths. Run once per renderer/language with
@@ -10,7 +10,6 @@ from pathlib import Path
 
 import portable_state_scenario as scenario
 import builds
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -31,7 +30,7 @@ def main():
         "NSMBU_TEST_END": "52", "NSMBU_TEST_DEBUG": "1",
         "NSMBU_TEST_PRESS": ",".join(f"{t}-{t + .15}:8000" for t in (5, 8, 11, 14, 17, 20)),
         "NSMBU_TEST_STICK": "29-31:0:1,39-41:0:1",
-        # Boot 600 + 28*30 + 10*120 + 10*60 + 2*30 = 3300.
+
         "NSMBU_PORTABLE_SAVE_AT": "3300:1", "NSMBU_DUMP_FRAMES": "1200,2160,2940,3300",
     }
     done = lambda log: Path(directory, "test_done").exists()
@@ -49,7 +48,6 @@ def main():
     print(scenario.show(log, ("savestate", "60 fps mode", "console language")), flush=True)
     print("RESULT: " + ("PASS" if all(checks.values()) else "FAIL"), flush=True)
     return 0 if all(checks.values()) else 1
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

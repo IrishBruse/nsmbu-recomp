@@ -1,7 +1,6 @@
 """Named data addresses from explicit public bindings, never initialized data."""
 import re
 
-# Each pattern names a public declaration, not an address supplied by this SDK.
 BINDINGS = [
     ('dComIfG_save_info_pointer', 'include/d/d_com_inf_game.h',
      r'inline dSv_info_c\* dComIfGs_info\(\) \{ return gabi::at<dSv_info_c>\(gabi::load<u32>\((0x[0-9A-Fa-f]+)\) \+ 0x20\); \}'),
@@ -13,7 +12,6 @@ BINDINGS = [
      r'#define cXyz_Zero gabi::at<cXyz>\((0x[0-9A-Fa-f]+)\)'),
 ]
 TABLES = ['item_resource', 'field_item_res', 'item_info']
-
 
 def declarations(read_source, revision):
     lines = ['/* Generated named data addresses from public ZeldaWWHDDecomp/wwhd.',

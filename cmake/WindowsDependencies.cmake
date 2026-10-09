@@ -17,7 +17,7 @@ if(NSMBU_HAS_VULKAN)
     set(ENABLE_OPT OFF CACHE BOOL "" FORCE)
     set(GLSLANG_TESTS OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(glslang
-      URL https://github.com/KhronosGroup/glslang/archive/refs/tags/16.0.0.tar.gz
+      URL https:
       URL_HASH SHA256=172385478520335147d3b03a1587424af0935398184095f24beab128a254ecc7)
     FetchContent_MakeAvailable(glslang)
     # The runtime includes <glslang/SPIRV/GlslangToSpv.h> (the installed layout); in glslang's source

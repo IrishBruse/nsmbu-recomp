@@ -1,4 +1,4 @@
-// Shader presentation matches Metal's source-grid FXAA and scaling filters.
+
 #include "present.h"
 #include "backend.h"
 #include "shaders.h"
@@ -67,7 +67,7 @@ void main() {
  result=vec4(c,params.alpha);
 }
 )glsl";
-// a filled rectangle (GamePad overlay frame)
+
 const char* solidSource = R"glsl(#version 450
 layout(location=0) in vec2 uv;
 layout(location=0) out vec4 result;
@@ -119,7 +119,7 @@ struct PresentResources {
  VkDescriptorSetLayout descriptors=VK_NULL_HANDLE;
  VkPipelineLayout layout=VK_NULL_HANDLE;
  VkSampler linear=VK_NULL_HANDLE,nearest=VK_NULL_HANDLE;
- std::unordered_map<uint64_t,VkPipeline> pipelines; // (format, kind)
+ std::unordered_map<uint64_t,VkPipeline> pipelines;
  std::unordered_map<Screen*,ScreenResources> screens;
 };
 PresentResources resources;
@@ -170,7 +170,7 @@ VkPipeline pipeline(VkFormat format,Kind kind=kImage) {
   VkPipelineMultisampleStateCreateInfo ms{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};ms.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;
   VkPipelineColorBlendAttachmentState blend{};blend.colorWriteMask=15;
   if(kind==kImageBlend||kind==kSolid) {
-   // overlay opacity: source alpha over the picture underneath
+
    blend.blendEnable=VK_TRUE;blend.colorBlendOp=blend.alphaBlendOp=VK_BLEND_OP_ADD;
    blend.srcColorBlendFactor=blend.srcAlphaBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA;
    blend.dstColorBlendFactor=blend.dstAlphaBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -194,8 +194,7 @@ void reset_present_screen(Screen& screen) {
 }
 void prepare_present_screen(Screen& screen,bool colorAttachmentSupported,bool captureTransferSupported) {
  ensure_resources();reset_present_screen(screen);auto& state=resources.screens[&screen];state.drawable=colorAttachmentSupported;state.captureTransfer=captureTransferSupported;
- // Capability publication happens at draw time, after a guest scan image
- // exists, and refreshes when the guest replaces that image's format.
+
  if(!state.drawable)return;
  state.views.reserve(screen.images.size());
  try {
@@ -207,8 +206,7 @@ void prepare_present_screen(Screen& screen,bool colorAttachmentSupported,bool ca
 }
 void reset_present_resources() {
  if(present_capture().buffer.buffer) { defer_buffer(present_capture().buffer);present_capture().buffer={}; }
- // Caller has drained the device; command/descriptor pools must not execute
- // references to these process-lifetime presentation objects afterwards.
+
  for(auto& [screen,state]:resources.screens)for(auto view:state.views)vkDestroyImageView(resources.device,view,nullptr);
  for(auto [key,p]:resources.pipelines)vkDestroyPipeline(resources.device,p,nullptr);
  if(resources.linear)vkDestroySampler(resources.device,resources.linear,nullptr);
@@ -218,7 +216,7 @@ void reset_present_resources() {
  resources={};
  reset_overlay_resources();
 }
-// ---------------------------------------------------------------- composition
+
 namespace {
 const gfx::PresentPlan* currentPlan=nullptr;
 bool linear_filtering(VkFormat format) {
@@ -229,7 +227,7 @@ bool sampleable(const Surface& source) {
  VkFormatProperties properties;vkGetPhysicalDeviceFormatProperties(R.physicalDevice,source.fmt.pixel,&properties);
  return (properties.optimalTilingFeatures&VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) && (source.usage&VK_IMAGE_USAGE_SAMPLED_BIT);
 }
-// draw the quads into `view` (cleared to black first); `layout` is the target image's current layout
+
 void compose(VkImage image,VkImageView view,VkImageLayout& layout,VkExtent2D extent,VkFormat format,
              const std::vector<ComposeQuad>& quads,VkImageLayout finalLayout,int filter,bool fxaa,ImDrawData* overlay=nullptr,ResourceUse* use=nullptr) {
  end_encoder();
@@ -237,7 +235,7 @@ void compose(VkImage image,VkImageView view,VkImageLayout& layout,VkExtent2D ext
  for(auto& q:quads)
   if(q.image)transition_image(q.image,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,VK_ACCESS_SHADER_READ_BIT);
  ResourceUse initial;
- if(!use) use=&initial; // acquired swap image: acquire semaphore owns prior presentation
+ if(!use) use=&initial;
  auto dependency=derive_dependency(*use,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,layout!=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
  auto cmd=command_buffer();VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};barrier.oldLayout=layout;barrier.newLayout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -267,21 +265,20 @@ void compose(VkImage image,VkImageView view,VkImageLayout& layout,VkExtent2D ext
   const bool linear=linear_filtering(q.image->fmt.pixel);
   VkDescriptorImageInfo info{linear?resources.linear:resources.nearest,q.image->view,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};write.dstSet=set;write.dstBinding=0;write.descriptorCount=1;write.descriptorType=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;write.pImageInfo=&info;
   vkUpdateDescriptorSets(R.device,1,&write,0,nullptr);vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,resources.layout,0,1,&set,0,nullptr);
-  // target pixels per source texel, as the Metal composition (display.mm draw_image)
+
   const float scale=std::min(q.box.w/q.image->extent.width,q.box.h/q.image->extent.height);
-  // sRGB texture views decode on sampling; the scan flag also identifies linear
-  // scan values held in a UNORM image. sRGB targets encode shader linear output.
+
   const bool sourceLinear=q.sourceLinear||srgb_format(q.image->fmt.pixel);
   auto params=present_params(fxaa&&linear,filter,scale,sourceLinear,targetLinear);params.alpha=q.alpha;
   vkCmdPushConstants(cmd,resources.layout,VK_SHADER_STAGE_FRAGMENT_BIT,0,sizeof(params),&params);vkCmdDraw(cmd,3,1,0,0);
  }
- if(overlay)overlay_draw(overlay,cmd,format,extent,targetLinear);  // settings overlay on top
+ if(overlay)overlay_draw(overlay,cmd,format,extent,targetLinear);
  vkCmdEndRendering(cmd);
  barrier.oldLayout=VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;barrier.newLayout=finalLayout;barrier.srcAccessMask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;barrier.dstAccessMask=0;
  vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,0,0,nullptr,0,nullptr,1,&barrier);layout=finalLayout;
  R.rendering=false;R.passTracked=false;
 }
-}  // namespace
+}
 
 void set_present_plan(const gfx::PresentPlan* plan) { currentPlan=plan; }
 namespace { ImDrawData* overlayDraw=nullptr; }
@@ -292,7 +289,7 @@ std::vector<ComposeQuad> screen_quads(Screen& screen,VkExtent2D target,int& filt
  filter=scale_filter();
  if(!screen.scan||!screen.scan->image)return quads;
  if(currentPlan) {
-  // both window hosts (gfx/display_modes.cpp): the same layout as the Metal renderer
+
   filter=currentPlan->filter;
   if(&screen==&R.drc) {
    ComposeQuad q;q.image=R.drc.scan.get();q.sourceLinear=R.drc.srgb.load();
@@ -312,8 +309,7 @@ std::vector<ComposeQuad> screen_quads(Screen& screen,VkExtent2D target,int& filt
    ComposeQuad pip;pip.image=drc;pip.sourceLinear=R.drc.srgb.load();pip.box=p.pip;pip.alpha=op;quads.push_back(pip);
   }
   if(p.button.w>0) {
-   // touch screens' view button (display_modes.h): a dark square with two light "screens" (rhemfur's
-   // Android design) and the host's state dot (Android: 60 fps on / paused)
+
    const gfx::Box& t=p.button;
    ComposeQuad b;b.solid=true;b.color[3]=0.45f;b.box={t.x,t.y,t.w,t.h};quads.push_back(b);
    for(int i=0;i<2;i++) {
@@ -328,7 +324,7 @@ std::vector<ComposeQuad> screen_quads(Screen& screen,VkExtent2D target,int& filt
   }
   return quads;
  }
- // no plan (outside swap): the picture scaled to fit (Codex's presentation)
+
  const auto rect=present_rect(screen.scan->extent,target,filter);
  ComposeQuad q;q.image=screen.scan.get();q.sourceLinear=screen.srgb.load();q.box={rect.x,rect.y,rect.width,rect.height};quads.push_back(q);
  return quads;
@@ -365,7 +361,6 @@ bool draw_present_screen(Screen& screen,uint32_t imageIndex) {
  return true;
 }
 
-// the composition into an offscreen RGBA8 image, read back (present dumps, captures)
 std::vector<uint8_t> compose_offscreen(Screen& screen,uint32_t width,uint32_t height,bool srgb) {
  if(!width||!height)return {};
  Surface target;target.width=width;target.height=height;target.format=srgb?0x41a:0x1a;target.fmt=format_info(target.format,false);
@@ -375,7 +370,7 @@ std::vector<uint8_t> compose_offscreen(Screen& screen,uint32_t width,uint32_t he
   int filter=0;auto quads=screen_quads(screen,VkExtent2D{width,height},filter);
   compose(target.image,target.view,target.layout,VkExtent2D{width,height},target.fmt.pixel,quads,
           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,filter,fxaa_enabled(),&screen==&R.tv?overlayDraw:nullptr,&target.use);
-  rgba=read_surface_rgba(target,false);  // display-encoded already (sRGB target, or encoded values)
+  rgba=read_surface_rgba(target,false);
  }catch(...){destroy_surface_image(&target);throw;}
  destroy_surface_image(&target);
  return rgba;
@@ -387,7 +382,7 @@ bool record_screenshot(Screen& screen,Buffer& buffer,uint32_t& width,uint32_t& h
  if(!width||!height)return false;
  const bool srgb=screen.srgb.load();
  Surface target;target.width=width;target.height=height;target.format=srgb?0x41a:0x1a;target.fmt=format_info(target.format,false);
- // the TV window's format for both pictures: its pipeline exists (the GamePad window may have none)
+
  const VkFormat sf=R.tv.swapchain?R.tv.swapFormat:VK_FORMAT_UNDEFINED;
  if(sf==VK_FORMAT_B8G8R8A8_UNORM||sf==VK_FORMAT_B8G8R8A8_SRGB||sf==VK_FORMAT_R8G8B8A8_UNORM||sf==VK_FORMAT_R8G8B8A8_SRGB)
   target.fmt.pixel=sf;
@@ -405,13 +400,10 @@ bool record_screenshot(Screen& screen,Buffer& buffer,uint32_t& width,uint32_t& h
   derive_dependency(buffer.use,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_ACCESS_TRANSFER_WRITE_BIT);
   transition_buffer(buffer,VK_PIPELINE_STAGE_HOST_BIT,VK_ACCESS_HOST_READ_BIT);
  }catch(...){destroy_surface_image(&target);if(buffer.buffer){defer_buffer(buffer);buffer={};}throw;}
- destroy_surface_image(&target);  // deferred: freed when this submission retired
+ destroy_surface_image(&target);
  return true;
 }
 
-// ---------------------------------------------------------------- automatic overlay signatures
-// A picture reduced to 32x18 like the Metal renderer does it (display.mm Sig): a box-filtered mip
-// chain, then a linear reduction of the first level at least 32 wide; read back after the frame's fence.
 namespace {
 struct Signature {
  VkImage mip=VK_NULL_HANDLE,signatureImage=VK_NULL_HANDLE;VkDeviceMemory mipMemory=VK_NULL_HANDLE,smallMemory=VK_NULL_HANDLE;
@@ -431,7 +423,7 @@ void level_barrier(VkCommandBuffer cmd,VkImage image,uint32_t level,VkImageLayou
  b.image=image;b.subresourceRange={VK_IMAGE_ASPECT_COLOR_BIT,level,1,0,1};b.srcAccessMask=src;b.dstAccessMask=dst;
  vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TRANSFER_BIT|VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,0,nullptr,0,nullptr,1,&b);
 }
-}  // namespace
+}
 
 bool record_signature(int slot,Surface& source,bool sourceLinear) {
  VkFormatProperties properties;vkGetPhysicalDeviceFormatProperties(R.physicalDevice,source.fmt.pixel,&properties);
@@ -472,11 +464,11 @@ bool record_signature(int slot,Surface& source,bool sourceLinear) {
  vkCmdCopyImageToBuffer(cmd,g.signatureImage,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,g.buffer.buffer,1,&copy);
  derive_dependency(g.buffer.use,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_ACCESS_TRANSFER_WRITE_BIT);
  transition_buffer(g.buffer,VK_PIPELINE_STAGE_HOST_BIT,VK_ACCESS_HOST_READ_BIT);
- // the blits decode sRGB images to linear values: encode them like the Metal path does
+
  g.linear=sourceLinear||srgb_format(source.fmt.pixel);g.pending=true;
  return true;
 }
-// after the frame's work completed: display-encoded luma, or empty
+
 std::vector<float> read_signature(int slot) {
  auto& g=signatures[slot];
  if(!g.pending)return {};
@@ -541,14 +533,13 @@ void record_present_capture(Screen& screen,uint32_t imageIndex) {
 }
 void finish_present_capture(Screen& screen) {
  auto& capture=present_capture();if(&screen!=&R.tv||!capture.buffer.buffer)return;
- // Called after normal submit waited for its fence. Swapchain acquire was
- // waited in that same submission, and finished semaphore remains for present.
+
  try {
   const size_t count=size_t(capture.extent.width)*capture.extent.height;
   const auto* raw=static_cast<const uint8_t*>(capture.buffer.mapped);std::vector<uint8_t> rgba(count*4);
   const bool bgra=capture.format==VK_FORMAT_B8G8R8A8_UNORM||capture.format==VK_FORMAT_B8G8R8A8_SRGB;
   for(size_t i=0;i<count;++i){rgba[4*i]=raw[4*i+(bgra?2:0)];rgba[4*i+1]=raw[4*i+1];rgba[4*i+2]=raw[4*i+(bgra?0:2)];rgba[4*i+3]=255;}
-  // Swap-image bytes are already display encoded; never apply capture gamma.
+
   write_rgba_png(capture.path,capture.extent.width,capture.extent.height,rgba);
   std::fprintf(stderr,"[vulkan present] wrote actual swap image %s (%ux%u, frame %llu, FXAA %d, filter %d)\n",
       capture.path.c_str(),capture.extent.width,capture.extent.height,(unsigned long long)R.frame,int(fxaa_enabled()),scale_filter());

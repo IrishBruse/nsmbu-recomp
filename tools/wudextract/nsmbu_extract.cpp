@@ -1,43 +1,5 @@
-// nsmbu-extract: reads the game from a Wii U disc image (.wud/.wux) or a Cemu Wii U archive (.wua)
-// and extracts it; used by the installer.
-//
-// Disc images: native port of tools/wudextract.py (itself a port of Cemu's
-// src/Cafe/Filesystem/WUD/wud.cpp and FST/FST.cpp, Copyright (c) Cemu contributors, Mozilla Public
-// License 2.0, see runtime/third_party/cemu/LICENSE.txt), without Python or pycryptodome.
-// Cemu archives: ZArchive files (zarchive.h), already decrypted, so no keys; one folder per title
-// (<title id>_v<version>, e.g. 0005000010143500_v0 for the game, 0005000e10143500_v.. for an update).
-//
-// usage:
-//   nsmbu-extract [KEYS] [--progress] info    IMAGE          check the keys, print the title
-//   nsmbu-extract [KEYS]              list    IMAGE          list the game partition's files
-//   nsmbu-extract [KEYS] [--progress] extract IMAGE OUTDIR   extract the game partition
-//   nsmbu-extract [--title T]         info    ARCHIVE.wua    list the titles (and the selected one)
-//   nsmbu-extract                     list    ARCHIVE.wua    list all files
-//   nsmbu-extract [--title T] [--progress] extract ARCHIVE.wua OUTDIR
-//                                   check the archive's SHA-256, then extract one title's folder
-//                                   (code, content, meta) into OUTDIR
-//
-// KEYS (no keys are included in this project; they come from your own console):
-//   --disc-key FILE     the disc key (default: IMAGE with the extension replaced by .key)
-//   --common-key FILE   the Wii U common key (default: WIIU_COMMON_KEY environment variable,
-//                       then common.key next to IMAGE or in the current directory)
-//   --keys-stdin        read "disc <32 hex digits>" / "common <32 hex digits>" lines from stdin
-// A key file holds 16 raw bytes or 32 hex digits (whitespace ignored). Keys are never printed.
-// --title T: a title id (16 hex digits; the highest version of it is used) or a folder name
-// (0005000010143500_v0). Without it an archive with a single title uses that one.
-// --only GLOB (repeatable): extract only the files whose path in the title (code/..., content/...,
-// meta/...) matches one of the patterns, without case; '*' matches any run of characters ('/' too),
-// '?' one character. The setup uses it to take only the language files of a second disc
-// (content/Common/Pack/permanent_2d_*.pack, meta/meta.xml).
-//
-// info on an archive prints "format wua", one "title ID VERSION FOLDER FILES BYTES" line per title
-// folder, and for the selected title "selected FOLDER", "title_id", "version", "files", "bytes".
-// extract --progress prints "phase verify" / "phase extract", each followed by "progress DONE TOTAL".
-//
-// Exit codes: 0 ok, 2 usage, 3 disc key missing/malformed, 4 disc key does not match the image,
-// 5 common key missing/malformed, 6 common key wrong, 7 not a Wii U disc image or archive / unreadable,
-// 8 corrupt image or archive (hash mismatch), 9 cannot write output (disk full, permissions),
-// 10 the archive does not contain the requested title (or several titles and no --title).
+
+
 #include "crypto.h"
 #include "zarchive.h"
 
@@ -95,8 +57,6 @@ uint16_t be16(const uint8_t* p) { return (uint16_t)((p[0] << 8) | p[1]); }
 uint32_t le32(const uint8_t* p) { return ((uint32_t)p[3] << 24) | ((uint32_t)p[2] << 16) | ((uint32_t)p[1] << 8) | p[0]; }
 uint64_t le64(const uint8_t* p) { return ((uint64_t)le32(p + 4) << 32) | le32(p); }
 
-// ---- keys
-
 struct Key {
     uint8_t b[16];
     bool set = false;
@@ -146,8 +106,6 @@ void load_key_file(const fs::path& p, Key& k, int code, const char* what) {
                        " is malformed: expected 16 raw bytes or one line of 32 hex digits");
 }
 
-// ---- disc image
-
 struct Wud {
     std::ifstream f;
     bool compressed = false;
@@ -160,7 +118,7 @@ struct Wud {
         uint8_t hdr[32] = {};
         f.read((char*)hdr, 32);
         if (f.gcount() != 32) fail(7, "the disc image is too small");
-        if (le32(hdr) == 0x30585557 && le32(hdr + 4) == 0x1099D02E) {  // "WUX0"
+        if (le32(hdr) == 0x30585557 && le32(hdr + 4) == 0x1099D02E) {
             compressed = true;
             sector_size = le32(hdr + 8);
             size = le64(hdr + 16);
@@ -223,7 +181,6 @@ struct FST {
     std::vector<Cluster> clusters;
     std::vector<Entry> entries;
 
-    // returns false (instead of failing) when the FST magic is wrong: the caller knows which key it was
     FST(Wud& w, uint64_t base_, uint64_t fst_offset, uint32_t fst_size, const uint8_t k[16], bool& ok)
         : wud(w), base(base_), key(k) {
         ok = false;
@@ -234,7 +191,7 @@ struct FST {
         uint8_t iv[16] = {};
         aes128_cbc_decrypt(key, iv, d.data(), padded);
         d.resize(fst_size);
-        if (be32(&d[0]) != 0x46535400) return;  // "FST\0"
+        if (be32(&d[0]) != 0x46535400) return;
         offset_factor = be32(&d[4]);
         uint32_t ncluster = be32(&d[8]);
         auto need = [&](uint64_t end) {
@@ -285,7 +242,7 @@ struct FST {
         uint64_t pos = (uint64_t)e.offset * offset_factor;
         uint64_t remaining = e.size;
         uint64_t cbase = cluster_base(e.cluster);
-        if (mode == 2) {  // hashed: 64 KiB blocks of 1 KiB hashes + 63 KiB data
+        if (mode == 2) {
             uint64_t blk = pos / BLOCK_FILE_SIZE, within = pos % BLOCK_FILE_SIZE;
             std::vector<uint8_t> raw(BLOCK_SIZE);
             while (remaining > 0) {
@@ -308,7 +265,7 @@ struct FST {
                 within = 0;
                 blk++;
             }
-        } else {  // raw: CBC over the whole cluster; IV = cluster index for its first sector
+        } else {
             uint64_t blk = pos / SECTOR, within = pos % SECTOR;
             uint8_t iv[16] = {};
             if (blk == 0) {
@@ -414,12 +371,10 @@ Disc open_disc(const fs::path& image, Key disc_key, Key common_key) {
 
 bool selected(const Entry& e) { return !e.is_dir && !(e.flags & 0x80); }
 
-// ---- Cemu Wii U archive (.wua)
-
 struct Title {
-    std::string id;      // 16 hex digits, lower case
+    std::string id;
     unsigned version;
-    std::string folder;  // as named in the archive
+    std::string folder;
     uint32_t node;
     uint64_t files = 0, bytes = 0;
 };
@@ -433,7 +388,6 @@ std::string lower(std::string s) {
     return s;
 }
 
-// case-insensitive glob: '*' any run of characters (also '/'), '?' one character
 bool glob_match(const std::string& pat, const std::string& s) {
     size_t p = 0, i = 0, star = std::string::npos, mark = 0;
     while (i < s.size()) {
@@ -451,7 +405,6 @@ bool glob_match(const std::string& pat, const std::string& s) {
     return p == pat.size();
 }
 
-// --only patterns: empty extracts everything
 std::vector<std::string> g_only;
 bool wanted(const std::string& path) {
     if (g_only.empty()) return true;
@@ -460,7 +413,6 @@ bool wanted(const std::string& path) {
     return false;
 }
 
-// a name that is safe as one path component on every system
 bool safe_name(const std::string& n) {
     if (n.empty() || n == "." || n == "..") return false;
     for (char c : n)
@@ -468,7 +420,6 @@ bool safe_name(const std::string& n) {
     return true;
 }
 
-// files below a folder, depth first: (path relative to the folder, node)
 void walk(const zarchive::Reader& zr, uint32_t dir, const std::string& prefix,
           std::vector<std::pair<std::string, uint32_t>>& out, int depth = 0) {
     if (depth > 64) fail(7, "corrupt archive (folders nested too deep)");
@@ -480,7 +431,6 @@ void walk(const zarchive::Reader& zr, uint32_t dir, const std::string& prefix,
     }
 }
 
-// title folders at the top of the archive: <16 hex digits>_v<decimal version>
 std::vector<Title> archive_titles(const zarchive::Reader& zr) {
     std::vector<Title> titles;
     for (uint32_t c : zr.children(zr.root())) {
@@ -545,7 +495,7 @@ int run_archive(const std::string& cmd, const fs::path& path, const std::string&
         fflush(stdout);
     }
     if (titles.empty()) fail(10, "the archive contains no Wii U title folders (named like 0005000010143500_v0)");
-    if (cmd == "info" && !t && title.empty()) return 0;  // several titles, none asked for: the list is the answer
+    if (cmd == "info" && !t && title.empty()) return 0;
     if (!t && title.empty())
         fail(10, "the archive contains several titles (" + describe(titles) + "): choose one with --title");
     if (!t) fail(10, "the archive does not contain title " + title + " (it contains " + describe(titles) + ")");
@@ -654,14 +604,14 @@ int run(const std::vector<std::string>& args) {
         return usage();
     }
     fs::path img = upath(image);
-    // a Cemu archive (recognized by its footer; the extension does not matter): no keys
+
     if (zarchive::Reader::detect(img)) return run_archive(cmd, img, outdir, title, progress);
     {
         std::string ext = lower(ustr(img.extension()));
         if (ext == ".wua") {
             std::error_code ec;
             if (!fs::is_regular_file(img, ec)) fail(7, "cannot open the archive " + ustr(img));
-            return run_archive(cmd, img, outdir, title, progress);  // reports what is wrong with it
+            return run_archive(cmd, img, outdir, title, progress);
         }
     }
 
@@ -760,11 +710,11 @@ int run(const std::vector<std::string>& args) {
     return 0;
 }
 
-}  // namespace
+}
 
 int main(int argc, char** argv) {
 #ifdef _WIN32
-    // info/list/--progress output is read by the setup: plain \n line endings on every platform
+
     _setmode(_fileno(stdout), _O_BINARY);
 #endif
     try {

@@ -1,4 +1,4 @@
-// The tick only requests preemption; HLE deadlines remain owned by their host waits.
+
 #pragma once
 #include <atomic>
 #include <chrono>
@@ -24,7 +24,7 @@ public:
         { std::lock_guard<std::mutex> lock(mutex); ++generation; }
         cv.notify_one();
     }
-    // Never hold this mutex while inspecting a core's ready queue (opposite lock order).
+
     bool wait_idle() {
         if (ready.load() || timed.load()) return false;
         std::unique_lock<std::mutex> lock(mutex);
@@ -44,4 +44,4 @@ public:
         TimedWait& operator=(const TimedWait&) = delete;
     };
 };
-} // namespace threads
+}

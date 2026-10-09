@@ -26,7 +26,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "recomp"))
-from ppc2c import translate, Unhandled  # noqa: E402
+from ppc2c import translate, Unhandled
 from builds import canonical_build
 
 TRANSLATOR_VERSION = "guestmod-0.2"
@@ -37,14 +37,11 @@ R_PPC_ADDR32, R_PPC_ADDR16_LO, R_PPC_ADDR16_HI, R_PPC_ADDR16_HA = 1, 4, 5, 6
 R_PPC_REL24, R_PPC_REL14, R_PPC_REL32 = 10, 11, 26
 REGION_START, REGION_END = 0x7F000000, 0x80000000
 
-
 class ModError(Exception):
     pass
 
-
 def sext(v, bits):
     return v - (1 << bits) if v & (1 << (bits - 1)) else v
-
 
 class Elf:
     def __init__(self, data):
@@ -82,7 +79,6 @@ class Elf:
     def bytes_of(self, s):
         return self.data[s["off"]:s["off"] + s["size"]]
 
-
 class Translator:
     def __init__(self, elf, base, build=None):
         self.elf = elf
@@ -95,13 +91,12 @@ class Translator:
             raise ModError("Mod uses an older SDK with unrelocatable USA data addresses; "
                            "ask its author to rebuild with the European-compatible SDK")
         self.imm_override = {}
-        self.imports = {}   # call/branch site -> ("game"|"orig"|"svc", value)
-        self.services = []  # host service names, in order of first use
+        self.imports = {}
+        self.services = []
         self.layout()
         self.relocate()
         self.discover()
 
-    # ---- layout: code first, then read-only data, data, bss
     def layout(self):
         alloc = [s for s in self.elf.sections if s["flags"] & SHF_ALLOC and s["size"]]
         rank = lambda s: (0 if s["flags"] & SHF_EXECINSTR else 2 if s["type"] == SHT_NOBITS else 1)
@@ -138,7 +133,6 @@ class Translator:
     def put16(self, a, v):
         struct.pack_into(">H", self.image, a - self.base, v & 0xFFFF)
 
-    # ---- symbols and relocations
     def game_address(self, kind, address):
         try:
             if kind == "gdata":
@@ -147,7 +141,7 @@ class Translator:
                 raise ValueError("function differs between game builds")
             return self.build.code(address)
         except ValueError as exc:
-            # Public declaration names are available in source checkouts and release SDKs.
+
             from pathlib import Path
             header = Path(HERE).parents[1] / "runtime/guest/include/nsmbu/functions.h"
             if not header.is_file():
@@ -163,14 +157,14 @@ class Translator:
 
     def symbol_value(self, sym):
         """(kind, value): kind 'addr' for a guest address, else an import kind."""
-        if sym["shndx"] == 0:  # undefined
+        if sym["shndx"] == 0:
             m = re.match(r"__nsmbu_(game|orig|gdata)_(?:0x)?([0-9A-Fa-f]{1,8})$", sym["name"])
             if m:
                 return m.group(1), int(m.group(2), 16)
             if not re.match(r"[A-Za-z_][A-Za-z0-9_]*$", sym["name"]):
                 raise ModError("unknown symbol %r" % sym["name"])
             return "svc", sym["name"]
-        if sym["shndx"] == 0xFFF1:  # absolute
+        if sym["shndx"] == 0xFFF1:
             return "addr", sym["value"]
         if sym["shndx"] not in self.sec_addr:
             raise ModError("symbol %r is in a section that is not loaded" % sym["name"])
@@ -235,7 +229,6 @@ class Translator:
                     raise ModError("hook descriptor %d does not point to mod code" % k)
                 self.hooks.append((kind, self.game_address("game", target), func, flags))
 
-    # ---- functions: symbols, call targets, address-taken code, tail-call targets
     def discover(self):
         entries = set()
         for sym in self.elf.symbols:
@@ -252,7 +245,7 @@ class Translator:
                     t = (sext(w & 0x03FFFFFC, 26) + (0 if w & 2 else a)) & 0xFFFFFFFF
                     if self.in_text(t):
                         entries.add(t)
-        # address-taken code (function pointers in data or built with lis/addi)
+
         entries |= {v for v in self.code_refs if self.in_text(v)}
         while True:
             se = sorted(entries)
@@ -289,7 +282,6 @@ class Translator:
         later = [e for e in self.entries if start < e < hi]
         return min(later) if later else hi
 
-    # ---- ppc2c callbacks
     def import_code(self, addr, tail):
         kind, val = self.imports[addr]
         if kind == "game":
@@ -324,9 +316,8 @@ class Translator:
     def indirect_jump(self, addr):
         return "c->pc = c->ctr; MUSTTAIL return ppc_dispatch(c);"
 
-    # ---- output
     def emit(self, mod_id):
-        # only numbers and checked identifiers reach the C source; the id is reduced to safe characters
+
         out = [PRELUDE % {"version": TRANSLATOR_VERSION, "id": re.sub(r"[^A-Za-z0-9._-]", "_", mod_id)[:64]}]
         for i, name in enumerate(self.services):
             out.append("static PpcFunc svc_%d; /* %s */" % (i, name))
@@ -380,7 +371,6 @@ class Translator:
                                 "svc_assign": "\n".join("    svc_%d = svcs[%d];" % (i, i) for i in range(len(self.services)))})
         return "\n".join(out) + "\n"
 
-
 PRELUDE = r"""/* Generated by tools/guestmod/guestmod.py (%(version)s) from guest mod "%(id)s". Do not edit. */
 #include "nsmbu_guest_abi.h"
 
@@ -424,7 +414,6 @@ NSMBU_MODULE_EXPORT const NSMBUGuestModuleV1* nsmbu_guest_module_v1(const NSMBUG
 }
 """
 
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("elf")
@@ -450,7 +439,6 @@ def main():
         with open(a.report, "w") as f:
             json.dump(rep, f, indent=1)
     print(json.dumps(rep))
-
 
 if __name__ == "__main__":
     main()

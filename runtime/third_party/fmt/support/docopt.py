@@ -9,15 +9,12 @@
 import sys
 import re
 
-
 __all__ = ['docopt']
 __version__ = '0.6.1'
-
 
 class DocoptLanguageError(Exception):
 
     """Error in construction of usage-message by developer."""
-
 
 class DocoptExit(SystemExit):
 
@@ -27,7 +24,6 @@ class DocoptExit(SystemExit):
 
     def __init__(self, message=''):
         SystemExit.__init__(self, (message + '\n' + self.usage).strip())
-
 
 class Pattern(object):
 
@@ -68,7 +64,6 @@ class Pattern(object):
                     e.value = 0
         return self
 
-
 def transform(pattern):
     """Expand pattern into an (almost) equivalent one, but with single Either.
 
@@ -94,7 +89,6 @@ def transform(pattern):
         else:
             result.append(children)
     return Either(*[Required(*e) for e in result])
-
 
 class LeafPattern(Pattern):
 
@@ -129,7 +123,6 @@ class LeafPattern(Pattern):
             return True, left_, collected
         return True, left_, collected + [match]
 
-
 class BranchPattern(Pattern):
 
     """Branch/inner node of a pattern tree."""
@@ -146,7 +139,6 @@ class BranchPattern(Pattern):
             return [self]
         return sum([child.flat(*types) for child in self.children], [])
 
-
 class Argument(LeafPattern):
 
     def single_match(self, left):
@@ -161,7 +153,6 @@ class Argument(LeafPattern):
         value = re.findall('\[default: (.*)\]', source, flags=re.I)
         return class_(name, value[0] if value else None)
 
-
 class Command(Argument):
 
     def __init__(self, name, value=False):
@@ -175,7 +166,6 @@ class Command(Argument):
                 else:
                     break
         return None, None
-
 
 class Option(LeafPattern):
 
@@ -215,7 +205,6 @@ class Option(LeafPattern):
         return 'Option(%r, %r, %r, %r)' % (self.short, self.long,
                                            self.argcount, self.value)
 
-
 class Required(BranchPattern):
 
     def match(self, left, collected=None):
@@ -228,7 +217,6 @@ class Required(BranchPattern):
                 return False, left, collected
         return True, l, c
 
-
 class Optional(BranchPattern):
 
     def match(self, left, collected=None):
@@ -237,11 +225,9 @@ class Optional(BranchPattern):
             m, left, collected = pattern.match(left, collected)
         return True, left, collected
 
-
 class OptionsShortcut(Optional):
 
     """Marker/placeholder for [options] shortcut."""
-
 
 class OneOrMore(BranchPattern):
 
@@ -254,7 +240,7 @@ class OneOrMore(BranchPattern):
         matched = True
         times = 0
         while matched:
-            # could it be that something didn't match but changed l or c?
+
             matched, l, c = self.children[0].match(l, c)
             times += 1 if matched else 0
             if l_ == l:
@@ -263,7 +249,6 @@ class OneOrMore(BranchPattern):
         if times >= 1:
             return True, l, c
         return False, left, collected
-
 
 class Either(BranchPattern):
 
@@ -277,7 +262,6 @@ class Either(BranchPattern):
         if outcomes:
             return min(outcomes, key=lambda outcome: len(outcome[1]))
         return False, left, collected
-
 
 class Tokens(list):
 
@@ -297,16 +281,15 @@ class Tokens(list):
     def current(self):
         return self[0] if len(self) else None
 
-
 def parse_long(tokens, options):
     """long ::= '--' chars [ ( ' ' | '=' ) chars ] ;"""
     long, eq, value = tokens.move().partition('=')
     assert long.startswith('--')
     value = None if eq == value == '' else value
     similar = [o for o in options if o.long == long]
-    if tokens.error is DocoptExit and similar == []:  # if no exact match
+    if tokens.error is DocoptExit and similar == []:
         similar = [o for o in options if o.long and o.long.startswith(long)]
-    if len(similar) > 1:  # might be simply specified ambiguously 2+ times?
+    if len(similar) > 1:
         raise tokens.error('%s is not a unique prefix: %s?' %
                            (long, ', '.join(o.long for o in similar)))
     elif len(similar) < 1:
@@ -330,7 +313,6 @@ def parse_long(tokens, options):
             o.value = value if value is not None else True
     return [o]
 
-
 def parse_shorts(tokens, options):
     """shorts ::= '-' ( chars )* [ [ ' ' ] chars ] ;"""
     token = tokens.move()
@@ -348,7 +330,7 @@ def parse_shorts(tokens, options):
             options.append(o)
             if tokens.error is DocoptExit:
                 o = Option(short, None, 0, True)
-        else:  # why copying is necessary here?
+        else:
             o = Option(short, similar[0].long,
                        similar[0].argcount, similar[0].value)
             value = None
@@ -365,14 +347,12 @@ def parse_shorts(tokens, options):
         parsed.append(o)
     return parsed
 
-
 def parse_pattern(source, options):
     tokens = Tokens.from_pattern(source)
     result = parse_expr(tokens, options)
     if tokens.current() is not None:
         raise tokens.error('unexpected ending: %r' % ' '.join(tokens))
     return Required(*result)
-
 
 def parse_expr(tokens, options):
     """expr ::= seq ( '|' seq )* ;"""
@@ -386,7 +366,6 @@ def parse_expr(tokens, options):
         result += [Required(*seq)] if len(seq) > 1 else seq
     return [Either(*result)] if len(result) > 1 else result
 
-
 def parse_seq(tokens, options):
     """seq ::= ( atom [ '...' ] )* ;"""
     result = []
@@ -397,7 +376,6 @@ def parse_seq(tokens, options):
             tokens.move()
         result += atom
     return result
-
 
 def parse_atom(tokens, options):
     """atom ::= '(' expr ')' | '[' expr ']' | 'options'
@@ -424,7 +402,6 @@ def parse_atom(tokens, options):
     else:
         return [Command(tokens.move())]
 
-
 def parse_argv(tokens, options, options_first=False):
     """Parse command-line argument vector.
 
@@ -448,30 +425,26 @@ def parse_argv(tokens, options, options_first=False):
             parsed.append(Argument(None, tokens.move()))
     return parsed
 
-
 def parse_defaults(doc):
     defaults = []
     for s in parse_section('options:', doc):
-        # FIXME corner case "bla: options: --foo"
-        _, _, s = s.partition(':')  # get rid of "options:"
+
+        _, _, s = s.partition(':')
         split = re.split('\n[ \t]*(-\S+?)', '\n' + s)[1:]
         split = [s1 + s2 for s1, s2 in zip(split[::2], split[1::2])]
         options = [Option.parse(s) for s in split if s.startswith('-')]
         defaults += options
     return defaults
 
-
 def parse_section(name, source):
     pattern = re.compile('^([^\n]*' + name + '[^\n]*\n?(?:[ \t].*?(?:\n|$))*)',
                          re.IGNORECASE | re.MULTILINE)
     return [s.strip() for s in pattern.findall(source)]
 
-
 def formal_usage(section):
-    _, _, section = section.partition(':')  # drop "usage:"
+    _, _, section = section.partition(':')
     pu = section.split()
     return '( ' + ' '.join(') | (' if s == pu[0] else s for s in pu[1:]) + ' )'
-
 
 def extras(help, version, options, doc):
     if help and any((o.name in ('-h', '--help')) and o.value for o in options):
@@ -481,11 +454,9 @@ def extras(help, version, options, doc):
         print(version)
         sys.exit()
 
-
 class Dict(dict):
     def __repr__(self):
         return '{%s}' % ',\n '.join('%r: %r' % i for i in sorted(self.items()))
-
 
 def docopt(doc, argv=None, help=True, version=None, options_first=False):
     """Parse `argv` based on command-line interface described in `doc`.
@@ -561,21 +532,15 @@ def docopt(doc, argv=None, help=True, version=None, options_first=False):
 
     options = parse_defaults(doc)
     pattern = parse_pattern(formal_usage(DocoptExit.usage), options)
-    # [default] syntax for argument is disabled
-    #for a in pattern.flat(Argument):
-    #    same_name = [d for d in arguments if d.name == a.name]
-    #    if same_name:
-    #        a.value = same_name[0].value
+
     argv = parse_argv(Tokens(argv), list(options), options_first)
     pattern_options = set(pattern.flat(Option))
     for options_shortcut in pattern.flat(OptionsShortcut):
         doc_options = parse_defaults(doc)
         options_shortcut.children = list(set(doc_options) - pattern_options)
-        #if any_options:
-        #    options_shortcut.children += [Option(o.short, o.long, o.argcount)
-        #                    for o in argv if type(o) is Option]
+
     extras(help, version, argv, doc)
     matched, left, collected = pattern.fix().match(argv)
-    if matched and left == []:  # better error message if left?
+    if matched and left == []:
         return Dict((a.name, a.value) for a in (pattern.flat() + collected))
     raise DocoptExit()

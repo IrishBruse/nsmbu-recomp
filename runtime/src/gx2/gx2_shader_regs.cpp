@@ -1,18 +1,15 @@
-// Shader binding: copy the register values stored in GX2 shader structures
-// into the register file. Structure layouts and register sequences follow
-// Cemu's GX2 implementation (GX2_Shader.cpp / GX2_shader_legacy.cpp).
+
+
 #include "gx2_regs.h"
 #include "ppc.h"
 
 namespace gx2 {
 
-// GX2VertexShader
 constexpr uint32 VS_PGM_RESOURCES = 0x00, VS_PRIMITIVEID_EN = 0x04, VS_OUT_CONFIG = 0x08, VS_OUT_ID_COUNT = 0x0C,
                  VS_OUT_ID = 0x10, VS_PA_CL_VS_OUT_CNTL = 0x38, VS_SEMANTIC_COUNT = 0x40, VS_SEMANTIC = 0x44,
                  VS_SHADER_SIZE = 0xD0, VS_SHADER_PTR = 0xD4, VS_SHADER_MODE = 0xD8, VS_RBUFFER = 0x124;
-// GX2PixelShader
+
 constexpr uint32 PS_REGS = 0x00, PS_SHADER_SIZE = 0xA4, PS_SHADER_PTR = 0xA8, PS_RBUFFER = 0xD8;
-// GX2RBuffer: +0 flags, +4 elementSize, +8 elementCount, +C ptr
 
 static uint32 rbuffer_addr(uint32 rb, uint32* size) {
     if (size) *size = ld32(rb + 4) * ld32(rb + 8);
@@ -38,9 +35,9 @@ uint32 pixel_shader_program(uint32 ps, uint32* size) {
 void bind_vertex_shader_regs(uint32* regs, uint32 vs) {
     uint32 size = 0;
     uint32 prog = vertex_shader_program(vs, &size);
-    bool gs_mode = ld32(vs + VS_SHADER_MODE) == 2;  // GX2_SHADER_MODE_GEOMETRY_SHADER
+    bool gs_mode = ld32(vs + VS_SHADER_MODE) == 2;
     if (gs_mode) {
-        // with a geometry shader the vertex shader runs as the export shader (ES)
+
         regs[mmSQ_PGM_START_ES] = prog >> 8;
         regs[mmSQ_PGM_START_ES + 1] = size >> 3;
         regs[mmSQ_PGM_RESOURCES_ES] = ld32(vs + VS_PGM_RESOURCES);
@@ -80,7 +77,7 @@ void bind_pixel_shader_regs(uint32* regs, uint32 ps) {
 
 void bind_geometry_shader_regs(uint32* regs, uint32 gs) {
     (void)regs;
-    (void)gs;  // TODO: geometry shaders
+    (void)gs;
 }
 
-}  // namespace gx2
+}

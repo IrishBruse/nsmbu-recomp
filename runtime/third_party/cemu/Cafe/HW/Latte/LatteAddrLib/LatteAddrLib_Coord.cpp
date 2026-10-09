@@ -106,7 +106,7 @@ namespace LatteAddrLib
 
 	uint32 _ComputePipeFromCoordWoRotation(uint32 x, uint32 y)
 	{
-		// hardcoded to assume 2 pipes
+
 		uint32 pipe;
 		pipe = ((y >> 3) ^ (x >> 3)) & 1;
 		return pipe;
@@ -118,7 +118,7 @@ namespace LatteAddrLib
 		if (m_banks == 4)
 		{
 			uint32 bankNew = (y >> 4) & 3;
-			bankNew = ((bankNew >> 1) | (bankNew << 1)); // swap lowest two bits
+			bankNew = ((bankNew >> 1) | (bankNew << 1));
 			bankNew ^= (x >> 3);
 			bankNew &= 3;
 			bank = bankNew;
@@ -147,7 +147,7 @@ namespace LatteAddrLib
 		uint32 microTilesPerRow = pitch >> 3;
 		uint32 microTileIndexX = x >> 3;
 		uint32 microTileIndexY = y >> 3;
-		uint32 microTileBytes = microTileThickness * (((bpp << 6) + 7) >> 3); // each tile is 8x8 or 8x8x4
+		uint32 microTileBytes = microTileThickness * (((bpp << 6) + 7) >> 3);
 		uint32 microTileOffset = microTileBytes * (uint64)((x >> 3) + (pitch >> 3) * (y >> 3));
 		uint32 sliceBytes = (height * (uint64)pitch * microTileThickness * bpp + 7) / 8;
 		uint32 sliceOffset = sliceBytes * (slice / microTileThickness);
@@ -260,14 +260,14 @@ namespace LatteAddrLib
 		info->isDepth = isDepth;
 		info->pipeSwizzle = pipeSwizzle;
 		info->bankSwizzle = bankSwizzle;
-		// calculate static info
+
 		info->microTileThickness = LatteAddrLib::TM_GetThickness((E_HWTILEMODE)tileMode);
 		info->microTileBits = info->numSamples * info->bpp * (info->microTileThickness * (8 * 8));
 		info->microTileBytes = info->microTileBits >> 3;
 		info->microTileType = (info->isDepth != 0) ? 1 : 0;
-		cemu_assert_debug(sample == 0); // non-zero not supported
+		cemu_assert_debug(sample == 0);
 		info->rotation = ComputeSurfaceRotationFromTileMode((E_HWTILEMODE)tileMode);
-		// macro tile
+
 		info->macroTilePitch = 8 * m_banks;
 		info->macroTileHeight = 8 * m_pipes;
 		switch (info->tileMode)
@@ -289,15 +289,15 @@ namespace LatteAddrLib
 		_BitScanReverse((DWORD*)&info->macroTileHeightBits, info->macroTileHeight);
 		info->macroTilesPerRow = info->pitch / info->macroTilePitch;
 		info->macroTileBytes = (info->numSamples * info->microTileThickness * info->bpp * info->macroTileHeight * info->macroTilePitch + 7) >> 3;
-		// slice
+
 		info->sliceBytes = (info->height * (uint64)info->pitch * info->microTileThickness * info->bpp * info->numSamples + 7) / 8;
 		info->sliceIn = info->slice;
 		if (TM_IsThickAndMacroTiled(tileMode))
 			info->sliceIn >>= 2;
-		// bank swap
+
 		if (TM_IsBankSwapped(tileMode))
 			info->bankSwapWidth = ComputeSurfaceBankSwappedWidth(tileMode, info->bpp, info->numSamples, info->pitch);
-		// pixel offset multiplier
+
 		if (info->isDepth)
 		{
 			info->pixelOffsetMul = info->numSamples * info->bpp;
@@ -307,7 +307,7 @@ namespace LatteAddrLib
 			info->pixelOffsetMul = info->bpp;
 		}
 		info->bytesPerPixel = info->pixelOffsetMul >> 3;
-		// table for micro tile offset calculation (we could pre-generate these)
+
 		for (sint32 z = 0; z < 8; z++)
 		{
 			for (sint32 y = 0; y < 8; y++)
@@ -319,7 +319,7 @@ namespace LatteAddrLib
 				}
 			}
 		}
-		// other constant values
+
 		uint32 swizzle = info->pipeSwizzle + m_pipes * info->bankSwizzle;
 		info->c0 = (swizzle + info->sliceIn * info->rotation);
 	}
@@ -373,18 +373,13 @@ namespace LatteAddrLib
 		return finalMacroTileOffset | pipeOffset | bankOffset;
 	}
 
-	/*
-	 * Optimized routine with following assumptions:
-	 * tileMode is 4
-	 * samples is 1
-	 */
 	uint32 ComputeSurfaceAddrFromCoordMacroTiledCached_tm04_sample1(uint32 x, uint32 y, CachedSurfaceAddrInfo* info)
 	{
 		uint32 pixelIndex = (uint32)info->microTilePixelIndexTable[(x & 7) + ((y & 7) << 3) + ((info->slice & 7) << 6)];
 		uint32 pixelOffset = pixelIndex * info->pixelOffsetMul;
-		pixelOffset >>= 3; // bits to bytes
-		uint32 pipe = _ComputePipeFromCoordWoRotation(x, y); // pipe = ((y >> 3) ^ (x >> 3)) & 1;
-		uint32 bank = _ComputeBankFromCoordWoRotation(x, y); // based on (x>>3)&3 and (y>>4)&3
+		pixelOffset >>= 3;
+		uint32 pipe = _ComputePipeFromCoordWoRotation(x, y);
+		uint32 bank = _ComputeBankFromCoordWoRotation(x, y);
 		pipe ^= (info->c0 >> 0) & 1;
 		bank ^= (info->c0 >> 1) & 3;
 		uint32 sliceOffset = info->sliceBytes * (info->slice / info->microTileThickness);

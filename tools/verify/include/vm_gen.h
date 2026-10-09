@@ -1,5 +1,5 @@
-/* Included by the extracted recompiled functions (mkunit.py output) instead of funcs.h.
- * Redirects every guest memory access of ppc.h to the harness memory model (vm.h). */
+
+
 #pragma once
 #include "vm.h"
 

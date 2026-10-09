@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MPL-2.0
+
 """Real-game pause-menu / screenshot regression at 120 and 240 interpolation passes.
 
 usage: interp_menu_scenario.py BINARY GAME SAVE WORK [--renderer metal|vulkan|both]
@@ -17,13 +17,12 @@ import sys
 
 import portable_state_scenario as scenario
 
-
 def run_case(args, renderer, fps):
     tag = f"{renderer}-{fps}"
     directory = scenario.prepare(args.work, tag, args.save)
 
     def frame(t):
-        # Origin at frame 600; boot at 30 Hz, then switch at scenario time 28 s.
+
         return 1440 + (t - 28) * fps
 
     presses = [f"{t}-{t + .15}:8000" for t in (5, 8, 11, 14, 17, 20)]
@@ -57,7 +56,6 @@ def run_case(args, renderer, fps):
     print(scenario.show(log, ("savestate", "screenshot", "test] t=")), flush=True)
     return all(checks.values())
 
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("binary", "game", "save", "work"):
@@ -69,7 +67,6 @@ def main():
     results = [run_case(args, renderer, fps) for renderer in renderers for fps in (120, 240)]
     print("RESULT: " + ("PASS" if all(results) else "FAIL"), flush=True)
     return 0 if all(results) else 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

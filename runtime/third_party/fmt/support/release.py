@@ -15,7 +15,6 @@ import re, shutil, sys
 from subprocess import check_call
 import urllib.request
 
-
 class Git:
     def __init__(self, dir):
         self.dir = dir
@@ -53,12 +52,10 @@ class Git:
             self.clone(*args)
         return clone
 
-
 def clean_checkout(repo, branch):
     repo.clean('-f', '-d')
     repo.reset('--hard')
     repo.checkout(branch)
-
 
 class Runner:
     def __init__(self, cwd):
@@ -67,7 +64,6 @@ class Runner:
     def __call__(self, *args, **kwargs):
         kwargs['cwd'] = kwargs.get('cwd', self.cwd)
         check_call(args, **kwargs)
-
 
 def create_build_env():
     """Create a build environment."""
@@ -78,7 +74,6 @@ def create_build_env():
     env.build_dir = 'build'
     env.fmt_repo = Git(os.path.join(env.build_dir, 'fmt'))
     return env
-
 
 if __name__ == '__main__':
     args = docopt.docopt(__doc__)
@@ -91,8 +86,6 @@ if __name__ == '__main__':
     if not fmt_repo.update('-b', branch, 'git@github.com:fmtlib/fmt'):
         clean_checkout(fmt_repo, branch)
 
-    # Update the date in the changelog and extract the version and the first
-    # section content.
     changelog = 'ChangeLog.md'
     changelog_path = os.path.join(fmt_repo.dir, changelog)
     is_first_section = True
@@ -123,7 +116,6 @@ if __name__ == '__main__':
     if not ns_version or ns_version != major_version:
         raise Exception(f'Version mismatch {ns_version} != {major_version}')
 
-    # Workaround GitHub-flavored Markdown treating newlines as <br>.
     changes = ''
     code_block = False
     stripped = False
@@ -151,12 +143,10 @@ if __name__ == '__main__':
     fmt_repo.add(changelog)
     fmt_repo.commit('-m', 'Update version')
 
-    # Build the docs and package.
     run = Runner(fmt_repo.dir)
     run('cmake', '.')
     run('make', 'doc', 'package_source')
 
-    # Create a release on GitHub.
     fmt_repo.push('origin', 'release')
     auth_headers = {'Authorization': 'token ' + os.getenv('FMT_TOKEN')}
     req = urllib.request.Request(
@@ -172,7 +162,6 @@ if __name__ == '__main__':
         response_data = json.loads(response.read().decode('utf-8'))
         id = response_data['id']
 
-    # Upload the package.
     uploads_url = 'https://uploads.github.com/repos/fmtlib/fmt/releases'
     package = 'fmt-{}.zip'.format(version)
     req = urllib.request.Request(

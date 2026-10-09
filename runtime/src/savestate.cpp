@@ -1,27 +1,5 @@
-// Save states: snapshot the whole running game into one of 5 slots and restore it, also in a new
-// process.
-//
-// The recompiled game runs on host threads with native call stacks, so a snapshot can only be taken
-// (and restored) when every guest thread is at a point whose complete state is guest memory, its Cpu
-// registers and the HLE objects:
-//   - the game's main thread at the top of the per-frame function (0203593C; interp.cpp calls
-//     service() there), which requests the save/load;
-//   - every other guest thread parked in an HLE wait (OSReceiveMessage, OSWaitEvent, OSLockMutex,
-//     OSSleepThread, OSSleepTicks, GX2WaitForVsync, ...: park_wait in threads.cpp). A parked thread
-//     re-checks its condition after waking and only then consumes anything, so the HLE objects
-//     decide where it continues;
-//   - service threads (alarms, AX frame) idle between their callbacks.
-// threads::quiesce() freezes the game in that state (other threads keep running until they park).
-//
-// Restoring into a running process requires each thread to be parked at the same place it was
-// saved at (same stack pointer, return address and guest back chain => same host call stack); the
-// main thread always is. Worker threads normally idle at the same wait. If not, the load is retried
-// on the following frames and finally refused with a message; nothing is changed then.
-//
-// Slot file: header (uncompressed) + LZ4 blocks of the payload: tagged sections from each module
-// (threads + HLE sync objects + alarms + guest clock, heaps, open files, AX voices, GX2 registers,
-// runtime allocations) and guest memory (MEM2, runtime objects, fixed slots, foreground bucket,
-// MEM1; all-zero 64 KiB chunks are left out).
+
+
 #include "savestate.h"
 #include "guest_addr.h"
 #include "full_state_header.h"
@@ -64,7 +42,6 @@
 #include "quit_prompt.h"
 #include "rumble.h"
 
-// module sections
 bool threads_ss_save(ss::Writer& w, std::string& why);
 bool threads_ss_check(ss::Reader r, std::string& why);
 void threads_ss_load(ss::Reader& r);
@@ -93,10 +70,10 @@ constexpr char kMagic[8] = {'W', 'W', 'H', 'D', 'S', 'T', 'A', 'T'};
 #ifdef __APPLE__
 constexpr uint32_t kVersion = 1;
 #else
-constexpr uint32_t kVersion = 2; // liblz4 raw blocks, not Apple COMPRESSION_LZ4 framing
+constexpr uint32_t kVersion = 2;
 #endif
 constexpr uint32_t kChunk = 0x10000;
-constexpr uint32_t kBlock = 8 << 20;  // compression block (raw bytes)
+constexpr uint32_t kBlock = 8 << 20;
 
 using Header = FullStateHeader;
 
@@ -124,12 +101,11 @@ std::vector<Region> regions() {
             {guestmods::kRegionStart,guestmods::kRegionSize}};
 }
 
-// A snapshot in memory: header + payload (sections); memory chunks point into the payload.
 struct Snapshot {
     Header h{};
     std::vector<uint8_t> payload;
-    std::map<uint32_t, std::pair<size_t, size_t>> sections;  // tag -> (offset, size)
-    std::unordered_map<uint32_t, const uint8_t*> chunks;      // chunk address -> data (absent = zero)
+    std::map<uint32_t, std::pair<size_t, size_t>> sections;
+    std::unordered_map<uint32_t, const uint8_t*> chunks;
     std::vector<Region> regs;
     int slot = 0;
     std::vector<guestmods::ModIdentity> guest_mods;
@@ -155,17 +131,17 @@ struct Snapshot {
     }
 };
 
-std::mutex g_mu;  // messages, pending requests
-std::mutex g_io;  // one slot file operation at a time
+std::mutex g_mu;
+std::mutex g_io;
 std::string g_message;
 std::chrono::steady_clock::time_point g_message_time;
 std::atomic<int> g_save_req{0};
-int g_done_slot = 0;                       // request_save(slot, done): whose `done` is waiting
+int g_done_slot = 0;
 std::function<void(bool, const std::string&)> g_done;
-std::shared_ptr<Snapshot> g_load_ready;   // decompressed, waiting for the frame boundary
-std::atomic<bool> g_loading{false};       // a slot file is being read
+std::shared_ptr<Snapshot> g_load_ready;
+std::atomic<bool> g_loading{false};
 int g_attempts = 0;
-const Snapshot* g_check = nullptr;        // snapshot whose memory snap_ld32 reads
+const Snapshot* g_check = nullptr;
 
 void message(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 void message(const char* fmt, ...) {
@@ -188,7 +164,6 @@ void append_mod_warning(bool differs) {
     g_message_time=std::chrono::steady_clock::now();
 }
 
-// the waiting `done` of request_save(slot, done), taken out (empty if it is for another slot)
 std::function<void(bool, const std::string&)> take_done(int slot) {
     std::lock_guard<std::mutex> lk(g_mu);
     if (g_done_slot != slot) return {};
@@ -220,7 +195,7 @@ std::string slot_label(int slot) {
     return is_auto(slot) ? "Automatic state " + std::to_string(slot - crashrec::kAutoBase) : "Slot " + std::to_string(slot);
 }
 std::string slot_path(int slot, const char* ext = "bin") {
-    if (is_auto(slot)) return state_dir() + "/auto/auto" + std::to_string(slot - crashrec::kAutoBase) + "." + ext;  // crashrec.cpp
+    if (is_auto(slot)) return state_dir() + "/auto/auto" + std::to_string(slot - crashrec::kAutoBase) + "." + ext;
     return state_dir() + "/slot" + std::to_string(slot) + "." + ext;
 }
 
@@ -235,8 +210,7 @@ void build_uuid(uint8_t out[16]) {
         p += lc->cmdsize;
     }
 #else
-    // Hash the complete executable so an incompatible rebuild is never accepted merely because
-    // its CPU structure size happens to match. Addresses are ASLR independent.
+
     uint64_t first=0xcbf29ce484222325ull,second=0x84222325cbf29ce4ull;
     FILE* f=fopen(host::executable_path().c_str(),"rb");
     if(!f) { LOG("[savestate] cannot identify executable; state compatibility is unavailable"); return; }
@@ -261,8 +235,7 @@ uint64_t game_id() {
     return id;
 }
 
-// current stage (dComIfG_gameInfo.play: the start stage, 8 chars)
-const uint32_t kStageName = GD(0x1046F0B0) + 0x5134;  // dStage_startStage_c (next stage at +0x5140)
+const uint32_t kStageName = GD(0x1046F0B0) + 0x5134;
 std::string stage_name() {
     if (const char* e = getenv("NSMBU_STATE_STAGE_ADDR")) {
         uint32_t a = (uint32_t)strtoul(e, nullptr, 16);
@@ -275,7 +248,6 @@ std::string stage_name() {
     return std::string(p, n);
 }
 
-// ---------------------------------------------------------------- memory
 void capture_memory(Writer& w) {
     capture_regions(w,regions(),[](uint32_t a){return mem::ptr(a);},
                     [](const uint8_t* p,size_t n){return host::memory_touched(const_cast<uint8_t*>(p),n);});
@@ -286,7 +258,6 @@ void restore_memory(const Snapshot& s) {
                     [](const uint8_t* p,size_t n){return host::memory_touched(const_cast<uint8_t*>(p),n);});
 }
 
-// ---------------------------------------------------------------- slot files
 bool write_slot(int slot, const Header& h0, const std::vector<uint8_t>& payload) {
     Header h = h0;
     size_t nblocks = (payload.size() + kBlock - 1) / kBlock;
@@ -311,7 +282,7 @@ bool write_slot(int slot, const Header& h0, const std::vector<uint8_t>& payload)
                 size_t n = (size_t)LZ4_compress_default((const char*)payload.data()+i*kBlock,(char*)o.data()+8,(int)raw,(int)o.size()-8);
 #endif
                 uint32_t hdr[2] = {(uint32_t)raw, (uint32_t)n};
-                if (!n || n >= raw) {  // incompressible: stored
+                if (!n || n >= raw) {
                     memcpy(o.data() + 8, payload.data() + i * kBlock, raw);
                     hdr[1] = 0;
                     n = raw;
@@ -388,7 +359,6 @@ std::shared_ptr<Snapshot> read_slot(int slot, std::string& why) {
     return s;
 }
 
-// ---------------------------------------------------------------- save / load at the frame boundary
 void put_section(Writer& w, uint32_t tag, const Writer& sec) {
     w.u32(tag);
     w.u64(sec.b.size());
@@ -409,9 +379,9 @@ bool check_allocs(Reader r, std::string& why) {
     auto cur = mem::runtime_alloc_log();
     for (uint32_t i = 0; i < n && r.ok; i++) {
         mem::AllocRec a = r.pod<mem::AllocRec>();
-        if (i >= cur.size()) break;  // allocated later in the saved session: beyond our top
+        if (i >= cur.size()) break;
         const mem::AllocRec& b = cur[i];
-        // (the allocating code address, a.tag, changes with every rebuild: only logged)
+
         if (a.tag != b.tag && i < 4) LOG("[savestate] runtime object #%u allocated by different code (rebuilt?)", i);
         if (a.addr != b.addr || a.size != b.size) {
             char buf[160];
@@ -458,7 +428,6 @@ std::string area_label(const char* stage) {
     return it == names.end() ? std::string(stage) : it->second;
 }
 
-// true when done (saved or failed for good); false to retry on the next frame
 bool do_save(int slot) {
     std::string busy, why;
     auto t0 = std::chrono::steady_clock::now();
@@ -501,7 +470,7 @@ bool do_save(int slot) {
     put_section(*payload, kSecDispatch, w);
     w=Writer();guestmods::save_mod_set(w,guestmods::enabled_mods());
     put_section(*payload,kSecGuestMods,w);
-    // memory last, written straight into the payload
+
     payload->u32(kSecMemory);
     size_t len_at = payload->b.size();
     payload->u64(0);
@@ -524,7 +493,7 @@ bool do_save(int slot) {
     LOG("[savestate] slot %d: captured %.1f MB in %.1f ms (stage %s)", slot, payload->b.size() / 1048576.0, ms, stage.c_str());
     if (!is_auto(slot)) render::request_tv_dump(slot_path(slot, "png"), 0);
     else crashrec::on_auto_saved(slot - crashrec::kAutoBase);
-    // compress and write in the background; the game continues
+
     std::thread([slot, h, payload, stage, done = take_done(slot)] {
         auto t1 = std::chrono::steady_clock::now();
         bool ok;
@@ -537,7 +506,7 @@ bool do_save(int slot) {
         stat(slot_path(slot).c_str(), &st);
         LOG("[savestate] slot %d: %s (%.1f MB on disk, %.0f ms)", slot, ok ? "written" : "WRITE FAILED", st.st_size / 1048576.0, ms);
         if (done) done(ok, ok ? "" : "write failed");
-        if (is_auto(slot)) return;  // automatic states stay quiet
+        if (is_auto(slot)) return;
         std::lock_guard<std::mutex> lk(g_mu);
         g_message = ok ? "Saved to slot " + std::to_string(slot) + (stage.empty() ? "" : " (" + area_label(stage.c_str()) + ")")
                        : "Slot " + std::to_string(slot) + ": write failed";
@@ -566,7 +535,7 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
     g_check = nullptr;
     if (!ok) {
         threads::thaw();
-        // threads at other waits right now may be where they were saved on a later frame
+
         if (layout_ok && ++g_attempts < 30) {
             if (g_attempts == 1) LOG("[savestate] slot %d: waiting for the game threads (%s)", s->slot, why.c_str());
             return false;
@@ -588,9 +557,9 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
     gx2_ss_load(r);
     interp::ss_reset();
     aspect::ss_reset();
-    rumble::reset();     // an effect running before the load is not the restored game's
+    rumble::reset();
     r = s->section(kSecThreads);
-    threads_ss_load(r);  // last: wakes the parked threads (they continue after the thaw)
+    threads_ss_load(r);
     threads::thaw();
     double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     std::string area = s->h.area[0] ? " (" + area_label(s->h.area) + ")" : "";
@@ -601,44 +570,28 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
     return true;
 }
 
-// ---------------------------------------------------------------- portable states (portable_state.h)
-// Made and applied on the game's main thread at the frame boundary, with the game's own save
-// functions (nsmbu_src d_save_5.cpp, d_menu_save_card.cpp; GameCube names from zeldaret/tww):
-//   save: dSv_info_c::putSave(current stage) and dComIfGs_setGameStartStage, as the in-game save
-//         does before writing (both undone afterwards: making a portable state changes nothing),
-//         dSv_info_c::memory_to_card into a scratch buffer = this Quest Log's block of cking.sav;
-//         the HD per-file sections through the SaveMgr's own copy functions.
-//   load: dSv_info_c::card_to_memory, then dSv_info_c::getSave(current stage) (the stage's own
-//         memory bits must be the loaded ones when dStage_Delete puts them back), a fresh dungeon
-//         and temporary-flag state, the HD sections, the SaveMgr's refresh (item buttons), and a
-//         stage change the way the game restarts a room after a void-out: dSv_restart_c holds
-//         Link's room, position and angle, and the next stage gets point -1 (dStage_playerInit
-//         creates Link there).
-// The addresses of the game's own globals and functions are canonical (USA) ids: GD()/GC() turn
-// them into this build's (runtime/include/guest_addr.h). An offset inside an object does not
-// change with the build, so only the base of each object is translated.
-const uint32_t kSaveInfoPtr = GD(0x101F84DC);       // dComIfGs save area (dSv_info_c at +0x20)
-const uint32_t kPlay = GD(0x1046F0B0);              // g_dComIfG_gameInfo.play (dComIfG_getGameInfo 025200D4)
-const uint32_t kStartStage = kPlay + 0x5134;    // dStage_startStage_c: name[8], point s16, room s8, layer s8
-const uint32_t kNextStage = kPlay + 0x5140;     // dStage_nextStage_c: the same + enabled, wipe
-const uint32_t kStageData = kPlay + 0x5150;     // dStage_stageDt_c (getStagInfo: vtable +0x15C)
-const uint32_t kLinkPtr = kPlay + 0x5B34;       // mpPlayerPtr[0]: daPy_lk_c
-const uint32_t kShipPtr = kPlay + 0x5B3C;       // dComIfGp_getShipActor: daShip_c (0 without a boat)
-constexpr uint32_t kActorPos = 0x314, kActorRoom = 0x326, kShapeAngleY = 0x32A;  // fopAc_ac_c (NSMBU)
-constexpr uint32_t kLinkProc = 0x65F0;              // daPy_lk_c::mCurProc
-constexpr uint32_t kInfo = 0x20;                    // dSv_info_c in the save area
-const uint32_t kDataNum = kInfo + 0x1290;       // dSv_info_c::mDataNum (Quest Log 0..2)
-constexpr uint32_t kReturnPlace = 0x50;             // dSv_player_return_place_c (0xC bytes)
-const uint32_t kMemoryTable = kInfo + 0x380;    // dSv_save_c::mSave[16] (dSv_memory_c, 0x24 each)
-const uint32_t kTurnRestart = kInfo + 0x1258;   // dSv_turnRestart_c: pos 0, param 0xC, angle 0x10, room 0x12, ship pos 0x24, ship angle 0x30, has ship 0x34
-const uint32_t kRestart = kInfo + 0x1128;       // dSv_restart_c: room 0, angle 0x16, pos 0x18, param 0x24, last speed 0x28, last mode 0x2C
-constexpr uint32_t kHdArea = 0x12C0;                // HD per-file data (SaveMgr getters 027200A0..)
-constexpr uint32_t kCardStatusB = 0x18;             // status B in the card block: time 0xC (f32), date 0x10 (u16)
-// game functions
+const uint32_t kSaveInfoPtr = GD(0x101F84DC);
+const uint32_t kPlay = GD(0x1046F0B0);
+const uint32_t kStartStage = kPlay + 0x5134;
+const uint32_t kNextStage = kPlay + 0x5140;
+const uint32_t kStageData = kPlay + 0x5150;
+const uint32_t kLinkPtr = kPlay + 0x5B34;
+const uint32_t kShipPtr = kPlay + 0x5B3C;
+constexpr uint32_t kActorPos = 0x314, kActorRoom = 0x326, kShapeAngleY = 0x32A;
+constexpr uint32_t kLinkProc = 0x65F0;
+constexpr uint32_t kInfo = 0x20;
+const uint32_t kDataNum = kInfo + 0x1290;
+constexpr uint32_t kReturnPlace = 0x50;
+const uint32_t kMemoryTable = kInfo + 0x380;
+const uint32_t kTurnRestart = kInfo + 0x1258;
+const uint32_t kRestart = kInfo + 0x1128;
+constexpr uint32_t kHdArea = 0x12C0;
+constexpr uint32_t kCardStatusB = 0x18;
+
 const uint32_t fn_memory_to_card = GC(0x025BA9FC), fn_card_to_memory = GC(0x025BA7B0), fn_putSave = GC(0x025B9D24),
                fn_getSave = GC(0x025B9C9C), fn_setGameStartStage = GC(0x025217F8), fn_danInit = GC(0x025B9174),
                fn_eventInit = GC(0x025B8B10), fn_refreshGame = GC(0x02721880), fn_turnRestartSet = GC(0x025B998C);
-// HD sections: (slot getter, live getter, live <- slot copy) and size in the file (SaveMgr read/write 02724764..)
+
 struct HdSection { uint32_t slot_get, live_get, copy; size_t size; std::vector<uint8_t> pstate::State::*field; };
 const HdSection kHdSections[] = {
     {GC(0x027200A0), GC(0x027200D0), GC(0x0271FCB4), pstate::kHdPlayerSize, &pstate::State::hd_player},
@@ -646,16 +599,15 @@ const HdSection kHdSections[] = {
     {GC(0x027200FC), GC(0x02720118), GC(0x0271F914), pstate::kHdEventSize, &pstate::State::hd_event},
     {GC(0x02720180), GC(0x0272019C), GC(0x027208F4), pstate::kHdMapSize, &pstate::State::hd_map},
 };
-const uint32_t fn_name_obj = GC(0x02720154);  // per-file player name (SafeString: +0 UTF-16 text)
+const uint32_t fn_name_obj = GC(0x02720154);
 
 bool in_mem2(uint32_t a) { return a >= mem::kMem2Start && a < mem::kMem2End; }
 
-uint32_t scratch() {  // host-only guest buffer for the game's card functions (not part of full states)
+uint32_t scratch() {
     static const uint32_t s = mem::host_alloc(0x2000, 64);
     return s;
 }
 
-// guest calls from the frame boundary: every register is put back afterwards
 struct CallScope {
     Cpu* c;
     Cpu saved;
@@ -669,7 +621,6 @@ struct CallScope {
     }
 };
 
-// the stage's save-table index (dStage_stagInfo_GetSaveTbl), as dStage_Delete computes it
 int current_stage_no(Cpu* c) {
     uint32_t vt = ld32(kStageData);
     if (!in_mem2(vt)) return -1;
@@ -678,7 +629,6 @@ int current_stage_no(Cpu* c) {
     return (ld8(stag + 9) >> 1) & 0x7F;
 }
 
-// a Quest Log is being played (not the title screen or file select) and nothing is changing stage
 bool gameplay_ready(std::string& why, bool& retry) {
     retry = false;
     uint32_t sv = ld32(kSaveInfoPtr);
@@ -696,20 +646,15 @@ bool gameplay_ready(std::string& why, bool& retry) {
     return true;
 }
 
-// Link is under the player's control: the conditions under which the game opens its pause menu
-// (dMw_c, d_menu_window.cpp: no event for 5 frames, no message box, no menu, no stage change or
-// wipe in progress, Link is the controlled actor, Link is not on a rope). The menu also refuses
-// while the Telescope or the Picto Box aims; that is left out (Link restarts standing, harmless).
-// Updated every frame for the event delay.
-const uint32_t kEventRun = kPlay + 0x5292;     // dComIfGp_event_runCheck (dEvt_control_c mode)
-const uint32_t kMesgStatus = kPlay + 0x5BB2;   // dComIfGp_getMesgStatus (messageState 025F795C)
+const uint32_t kEventRun = kPlay + 0x5292;
+const uint32_t kMesgStatus = kPlay + 0x5BB2;
 const uint32_t kScopeMesgStatus = kPlay + 0x5BB3;
-const uint32_t kMenuFlag = GD(0x101EA069);         // dMenu_flag (025986BC)
-const uint32_t kPlayerPtr = kPlay + 0x5B2C;    // mpPlayer[0]: the controlled actor
-const uint32_t kPlayerStatus0 = kPlay + 0x5CD8; // dComIfGp_checkPlayerStatus0 (mPlayerStatus[0][0])
-constexpr uint32_t kSttsRope = 0x00800000;          // daPyStts0_UNK800000_e: set by Link's rope procedures (procRope*)
-const uint32_t fn_ovlpDoingReq = GC(0x025DBE38);   // fopOvlpM_IsDoingReq (a wipe or scene overlap runs)
-int g_event_wait = 0;                              // d_menu_window.cpp event_wait_frame
+const uint32_t kMenuFlag = GD(0x101EA069);
+const uint32_t kPlayerPtr = kPlay + 0x5B2C;
+const uint32_t kPlayerStatus0 = kPlay + 0x5CD8;
+constexpr uint32_t kSttsRope = 0x00800000;
+const uint32_t fn_ovlpDoingReq = GC(0x025DBE38);
+int g_event_wait = 0;
 void track_events() {
     if (ld8(kEventRun)) g_event_wait = 5;
     else if (g_event_wait > 0) g_event_wait--;
@@ -720,7 +665,7 @@ bool player_has_control(Cpu* c, std::string& why) {
     if (ld8(kMenuFlag)) { why = "a game menu is open"; return false; }
     if (ld8(kNextStage + 12)) { why = "a stage change is in progress"; return false; }
     if (ld32(kPlayerPtr) != ld32(kLinkPtr)) { why = "Link is not the controlled character"; return false; }
-    // on a rope or swinging from the Grappling Hook (the menu checks it too): he would restart in mid-air
+
     if (ld32(kPlayerStatus0) & kSttsRope) { why = "Link is on a rope"; return false; }
     CallScope scope(c);
     if (guest_call(c, fn_ovlpDoingReq) & 0xFF) { why = "a scene transition is in progress"; return false; }
@@ -777,7 +722,6 @@ std::string now_text() {
 
 float be_f32(const uint8_t* p) { return u32_as_f32((uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]); }
 
-// the current game as a portable state (main thread, frame boundary)
 bool capture_portable(Cpu* c, pstate::State& s, std::string& why) {
     bool retry;
     if (!gameplay_ready(why, retry)) return false;
@@ -785,14 +729,14 @@ bool capture_portable(Cpu* c, pstate::State& s, std::string& why) {
     const uint32_t sv = ld32(kSaveInfoPtr), info = sv + kInfo, buf = scratch();
     std::string stage = stage_name();
     int stage_no = current_stage_no(c);
-    // what the in-game save does first (SaveMgr 02721C44), on a copy: the live game stays unchanged
+
     uint8_t rp[0xC], entry[0x24];
     memcpy(rp, mem::ptr(sv + kReturnPlace), sizeof rp);
     if (stage_no >= 0 && stage_no < 16) {
         memcpy(entry, mem::ptr(sv + kMemoryTable + stage_no * 0x24), sizeof entry);
         guest_call(c, fn_putSave, {info, (uint32_t)stage_no});
     }
-    if (stage != "PShip") guest_call(c, fn_setGameStartStage);  // (PShip would also set the next time of day)
+    if (stage != "PShip") guest_call(c, fn_setGameStartStage);
     memset(mem::ptr(buf), 0, pstate::kSaveDataSize);
     int32_t r = (int32_t)guest_call(c, fn_memory_to_card, {info, buf, 0});
     memcpy(mem::ptr(sv + kReturnPlace), rp, sizeof rp);
@@ -800,7 +744,7 @@ bool capture_portable(Cpu* c, pstate::State& s, std::string& why) {
     if (r == -1) { why = "the game's save function failed"; return false; }
     s.savedata.assign(mem::ptr(buf), mem::ptr(buf) + pstate::kSaveDataSize);
     pstate::seal_savedata(s.savedata);
-    // HD per-file sections: this file's stored copy with the live data copied over (SaveMgr 02721B34)
+
     const uint32_t hd = sv + kHdArea;
     const int slot = ld8(sv + kDataNum);
     for (auto& h : kHdSections) {
@@ -811,7 +755,7 @@ bool capture_portable(Cpu* c, pstate::State& s, std::string& why) {
     }
     uint32_t name_obj = guest_call(c, fn_name_obj, {hd, (uint32_t)slot});
     s.player_name = utf8_from_utf16be(ld32(name_obj), 8);
-    // header and place
+
     s.title_id = title_id();
     s.title_version = (uint32_t)strtoul(meta_value("title_version").c_str(), nullptr, 10);
     s.game_hash = hex64(game_id());
@@ -835,14 +779,13 @@ bool capture_portable(Cpu* c, pstate::State& s, std::string& why) {
         for (int i = 0; i < 3; i++) s.ship_pos[i] = (float)ldf32(ship + kActorPos + 4 * i);
         s.ship_angle_y = (int16_t)ld16(ship + kShapeAngleY);
     }
-    // daPyProc_SHIP_READY..SHIP_RESTART (not SHIP_GET_OFF): riding the boat
+
     s.on_ship = s.has_ship && s.link_proc >= 0x86 && s.link_proc <= 0x91 && s.link_proc != 0x90;
     s.time_of_day = be_f32(&s.savedata[kCardStatusB + 0xC]);
     s.date = s.savedata[kCardStatusB + 0x10] << 8 | s.savedata[kCardStatusB + 0x11];
     return true;
 }
 
-// the HD per-file sections into the live game (SaveMgr 02720D34 direction: live <- stored)
 void apply_hd_sections(Cpu* c, const pstate::State& s) {
     const uint32_t hd = ld32(kSaveInfoPtr) + kHdArea, buf = scratch();
     for (auto& h : kHdSections) {
@@ -851,7 +794,6 @@ void apply_hd_sections(Cpu* c, const pstate::State& s) {
     }
 }
 
-// puts a portable state into the running game; false + retry when the game is not ready yet
 bool apply_portable(Cpu* c, const pstate::State& s, std::string& why, bool& retry) {
     if (!gameplay_ready(why, retry)) return false;
     CallScope scope(c);
@@ -860,28 +802,25 @@ bool apply_portable(Cpu* c, const pstate::State& s, std::string& why, bool& retr
     if ((int32_t)guest_call(c, fn_card_to_memory, {info, buf, 0}) == -1) { why = "the game refused the save data"; return false; }
     int stage_no = current_stage_no(c);
     if (stage_no >= 0 && stage_no < 16) guest_call(c, fn_getSave, {info, (uint32_t)stage_no});
-    guest_call(c, fn_danInit, {info + 0x79C, 0xFFFFFFFFu});  // dSv_danBit_c::init(-1): the next stage starts fresh
-    guest_call(c, fn_eventInit, {info + 0x1158});             // dSv_info_c::mTmp (temporary flags)
+    guest_call(c, fn_danInit, {info + 0x79C, 0xFFFFFFFFu});
+    guest_call(c, fn_eventInit, {info + 0x1158});
     apply_hd_sections(c, s);
-    guest_call(c, fn_refreshGame, {0});  // SaveMgr: item buttons and equipment from the loaded data (does not use its object)
-    // Link's place: the void-out restart (dStage_restartRoom / dStage_playerInit point -1), or with the
-    // boat the restart the Song of Passing uses (daPy_lk_c tact, dStage_turnRestart: point -3, the
-    // boat back at its position by dStage_setShipPos, Link on it with start mode 2)
+    guest_call(c, fn_refreshGame, {0});
+
     const uint32_t rs = sv + kRestart;
     st8(rs + 0, (uint8_t)s.room);
     st16(rs + 0x16, (uint16_t)s.angle_y);
     for (int i = 0; i < 3; i++) stf32(rs + 0x18 + 4 * i, s.pos[i]);
-    // player parameters (daPy_lk_c::setParamData): room, start mode 0 (standing), no start event
+
     st32(rs + 0x24, (uint32_t)(s.room & 0x3F) | 0xFF000000u);
-    stf32(rs + 0x28, 0.0);  // last scene speed and mode: a plain start
+    stf32(rs + 0x28, 0.0);
     st32(rs + 0x2C, 0);
     char name[8] = {};
     memcpy(name, s.stage.data(), std::min<size_t>(s.stage.size(), 7));
     for (int i = 0; i < 8; i++) st8(kNextStage + i, (uint8_t)name[i]);
-    uint16_t point = 0xFFFF;  // point -1: the restart position
+    uint16_t point = 0xFFFF;
     if (s.has_ship) {
-        // daPy_lk_c::getDayNightParamData without the Wind Waker parts (event 0xCC, flag 0x40: the
-        // conducting animation): room, start mode 2 on the boat / 0 beside it, no event, boat flag 0x100
+
         uint32_t param = (uint32_t)(s.room & 0x3F) | (uint32_t)(s.on_ship ? 2 : 0) << 12 | 0xFF000000u | 0x100u;
         for (int i = 0; i < 3; i++) {
             stf32(buf + 4 * i, s.pos[i]);
@@ -889,14 +828,14 @@ bool apply_portable(Cpu* c, const pstate::State& s, std::string& why, bool& retr
         }
         guest_call(c, fn_turnRestartSet, {sv + kTurnRestart, buf, (uint32_t)(uint16_t)s.angle_y, (uint32_t)(uint8_t)s.room, param,
                                           buf + 0x10, (uint32_t)(uint16_t)s.ship_angle_y, 1});
-        point = 0xFFFD;  // -3: the turn restart
+        point = 0xFFFD;
     }
     st16(kNextStage + 8, point);
     st8(kNextStage + 10, (uint8_t)s.room);
     st8(kNextStage + 11, (uint8_t)s.layer);
-    st8(kNextStage + 13, 0);  // wipe: fade
+    st8(kNextStage + 13, 0);
     if (s.controller) input::set_pro_controller(restored_pro_controller(s.controller, input::pro_controller()));
-    st8(kNextStage + 12, 1);  // enabled
+    st8(kNextStage + 12, 1);
     return true;
 }
 
@@ -925,7 +864,7 @@ bool read_portable(const std::string& path, pstate::State& s, std::string& why) 
 }
 
 bool write_portable(const std::string& path, const pstate::State& s, std::string& why) {
-    std::string text = pstate::write(s, why);  // refuses anything that is not small (the guard)
+    std::string text = pstate::write(s, why);
     if (text.empty()) return false;
     std::string tmp = path + ".tmp";
     FILE* f = fopen(tmp.c_str(), "wb");
@@ -940,17 +879,17 @@ bool write_portable(const std::string& path, const pstate::State& s, std::string
 
 struct PendingPortable { std::shared_ptr<pstate::State> s; int slot = 0; std::string path; };
 std::atomic<int> g_psave_req{0};
-PendingPortable g_pload;          // under g_mu
-bool g_pload_waiting = false;     // the "waiting for gameplay" message was shown
-std::string g_last_portable;      // newest portable state written or loaded (under g_mu)
-// after a portable load: the old Link's process id (a new Link has a new one), the state for the HD sections
+PendingPortable g_pload;
+bool g_pload_waiting = false;
+std::string g_last_portable;
+
 struct Arrival { std::string stage; float pos[3]; uint64_t frame = 0; uint32_t link_id = 0; int frames = 0; std::shared_ptr<pstate::State> s; } g_arrival;
 
 void do_portable_save(Cpu* c, int slot) {
     pstate::State s;
     std::string why;
     bool retry;
-    // only while the player controls Link (decision: no portable states mid-cutscene/dialogue; full states stay allowed)
+
     if (gameplay_ready(why, retry) && !player_has_control(c, why)) {
         LOG("[savestate] slot %d: portable state refused: %s", slot, why.c_str());
         message("Slot %d: can't save during a cutscene or dialogue - try again when you have control of Link", slot);
@@ -975,7 +914,7 @@ void do_portable_save(Cpu* c, int slot) {
         s.on_ship ? ", on the boat" : s.has_ship ? ", boat nearby" : "");
     if (s.has_ship)
         LOG("[savestate] slot %d: boat at %.1f %.1f %.1f, angle %d", slot, s.ship_pos[0], s.ship_pos[1], s.ship_pos[2], s.ship_angle_y);
-    // decision: an older full state in the same slot is kept (never deleted), but the player is told
+
     struct stat full{};
     std::string older;
     if (stat(slot_path(slot).c_str(), &full) == 0) {
@@ -985,7 +924,7 @@ void do_portable_save(Cpu* c, int slot) {
         LOG("[savestate] slot %d also holds an older full state (%s, %.0f MB); it is kept", slot, slot_path(slot).c_str(),
             full.st_size / 1048576.0);
     }
-    render::request_tv_dump(slot_path(slot, "png"), 0);  // the slot's picture (stays on this computer)
+    render::request_tv_dump(slot_path(slot, "png"), 0);
     {
         std::lock_guard<std::mutex> lk(g_mu);
         g_last_portable = path;
@@ -994,7 +933,6 @@ void do_portable_save(Cpu* c, int slot) {
     report_done(slot, true, "");
 }
 
-// a pending portable load at the frame boundary
 void service_portable_load(Cpu* c) {
     PendingPortable p;
     {
@@ -1017,7 +955,7 @@ void service_portable_load(Cpu* c) {
         LOG("[savestate] %s: portable state applied: entering %s room %d layer %d at %.1f %.1f %.1f", portable_label(p.slot).c_str(),
             p.s->stage.c_str(), p.s->room, p.s->layer, p.s->pos[0], p.s->pos[1], p.s->pos[2]);
         if (current_log >= 0 && current_log <= 2 && current_log != p.s->file_slot) {
-            // decision: loading goes into the Quest Log being played; say so when the state is from another one
+
             LOG("[savestate] %s: this state is from Quest Log %d; it is loaded into Quest Log %d", portable_label(p.slot).c_str(),
                 p.s->file_slot + 1, current_log + 1);
             message("This state is from Quest Log %d; it is loaded into Quest Log %d (saving in game will write it there).",
@@ -1036,12 +974,10 @@ void service_portable_load(Cpu* c) {
     g_pload = PendingPortable{};
 }
 
-// after a portable load: once the new Link exists, the HD sections once more (leaving the old stage
-// updates the live sea-chart position), then log where Link arrived (scripted tests read this line)
 void watch_arrival(Cpu* c) {
     if (g_arrival.stage.empty()) return;
     uint32_t link = ld32(kLinkPtr);
-    if (stage_name() != g_arrival.stage || !in_mem2(link) || ld32(link + 4) == g_arrival.link_id) {  // fpcBs mBsPcId
+    if (stage_name() != g_arrival.stage || !in_mem2(link) || ld32(link + 4) == g_arrival.link_id) {
         if (render::frame_count() - g_arrival.frame > 30 * 60) {
             LOG("[savestate] portable load: did not arrive in %s", g_arrival.stage.c_str());
             g_arrival = Arrival{};
@@ -1052,7 +988,7 @@ void watch_arrival(Cpu* c) {
         CallScope scope(c);
         apply_hd_sections(c, *g_arrival.s);
     }
-    if (g_arrival.frames < 30) return;  // let Link settle (start animation, ground check)
+    if (g_arrival.frames < 30) return;
     float p[3];
     for (int i = 0; i < 3; i++) p[i] = (float)ldf32(link + kActorPos + 4 * i);
     float dx = p[0] - g_arrival.pos[0], dy = p[1] - g_arrival.pos[1], dz = p[2] - g_arrival.pos[2];
@@ -1073,10 +1009,9 @@ void watch_arrival(Cpu* c) {
     g_arrival = Arrival{};
 }
 
-// full states: the setting, the environment and the scripted tests
-int g_full_setting = -1;  // -1: not read yet
+int g_full_setting = -1;
 std::string full_cfg_path() { return state_dir() + "/full_save_states.cfg"; }
-int full_env() {  // 1 / 0 forced by the environment, -1 not forced
+int full_env() {
     static const int v = [] {
         if (const char* e = getenv("NSMBU_FULL_SAVE_STATES")) return atoi(e) != 0 ? 1 : 0;
         for (const char* t : {"NSMBU_STATE_SAVE_AT", "NSMBU_STATE_LOAD_AT", "NSMBU_TEST_SAVE", "NSMBU_TEST_LOAD"})
@@ -1086,7 +1021,6 @@ int full_env() {  // 1 / 0 forced by the environment, -1 not forced
     return v;
 }
 
-// which file of a slot to load: the newer one
 bool newer_is_portable(int slot) {
     struct stat a{}, b{};
     bool full = stat(slot_path(slot).c_str(), &a) == 0, port = stat(slot_path(slot, pstate::kExtension).c_str(), &b) == 0;
@@ -1101,7 +1035,6 @@ bool newer_is_portable(int slot) {
     return port;
 }
 
-// test aid: NSMBU_STATE_SAVE_AT=frame:slot,...  NSMBU_STATE_LOAD_AT=frame:slot,... (TV frames)
 struct Timed { uint64_t frame; int slot; };
 std::vector<Timed> parse_timed(const char* var) {
     std::vector<Timed> v;
@@ -1117,7 +1050,7 @@ std::vector<Timed> parse_timed(const char* var) {
     return v;
 }
 
-}  // namespace
+}
 
 uint32_t snap_ld32(uint32_t ea) {
     if (!g_check) return ld32(ea);
@@ -1126,7 +1059,7 @@ uint32_t snap_ld32(uint32_t ea) {
     if (it == g_check->chunks.end()) {
         for (auto& g : g_check->regs)
             if (ea - g.base < g.size) return 0;
-        return ld32(ea);  // not part of the snapshot (code, host-only memory)
+        return ld32(ea);
     }
     uint32_t v;
     memcpy(&v, it->second + (ea - base), 4);
@@ -1176,7 +1109,7 @@ SlotInfo portable_slot_info(int slot) {
     pstate::State s;
     info.compatible = pstate::read(text, s, why) && s.title_id == title_id();
     if (info.compatible) {
-        // "2026-10-08 14:03:11" -> "Oct 08 14:03:11" like the full states
+
         static const char* mon[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
         int y, mo, d;
         char rest[16];
@@ -1191,12 +1124,12 @@ SlotInfo portable_slot_info(int slot) {
     return info;
 }
 
-}  // namespace
+}
 
 SlotInfo slot_info(int slot) {
     if (is_auto(slot)) return full_slot_info(slot);
     SlotInfo info = newer_is_portable(slot) ? portable_slot_info(slot) : full_slot_info(slot);
-    // the slot's other, older file (kept; shown so it is not forgotten)
+
     struct stat st{};
     if (stat(slot_path(slot, info.portable ? "bin" : pstate::kExtension).c_str(), &st) == 0) {
         info.older_other = true;
@@ -1299,7 +1232,7 @@ std::string bug_report_text() {
         std::lock_guard<std::mutex> lk(g_mu);
         pstate_path = g_last_portable;
     }
-    if (pstate_path.empty()) {  // the newest portable slot file
+    if (pstate_path.empty()) {
         std::filesystem::file_time_type best{};
         for (int i = 1; i <= kSlots; i++) {
             std::error_code ec;
@@ -1342,9 +1275,7 @@ std::string states_dir() { return state_dir(); }
 
 void service(Cpu* c) {
     crashrec::service();
-    // test aids (TV frames): NSMBU_STATE_SAVE_AT / NSMBU_STATE_LOAD_AT for full states,
-    // NSMBU_PORTABLE_SAVE_AT / NSMBU_PORTABLE_LOAD_AT for portable ones; NSMBU_PORTABLE_LOAD=file loads
-    // that portable state as soon as a Quest Log is being played (a state from a bug report)
+
     static const std::vector<Timed> save_at = parse_timed("NSMBU_STATE_SAVE_AT"), load_at = parse_timed("NSMBU_STATE_LOAD_AT"),
                                     psave_at = parse_timed("NSMBU_PORTABLE_SAVE_AT"), pload_at = parse_timed("NSMBU_PORTABLE_LOAD_AT");
     if (!save_at.empty() || !load_at.empty() || !psave_at.empty() || !pload_at.empty()) {
@@ -1369,7 +1300,7 @@ void service(Cpu* c) {
     if (int slot = g_psave_req.exchange(0)) do_portable_save(c, slot);
     service_portable_load(c);
     watch_arrival(c);
-    // test aid: NSMBU_STATE_DUMP=n dumps the n TV frames after each save/load (state_<save|load><slot>_<k>.png)
+
     static const int dump = getenv("NSMBU_STATE_DUMP") ? atoi(getenv("NSMBU_STATE_DUMP")) : 0;
     if (int slot = g_save_req.load()) {
         if (do_save(slot)) {
@@ -1388,7 +1319,7 @@ void service(Cpu* c) {
     if (s && do_load(s)) {
         g_last_load_frame = render::frame_count();
         g_last_load_step = interp::logic_steps();
-        g_last_load_counter = ld32(GD(0x101FF560));  // g_Counter.mTimer: the game's own step counter, part of the state
+        g_last_load_counter = ld32(GD(0x101FF560));
         {
             std::lock_guard<std::mutex> lk(g_mu);
             g_load_ready.reset();
@@ -1400,4 +1331,4 @@ void service(Cpu* c) {
     }
 }
 
-}  // namespace ss
+}

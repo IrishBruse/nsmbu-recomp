@@ -2,8 +2,7 @@
 #include <vulkan/vulkan.h>
 
 namespace gfxvk {
-// One queue owns all renderer resources. Ranges are deliberately whole-resource;
-// readers accumulate until the next write or layout change orders them.
+
 struct ResourceUse {
     VkPipelineStageFlags writeStage = 0, readStages = 0;
     VkAccessFlags writeAccess = 0;
@@ -31,11 +30,10 @@ inline Dependency derive_dependency(ResourceUse& use, VkPipelineStageFlags stage
     d.source = use.writeStage | ((writes || layoutChange) ? use.readStages : 0);
     if (!d.source) d.source = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     d.destination = stage ? stage : VkPipelineStageFlags(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
-    d.sourceAccess = use.writeAccess; // WAR requires execution ordering, no read access mask.
+    d.sourceAccess = use.writeAccess;
     d.destinationAccess = access;
     if (layoutChange) {
-        // A layout transition itself writes image memory. Retain its destination
-        // scope as a producer even if the declared next operation is read-only.
+
         use.readStages = 0;
         use.writeStage |= d.destination;
         use.visibleStages = stage;
@@ -57,4 +55,4 @@ inline Dependency derive_dependency(ResourceUse& use, VkPipelineStageFlags stage
     }
     return d;
 }
-} // namespace gfxvk
+}

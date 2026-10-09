@@ -39,7 +39,7 @@ bool enable_after_code_rebuild(const std::string& id,std::string&){queued=id;ret
 int main(int argc,char** argv){
     assert(argc==2);
     namespace fs=std::filesystem;using namespace mods::code;
-    clear_env("NSMBU_CODE_MODS");assert(!enabled()); // absent preference starts off
+    clear_env("NSMBU_CODE_MODS");assert(!enabled());
     auto root=fs::temp_directory_path()/("nsmbu-code-service-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     fs::create_directories(root);
     auto tool=root/"setup fixture.py";

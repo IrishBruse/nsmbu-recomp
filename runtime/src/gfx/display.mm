@@ -1,32 +1,5 @@
-// Display: the TV and GamePad windows, full screen, and the final composition of the TV and GamePad
-// images onto the screen (scale to fit with letterbox/pillarbox, scaling filter, GamePad screen as a
-// separate window or as a picture-in-picture overlay inside the TV window).
-//
-// Everything here only decides how the finished scan-out images (R.tv.tex, R.drc.tex, any size and
-// aspect) are put on the screen; what the game renders is decided elsewhere.
-//
-// Both renderers use these windows (renderer.h): Metal draws the composition below; Vulkan
-// (gfx/vulkan, MoltenVK) gets each view's CAMetalLayer for a VK_EXT_metal_surface swapchain and asks
-// display_plan() for the same layout (picture rectangles, GamePad overlay, scaling filter).
-//
-// Shortcuts: Cmd+F (or Ctrl+Cmd+F, or the green button) full screen; Cmd+G show/hide the GamePad screen.
-// Closing the TV window (close button, Cmd+W) quits the app, asking first while a game is in progress
-// (quit_prompt.mm); closing the GamePad window only hides it.
-// The Display menu holds the rest. Choices are kept in ~/Library/Application Support/nsmbu/display.plist
-// (test runs with NSMBU_NO_HOST_INPUT neither read nor write it unless NSMBU_DISPLAY_SETTINGS names a file).
-//
-// The modes, the layout of the TV window, the automatic overlay and the overlay's touch mapping are
-// shared with the SDL host (display_modes.cpp, which lists their test variables: NSMBU_DRC_MODE,
-// NSMBU_DRC_PIP, NSMBU_SCALE_FILTER, NSMBU_SIM_SCREEN, NSMBU_TEST_TOUCH, NSMBU_DRC_AUTO, NSMBU_DRC_AUTO_LOG).
-//
-// Debug / test environment:
-//   NSMBU_FULLSCREEN=0|1                  TV window starts windowed / in full screen instead of as it was left
-//                                        (that session's full screen is not saved; 1 takes over the screen!)
-//   NSMBU_DUMP_PRESENT=1                  with NSMBU_DUMP_FRAMES: also write frame_<n>_present.png (the composed
-//                                        TV window) and frame_<n>_present_drc.png (GamePad window, window mode)
-//   NSMBU_TEST_DRC_KEY=3500,3700          frames at which Cmd+G (show/hide GamePad screen) is simulated
-//   NSMBU_HIDDEN_WINDOWS=1                test runs: the windows are never put on screen (nothing pops up;
-//                                        frame / present dumps still work, the drawables are not presented)
+
+
 #import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
 
@@ -59,14 +32,12 @@ namespace mods { bool mouse_captured(); }
 
 namespace gfx {
 extern Renderer R;
-void install_menu(NSWindow* tv);  // menu.mm
-Class tv_window_class();           // quit_prompt.mm: closing the TV window quits (after asking)
+void install_menu(NSWindow* tv);
+Class tv_window_class();
 void install_quit_prompt(NSWindow* tv);
 bool fxaa_enabled();
 void dump_texture(id<MTLTexture> src, const char* name, bool async, bool srgbEncode);
 
-// ---------------------------------------------------------------- options
-// (the option state itself: display_modes.cpp)
 static int find_name(const char* const* names, int n, NSString* s, int def) {
     return find_name(names, n, [s isKindOfClass:[NSString class]] ? s.UTF8String : nullptr, def);
 }
@@ -75,11 +46,10 @@ static bool hidden_windows() {
     return h;
 }
 
-// ---------------------------------------------------------------- settings file
 static NSMutableDictionary* g_settings;
 static NSString* settings_path() {
     if (const char* e = getenv("NSMBU_DISPLAY_SETTINGS")) return @(e);
-    if (getenv("NSMBU_NO_HOST_INPUT")) return nil;  // test runs leave the user's choices alone
+    if (getenv("NSMBU_NO_HOST_INPUT")) return nil;
     return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/nsmbu/display.plist"];
 }
 static void load_settings() {
@@ -100,7 +70,7 @@ static void set_setting(NSString* key, id value) {
     else [g_settings removeObjectForKey:key];
     save_settings();
 }
-// renderer.cpp: the renderer choice lives in the same file (read before the windows exist)
+
 bool host_setting(const char* key, std::string& value) {
     if (!g_settings) load_settings();
     id v = g_settings[@(key)];
@@ -124,13 +94,11 @@ static void load_options() {
     g_filter = find_name(kFilterNames, 3, g_settings[@"scaleFilter"], kSmooth);
     if (NSNumber* n = g_settings[@"pipSize"]) g_pip_size = std::clamp(n.floatValue, 0.1f, 0.5f);
     if (NSNumber* n = g_settings[@"pipOpacity"]) g_pip_opacity = std::clamp(n.floatValue, 0.2f, 1.0f);
-    display_env_overrides();  // start-up overrides for tests (not saved)
+    display_env_overrides();
 }
 
-}  // namespace gfx
+}
 
-// ---------------------------------------------------------------- views
-// GamePad window: the mouse stands in for the touch panel
 @interface WWDrcView : NSView
 @end
 @implementation WWDrcView
@@ -138,7 +106,7 @@ static void load_options() {
 - (void)touch:(NSEvent*)e down:(bool)down {
     NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
     NSSize sz = self.bounds.size;
-    // the image is letterboxed to its aspect inside the view
+
     float a = gfx::g_drc_aspect;
     float w = sz.width, h = sz.height, x0 = 0, y0 = 0;
     if (w / h > a) { x0 = (w - h * a) / 2; w = h * a; } else { y0 = (h - w / a) / 2; h = w / a; }
@@ -150,7 +118,6 @@ static void load_options() {
 - (void)mouseUp:(NSEvent*)e { [self touch:e down:false]; }
 @end
 
-// TV window: clicks on the GamePad overlay are touches
 @interface WWTvView : NSView
 @property bool touching;
 @end
@@ -191,21 +158,19 @@ static void load_options() {
 
 namespace gfx {
 
-// ---------------------------------------------------------------- windows
 static NSWindow* g_tv_window = nil;
 static NSWindow* g_drc_window = nil;
-static NSRect g_tv_normal_frame, g_drc_normal_frame;  // frames outside full screen, for saving
+static NSRect g_tv_normal_frame, g_drc_normal_frame;
 
 static bool is_fullscreen(NSWindow* w) { return w && (w.styleMask & NSWindowStyleMaskFullScreen); }
 bool tv_fullscreen() { return is_fullscreen(g_tv_window); }
 
-// a saved frame is used only if it still fits a connected screen well enough
 static bool frame_usable(NSRect f) {
     if (f.size.width < 200 || f.size.height < 120) return false;
     for (NSScreen* s in NSScreen.screens) {
         NSRect v = s.visibleFrame, i = NSIntersectionRect(v, f);
         if (i.size.width * i.size.height >= 0.5 * f.size.width * f.size.height && f.size.width <= v.size.width + 1 &&
-            f.size.height <= v.size.height + 1 && NSMaxY(f) <= NSMaxY(v) + 1)  // title bar reachable
+            f.size.height <= v.size.height + 1 && NSMaxY(f) <= NSMaxY(v) + 1)
             return true;
     }
     return false;
@@ -221,19 +186,15 @@ static NSScreen* screen_named(NSString* name) {
 static void update_drawable_size(CAMetalLayer* layer, NSWindow* win) {
     if (!layer) return;
     NSView* view = win.contentView;
-    layer.contentsScale = win.backingScaleFactor;  // Retina: present at the display's pixel density
+    layer.contentsScale = win.backingScaleFactor;
     NSSize sz = view.bounds.size;
     layer.drawableSize = CGSizeMake(std::max(1.0, sz.width * layer.contentsScale), std::max(1.0, sz.height * layer.contentsScale));
 }
 
-// the layer each window's view presents to (index 0 TV, 1 GamePad); made by the renderer that starts
 static CAMetalLayer* g_layers[2];
 static NSWindow* g_windows[2];
 static bool screen_visible(NSWindow* win) { return (win.occlusionState & NSWindowOcclusionStateVisible) != 0; }
-// a window was resized, moved to another screen or (un)covered: tell the renderer
-// The TV window's screen refresh rate for frame interpolation (interp::output_fps caps 120/240 fps to
-// it): NSScreen.maximumFramesPerSecond, 120 on ProMotion displays (whose CAMetalLayers present at up
-// to 120 Hz), 60 on most external ones. Main thread; again whenever the window changes screens.
+
 static void report_refresh_rate(NSWindow* win) {
     NSScreen* sc = win.screen ?: NSScreen.mainScreen;
     int hz = 0;
@@ -263,7 +224,7 @@ static NSWindow* make_window(int index, NSString* title, NSView* view, int w, in
                                                   backing:NSBackingStoreBuffered
                                                     defer:NO];
     [win setTitle:title];
-    win.collectionBehavior |= NSWindowCollectionBehaviorFullScreenPrimary;  // green button, Ctrl+Cmd+F
+    win.collectionBehavior |= NSWindowCollectionBehaviorFullScreenPrimary;
     win.backgroundColor = NSColor.blackColor;
     if (view) [win setContentView:view];
     view = [win contentView];
@@ -278,7 +239,6 @@ static NSWindow* make_window(int index, NSString* title, NSView* view, int w, in
     return win;
 }
 
-// a fresh CAMetalLayer on a window's view (the renderer's presentation target)
 static CAMetalLayer* attach_layer(int i) {
     NSWindow* win = g_windows[i];
     if (!win) return nil;
@@ -290,15 +250,13 @@ static CAMetalLayer* attach_layer(int i) {
     return layer;
 }
 
-// Metal: the layers present the composition below (present_screens)
 static void attach_metal_layers() {
     for (int i = 0; i < 2; i++) {
         Screen& scr = i ? R.drc : R.tv;
         CAMetalLayer* layer = attach_layer(i);
         scr.layer = layer;
         if (!layer) continue;
-        // The final SDR drawable contains sRGB colors. Let Core Animation match them to
-        // the monitor's profile, as MoltenVK does for VK_COLOR_SPACE_SRGB_NONLINEAR_KHR.
+
         CGColorSpaceRef outputColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
         layer.colorspace = outputColorSpace;
         CGColorSpaceRelease(outputColorSpace);
@@ -306,11 +264,10 @@ static void attach_metal_layers() {
         layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
         layer.framebufferOnly = YES;
         layer.maximumDrawableCount = 3;
-        if (hidden_windows()) scr.visible = false;  // never on screen: no drawables
+        if (hidden_windows()) scr.visible = false;
     }
 }
 
-// remember frames (outside full screen) and full-screen state (fsKey nil: not remembered)
 static void track_window(NSWindow* win, NSRect* normal, NSString* frameKey, NSString* fsKey) {
     *normal = win.frame;
     auto save_frame = ^(NSNotification*) {
@@ -330,26 +287,24 @@ static void track_window(NSWindow* win, NSRect* normal, NSString* frameKey, NSSt
                                                       usingBlock:^(NSNotification*) { set_setting(fsKey, @NO); }];
 }
 
-// show or hide the GamePad window to match the mode (main thread)
 static void apply_drc_window() {
     if (!g_drc_window) return;
     if (drc_window_wanted()) {
-        // never takes the keyboard; test runs stay behind the user's windows
+
         if (hidden_windows()) return;
         if (!g_drc_window.visible) {
             if (getenv("NSMBU_NO_HOST_INPUT")) [g_drc_window orderBack:nil];
             else [g_drc_window orderFront:nil];
         }
     } else if (g_drc_window.visible) {
-        if (is_fullscreen(g_drc_window)) [g_drc_window toggleFullScreen:nil];  // hidden after the transition
+        if (is_fullscreen(g_drc_window)) [g_drc_window toggleFullScreen:nil];
         else [g_drc_window orderOut:nil];
     }
 }
 
-// GamePad window, shown/hidden from the Input menu (the game keeps rendering its image either way)
 bool drc_window_available() { return g_drc_window != nil || g_mode == kDrcPip || g_mode == kDrcAuto; }
 bool drc_window_shown() { return drc_screen_shown(g_drc_window.visible); }
-// Show / hide the GamePad screen in the current mode (Cmd+G, Input menu, Pro Controller choice)
+
 void show_drc_window(bool on) {
     auto apply = [on] {
         display_show_drc(on);
@@ -370,7 +325,7 @@ void set_drc_mode(int m) {
 
 static void move_drc_to_screen(NSScreen* s) {
     if (!g_drc_window || !s) return;
-    if (is_fullscreen(g_drc_window)) return;  // leave full screen first
+    if (is_fullscreen(g_drc_window)) return;
     NSRect v = s.visibleFrame, f = g_drc_window.frame;
     f.size.width = std::min(f.size.width, v.size.width);
     f.size.height = std::min(f.size.height, v.size.height);
@@ -380,17 +335,16 @@ static void move_drc_to_screen(NSScreen* s) {
 }
 
 static void create_windows() {
-    static bool done = false;  // once, whichever renderer starts (a failed Vulkan start falls back to Metal)
+    static bool done = false;
     if (done) return;
     done = true;
     [NSApplication sharedApplication];
-    // a game: no App Nap / timer coalescing, even when the window is in the background
+
     static id activity = [[NSProcessInfo processInfo]
         beginActivityWithOptions:NSActivityUserInitiated | NSActivityLatencyCritical | NSActivityIdleDisplaySleepDisabled
                           reason:@"game running"];
     (void)activity;
-    // scripted test runs (NSMBU_NO_HOST_INPUT) run as a background app: no Dock icon, never takes the
-    // keyboard focus from the user's game
+
     bool test = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
     [NSApp setActivationPolicy:test ? NSApplicationActivationPolicyAccessory : NSApplicationActivationPolicyRegular];
     load_settings();
@@ -403,16 +357,16 @@ static void create_windows() {
     NSRect saved = NSRectFromString(g_settings[@"tvFrame"] ?: @"");
     if (frame_usable(saved)) [tv setFrame:saved display:NO];
     else [tv center];
-    // full screen as left (a NSMBU_FULLSCREEN start leaves the saved state alone)
+
     track_window(tv, &g_tv_normal_frame, @"tvFrame", display_fullscreen_env() ? nil : @"tvFullScreen");
     if (!getenv("NSMBU_NO_GAMEPAD")) {
-        // GamePad screen to the right of the TV window (or where it was last)
+
         NSRect f = tv.frame;
         NSWindow* drc = make_window(1, @"GamePad", [[WWDrcView alloc] initWithFrame:NSMakeRect(0, 0, 427, 240)], 427, 240,
                                     NSMakePoint(NSMaxX(f) + 8, NSMinY(f)));
         g_drc_window = drc;
         g_has_drc_window = true;
-        drc.releasedWhenClosed = NO;  // closing only hides it; the Input / Display menu can bring it back
+        drc.releasedWhenClosed = NO;
         NSRect ds = NSRectFromString(g_settings[@"drcFrame"] ?: @"");
         NSScreen* want = screen_named(g_settings[@"drcScreen"]);
         if (frame_usable(ds)) [drc setFrame:ds display:NO];
@@ -422,31 +376,30 @@ static void create_windows() {
                                                       usingBlock:^(NSNotification*) { if (g_mode == kDrcWindow) g_shown = false; }];
         [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidExitFullScreenNotification object:drc queue:nil
                                                       usingBlock:^(NSNotification*) {
-            dispatch_async(dispatch_get_main_queue(), ^{ apply_drc_window(); });  // left full screen to hide
+            dispatch_async(dispatch_get_main_queue(), ^{ apply_drc_window(); });
         }];
         [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidMoveNotification object:drc queue:nil
                                                       usingBlock:^(NSNotification*) {
             if (drc.screen && !is_fullscreen(drc)) g_settings[@"drcScreen"] = drc.screen.localizedName;
         }];
     }
-    g_shown = !input::pro_controller();  // Pro Controller: GamePad screen starts hidden
+    g_shown = !input::pro_controller();
     apply_drc_window();
     if (hidden_windows()) {
-        // test run: never on screen
+
     } else if (test) {
-        [tv orderBack:nil];  // scripted test run: stay behind, don't take focus
+        [tv orderBack:nil];
     } else {
         [tv makeKeyAndOrderFront:nil];
         [NSApp activateIgnoringOtherApps:YES];
     }
-    // full screen as last time (display_modes.cpp: never in test runs unless asked for, never with hidden windows)
+
     if (display_start_fullscreen([g_settings[@"tvFullScreen"] boolValue], hidden_windows()))
         dispatch_async(dispatch_get_main_queue(), ^{ if (!is_fullscreen(tv)) [tv toggleFullScreen:nil]; });
     if (!test && g_drc_window && drc_window_wanted() && [g_settings[@"drcFullScreen"] boolValue] &&
         screen_named(g_settings[@"drcScreen"]) && screen_named(g_settings[@"drcScreen"]) != tv.screen)
         dispatch_async(dispatch_get_main_queue(), ^{ if (!is_fullscreen(g_drc_window)) [g_drc_window toggleFullScreen:nil]; });
 
-    // full screen: hide the pointer after 2 s without movement (not while the mouse camera holds it)
     [NSTimer scheduledTimerWithTimeInterval:0.25 repeats:YES block:^(NSTimer*) {
         static NSPoint last = {-1, -1};
         static double moved = 0;
@@ -459,13 +412,13 @@ static void create_windows() {
             hidden = true;
         }
     }];
-    // debug: NSMBU_TEST_DRC_MODE (display_modes.cpp) switches the mode as the Display menu does
+
     if (getenv("NSMBU_TEST_DRC_MODE"))
         [NSTimer scheduledTimerWithTimeInterval:1.0 / 120 repeats:YES block:^(NSTimer*) {
             const int m = display_test_mode(render::frame_count());
             if (m >= 0) set_drc_mode(m);
         }];
-    // debug: simulated Cmd+G presses
+
     if (const char* e = getenv("NSMBU_TEST_DRC_KEY")) {
         static std::vector<uint64_t> frames;
         for (const char* p = e; *p;) {
@@ -474,7 +427,7 @@ static void create_windows() {
         }
         [NSTimer scheduledTimerWithTimeInterval:1.0 / 120 repeats:YES block:^(NSTimer*) {
             static size_t i = 0;
-            // the active renderer's frames (gfx::frame_count is the Metal renderer's: 0 with Vulkan)
+
             if (i < frames.size() && render::frame_count() >= frames[i]) {
                 i++;
                 LOG("[display] test: Cmd+G at frame %llu", (unsigned long long)render::frame_count());
@@ -484,7 +437,6 @@ static void create_windows() {
     }
 }
 
-// ---------------------------------------------------------------- presentation shader
 static const char* kPresentShader = R"(
 #include <metal_stdlib>
 using namespace metal;

@@ -1,4 +1,4 @@
-// shim: decompiler settings
+
 #pragma once
 class ActiveSettings {
 public:

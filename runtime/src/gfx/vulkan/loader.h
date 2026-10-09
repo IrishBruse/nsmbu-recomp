@@ -1,19 +1,14 @@
-// Vulkan entry points, loaded at run time (loader.cpp). The executable imports nothing from the Vulkan
-// loader (vulkan-1.dll, libvulkan.so.1): a missing loader, or one older than the Vulkan version the
-// headers describe, cannot stop the program from starting (Windows refuses to start an executable
-// whose imports are missing: issue #37, vkCmdBeginRendering on a Vulkan 1.2 system). The build
-// defines VK_NO_PROTOTYPES; these pointers, in namespace gfxvk, carry the usual names, so the
-// renderer calls vkCmdDraw(...) as before.
+
+
 #pragma once
 #ifndef VK_NO_PROTOTYPES
 #error "the Vulkan renderer is built with VK_NO_PROTOTYPES (CMakeLists.txt)"
 #endif
 #include <vulkan/vulkan.h>
 
-// before an instance exists (vkGetInstanceProcAddr(nullptr, name))
 #define NSMBU_VK_GLOBAL_FUNCTIONS(X) \
   X(vkCreateInstance) X(vkEnumerateInstanceExtensionProperties)
-// instance functions: physical devices and window surfaces
+
 #define NSMBU_VK_INSTANCE_FUNCTIONS(X) \
   X(vkCreateDevice) X(vkDestroySurfaceKHR) X(vkEnumerateDeviceExtensionProperties) X(vkEnumeratePhysicalDevices) \
   X(vkGetDeviceProcAddr) X(vkGetPhysicalDeviceFeatures) X(vkGetPhysicalDeviceFeatures2) \
@@ -21,7 +16,7 @@
   X(vkGetPhysicalDeviceQueueFamilyProperties) X(vkGetPhysicalDeviceSurfaceCapabilitiesKHR) \
   X(vkGetPhysicalDeviceSurfaceFormatsKHR) X(vkGetPhysicalDeviceSurfacePresentModesKHR) \
   X(vkGetPhysicalDeviceSurfaceSupportKHR)
-// device functions (vkGetDeviceProcAddr): Vulkan 1.0 core and VK_KHR_swapchain
+
 #define NSMBU_VK_DEVICE_FUNCTIONS(X) \
   X(vkAcquireNextImageKHR) X(vkAllocateCommandBuffers) X(vkAllocateDescriptorSets) X(vkAllocateMemory) \
   X(vkBeginCommandBuffer) X(vkBindBufferMemory) X(vkBindImageMemory) X(vkCmdBindDescriptorSets) \
@@ -41,14 +36,13 @@
   X(vkGetPipelineCacheData) X(vkGetQueryPoolResults) X(vkGetSwapchainImagesKHR) X(vkMapMemory) \
   X(vkQueuePresentKHR) X(vkQueueSubmit) X(vkQueueWaitIdle) X(vkResetCommandPool) X(vkResetDescriptorPool) \
   X(vkResetFences) X(vkUnmapMemory) X(vkUpdateDescriptorSets) X(vkWaitForFences)
-// dynamic rendering: Vulkan 1.3 core, or VK_KHR_dynamic_rendering on Vulkan 1.1 / 1.2 drivers (the
-// ...KHR entry points, loaded under these names; the structures are the same)
+
 #define NSMBU_VK_RENDERING_FUNCTIONS(X) X(vkCmdBeginRendering) X(vkCmdEndRendering)
 
 namespace gfxvk {
 extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
-extern PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion;  // null: a Vulkan 1.0 loader
-extern PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties;  // optional (log only)
+extern PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion;
+extern PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties;
 #define NSMBU_VK_DECLARE(name) extern PFN_##name name;
 NSMBU_VK_GLOBAL_FUNCTIONS(NSMBU_VK_DECLARE)
 NSMBU_VK_INSTANCE_FUNCTIONS(NSMBU_VK_DECLARE)
@@ -56,11 +50,8 @@ NSMBU_VK_DEVICE_FUNCTIONS(NSMBU_VK_DECLARE)
 NSMBU_VK_RENDERING_FUNCTIONS(NSMBU_VK_DECLARE)
 #undef NSMBU_VK_DECLARE
 
-// Each step throws std::runtime_error naming what is missing.
-// gipa: the loader's vkGetInstanceProcAddr (SDL_Vulkan_GetVkGetInstanceProcAddr, or the macOS
-// loader's export)
 void load_global_functions(PFN_vkGetInstanceProcAddr gipa);
 void load_instance_functions(VkInstance instance);
-// khrDynamicRendering: VK_KHR_dynamic_rendering is enabled (the device is older than Vulkan 1.3)
+
 void load_device_functions(VkDevice device, bool khrDynamicRendering);
-}  // namespace gfxvk
+}

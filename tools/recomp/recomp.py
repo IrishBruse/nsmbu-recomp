@@ -33,16 +33,13 @@ from analyze import Program, sext
 from ppc2c import translate, Unhandled
 from rpx import R_PPC_ADDR16_HA, R_PPC_ADDR16_LO, R_PPC_ADDR16_HI
 
-
 def unknown_build_message(path):
     return "%s is not a build of the game this port knows (SHA-256 %s...); known: %s" % (
         path, game_builds.file_sha256(path)[:16],
         ", ".join("%s %s" % (b.name, b.title_id) for b in game_builds.all_builds()))
 
-
 def c_ident(s):
     return re.sub(r"[^A-Za-z0-9_]", "_", s)
-
 
 def branch_target(addr, w):
     """Static target of a non-linking b/bc, or None."""
@@ -53,11 +50,8 @@ def branch_target(addr, w):
         return (sext(w & 0xFFFC, 16) + (0 if w & 2 else addr)) & 0xFFFFFFFF
     return None
 
-
-# imported data objects get runtime-owned storage at fixed addresses
 DATA_IMPORT_BASE = 0xC1000000
 DATA_IMPORT_STRIDE = 0x1000
-
 
 class Recompiler:
     def __init__(self, path, build=None, mod_hooks=False):
@@ -70,20 +64,17 @@ class Recompiler:
         self.p = Program(path)
         self.p.discover()
         self.entries = set(self.p.entries)
-        self.imports = {}  # slot address -> (lib, name, kind)
-        self.data_import_addr = {}  # slot address -> runtime storage address
+        self.imports = {}
+        self.data_import_addr = {}
         for sym in self.p.rpx.symbols:
-            if sym.import_lib and sym.type != 3:  # skip section symbols
+            if sym.import_lib and sym.type != 3:
                 self.imports[sym.value] = (sym.import_lib, sym.name, sym.import_kind)
         for i, slot in enumerate(sorted(s for s, v in self.imports.items() if v[2] == "d")):
             self.data_import_addr[slot] = DATA_IMPORT_BASE + i * DATA_IMPORT_STRIDE
         self._imm_overrides()
-        # Game functions replaced by runtime hooks (tools/recomp/hooks.txt: one address per line,
-        # canonical i.e. USA) plus the extra lists (hooks_*.txt). "@ADDR" is an instruction-level
-        # hook: site_ADDR(c) runs just before the instruction at ADDR (also when ADDR is reached by
-        # a branch), so it can adjust what that instruction uses.
+
         hook_entries, self.skipped_hooks = game_builds.read_hooks(game_builds.hook_files(), self.build)
-        self.canon_of = {}              # this build's address -> canonical address (for symbol names)
+        self.canon_of = {}
         self.hooks, self.sites = set(), set()
         for site, canon, addr, _ in hook_entries:
             self.canon_of[addr] = canon
@@ -175,15 +166,14 @@ class Recompiler:
         self.fixpoint_rounds = rounds
         self._bounds()
 
-    # --- callbacks used by ppc2c.translate ---
     def branch(self, addr, tgt):
-        if addr in self.p.import_calls:  # tail call into an imported function
+        if addr in self.p.import_calls:
             lib, name, slot = self.p.import_calls[addr]
             self.used_imports.add(slot)
             return "MUSTTAIL return %s(c);" % self.imp_name(slot)
         if self.cur_start <= tgt < self.cur_end:
             self.labels.add(tgt)
-            if tgt <= addr:  # loop back-edge: re-read guest memory (spin waits, see PPC_LOOP in ppc.h)
+            if tgt <= addr:
                 return "PPC_LOOP(); goto L_%08X;" % tgt
             return "goto L_%08X;" % tgt
         if tgt in self.entries:
@@ -218,7 +208,7 @@ class Recompiler:
                 elif fn is not None:
                     cases.append("case 0x%08Xu: c->pc = 0x%08Xu; MUSTTAIL return f_%08X(c);" % (
                         slot, slot, self.sym(fn)))
-            back = any(self.cur_start <= base + 4 * i <= addr for i in range(count))  # may loop: see branch()
+            back = any(self.cur_start <= base + 4 * i <= addr for i in range(count))
             return "%sswitch (c->ctr) { %s } c->pc = c->ctr; MUSTTAIL return ppc_dispatch(c);" % (
                 "PPC_LOOP(); " if back else "", " ".join(cases))
         return "c->pc = c->ctr; MUSTTAIL return ppc_dispatch(c);"
@@ -237,7 +227,6 @@ class Recompiler:
             return "imp_%s_%s" % (lib_ident, ident)
         return "imp_%s_%08X" % (lib_ident, slot)
 
-    # --- emission ---
     def emit_function(self, start):
         self.cur_start, self.cur_end = start, self.func_end(start)
         self.labels = set()
@@ -250,14 +239,13 @@ class Recompiler:
                 self.unhandled[str(e)] += 1
                 s = "ppc_unimplemented(c, 0x%08Xu, 0x%08Xu);" % (a, w)
             body.append((a, w, s))
-        # restrict: guest memory never aliases the register file, so the compiler may keep
-        # registers in host registers across guest loads/stores
+
         hooked = start in self.hooks
         name = self.sym(start)
         fname = "f_%08X_orig" % name if hooked else "f_%08X" % name
         out = []
         if hooked:
-            # runtime hook: callers reach hook_X, which may call the original code (f_X_orig)
+
             out.append("void f_%08X(Cpu* __restrict c) { hook_%08X(c); }\n" % (name, name))
         out += ["void %s(Cpu* __restrict c) {" % fname, "    PPC_ENTER(0x%08Xu);" % start]
         interior = self.interior_dispatch.get(start, [])
@@ -270,8 +258,7 @@ class Recompiler:
                 out.append("    if (c->pc != 0x%08Xu) { switch (c->pc) { %s default: break; } }" % (
                     start, " ".join(icases)))
         if self.mod_hooks:
-            # guest mods: the check sits in the game's code (f_X, or f_X_orig behind a port hook), so the
-            # port's own hooks (interpolation, true 60) stay outermost and mods hook the game's code
+
             out.append("    PPC_MOD_HOOK(%d, 0x%08Xu);" % (self.ordinal[start], start))
         for a, w, s in body:
             if a in self.labels:
@@ -279,9 +266,9 @@ class Recompiler:
             if a in self.sites:
                 out.append("    site_%08X(c);" % self.sym(a))
             out.append("    %s /* %08X: %08X */" % (s, a, w))
-        # fall through into the next function
+
         if self.cur_end < self.p.text_hi:
-            # code falling into a hooked function continues with its original code
+
             nxt = ("f_%08X_orig" if self.cur_end in self.hooks else "f_%08X") % self.sym(self.cur_end)
             out.append("    MUSTTAIL return %s(c);" % nxt)
         else:
@@ -345,9 +332,7 @@ class Recompiler:
             f.write("};\nconst unsigned g_recomp_import_count = %d;\n" % len(self.imports))
             f.write("const uint32_t g_recomp_entry_point = 0x%08Xu;\n" % self.p.entry)
             self.write_build_map(f)
-            # Off mode emits exactly devel's files, including table.c. Only an enabled
-            # build registers hook tables with the runtime; the marker cannot be
-            # spoofed by changing a player setting or a sidecar JSON file.
+
             if self.mod_hooks:
                 n = len(self.sorted_entries)
                 f.write("\n/* guest mod hooks: on */\n")
@@ -400,7 +385,6 @@ class Recompiler:
             for k, v in self.unhandled.most_common():
                 f.write("  %6d  %s\n" % (v, k))
         print(open(os.path.join(outdir, "report.txt")).read())
-
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(usage=__doc__.strip().splitlines()[2].replace("usage: ", ""))

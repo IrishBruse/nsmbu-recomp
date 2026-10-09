@@ -18,7 +18,7 @@ namespace {
 std::mutex mutex;
 std::unique_ptr<Store> store;
 std::string active_id, active_label="System driver", status;
-void* driver_handle=nullptr; // process lifetime: do not unload while driver/SDL objects may exist
+void* driver_handle=nullptr;
 std::string jstring_text(JNIEnv* env,jstring value) {
     if(!value)return {};
     const char* utf=env->GetStringUTFChars(value,nullptr);

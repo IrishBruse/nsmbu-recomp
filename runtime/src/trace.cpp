@@ -1,6 +1,5 @@
 #include <atomic>
-// Per-thread ring buffer of guest function entries, for debugging.
-// Enable with NSMBU_TRACE_FUNCS=1; dump with `kill -USR1 <pid>` or at fatal errors.
+
 #include "platform/host.h"
 #include <signal.h>
 #ifndef _WIN32
@@ -24,19 +23,17 @@ struct Ring {
 std::mutex g_rings_mutex;
 std::vector<Ring*> g_rings;
 thread_local Ring* t_ring = nullptr;
-}  // namespace
+}
 
-// NSMBU_WATCH=<hex addr>: log arguments whenever that guest function is entered
 static uint32_t g_watch = 0;
 static int g_watch_count = 0, g_watch_limit = 200;
-static int g_watch_reg = -1;         // NSMBU_WATCH_IF=reg=value: only log when r<reg> == value
+static int g_watch_reg = -1;
 static uint32_t g_watch_val = 0;
 
-// NSMBU_WATCH_R3=<hex>: log every function entered with r3 == value (object/list tracing), with thread
 static uint32_t g_watch_r3 = 0;
 static std::atomic<int> g_watch_r3_count{0};
 
-void true60_nan_probe(uint32_t addr);  // true60.cpp (NSMBU_NAN_PROBE)
+void true60_nan_probe(uint32_t addr);
 extern "C" void ppc_trace_enter(uint32_t addr) {
     static const bool nan_probe = getenv("NSMBU_NAN_PROBE") != nullptr;
     if (nan_probe) true60_nan_probe(addr);
@@ -56,7 +53,7 @@ extern "C" void ppc_trace_enter(uint32_t addr) {
             host::get_thread_name(tn, sizeof tn);
             log_msg("[watch] %s %08X lr=%08X r3=%08X r4=%08X r5=%08X r6=%08X r7=%08X r8=%08X | r28=%08X r29=%08X r30=%08X r31=%08X",
                     tn, addr, c->lr, c->r[3], c->r[4], c->r[5], c->r[6], c->r[7], c->r[8], c->r[28], c->r[29], c->r[30], c->r[31]);
-            if (const char* e = getenv("NSMBU_WATCH_DUMP")) {  // "reg": hex dump 0x100 bytes at r<reg>
+            if (const char* e = getenv("NSMBU_WATCH_DUMP")) {
                 unsigned reg = (unsigned)atoi(e) & 31;
                 uint32_t base = c->r[reg];
                 for (uint32_t o = 0; o < 0x100; o += 32) {
@@ -66,7 +63,7 @@ extern "C" void ppc_trace_enter(uint32_t addr) {
                     log_msg("%s", line);
                 }
             }
-            if (const char* e = getenv("NSMBU_WATCH_EXPR")) {  // "reg+off": print ld32(r<reg> + off)
+            if (const char* e = getenv("NSMBU_WATCH_EXPR")) {
                 unsigned reg = 0, off = 0;
                 if (sscanf(e, "%u+%x", &reg, &off) == 2 && reg < 32) log_msg("[watch]   ld32(r%u+%X) = %08X", reg, off, ld32(c->r[reg] + off));
             }
@@ -84,7 +81,7 @@ extern "C" void ppc_trace_enter(uint32_t addr) {
 void trace_dump(FILE* f, unsigned last) {
     std::lock_guard<std::mutex> lk(g_rings_mutex);
     for (Ring* r : g_rings) {
-        uint32_t end = __atomic_load_n(&r->pos, __ATOMIC_RELAXED);  // other threads keep running
+        uint32_t end = __atomic_load_n(&r->pos, __ATOMIC_RELAXED);
         fprintf(f, "=== thread '%s' (%u calls)\n", r->name, end);
         uint32_t n = std::min(last, std::min(end, kRing));
         for (uint32_t i = end - n; i != end; i++) fprintf(f, "%08X\n", r->buf[i & (kRing - 1)]);

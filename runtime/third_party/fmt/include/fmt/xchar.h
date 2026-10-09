@@ -1,9 +1,4 @@
-// Formatting library for C++ - optional wchar_t and exotic character support
-//
-// Copyright (c) 2012 - present, Victor Zverovich
-// All rights reserved.
-//
-// For the license information refer to format.h.
+
 
 #ifndef FMT_XCHAR_H_
 #define FMT_XCHAR_H_
@@ -65,7 +60,7 @@ void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
   parse_format_string(
       fmt, format_handler<Char>{parse_context<Char>(fmt), {out, args, loc}});
 }
-}  // namespace detail
+}
 
 FMT_BEGIN_EXPORT
 
@@ -133,7 +128,7 @@ inline namespace literals {
 inline auto operator""_a(const wchar_t* s, size_t) -> detail::udl_arg<wchar_t> {
   return {s};
 }
-}  // namespace literals
+}
 #endif
 
 template <typename It, typename Sentinel>
@@ -182,8 +177,6 @@ auto format_to(OutputIt out, wformat_string<T...> fmt, T&&... args)
                     fmt::make_wformat_args(args...));
 }
 
-// Pass char_t as a default template parameter instead of using
-// std::basic_string<char_t<S>> to reduce the symbol size.
 template <typename S, typename... T,
           typename Char = detail::format_string_char_t<S>,
           FMT_ENABLE_IF(!std::is_same<Char, char>::value &&
@@ -346,11 +339,10 @@ void println(std::wostream& os, wformat_string<T...> fmt, T&&... args) {
   print(os, L"{}\n", fmt::format(fmt, std::forward<T>(args)...));
 }
 
-/// Converts `value` to `std::wstring` using the default format for type `T`.
 template <typename T> inline auto to_wstring(const T& value) -> std::wstring {
   return format(FMT_STRING(L"{}"), value);
 }
 FMT_END_EXPORT
 FMT_END_NAMESPACE
 
-#endif  // FMT_XCHAR_H_
+#endif

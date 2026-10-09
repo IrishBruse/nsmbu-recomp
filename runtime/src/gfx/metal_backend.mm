@@ -1,5 +1,5 @@
-// The Metal renderer's entry in the renderer table (renderer.h). The renderer itself is unchanged:
-// metal_main.mm, metal_draw.mm, metal_surfaces.mm, display.mm (namespace gfx).
+
+
 #include <string>
 
 #include "gx2/gx2.h"
@@ -23,7 +23,7 @@ void set_aniso(bool v);
 bool fxaa_enabled();
 void set_fxaa(bool v);
 std::string device_name();
-}  // namespace gfx
+}
 
 namespace render {
 const Backend& metal_backend() {
@@ -31,7 +31,7 @@ const Backend& metal_backend() {
         Backend b{};
         b.api = Api::Metal;
         b.init = gfx::init;
-        b.run_main_loop = gfx::run_appkit_loop;  // [NSApp run] plus the test hooks (display.mm)
+        b.run_main_loop = gfx::run_appkit_loop;
         b.draw = gfx::draw;
         b.clear_color = gfx::clear_color;
         b.clear_depth_stencil = gfx::clear_depth_stencil;
@@ -52,7 +52,7 @@ const Backend& metal_backend() {
         b.frame_count = gfx::frame_count;
         b.request_tv_dump = gfx::request_tv_dump;
         b.request_capture = gfx::request_capture;
-        b.shutdown = [] {};  // the shader cache is written as it grows
+        b.shutdown = [] {};
         b.res_scale = gfx::res_scale;
         b.set_res_scale = gfx::set_res_scale;
         b.ao_mode = gfx::ao_mode;
@@ -69,4 +69,4 @@ const Backend& metal_backend() {
     }();
     return b;
 }
-}  // namespace render
+}

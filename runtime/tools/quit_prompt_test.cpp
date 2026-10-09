@@ -1,6 +1,5 @@
-// Quit prompt decisions (runtime/src/quit_prompt.h, issue #65): when closing the TV window or Quit asks
-// first, which runs never ask (test and headless environment variables), the test answers, and that
-// quitting from the prompt does not ask again.
+
+
 #include "../src/quit_prompt.h"
 
 #include <cstdio>
@@ -25,7 +24,6 @@ static const char* fake_env(const char* name) {
 int main() {
     using namespace quitprompt;
 
-    // gameplay: a stage other than boot (none), the title screen and the file select
     CHECK(!gameplay_stage(""));
     CHECK(!gameplay_stage("sea_T"));
     CHECK(!gameplay_stage("Name"));
@@ -33,13 +31,12 @@ int main() {
     CHECK(gameplay_stage("LinkRM"));
     CHECK(gameplay_stage("M_NewD2"));
 
-    // environment: a normal start asks; every test / headless variable keeps quitting at once
     g_env.clear();
     CHECK(!suppressed(fake_env));
     for (const char* v : {"NSMBU_HIDDEN_WINDOWS", "NSMBU_EXIT_AT_FRAME"}) {
         g_env = {{v, "1"}};
         CHECK(suppressed(fake_env));
-        g_env = {{v, "0"}};  // 0: off (as the runtime reads them)
+        g_env = {{v, "0"}};
         CHECK(!suppressed(fake_env));
     }
     g_env = {{"NSMBU_EXIT_AT_FRAME", "4000"}};
@@ -53,7 +50,6 @@ int main() {
     g_env = {{"NSMBU_QUIT_PROMPT", "1"}};
     CHECK(!suppressed(fake_env));
 
-    // test answers
     g_env.clear();
     CHECK(test_answer(fake_env) == Answer::None);
     g_env = {{"NSMBU_TEST_QUIT_ANSWER", "quit"}};
@@ -65,27 +61,26 @@ int main() {
     g_env = {{"NSMBU_TEST_QUIT_ANSWER", "maybe"}};
     CHECK(test_answer(fake_env) == Answer::None);
 
-    // decisions
     Request playing;
     playing.game_window = true;
     playing.gameplay = true;
     CHECK(decide(playing) == Action::Ask);
 
     Request r = playing;
-    r.gameplay = false;  // title screen, file select: nothing to lose
+    r.gameplay = false;
     CHECK(decide(r) == Action::Quit);
     r = playing;
-    r.game_window = false;  // before the game drew its first frame
+    r.game_window = false;
     CHECK(decide(r) == Action::Quit);
     r = playing;
-    r.suppressed = true;  // test run
+    r.suppressed = true;
     CHECK(decide(r) == Action::Quit);
-    r.test_answer = true;  // ... that tests the prompt
+    r.test_answer = true;
     CHECK(decide(r) == Action::Ask);
     r = playing;
-    r.busy = true;  // prompt open (a second Cmd+Q or close) or the save state is being written
+    r.busy = true;
     CHECK(decide(r) == Action::Ignore);
-    r.confirmed = true;  // answered Quit: the terminate: from the prompt goes through, no second prompt
+    r.confirmed = true;
     CHECK(decide(r) == Action::Quit);
     r = playing;
     r.confirmed = true;

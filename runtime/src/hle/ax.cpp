@@ -1,12 +1,5 @@
-// snd_core (AX): voices, the 3 ms audio frame, mixing and output.
-//
-// Every frame (96 samples at 32 kHz) each playing voice is decoded (ADPCM/PCM16/PCM8),
-// resampled, run through its volume envelope and filters and mixed into the buses (main + 3 aux)
-// of two devices: the TV and the (first) GamePad, each with its own device mix per voice. The
-// game's aux effects (reverb...) and final-mix callbacks run on each device's result, which is
-// upsampled to 48 kHz and sent to the host as stereo: the TV, or in Off-TV Play (the game moves
-// its sound to the GamePad) TV + GamePad (audio_output_mode.h).
-// Behaviour follows Cemu's snd_core (ax_mix.cpp, ax_ist.cpp, ax_aux.cpp).
+
+
 #include "../platform/host.h"
 
 #include <algorithm>
@@ -28,12 +21,11 @@ namespace interp { const char* phase_name(); }
 namespace {
 
 constexpr int kMaxVoices = 96;
-constexpr int kSamples = 96;       // per frame at 32 kHz
-constexpr int kSamples48 = 144;    // per frame at 48 kHz
+constexpr int kSamples = 96;
+constexpr int kSamples48 = 144;
 constexpr int kTvChannels = 6, kDrcChannels = 4, kBuses = 4, kAuxBuses = 3;
 constexpr auto kFramePeriod = std::chrono::microseconds(3000);
 
-// AXVPB (guest) offsets
 constexpr uint32_t kVpbIndex = 0x00, kVpbState = 0x04, kVpbPriority = 0x1C, kVpbCallback = 0x20, kVpbUser = 0x24,
                    kVpbOffsets = 0x34, kVpbCallbackEx = 0x48;
 constexpr uint32_t kVpbSize = 0x58;
@@ -49,34 +41,34 @@ struct ChMix {
 struct Voice {
     bool acquired = false;
     uint32_t vpb = 0;
-    uint32_t state = 0;  // 1 = playing
-    uint16_t type = 0;   // 0 normal, 1 stream (keeps ADPCM history across loops)
-    // offsets, absolute in format units (bytes / halfwords / nibbles) like the DSP sees them
+    uint32_t state = 0;
+    uint16_t type = 0;
+
     uint16_t format = 0, loop = 0;
     uint32_t loop_abs = 0, end_abs = 0, cur_abs = 0, samples = 0;
     uint32_t loop_count = 0;
-    // ADPCM decoder
+
     int16_t coef[16] = {};
     uint16_t scale = 0;
     int16_t yn1 = 0, yn2 = 0;
     uint16_t loop_scale = 0;
     int16_t loop_yn1 = 0, loop_yn2 = 0;
-    // sample rate conversion (16.16 ratio)
+
     uint16_t filter = FILTER_TAP;
     uint32_t ratio = 0x10000, frac = 0;
     int32_t prev = 0, cur = 0;
-    // volume envelope
+
     uint16_t ve_vol = 0x8000;
     int16_t ve_delta = 0;
-    // filters
+
     uint16_t lpf_on = 0;
     int16_t lpf_yn1 = 0, lpf_a0 = 0, lpf_b0 = 0;
     uint16_t bq_on = 0;
     int16_t bq_b0 = 0, bq_b1 = 0, bq_b2 = 0, bq_a1 = 0, bq_a2 = 0;
     float bq_xn1 = 0, bq_xn2 = 0, bq_yn1 = 0, bq_yn2 = 0;
-    // TV device mix: [channel][bus]
+
     ChMix tv[kTvChannels][kBuses];
-    // (the GamePad device mix is g_drc.mix: Voice keeps its layout in save states)
+
 };
 
 std::mutex g_ax_mutex;
@@ -86,20 +78,17 @@ uint32_t g_app_frame_cb[64] = {};
 uint32_t g_final_mix_cb[3] = {};
 uint32_t g_aux_cb[kAuxBuses] = {}, g_aux_user[kAuxBuses] = {};
 uint16_t g_aux_return[kAuxBuses] = {0x8000, 0x8000, 0x8000};
-uint32_t g_upsample_stage[3] = {};  // 0 = before final mix (final mix sees 48 kHz)
+uint32_t g_upsample_stage[3] = {};
 std::atomic<bool> g_running{false};
 
-// GamePad (DRC 0) device: per voice mix [channel L, R, SL, SR][bus], aux callbacks and returns.
-// A second GamePad (deviceIndex 1) is not mixed: the game drives one.
 struct DrcState {
     ChMix mix[kMaxVoices][kDrcChannels][kBuses];
     uint32_t aux_cb[kAuxBuses], aux_user[kAuxBuses];
     uint16_t aux_return[kAuxBuses];
 };
 DrcState g_drc = {{}, {}, {}, {0x8000, 0x8000, 0x8000}};
-audio::OutputSelect g_output;  // which device mixes the host hears
+audio::OutputSelect g_output;
 
-// ------------------------------------------------------------------ offsets
 uint32_t base_units(uint16_t fmt, uint32_t samples_ptr) {
     switch (fmt) {
     case ADPCM: return samples_ptr * 2;
@@ -108,7 +97,6 @@ uint32_t base_units(uint16_t fmt, uint32_t samples_ptr) {
     }
 }
 
-// mirror the playback position into the guest VPB (offsets relative to the sample buffer)
 void write_offsets(const Voice& v) {
     uint32_t o = v.vpb + kVpbOffsets, b = base_units(v.format, v.samples);
     st16(o + 0, v.format);
@@ -119,7 +107,6 @@ void write_offsets(const Voice& v) {
     st32(o + 0x10, v.samples);
 }
 
-// ------------------------------------------------------------------ decoding
 void voice_end(Voice& v) {
     if (v.loop) {
         v.cur_abs = v.loop_abs;
@@ -133,14 +120,13 @@ void voice_end(Voice& v) {
     }
 }
 
-// next source sample (s16 range); 0 once the voice has stopped
 int32_t next_sample(Voice& v) {
     if (!v.state) return 0;
     int32_t s;
     switch (v.format) {
     case ADPCM: {
         uint32_t off = v.cur_abs;
-        if ((off & 15) < 2) {  // frame header: predictor/scale byte
+        if ((off & 15) < 2) {
             off &= ~15u;
             v.scale = *mem::ptr(off >> 1);
             off += 2;
@@ -153,7 +139,7 @@ int32_t next_sample(Voice& v) {
         v.yn2 = v.yn1;
         v.yn1 = (int16_t)s;
         uint32_t end = v.end_abs;
-        if ((end & 15) < 2) end += 2 - (end & 15);  // unreachable header position (see Cemu)
+        if ((end & 15) < 2) end += 2 - (end & 15);
         if (off == end) voice_end(v);
         else v.cur_abs = off + 1;
         return s;
@@ -167,7 +153,6 @@ int32_t next_sample(Voice& v) {
     return s;
 }
 
-// decode one frame into out (samples scaled by 256, as the DSP mixes)
 void decode(Voice& v, float* out) {
     if (v.filter == FILTER_NONE) {
         for (int i = 0; i < kSamples; i++) out[i] = (float)(next_sample(v) * 256);
@@ -223,10 +208,9 @@ void apply_lpf(Voice& v, float* s) {
     v.lpf_yn1 = (int16_t)std::clamp(prev / 256.0f * 32767.0f, -32768.0f, 32767.0f);
 }
 
-// ------------------------------------------------------------------ mixing
 float g_tv_bus[kBuses][kTvChannels][kSamples];
 float g_drc_bus[kBuses][kDrcChannels][kSamples];
-double g_sfx_energy = 0;   // stats: output of non-stream voices
+double g_sfx_energy = 0;
 uint32_t g_sfx_started = 0;
 
 void mix_into(const float* in, float* out, ChMix& m) {
@@ -243,7 +227,6 @@ void mix_into(const float* in, float* out, ChMix& m) {
     }
 }
 
-// debug: NSMBU_AX_STATS=1 logs the active voices about once a second
 void log_stats() {
     static bool on = getenv("NSMBU_AX_STATS") != nullptr;
     static int frame = 0;
@@ -298,22 +281,19 @@ void process_voices() {
     }
 }
 
-// ------------------------------------------------------------------ aux, final mix, output (guest buffers)
 struct GuestBuffers {
-    uint32_t aux[2][kAuxBuses];  // per aux frame and bus: 6 channels x 96 int32
+    uint32_t aux[2][kAuxBuses];
     uint32_t aux_ptrs = 0, aux_info = 0;
-    uint32_t tv48 = 0, tv_ptrs = 0, tv_param = 0;     // 6 channels x 144 int32
-    uint32_t drc48 = 0, drc_ptrs = 0, drc_param = 0;  // 8 channels x 144 int32
+    uint32_t tv48 = 0, tv_ptrs = 0, tv_param = 0;
+    uint32_t drc48 = 0, drc_ptrs = 0, drc_param = 0;
 } G;
 int g_aux_frame = 0;
 float g_up_hist[kTvChannels] = {};
-// GamePad aux buffers (per aux frame and bus: 4 channels x 96 int32). Host scratch memory, not
-// runtime_alloc: they only carry one frame to the next, and new runtime objects would change the
-// layout that save states check.
+
 uint32_t g_drc_aux[2][kAuxBuses] = {};
-int g_drc_aux_idle[kAuxBuses] = {};  // frames without GamePad aux input (the effect is skipped)
+int g_drc_aux_idle[kAuxBuses] = {};
 float g_drc_up_hist[kDrcChannels] = {};
-float g_post_hist[2][2] = {};  // upsampling after the final mix: [device][L/R]
+float g_post_hist[2][2] = {};
 
 void init_buffers() {
     for (auto& f : G.aux)
@@ -330,13 +310,10 @@ void init_buffers() {
     G.drc_ptrs = mem::runtime_alloc(4 * kDrcChannels * 2, 32);
     G.drc_param = mem::runtime_alloc(0x10, 32);
     for (auto& f : g_drc_aux)
-        for (auto& b : f) b = mem::host_alloc(4 * kDrcChannels * kSamples, 64);  // zeroed
+        for (auto& b : f) b = mem::host_alloc(4 * kDrcChannels * kSamples, 64);
     g_output.source = audio::OutputSelect::parse(getenv("NSMBU_AUDIO_OUTPUT"));
 }
 
-// The game's output mode, from its sound player's master faders (audio_output_mode.h): the player
-// is ((sound manager 1018EC64)->+0x10)->+4 (Snd_player 020307F8 -> 0202BF78 -> 0202BC80), its
-// TV fader at +0x194 and GamePad fader at +0x1AC (Player_fadeMaster 0202F14C).
 bool guest_obj(uint32_t a) { return a >= mem::kMem2Start && a < mem::kMem2End - 0x400 && !(a & 3); }
 bool read_game_faders(audio::Fader& tv, audio::Fader& drc) {
     uint32_t mgr = ld32(GD(0x1018EC64));
@@ -369,11 +346,8 @@ void update_output_mode() {
             g_output.play_drc ? "TV + GamePad (Off-TV Play)" : "TV", tv.value, tv.goal(), drc.value, drc.goal());
 }
 
-// a GamePad aux effect without input for this long has finished its tail: it is not called (in
-// TV play the GamePad buses are mostly silent; this keeps their effects from costing guest time)
-constexpr int kDrcAuxIdleFrames = 1000;  // 3 s
+constexpr int kDrcAuxIdleFrames = 1000;
 
-// aux effects run one frame behind: process the buffers stored last frame
 void run_aux_callbacks(Cpu* c) {
     int out = 1 - g_aux_frame;
     for (int b = 0; b < kAuxBuses; b++) {
@@ -389,7 +363,7 @@ void run_aux_callbacks(Cpu* c) {
     }
     for (int b = 0; b < kAuxBuses; b++) {
         uint32_t buf = g_drc_aux[out][b];
-        // only while the host plays the GamePad mix (Off-TV Play), and not while idle
+
         if (!g_drc.aux_cb[b] || !g_output.play_drc || g_drc_aux_idle[b] > kDrcAuxIdleFrames) {
             memset(mem::ptr(buf), 0, 4 * kDrcChannels * kSamples);
             continue;
@@ -422,7 +396,6 @@ void store_aux_input() {
     }
 }
 
-// main bus + returned aux, in s16<<8 units
 void merge_tv(int32_t out[kTvChannels][kSamples]) {
     int in = 1 - g_aux_frame;
     for (int ch = 0; ch < kTvChannels; ch++)
@@ -434,7 +407,6 @@ void merge_tv(int32_t out[kTvChannels][kSamples]) {
         }
 }
 
-// the same for the GamePad
 void merge_drc(int32_t out[kDrcChannels][kSamples]) {
     int in = 1 - g_aux_frame;
     for (int ch = 0; ch < kDrcChannels; ch++)
@@ -447,7 +419,6 @@ void merge_drc(int32_t out[kDrcChannels][kSamples]) {
         }
 }
 
-// 2 -> 3 linear upsampler (Cemu's AXUpsampleLinear32To48)
 void upsample(const int32_t* in, int32_t* out, float& hist, int shift) {
     float prev = hist;
     for (int i = 0; i < kSamples; i += 2) {
@@ -470,8 +441,6 @@ void call_final_mix(Cpu* c, int dev, uint32_t param, uint32_t ptrs, uint32_t dat
     if (g_final_mix_cb[dev]) guest_call(c, g_final_mix_cb[dev], {param});
 }
 
-// a device's final-mix input: its merged buses as s16-range int32 per channel, at 48 kHz when the
-// device upsamples before the final mix; returns the samples per channel
 int final_mix_input(const int32_t (*in)[kSamples], int channels, uint32_t data, bool before, float* hist) {
     int n = before ? kSamples48 : kSamples;
     for (int ch = 0; ch < channels; ch++) {
@@ -486,7 +455,6 @@ int final_mix_input(const int32_t (*in)[kSamples], int channels, uint32_t data, 
     return n;
 }
 
-// a device's front left/right after its final mix, at 48 kHz
 void final_mix_lr(uint32_t data, int n, float* hist, int32_t lr[2][kSamples48]) {
     for (int ch = 0; ch < 2; ch++) {
         if (n == kSamples48) {
@@ -505,14 +473,11 @@ void output_frame(Cpu* c) {
     merge_drc(drc);
     int n_tv = final_mix_input(tv, kTvChannels, G.tv48, g_upsample_stage[0] == 0, g_up_hist);
     call_final_mix(c, 0, G.tv_param, G.tv_ptrs, G.tv48, kTvChannels, 1, n_tv);
-    // GamePad: DRC 0 mixed, DRC 1 silent (data: 4 channels of DRC 0, then 4 of DRC 1). Its final-mix
-    // callback runs in every mode: the game's stream mixer keeps its GamePad position there.
+
     int n_drc = final_mix_input(drc, kDrcChannels, G.drc48, g_upsample_stage[1] == 0, g_drc_up_hist);
     memset(mem::ptr(G.drc48 + 4 * kDrcChannels * n_drc), 0, 4 * kDrcChannels * n_drc);
     call_final_mix(c, 1, G.drc_param, G.drc_ptrs, G.drc48, kDrcChannels, 2, n_drc);
 
-    // stereo out at 48 kHz (both devices are in stereo mode: front left/right): the TV, plus the
-    // GamePad in Off-TV Play (audio_output_mode.h)
     int32_t tv_lr[2][kSamples48], drc_lr[2][kSamples48], lr[2][kSamples48];
     final_mix_lr(G.tv48, n_tv, g_post_hist[0], tv_lr);
     final_mix_lr(G.drc48, n_drc, g_post_hist[1], drc_lr);
@@ -528,20 +493,20 @@ void output_frame(Cpu* c) {
 void frame_thread() {
     Cpu* c = threads::make_service_cpu("AX frame", 0x20000);
     host::set_thread_name("AX frame");
-    threads::set_service_core(0);  // the game's audio threads live on core 0
+    threads::set_service_core(0);
     auto next = std::chrono::steady_clock::now();
     while (g_running) {
-        // pace frames by the device: run slightly faster/slower to keep ~40 ms queued
+
         double level = (double)(audio::buffered_frames() - audio::target_frames()) / audio::target_frames();
         double stretch = 1.0 + std::clamp(level * 0.05, -0.05, 0.05);
         next += std::chrono::microseconds((int64_t)(3000 * stretch));
-        threads::service_begin();  // a save state waits until the frame is done (voices, callbacks)
+        threads::service_begin();
         {
             std::lock_guard<std::mutex> lk(g_ax_mutex);
             process_voices();
         }
-        bool took = threads::ensure_core();  // callbacks run guest code
-        update_output_mode();  // the game's faders: TV, or TV + GamePad (Off-TV Play)
+        bool took = threads::ensure_core();
+        update_output_mode();
         run_aux_callbacks(c);
         uint32_t cbs[64];
         {
@@ -557,7 +522,7 @@ void frame_thread() {
         threads::service_end();
         std::this_thread::sleep_until(next);
         auto now = std::chrono::steady_clock::now();
-        if (now - next > std::chrono::milliseconds(30)) next = now;  // don't try to catch up after a stall
+        if (now - next > std::chrono::milliseconds(30)) next = now;
     }
 }
 
@@ -567,9 +532,8 @@ Voice* voice(uint32_t vpb) {
     return i < kMaxVoices ? &g_voices[i] : nullptr;
 }
 
-}  // namespace
+}
 
-// ---- save states: voices and the registered callbacks (the AX frame thread is idle meanwhile)
 #include "../savestate.h"
 void ax_ss_save(ss::Writer& w) {
     std::lock_guard<std::mutex> lk(g_ax_mutex);
@@ -585,7 +549,7 @@ void ax_ss_save(ss::Writer& w) {
     w.pod(g_upsample_stage);
     w.pod(G);
     w.u32((uint32_t)g_aux_frame);
-    w.pod(g_drc);  // added later: states without it load with a silent GamePad mix
+    w.pod(g_drc);
 }
 bool ax_ss_check(ss::Reader r, std::string& why) {
     bool running = r.u8();
@@ -666,7 +630,7 @@ HLE(snd_core, AXGetDeviceFinalMixCallback) {
     ret(c, 0);
 }
 HLE(snd_core, AXRegisterAuxCallback) {
-    // (device, deviceIndex, auxBus, func, userParam); the TV's and the first GamePad's buses are mixed
+
     uint32_t dev = arg(c, 0), idx = arg(c, 1), bus = arg(c, 2);
     LOG("[ax] aux callback: device %u index %u bus %u func %08X", dev, idx, bus, arg(c, 3));
     if (bus >= kAuxBuses) { ret(c, (uint32_t)-5); return; }
@@ -682,14 +646,14 @@ HLE(snd_core, AXRegisterAuxCallback) {
     ret(c, 0);
 }
 HLE(snd_core, AXSetAuxReturnVolume) {
-    // (device, deviceIndex, auxBus, volume)
+
     if (arg(c, 2) < kAuxBuses) {
         if (arg(c, 0) == 0) g_aux_return[arg(c, 2)] = (uint16_t)arg(c, 3);
         else if (arg(c, 0) == 1 && arg(c, 1) == 0) g_drc.aux_return[arg(c, 2)] = (uint16_t)arg(c, 3);
     }
     ret(c, 0);
 }
-HLE(snd_core, AXGetDeviceMode) { if (arg(c, 1)) st32(arg(c, 1), 0); ret(c, 0); }  // stereo
+HLE(snd_core, AXGetDeviceMode) { if (arg(c, 1)) st32(arg(c, 1), 0); ret(c, 0); }
 HLE(snd_core, AXSetDeviceUpsampleStage) {
     if (arg(c, 0) < 3) g_upsample_stage[arg(c, 0)] = arg(c, 1);
     ret(c, 0);
@@ -710,11 +674,10 @@ HLE(snd_core, AXRmtGetSamplesLeft) { ret(c, 0); }
 HLE(snd_core, AXRmtGetSamples) { ret(c, 0); }
 HLE(snd_core, AXRmtAdvancePtr) { ret(c, 0); }
 
-// sound trace window, started by the capture key (input thread) and read by AX calls
 static std::mutex g_sound_trace_mutex;
 static FILE* g_sound_trace = nullptr;
 static uint64_t g_sound_trace_end = 0;
-static FILE* sound_trace_file() {  // g_ax_mutex held
+static FILE* sound_trace_file() {
     std::lock_guard<std::mutex> lk(g_sound_trace_mutex);
     if (g_sound_trace && timebase::now() > g_sound_trace_end) {
         fclose(g_sound_trace);
@@ -735,9 +698,8 @@ void start_sound_trace(const char* path, double seconds) {
     }
     LOG("[ax] recording sound activity to %s", path);
 }
-}  // namespace ax
+}
 
-// one line per voice start while the sound trace runs: time, frame phase, voice, sample data, call chain
 static void trace_voice_start(Cpu* c, uint32_t voice_addr, uint32_t samples) {
     FILE* f = sound_trace_file();
     if (!f) return;
@@ -754,7 +716,6 @@ static void trace_voice_start(Cpu* c, uint32_t voice_addr, uint32_t samples) {
     fflush(f);
 }
 
-// debug: NSMBU_AX_STATS=1 logs calls per second of the voice API every 5 s
 enum { kAxStatCount = 15 };
 static const char* kAxStatNames[kAxStatCount] = {"AXAcquireVoiceEx", "AXFreeVoice", "AXSetVoiceState", "AXSetVoiceOffsets", "AXSetVoiceLoop", "AXSetVoiceEndOffsetEx", "AXSetVoiceLoopOffsetEx", "AXSetVoiceSrcRatio", "AXSetVoiceSrc", "AXSetVoiceVe", "AXSetVoiceDeviceMix", "AXSetVoiceAdpcm", "AXSetVoiceAdpcmLoop", "AXSetVoiceType", "AXSetVoicePriority"};
 static std::atomic<uint32_t> g_ax_stats[kAxStatCount];
@@ -775,7 +736,6 @@ static void ax_stat(int i) {
     }
 }
 
-// test aid: NSMBU_SOUND_TRACE=file records voice starts for the first 60 s after the first voice
 static void sound_trace_env() {
     static bool done = false;
     if (done) return;
@@ -787,7 +747,7 @@ HLE(snd_core, AXAcquireVoiceEx) {
     ax_stat(0);
     sound_trace_env();
     {
-        // debug: NSMBU_VOICE_RATE=1 logs voice acquisitions per second every 5 s
+
         static const bool rate = getenv("NSMBU_VOICE_RATE") != nullptr;
         if (rate) {
             static uint64_t n = 0, t0 = timebase::now();
@@ -799,7 +759,7 @@ HLE(snd_core, AXAcquireVoiceEx) {
                 t0 = t;
             }
         }
-        // debug: NSMBU_TRACE_VOICE=n logs voice acquisitions with the frame phase (frame interpolation)
+
         static int trace = getenv("NSMBU_TRACE_VOICE") ? atoi(getenv("NSMBU_TRACE_VOICE")) : 0;
         if (trace > 0) {
             trace--;
@@ -814,7 +774,7 @@ HLE(snd_core, AXAcquireVoiceEx) {
             LOG("%s", buf);
         }
     }
-    // (priority, callbackEx, userParam)
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     for (Voice& v : g_voices) {
         if (v.acquired) continue;
@@ -862,7 +822,7 @@ HLE(snd_core, AXSetVoiceType) {
 }
 HLE(snd_core, AXSetVoiceOffsets) {
     ax_stat(3);
-    // AXPBOFFSET: +0 format, +2 loop, +4 loopOffset, +8 endOffset, +C currentOffset, +10 samples (relative to samples)
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     Voice* v = voice(arg(c, 0));
     uint32_t o = arg(c, 1);
@@ -870,7 +830,7 @@ HLE(snd_core, AXSetVoiceOffsets) {
     v->format = ld16(o);
     v->loop = ld16(o + 2);
     v->samples = ld32(o + 0x10);
-    trace_voice_start(c, arg(c, 0), v->samples);  // new sample data on a voice = a (re)started sound
+    trace_voice_start(c, arg(c, 0), v->samples);
     uint32_t b = base_units(v->format, v->samples);
     v->loop_abs = b + ld32(o + 4);
     v->end_abs = b + ld32(o + 8);
@@ -895,7 +855,7 @@ HLE(snd_core, AXSetVoiceLoop) {
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     if (Voice* v = voice(arg(c, 0))) { v->loop = (uint16_t)arg(c, 1); write_offsets(*v); }
 }
-// "Ex" offsets are relative to a new sample base
+
 HLE(snd_core, AXSetVoiceEndOffsetEx) {
     ax_stat(5);
     std::lock_guard<std::mutex> lk(g_ax_mutex);
@@ -935,7 +895,7 @@ HLE(snd_core, AXSetVoiceSrcRatio) {
 }
 HLE(snd_core, AXSetVoiceSrc) {
     ax_stat(8);
-    // AXPBSRC: +0 ratioHi, +2 ratioLo, +4 currentFrac, +6 history[4]
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     uint32_t s = arg(c, 1);
     if (Voice* v = voice(arg(c, 0))) {
@@ -954,7 +914,7 @@ HLE(snd_core, AXSetVoiceSrcType) {
 }
 HLE(snd_core, AXSetVoiceVe) {
     ax_stat(9);
-    // AXPBVE: +0 currentVolume u16, +2 currentDelta s16
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     if (Voice* v = voice(arg(c, 0))) {
         v->ve_vol = ld16(arg(c, 1));
@@ -963,7 +923,7 @@ HLE(snd_core, AXSetVoiceVe) {
 }
 HLE(snd_core, AXSetVoiceDeviceMix) {
     ax_stat(10);
-    // (vpb, device, deviceIndex, AXCHMIX* mix): per channel, 4 buses of {vol u16, delta s16}
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     Voice* v = voice(arg(c, 0));
     uint32_t dev = arg(c, 1), idx = arg(c, 2), mix = arg(c, 3);
@@ -975,8 +935,7 @@ HLE(snd_core, AXSetVoiceDeviceMix) {
                 v->tv[ch][b].vol = ld16(e);
                 v->tv[ch][b].delta = (int16_t)ld16(e + 2);
             }
-    // GamePad: the game sets it for every voice (NW4F, 028A710C) and moves all sound here in
-    // Off-TV Play; the second GamePad (idx 1) is not mixed
+
     if (dev == 1 && idx == 0)
         for (int ch = 0; ch < kDrcChannels; ch++)
             for (int b = 0; b < kBuses; b++) {
@@ -988,7 +947,7 @@ HLE(snd_core, AXSetVoiceDeviceMix) {
 }
 HLE(snd_core, AXSetVoiceAdpcm) {
     ax_stat(11);
-    // AXPBADPCM: a[16], gain, pred_scale, yn1, yn2
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     uint32_t a = arg(c, 1);
     if (Voice* v = voice(arg(c, 0))) {
@@ -1000,7 +959,7 @@ HLE(snd_core, AXSetVoiceAdpcm) {
 }
 HLE(snd_core, AXSetVoiceAdpcmLoop) {
     ax_stat(12);
-    // AXPBADPCMLOOP: loop_pred_scale, loop_yn1, loop_yn2
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     uint32_t a = arg(c, 1);
     if (Voice* v = voice(arg(c, 0))) {
@@ -1010,7 +969,7 @@ HLE(snd_core, AXSetVoiceAdpcmLoop) {
     }
 }
 HLE(snd_core, AXSetVoiceLpf) {
-    // AXPBLPF: on, yn1, a0, b0
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     uint32_t p = arg(c, 1);
     if (Voice* v = voice(arg(c, 0))) {
@@ -1028,7 +987,7 @@ HLE(snd_core, AXSetVoiceLpfCoefs) {
     }
 }
 HLE(snd_core, AXSetVoiceBiquad) {
-    // AXPBBIQUAD: on, xn1, xn2, yn1, yn2, b0, b1, b2, a1, a2
+
     std::lock_guard<std::mutex> lk(g_ax_mutex);
     uint32_t p = arg(c, 1);
     if (Voice* v = voice(arg(c, 0))) {
@@ -1055,7 +1014,7 @@ HLE(snd_core, AXSetVoiceBiquadCoefs) {
     }
 }
 HLE(snd_core, AXComputeLpfCoefs) {
-    // (freq, u16* a0, u16* b0)
+
     float t1 = cosf((float)arg(c, 0) / 32000.0f * 6.2831855f);
     float t2 = 2.0f - t1;
     t1 = -((sqrtf(t2 * t2 - 1.0f) - t2) * 32768.0f);
@@ -1063,7 +1022,7 @@ HLE(snd_core, AXComputeLpfCoefs) {
     st16(arg(c, 1), 0x7FFF - r);
     st16(arg(c, 2), r);
 }
-// the remote speaker and voice priorities don't affect the output
+
 HLE(snd_core, AXSetVoicePriority) {
     ax_stat(14);}
 HLE(snd_core, AXSetVoiceMixerSelect) { ret(c, 0); }

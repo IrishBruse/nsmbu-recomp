@@ -1,22 +1,5 @@
-// GamePad screen modes and the TV window's layout (display_modes.h), shared by the AppKit host
-// (display.mm) and the SDL host (gfx/vulkan/backend.cpp, overlay_sdl.cpp). No window system here:
-// the hosts show and hide their windows, read their mouse and save the options.
-//
-// Debug / test environment (both hosts):
-//   NSMBU_DRC_MODE=window|pip|auto|off|gamepad   GamePad screen mode at start (not saved)
-//   NSMBU_DRC_PIP=br:0.25[:0.85]          overlay corner (tl, tr, bl, br), size (fraction of the TV picture
-//                                        width) and opacity at start (not saved)
-//   NSMBU_SCALE_FILTER=smooth|sharp|integer
-//   NSMBU_SIM_SCREEN=3024x1964            lay the TV picture out for a target of that size (present dumps and
-//                                        touch mapping), e.g. to check a full-screen layout without going full screen
-//   NSMBU_TEST_TOUCH=3400-3410:0.9:0.85   a mouse press at (x, y) in the TV window (0..1 from top left) during
-//                                        TV frames 3400..3410; mapped through the overlay like a real click
-//   NSMBU_DRC_AUTO=0.12:4                 automatic mode: changed-area threshold and hold time in seconds
-//   NSMBU_DRC_AUTO_LOG=1                  log the automatic mode's change measurements
-//   NSMBU_TEST_DRC_MODE=3400:gamepad,3600:pip   switch the mode at those TV frames (as the settings overlay)
-//   NSMBU_VIEW_BUTTON=0|1                 the touch screens' view button (on by default on Android only)
-//   NSMBU_FULLSCREEN=0|1                  the TV window starts in full screen (1) or windowed (0), instead of as it
-//                                        was left (that session's full screen is not saved; 1 takes over the screen!)
+
+
 #include "display_modes.h"
 
 #include <algorithm>
@@ -35,14 +18,12 @@
 
 namespace gfx {
 
-// ---------------------------------------------------------------- options
 const char* const kModeNames[kDrcModeCount] = {"window", "pip", "auto", "off", "gamepad"};
 const char* const kCornerNames[4] = {"tl", "tr", "bl", "br"};
 const char* const kFilterNames[3] = {"smooth", "sharp", "integer"};
 
 #ifdef __ANDROID__
-// one surface, no GamePad window: the TV picture first; the GamePad-only view (with the game's
-// Off-TV Play on Minus) and the overlay are a tap on the view button away
+
 std::atomic<int> g_mode{kDrcOff};
 #else
 std::atomic<int> g_mode{kDrcWindow};
@@ -98,7 +79,7 @@ bool display_start_fullscreen(bool saved, bool hidden_windows) {
         LOG("[display] TV window starts windowed (%s)", env ? "NSMBU_FULLSCREEN=0" : "as it was left");
         return false;
     }
-    // test runs: never take over the user's screen unless asked for with NSMBU_FULLSCREEN=1
+
     const bool test = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
     const bool apply = !hidden_windows && (!test || env);
     LOG("[display] TV window starts in full screen (%s)%s", why,
@@ -128,7 +109,6 @@ int display_test_mode(uint64_t frame) {
     return script[i++].mode;
 }
 
-// ---------------------------------------------------------------- mode state
 bool drc_window_wanted() { return g_mode == kDrcWindow && g_shown; }
 bool pip_shown_now() {
     if (g_mode == kDrcPip) return g_shown;
@@ -155,7 +135,6 @@ void display_set_mode(int m) {
 }
 void display_touched() { g_auto_until = std::max<double>(g_auto_until, display_now() + 2.0); }
 
-// ---------------------------------------------------------------- GamePad screen while paused
 static const bool g_pause_view = [] {
     const char* e = getenv("NSMBU_DRC_PAUSE");
 #ifdef __ANDROID__
@@ -164,33 +143,31 @@ static const bool g_pause_view = [] {
     return e && atoi(e) != 0;
 #endif
 }();
-static std::atomic<double> g_plus_at{-1};      // display_now() of the last +, -1: none pending
-// the view to go back to (-1: not switched) and the time of the switch: written by the sampling
-// (render thread; Metal: a completion handler), read by the hosts when they save the view
+static std::atomic<double> g_plus_at{-1};
+
 static std::atomic<int> g_pause_restore{-1};
 static std::atomic<double> g_pause_since{0};
 static bool pause_switchable(int mode) { return mode == kDrcPip || mode == kDrcOff || mode == kDrcAuto; }
 void display_plus_pressed() {
-    // only when the view can switch (or the switch is up: + resumes); other views never sample
+
     if (g_pause_view && (pause_switchable(g_mode) || g_pause_restore >= 0)) g_plus_at = display_now();
 }
 int display_saved_mode() {
     const int restore = g_pause_restore;
     return restore >= 0 ? restore : int(g_mode);
 }
-// tv_change: share of the TV signature's cells that changed since the last sample (-1: unknown);
-// tv_dark: the TV picture is (nearly) black
+
 static void pause_view_update(float tv_change, bool tv_dark) {
     static int still = 0, moving = 0;
     if (g_pause_restore < 0) {
         const double plus = g_plus_at;
         if (!g_pause_view || plus < 0) return;
-        if (display_now() - plus > 2.0) {  // + did not pause the game (or the picture never settled)
+        if (display_now() - plus > 2.0) {
             g_plus_at = -1;
             still = 0;
             return;
         }
-        // a still picture after +; not a black one (a fade to black, a loading screen)
+
         still = tv_change >= 0 && tv_change < 0.01f && !tv_dark ? still + 1 : 0;
         const int mode = g_mode;
         if (still >= 2 && pause_switchable(mode)) {
@@ -203,7 +180,7 @@ static void pause_view_update(float tv_change, bool tv_dark) {
         }
         return;
     }
-    if (g_mode != kDrcGamePad) {  // another view was chosen meanwhile: it stays
+    if (g_mode != kDrcGamePad) {
         g_pause_restore = -1;
         g_plus_at = -1;
         return;
@@ -211,29 +188,27 @@ static void pause_view_update(float tv_change, bool tv_dark) {
     auto resume = [&](const char* why) {
         g_mode = int(g_pause_restore);
         g_pause_restore = -1;
-        g_plus_at = -1;  // (the + that resumed does not start another wait)
+        g_plus_at = -1;
         moving = still = 0;
         LOG("[display] resumed (%s): back to the TV picture", why);
     };
     const double now = display_now(), plus = g_plus_at, since = g_pause_since;
     if (plus >= 0) {
-        if (plus > since + 0.3) return resume("+");  // + again: the usual way out of the pause
-        g_plus_at = -1;  // a + right after the switch: ignored (and no more sampling every frame)
+        if (plus > since + 0.3) return resume("+");
+        g_plus_at = -1;
     }
-    // the pause's own transition (the TV picture dims) is not the game moving again
+
     if (now - since < 0.7) {
         moving = 0;
         return;
     }
-    // the game resumed however the menu was left (B, after saving): the TV picture moves again, in
-    // 3 samples in a row (a calm scene changes little: 2% of the cells)
+
     moving = tv_change > 0.02f ? moving + 1 : 0;
     if (moving >= 3) resume("the TV picture moves");
 }
 
-// ---------------------------------------------------------------- layout
 static Box fit(float dw, float dh, float tw, float th, float* scale) {
-    float s = std::min(dw / tw, dh / th);  // scale to fit: bars only when the aspect ratios differ
+    float s = std::min(dw / tw, dh / th);
     if (g_filter == kInteger && s >= 1) s = floorf(s + 1e-3f);
     *scale = s;
     float w = roundf(tw * s), h = roundf(th * s);
@@ -244,7 +219,7 @@ Layout layout(float dw, float dh, float tw, float th, float pw, float ph, bool p
     Layout L;
     if (dw <= 0 || dh <= 0) return L;
     if (drc_only && pw > 0 && ph > 0) {
-        // GamePad only: its picture where the TV picture would be, touchable like the overlay
+
         L.pip = fit(dw, dh, pw, ph, &L.scale);
         L.pip_on = L.drc_only = true;
         return L;
@@ -252,7 +227,7 @@ Layout layout(float dw, float dh, float tw, float th, float pw, float ph, bool p
     if (tw <= 0 || th <= 0) return L;
     L.tv = fit(dw, dh, tw, th, &L.scale);
     if (pip_on && pw > 0 && ph > 0) {
-        // the GamePad picture in a corner of the TV picture
+
         float ow = roundf(L.tv.w * g_pip_size), oh = roundf(ow * ph / pw);
         float m = roundf(std::min(L.tv.w, L.tv.h) * 0.02f);
         int c = g_corner;
@@ -262,7 +237,6 @@ Layout layout(float dw, float dh, float tw, float th, float pw, float ph, bool p
     return L;
 }
 
-// the last TV composition, for mapping clicks into the overlay (main thread reads, render thread writes)
 static std::mutex g_layout_mu;
 static Layout g_tv_layout;
 static Box g_button;
@@ -303,7 +277,6 @@ bool main_picture(float* x, float* y, float* w, float* h) {
     return true;
 }
 
-// ---------------------------------------------------------------- view button (touch screens)
 bool view_button_enabled() {
     static const bool on = [] {
         const char* e = getenv("NSMBU_VIEW_BUTTON");
@@ -315,7 +288,7 @@ bool view_button_enabled() {
     }();
     return on;
 }
-// a square of 9% of the window's shorter side in the top left corner (rhemfur's Android layout)
+
 static Box view_button(float dw, float dh) {
     const float m = std::round(std::min(dw, dh) * 0.015f), s = std::round(std::min(dw, dh) * 0.09f);
     return {m, m, s, s};
@@ -326,7 +299,7 @@ bool view_button_hit(float nx, float ny) {
     return g_button.w > 0 && x >= g_button.x && y >= g_button.y && x < g_button.x + g_button.w && y < g_button.y + g_button.h;
 }
 int next_view() {
-    // picture-in-picture, GamePad only, TV only (the views of a phone held in landscape)
+
     static const int cycle[] = {kDrcPip, kDrcGamePad, kDrcOff};
     int at = -1;
     for (int i = 0; i < 3; i++)
@@ -338,21 +311,13 @@ int next_view() {
     return g_mode;
 }
 
-// ---------------------------------------------------------------- automatic overlay
-// The overlay comes up for a few seconds when a large part of the GamePad picture changes between two
-// samples (a menu opens, the screen switches). Every 4th frame the renderer reduces both pictures to
-// 32x18 display-encoded luma. Not counted:
-//  - small changes (the map's position marker, blinking cursors),
-//  - fades to or from black and plain brightness shifts (scene changes),
-//  - a GamePad picture that mirrors the TV (title screen and other moments where the game shows the
-//    same picture on both screens; nothing to look at on the GamePad).
 void display_auto_signature(const std::vector<float>& cur_in, const std::vector<float>* tv, uint64_t frame) {
     const uint32_t kSigN = kSignatureW * kSignatureH;
     static std::mutex mu;
     static std::vector<float> prev;
     std::lock_guard<std::mutex> lk(mu);
     {
-        // the TV picture's change, for the GamePad screen while paused
+
         static std::vector<float> prev_tv;
         float tv_change = -1, tv_mean = 1;
         if (tv && tv->size() == kSigN) {
@@ -367,7 +332,7 @@ void display_auto_signature(const std::vector<float>& cur_in, const std::vector<
             }
             prev_tv = *tv;
         }
-        pause_view_update(tv_change, tv_mean < 0.04f);  // (black: as the automatic overlay's "dark")
+        pause_view_update(tv_change, tv_mean < 0.04f);
     }
     if (g_mode != kDrcAuto) { prev.clear(); return; }
     static float thresh = 0.12f, hold = 4.0f;
@@ -397,7 +362,7 @@ void display_auto_signature(const std::vector<float>& cur_in, const std::vector<
         }
         pmean /= kSigN;
         float shift = mean - pmean, frac = (float)changed / kSigN;
-        uint32_t against = 0;  // cells that changed other than by the overall brightness shift
+        uint32_t against = 0;
         for (uint32_t i = 0; i < kSigN; i++)
             if (fabsf((cur[i] - prev[i]) - shift) > 0.08f) against++;
         float content = (float)against / kSigN;
@@ -415,7 +380,6 @@ void display_auto_signature(const std::vector<float>& cur_in, const std::vector<
     prev = std::move(cur);
 }
 
-// ---------------------------------------------------------------- scripted touch (tests)
 struct TestTouch { uint64_t from, to; float x, y; };
 static void test_touch(uint64_t frame) {
     static const std::vector<TestTouch> script = [] {
@@ -445,7 +409,7 @@ static void test_touch(uint64_t frame) {
             } else if (!down) {
                 LOG("[display] test touch: window (%.3f, %.3f) misses the GamePad overlay at frame %llu", t.x, t.y,
                     (unsigned long long)frame);
-                down = true;  // log once
+                down = true;
                 input::set_touch(false, 0, 0);
             }
         }
@@ -455,10 +419,9 @@ static void test_touch(uint64_t frame) {
     }
 }
 
-// ---------------------------------------------------------------- present
 static std::mutex g_dump_mu;
 static std::vector<std::string> g_present_dumps;
-// write the composed TV window picture (and, in window mode, the GamePad window's) at the next present
+
 void request_present_dump(const std::string& path) {
     std::lock_guard<std::mutex> lk(g_dump_mu);
     g_present_dumps.push_back(path);
@@ -486,7 +449,6 @@ static PresentPlan plan_from(const Layout& L, float dw, float dh) {
     return p;
 }
 
-// start of a present (render thread): everything both renderers share
 PresentPlan display_plan(bool have_tv, float tw, float th, bool have_drc, float pw, float ph, float layer_w, float layer_h,
                          uint64_t frame) {
     test_touch(frame);
@@ -496,7 +458,7 @@ PresentPlan display_plan(bool have_tv, float tw, float th, bool have_drc, float 
     float dw = 0, dh = 0;
     bool sim = sim_screen(&dw, &dh);
     if (!sim) dw = layer_w, dh = layer_h;
-    if (dw >= 1 && dh >= 1) aspect::set_window_aspect(dw / dh);  // "Match window" (aspect.cpp): the TV window / screen shape
+    if (dw >= 1 && dh >= 1) aspect::set_window_aspect(dw / dh);
     Layout L;
     if (have_tv || drc_only) L = layout(dw, dh, have_tv ? tw : 0, have_tv ? th : 0, have_drc ? pw : 0, have_drc ? ph : 0, pip, drc_only);
     PresentPlan p = plan_from(L, dw, dh);
@@ -509,11 +471,7 @@ PresentPlan display_plan(bool have_tv, float tw, float th, bool have_drc, float 
     }
     p.sim = sim;
     p.pip_wanted = pip;
-    // Sampling waits for the GPU on those frames (the signatures are read back at once): the
-    // automatic overlay samples every 4th frame; the GamePad screen while paused only while there is
-    // something to see, never in plain gameplay: every frame for at most 2 s after + (whether the game
-    // paused: the switch follows within 2-3 frames), every 4th frame while it shows the GamePad
-    // screen (the game is paused, whether it resumed).
+
     const bool plusWaits = g_pause_view && g_plus_at >= 0, pauseShown = g_pause_view && g_pause_restore >= 0;
     p.sample_auto = have_drc && (plusWaits || ((g_mode == kDrcAuto || pauseShown) && frame % 4 == 0));
     return p;
@@ -538,4 +496,4 @@ void display_log_present_dump(const std::string& path, const PresentPlan& p, flo
         tw, th, p.tv.x, p.tv.y, p.tv.w, p.tv.h, p.scale, kFilterNames[p.filter], pip);
 }
 
-}  // namespace gfx
+}

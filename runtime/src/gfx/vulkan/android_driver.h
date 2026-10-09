@@ -14,8 +14,7 @@ std::string message();
 std::string pipeline_directory();
 void select(const std::string&);
 void remove(const std::string&);
-// the Android file picker for a driver ZIP; afterFailure: the renderer could not start, so the
-// driver is also selected and the app ends (it is used from the next start)
+
 void request_install(bool afterFailure=false);
 }
 #endif

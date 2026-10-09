@@ -1,6 +1,5 @@
 #pragma once
-// Rendered mip-chain reconstruction, based on GreenNaugahyde/ZeldaWWHDRecompAndroid
-// commit 73b54e1bb00ae24fc242e50dc4220235d4f34fd5 (game_level / with_mip_chain).
+
 #include <algorithm>
 #include <cstdint>
 #include "Cafe/HW/Latte/LatteAddrLib/LatteAddrLib.h"
@@ -29,4 +28,4 @@ auto game_level(const Desc& d, uint32_t level, Surfaces& surfaces) -> typename S
     }
     return best;
 }
-} // namespace gfx::render_mips
+}

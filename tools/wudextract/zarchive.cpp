@@ -1,4 +1,4 @@
-// ZArchive (.wua) reader: see zarchive.h. zstd (BSD) decompresses the blocks.
+
 #include "zarchive.h"
 
 #include "crypto.h"
@@ -26,8 +26,6 @@ uint64_t be(const uint8_t* p, int n) {
 [[noreturn]] void bad(const std::string& msg) { throw Error{false, msg}; }
 [[noreturn]] void damaged(const std::string& msg) { throw Error{true, msg}; }
 
-// names are Windows-1252 by the format's definition (UTF-8 works in practice): keep valid UTF-8,
-// read anything else as Latin-1
 std::string to_utf8(const uint8_t* p, size_t n) {
     bool utf8 = true;
     for (size_t i = 0; i < n && utf8;) {
@@ -46,7 +44,7 @@ std::string to_utf8(const uint8_t* p, size_t n) {
     return s;
 }
 
-}  // namespace
+}
 
 bool Reader::detect(const fs::path& p) {
     std::ifstream f(p, std::ios::binary);
@@ -92,7 +90,6 @@ Reader::Reader(const fs::path& p) : f_(p, std::ios::binary) {
         tree.size / ENTRY > 0xFFFFFFFF)
         bad("corrupt archive (section sizes)");
 
-    // offset records -> offset and length of every block
     std::vector<uint8_t> rec(records.size);
     raw_read(records.off, rec.data(), rec.size());
     for (size_t r = 0; r < rec.size() / RECORD; r++) {
@@ -147,8 +144,7 @@ Reader::Reader(const fs::path& p) : f_(p, std::ios::binary) {
         } else {
             nd.offset = nd.size = 0;
             nd.first = w1, nd.count = w2;
-            // children always come after their folder (the writer numbers the tree breadth-first):
-            // this also rules out loops in a damaged tree
+
             if (nd.count && (nd.first <= i || nd.first > n || nd.count > n - nd.first))
                 bad("corrupt archive (folder entries out of range)");
         }
@@ -170,7 +166,7 @@ const uint8_t* Reader::block(uint64_t index) {
     uint64_t off = block_off_[index], len = block_len_[index];
     if (off > data_size_ || len > data_size_ - off) bad("corrupt archive (block out of range)");
     cached_ = ~0ull;
-    if (len == BLOCK) {  // stored uncompressed
+    if (len == BLOCK) {
         raw_read(data_off_ + off, cache_.data(), BLOCK);
     } else {
         packed_.resize(len);
@@ -202,7 +198,7 @@ bool Reader::verify(const std::function<void(uint64_t, uint64_t)>& progress) {
     while (pos < size_) {
         uint64_t n = std::min<uint64_t>(buf.size(), size_ - pos);
         raw_read(pos, buf.data(), n);
-        // the hash field itself counts as zeros
+
         for (uint64_t i = std::max(pos, hash_at); i < std::min(pos + n, hash_at + 32); i++) buf[i - pos] = 0;
         sha.update(buf.data(), n);
         pos += n;
@@ -213,4 +209,4 @@ bool Reader::verify(const std::function<void(uint64_t, uint64_t)>& progress) {
     return memcmp(d, hash_, 32) == 0;
 }
 
-}  // namespace zarchive
+}

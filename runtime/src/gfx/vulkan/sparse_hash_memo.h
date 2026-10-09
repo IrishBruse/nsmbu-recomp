@@ -19,7 +19,6 @@ inline SparseSampleCounts sparse_sample_counts(size_t size) {
     return {uint64_t(full) + (tail != 0), uint64_t(full) * 8 + tail};
 }
 
-// Exactly the original sample offsets, including its zero-padded short tail.
 template<class Consume> void sparse_sample_words(const uint8_t* bytes, size_t size, Consume consume) {
     size_t step = std::max<size_t>((size / 256) & ~size_t(7), 8), offset = 0;
     for(; offset < size && size - offset >= 8; offset += step) {
@@ -33,8 +32,7 @@ template<class Consume> void sparse_sample_words(const uint8_t* bytes, size_t si
         consume(value, size - offset);
     }
 }
-// Render-thread-only, bounded storage. Identity selects a slot; every hit still
-// requires exact equality of all freshly read ordered samples and their count.
+
 template<size_t Entries = 64, size_t MaxSamples = 8192> class SparseHashMemo {
     static_assert(Entries && MaxSamples);
     struct Entry {
@@ -43,7 +41,7 @@ template<size_t Entries = 64, size_t MaxSamples = 8192> class SparseHashMemo {
         uint64_t hash = 0;
         bool valid = false;
     };
-    // Keep identity probes contiguous rather than 64KiB apart in sample storage.
+
     std::array<Entry, Entries> entries;
     std::array<std::array<uint64_t, MaxSamples>, Entries> snapshots;
     std::array<uint64_t, MaxSamples> scratch;
@@ -90,4 +88,4 @@ public:
         return hash;
     }
 };
-} // namespace gfxvk
+}

@@ -5,7 +5,7 @@
 #include <cstring>
 
 namespace gfxvk::vk {
-// Render-thread-only: callers must freshly gather every relevant word first.
+
 template<size_t MaxWords> class ExactStateMemo {
     struct Entry {
         std::array<uint32_t, MaxWords> words;
@@ -50,4 +50,4 @@ public:
         stage.next = (stage.next + 1) % 4;
     }
 };
-} // namespace gfxvk::vk
+}

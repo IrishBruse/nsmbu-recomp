@@ -3,7 +3,7 @@
 #include <cstdint>
 
 namespace gfxvk {
-// Metadata only: a matching key is an opportunity, never proof of equal bytes.
+
 struct VertexHistoryProbe {
   struct Key { uint32_t address = 0, size = 0; };
   struct History { std::array<Key, 8> keys{}; uint32_t count = 0; };
@@ -11,7 +11,7 @@ struct VertexHistoryProbe {
   uintptr_t device = 0;
   uint64_t generation = 0;
   bool initialized = false;
-  // Returns an MRU distance 1..7 for a nonconsecutive match; zero otherwise.
+
   uint32_t observe(uintptr_t nextDevice, uint64_t nextGeneration,
                    uint32_t binding, uint32_t address, uint32_t size, bool bounded) {
     if (!initialized || device != nextDevice || generation != nextGeneration) {
@@ -31,4 +31,4 @@ struct VertexHistoryProbe {
     return distance;
   }
 };
-} // namespace gfxvk
+}

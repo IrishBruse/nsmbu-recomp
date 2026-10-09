@@ -12,7 +12,6 @@ CALL_RE = re.compile(r"\bf_([0-9A-F]{8})(_orig)?\(c\)")
 INT_ARGS = tuple(range(3, 11))
 FLT_ARGS = tuple(range(1, 9))
 
-
 class GenIndex:
     """address -> generated C text of that function (the game's code: f_X, or f_X_orig if hooked)"""
 
@@ -39,7 +38,7 @@ class GenIndex:
                         elif line == "}\n" and start is not None:
                             addr = int(name[2:10], 16)
                             orig = name.endswith("_orig")
-                            # hooked functions: keep the game's body (f_X_orig)
+
                             if orig or addr not in self.loc:
                                 self.loc[addr] = (fn, start, off + len(line), orig)
                             start = None
@@ -62,7 +61,6 @@ class GenIndex:
         i = bisect.bisect_right(self.addrs, addr)
         return (self.addrs[i] - addr) if i < len(self.addrs) else 0
 
-
 def load_names(build):
     """address -> (demangled name, file, evidence), address -> GameCube mangled symbol"""
     names, gc = {}, {}
@@ -80,14 +78,10 @@ def load_names(build):
                 gc[int(f[0], 16)] = (f[1], f[2])
     return names, gc
 
-
-# ---------------------------------------------------------------- CodeWarrior demangling (types only)
-
 BASIC = {"v": ("void", 0), "b": ("bool", 1), "c": ("char", 1), "s": ("short", 2), "i": ("int", 4), "l": ("long", 4),
          "x": ("longlong", 8), "f": ("float", 4), "d": ("double", 8), "w": ("wchar", 2), "e": ("...", 0)}
 KNOWN_SIZE = {"cXyz": 12, "Vec": 12, "csXyz": 6, "SVec": 6, "cSAngle": 2, "Quaternion": 16, "GXColor": 4,
               "_GXColor": 4, "cXy": 8, "J3DTransformInfo": 0x20}
-
 
 class Type:
     def __init__(self, kind, name="", size=0, const=False, inner=None):
@@ -97,7 +91,6 @@ class Type:
         if self.kind in ("ptr", "ref"):
             return "%s%s%s" % ("const " if self.inner and self.inner.const else "", self.inner, "*" if self.kind == "ptr" else "&")
         return self.name
-
 
 class Demangler:
     def __init__(self, s):
@@ -150,27 +143,26 @@ class Demangler:
         if ch.isdigit() or ch == "Q":
             n = self.qual()
             return Type("class", n, KNOWN_SIZE.get(n, 0), const)
-        if ch == "A":  # array: A<n>_<type>
+        if ch == "A":
             self.i += 1
             n = self.num()
             assert self.peek() == "_"
             self.i += 1
             t = self.type()
             return Type("array", "%s[%d]" % (t.name, n), n * (t.size or 0), const, t)
-        if ch == "F":  # function type F<params>_<ret>
+        if ch == "F":
             self.i += 1
             while self.peek() and self.peek() != "_":
                 self.type()
             self.i += 1
             self.type()
             return Type("func", "fn", 4, const)
-        if ch == "M":  # pointer to member: M<class><type>
+        if ch == "M":
             self.i += 1
             self.type()
             self.type()
             return Type("memptr", "memptr", 12, const)
         raise ValueError("cannot demangle at %r" % self.s[self.i:])
-
 
 def signature(sym):
     """GameCube mangled symbol -> (is_method, [Type]) or None. The name itself may contain
@@ -181,7 +173,6 @@ def signature(sym):
         if r is not None:
             return r
     return None
-
 
 def _signature_at(rest):
     if not rest or not (rest[0].isdigit() or rest[0] in "QF"):
@@ -209,7 +200,6 @@ def _signature_at(rest):
     except Exception:
         return None
 
-
 def stack_words(method, params):
     """argument words the PowerPC EABI passes on the stack (integers beyond r10)"""
     gi = 3 + (1 if method else 0)
@@ -223,7 +213,6 @@ def stack_words(method, params):
             n += 1
         gi += 1
     return n
-
 
 def arg_regs(method, params):
     """(int arg registers, float arg registers, per-register Type)"""
@@ -242,7 +231,7 @@ def arg_regs(method, params):
         elif t.kind == "vararg":
             break
         elif t.name in ("longlong", "ulonglong", "slonglong"):
-            gi += gi % 2 == 0  # aligned register pair r3:r4, r5:r6, ...
+            gi += gi % 2 == 0
             for _ in range(2):
                 if gi <= 10:
                     ints.append(gi)
@@ -255,14 +244,10 @@ def arg_regs(method, params):
             gi += 1
     return ints, flts, types
 
-
-# ---------------------------------------------------------------- register dataflow over the generated C
-
 STMT_SPLIT = re.compile(r"/\* ([0-9A-F]{8}): [0-9A-F]{8} \*/$")
 REG_RE = re.compile(r"c->(r|f)\[(\d+)\](\.ps[01])?(\s*=(?!=))?")
 ARGS = {("r", i) for i in INT_ARGS} | {("f", i) for i in FLT_ARGS}
 VOLATILE = {("r", i) for i in [0] + list(range(3, 13))} | {("f", i) for i in range(0, 14)}
-
 
 class Cfg:
     """Instructions of one generated function: own register uses/defs, calls, successors,
@@ -281,15 +266,15 @@ class Cfg:
         self.use, self.defs, self.succ, self.calls, self.indirect = [], [], [], [], []
         for k, (a, s) in enumerate(insns):
             u, d = set(), set()
-            for piece in s.split(";"):  # C order: a piece's right-hand side is read before its target is written
+            for piece in s.split(";"):
                 pd = set()
                 for m in REG_RE.finditer(piece):
                     reg = (m.group(1), int(m.group(2)))
                     if m.group(4):
                         pd.add(reg)
-                    elif reg not in d and m.group(3) != ".ps1":  # arguments are passed in ps0
+                    elif reg not in d and m.group(3) != ".ps1":
                         u.add(reg)
-                # paired-single loads/stores name the FPR as a number
+
                 for m in re.finditer(r"psq_store\(c, (\d+),", piece):
                     if ("f", int(m.group(1))) not in d:
                         u.add(("f", int(m.group(1))))
@@ -309,8 +294,7 @@ class Cfg:
             self.use.append(u)
             self.defs.append(d)
             self.succ.append(nx)
-        # variadic functions save r3-r10 (and f1-f8) to the register save area in the prologue;
-        # those stores are not uses of the arguments
+
         spill = re.compile(r"^(?:\{ uint32_t ea = c->r\[1\] \+ 0x[0-9A-F]+u; stf64\(ea, c->f\[(\d)\]\.ps0\); \}|st32\(c->r\[1\] \+ 0x[0-9A-F]+u, c->r\[(\d+)\]\);)$")
         spilled = {}
         for k, (a, s) in enumerate(insns[:40]):
@@ -331,7 +315,6 @@ class Cfg:
                 continue
             self.reach.add(k)
             st.extend(self.succ[k])
-
 
 class Dataflow:
     """Interprocedural register facts, memoised per function.
@@ -417,11 +400,7 @@ class Dataflow:
         self.li[addr] = r
         return r
 
-
-# ---------------------------------------------------------------- return value width
-
 ASSIGN_RE = re.compile(r"^\{?\s*c->r\[(\d+)\] = (.*)$")
-
 
 def classify_def(rhs):
     """value range of `c->r[N] = rhs` -> ('u', bits) / ('s', bits) / ('reg', n) / ('const', v) / None (full)"""
@@ -443,12 +422,11 @@ def classify_def(rhs):
     m = re.search(r"& 0x([0-9A-F]{4,8})u(?:; cr0_rc.*)?$", rhs)
     if m and not re.search(r"\|", rhs):
         mask = int(m.group(1), 16)
-        if mask and (mask & (mask + 1)) == 0:  # low-bit mask
+        if mask and (mask & (mask + 1)) == 0:
             return ("u", mask.bit_length())
     if re.match(r"^c->r\[\d+\] \? \(uint32_t\)__builtin_clz", rhs):
         return ("u", 6)
     return None
-
 
 def merge_width(a, b):
     if a is None or b is None:
@@ -473,7 +451,6 @@ def merge_width(a, b):
     if a[0] == b[0] == "s":
         return ("s", max(a[1], b[1]))
     return None
-
 
 class RetWidth:
     """How a function's r3 result is extended at every return: ('u', bits) zero-extended,
@@ -542,7 +519,7 @@ class RetWidth:
                     w = None
             if w == "pass":
                 if j == 0 or not preds[j]:
-                    return None  # value comes from the caller
+                    return None
                 work.extend((p, r) for p in preds[j])
                 continue
             if w is not None and w[0] == "reg":

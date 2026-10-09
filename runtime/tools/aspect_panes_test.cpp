@@ -27,7 +27,7 @@ int main() {
         auto cursor=transform(Role::Content,347,-92,1,1,kx,ky);check(cursor.x==box.x && cursor.y==box.y);
         auto hud=transform(Role::Hud,-601,338,1,1,kx,ky);check(hud.x==-601-640*(kx-1) && hud.y==338+360*(ky-1));
         auto world=transform(Role::Projected,200,100,1,1,kx,ky);check(world.x==200*kx && world.y==100*ky);
-        // Exact native scissor on integral-size targets, including tall pictures and 2x resolution.
+
         for (uint32_t scale : {1u,2u,3u}) {
             uint32_t w=uint32_t(std::lround(1280*scale*kx)),h=uint32_t(std::lround(720*scale*ky));
             uint32_t x=0,y=0,ex=w,ey=h;clip(w,h,kx,ky,x,y,ex,ey);

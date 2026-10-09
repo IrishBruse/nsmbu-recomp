@@ -18,15 +18,14 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
-import guestmod  # noqa: E402
-import build_guest_mod as builder  # noqa: E402
+import guestmod
+import build_guest_mod as builder
 
 CLANG = os.environ.get("NSMBU_PPC_CLANG") or shutil.which("clang")
 LLD = os.environ.get("NSMBU_PPC_LLD") or shutil.which("ld.lld")
 FLAGS = ["--target=powerpc-unknown-eabi", "-mcpu=750", "-O2", "-ffreestanding", "-fno-builtin", "-nostdlib",
          "-fno-jump-tables", "-ffunction-sections", "-fdata-sections",
          "-I", os.path.join(REPO, "runtime", "guest", "include")]
-
 
 def ppc_ok():
     if not CLANG or not LLD or not shutil.which(CLANG) or not shutil.which(LLD):
@@ -36,7 +35,6 @@ def ppc_ok():
     if p.returncode:
         print("PowerPC compiler probe failed:", p.stderr, file=sys.stderr)
     return p.returncode == 0
-
 
 @unittest.skipUnless(ppc_ok(), "no clang with the PowerPC target / ld.lld")
 class GuestModTest(unittest.TestCase):
@@ -63,7 +61,7 @@ NSMBU_HOOK(0x0240EBB0, mapped, (void* actor)) {
                              {eu.code(0x0240EBB0)})
             self.assertIn(eu.code(0x0240EBB0).to_bytes(4, "big"), mapped.image)
             self.assertNotEqual(usa.image, mapped.image)
-            # lis/addi materializes the mapped data address, including its adjusted high half.
+
             address = eu.data(0x101F84DC)
             halves = [int.from_bytes(mapped.image[i:i+2], "big") for i in range(0, len(mapped.image), 2)]
             self.assertIn((address + 0x8000) >> 16, halves)
@@ -100,7 +98,7 @@ NSMBU_HOOK(0x0240EBB0, mapped, (void* actor)) {
         from builds import by_name
         with tempfile.TemporaryDirectory() as d:
             elf = Path(self.build_elf('int old_mod(void) { return *(volatile int*)0x101F84DC; }', d)).read_bytes()
-            builder.translator_for(elf, 0x7F000000)  # USA retains compatibility
+            builder.translator_for(elf, 0x7F000000)
             with self.assertRaisesRegex(guestmod.ModError, 'older SDK'):
                 builder.translator_for(elf, 0x7F000000, by_name("EU"))
 
@@ -170,7 +168,7 @@ NSMBU_REPLACE(0x02005678, void, repl, (void)) { ptr = helper; orig_fn(); nsmbu_l
             self.assertIn("g_host->call_original(c, 0x02005678u);", c)
             self.assertEqual(t.services, ["nsmbu_log_int"])
             self.assertTrue(all(0x7F200000 <= e < t.end for e in t.entries))
-            self.assertGreaterEqual(len(t.entries), 2)  # helper is address-taken: its own function
+            self.assertGreaterEqual(len(t.entries), 2)
 
     def test_host_services_compile(self):
         src = r'''
@@ -267,7 +265,6 @@ int main(int argc, char** argv) {
         with self.assertRaises(guestmod.ModError):
             guestmod.Elf(b"not an elf at all" * 4)
 
-
 class BuildInterfaceTest(unittest.TestCase):
     def test_source_and_release_include_roots(self):
         with tempfile.TemporaryDirectory() as d, mock.patch.object(builder, "REPO", d):
@@ -301,7 +298,7 @@ class BuildInterfaceTest(unittest.TestCase):
             try:
                 (pkg / "mod.elf").symlink_to(Path(d, "outside.elf"))
             except OSError:
-                return # Windows runners without symlink privileges still exercise path validation.
+                return
             with self.assertRaises(guestmod.ModError):
                 builder.package_elf(pkg)
 
@@ -344,7 +341,6 @@ class BuildInterfaceTest(unittest.TestCase):
         for base in (0, 0x7F000001, 0x80000000, -1):
             with self.subTest(base=base), self.assertRaises(guestmod.ModError):
                 builder.translator_for(b"unused", base)
-
 
 if __name__ == "__main__":
     unittest.main()

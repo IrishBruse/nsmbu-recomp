@@ -10,10 +10,9 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import builds  # noqa: E402
+import builds
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-
 
 class Registry(unittest.TestCase):
     def test_canonical_is_usa_and_identity(self):
@@ -30,7 +29,7 @@ class Registry(unittest.TestCase):
         self.assertIn("USA", names)
         self.assertIn("EU", names)
         self.assertEqual(builds.by_title("0005000010143600").name, "EU")
-        self.assertIsNone(builds.by_title("0005000010143400"))  # Japan: no map yet
+        self.assertIsNone(builds.by_title("0005000010143400"))
         self.assertEqual(builds.by_name("eu").title_id, "0005000010143600")
         self.assertIsNone(builds.by_name("nonesuch"))
 
@@ -42,7 +41,6 @@ class Registry(unittest.TestCase):
             self.assertRegex(b.sha256, r"^[0-9a-f]{64}$")
             self.assertRegex(b.title_id, r"^00050000[0-9a-f]{8}$")
 
-
 class Identify(unittest.TestCase):
     def test_a_file_that_is_no_build(self):
         with open(__file__, "rb"):
@@ -52,7 +50,6 @@ class Identify(unittest.TestCase):
         usa = builds.canonical_build()
         self.assertEqual(builds.by_sha256(usa.sha256).name, "USA")
         self.assertIsNone(builds.by_sha256("0" * 64))
-
 
 class Maps(unittest.TestCase):
     def setUp(self):
@@ -66,7 +63,7 @@ class Maps(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     translate(address)
         with self.assertRaises(ValueError):
-            self.eu.data(0x145AC92C)  # an allocation is not a mapped global
+            self.eu.data(0x145AC92C)
 
     def test_noncanonical_map_requires_bounds(self):
         with self.assertRaisesRegex(ValueError, "bounds"):
@@ -81,16 +78,16 @@ class Maps(unittest.TestCase):
         for shift in (self.eu._code, self.eu._data):
             self.assertEqual(shift.starts, sorted(shift.starts))
             self.assertEqual(len(set(shift.starts)), len(shift.starts))
-        self.assertEqual(self.eu._code.starts[0], 0x02000020)   # .text of the USA build
-        self.assertEqual(self.eu._data.starts[0], 0x10000000)   # .rodata
+        self.assertEqual(self.eu._code.starts[0], 0x02000020)
+        self.assertEqual(self.eu._data.starts[0], 0x10000000)
 
     def test_inverse_round_trip(self):
-        probe = list(self.eu._code.starts) + [a + 4 for a in self.eu._code.starts] + \
-                [a - 4 for a in self.eu._code.starts[1:]] + [0x02000020, 0x025F172C, 0x028F8250] + \
+        probe = list(self.eu._code.starts) + [a + 4 for a in self.eu._code.starts] +\
+                [a - 4 for a in self.eu._code.starts[1:]] + [0x02000020, 0x025F172C, 0x028F8250] +\
                 [a for a, _, _, _ in self.eu.differing] + [b for _, _, b, _ in self.eu.differing]
         for a in probe:
             if self.eu.body_differs(a):
-                continue   # see test_inside_a_differing_function_has_no_inverse
+                continue
             self.assertEqual(self.eu.canon_code(self.eu.code(a)), a, "%08X" % a)
 
     def test_differing_function_entries_round_trip(self):
@@ -105,27 +102,26 @@ class Maps(unittest.TestCase):
         meaningful for a differing function's entry. Nothing may use those: body_differs() is what
         the recompiler and the hooks checks go by."""
         canon, canon_size, addr, size = next(d for d in self.eu.differing if d[3] < d[1])
-        tail = canon + size + 4   # inside the canonical body, past the end of the build's
+        tail = canon + size + 4
         self.assertTrue(self.eu.body_differs(tail))
         with self.assertRaises(ValueError):
             self.eu.code(tail)
 
     def test_known_addresses(self):
-        # from the derivation (docs/builds.md): the first run is unshifted, the last is +0x8C0
+
         self.assertEqual(self.eu.code(0x02000020), 0x02000020)
         self.assertEqual(self.eu.code(0x028F8250), 0x028F8B10)
         self.assertEqual(self.eu.data(0x101F4BAC), 0x101F4BAC)
         self.assertEqual(self.eu.data(0x1048DBF8), 0x1048DC10)
 
     def test_body_differs_covers_the_regional_code(self):
-        # the European language code the USA build does not have, and its neighbours
-        self.assertTrue(self.eu.body_differs(0x025F8618))      # the player name for a message tag
-        self.assertTrue(self.eu.body_differs(0x025F9448))      # SysSetting::update (the language reader)
-        self.assertTrue(self.eu.body_differs(0x025FC3D0 + 4))  # inside putPlayerName
-        self.assertFalse(self.eu.body_differs(0x025F9448 - 4))
-        self.assertFalse(self.eu.body_differs(0x024FFC40))     # camera_draw: the same code in both
-        self.assertEqual(len(self.eu.differing), 18)
 
+        self.assertTrue(self.eu.body_differs(0x025F8618))
+        self.assertTrue(self.eu.body_differs(0x025F9448))
+        self.assertTrue(self.eu.body_differs(0x025FC3D0 + 4))
+        self.assertFalse(self.eu.body_differs(0x025F9448 - 4))
+        self.assertFalse(self.eu.body_differs(0x024FFC40))
+        self.assertEqual(len(self.eu.differing), 18)
 
 class Hooks(unittest.TestCase):
     def test_every_file_is_read_for_the_canonical_build(self):
@@ -159,7 +155,6 @@ class Hooks(unittest.TestCase):
                 self.assertFalse(build.body_differs(canon),
                                  "%s: %08X is inside a function the %s build compiled differently"
                                  % (where, canon, build.name))
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

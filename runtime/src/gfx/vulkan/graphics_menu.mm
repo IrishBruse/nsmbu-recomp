@@ -1,4 +1,4 @@
-// Vulkan's main-thread Cocoa menu. Rendering settings remain portable atomics.
+
 #import <AppKit/AppKit.h>
 #include <SDL3/SDL.h>
 #include "settings.h"
@@ -41,12 +41,12 @@ static constexpr float scales[]={1,1.5f,2,3};
         item.enabled=slots[slot].used&&slots[slot].compatible;
         item.toolTip=slot==1?@"In game: F1 opens the settings overlay (Saves)":[NSString stringWithFormat:@"Shortcut in game: F%d",slot];
     }
-    [menu addItem:NSMenuItem.separatorItem];  // full save states (savestate.h): off by default, for debugging
+    [menu addItem:NSMenuItem.separatorItem];
     NSMenuItem* fs=[menu addItemWithTitle:@"Full Save States (large, contain game data, don't share)"
         action:@selector(toggleFullStates:) keyEquivalent:@""];
     fs.target=self;fs.state=ss::full_states()?NSControlStateValueOn:NSControlStateValueOff;
     fs.enabled=!ss::full_states_forced();
-    [menu addItem:NSMenuItem.separatorItem];  // crash recovery (crashrec.cpp)
+    [menu addItem:NSMenuItem.separatorItem];
     NSMenuItem* cr=[menu addItemWithTitle:[NSString stringWithFormat:@"Crash Recovery (automatic state every %d min)",
         (crashrec::interval_seconds()+30)/60] action:@selector(toggleCrashRecovery:) keyEquivalent:@""];
     cr.target=self;cr.state=crashrec::enabled()?NSControlStateValueOn:NSControlStateValueOff;
@@ -68,7 +68,7 @@ static constexpr float scales[]={1,1.5f,2,3};
 - (void)aniso:(NSMenuItem*)i { gfxvk::set_aniso(!gfxvk::aniso_enabled()); }
 - (void)fxaa:(NSMenuItem*)i { gfxvk::set_fxaa(!gfxvk::fxaa_enabled()); }
 - (void)filter:(NSMenuItem*)i { gfxvk::set_scale_filter((int)i.tag); }
-// tag 2: true 60; 60/120/240: frame interpolation at that rate
+
 - (void)interpolation:(NSMenuItem*)i { if(i.tag==2) interp::set_mode(interp::mode()==2?0:2); else interp::toggle_fps((int)i.tag); }
 - (BOOL)validateMenuItem:(NSMenuItem*)i {
     BOOL on=NO; bool available=true;
@@ -85,7 +85,7 @@ static constexpr float scales[]={1,1.5f,2,3};
 @end
 namespace gfxvk {
 void install_graphics_menu(SDL_Window* window) {
-    // SDL owns the application and window; do not install Metal's event handlers.
+
     if(!window || ![NSThread isMainThread])return;
     static WWVulkanGraphicsMenu* target;
     if(target)return;

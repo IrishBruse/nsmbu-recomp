@@ -1,5 +1,5 @@
 #pragma once
-// shim: subset of Cemu util/helpers/helpers.h used by the decompiler
+
 #include <iterator>
 template <typename T>
 class reverse_itr {

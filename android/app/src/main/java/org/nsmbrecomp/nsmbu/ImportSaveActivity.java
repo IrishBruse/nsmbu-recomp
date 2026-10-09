@@ -9,9 +9,6 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.InputStream;
 
-// Launcher shortcut "Import save": pick a zip (from Export save, or a zip of the PC version's save/
-// folder); it must contain user/cking.sav. The game is stopped, the current save is kept as
-// save-backup-<time> next to it, and the zip's files become the save.
 public class ImportSaveActivity extends Activity {
     private static final int PICK = 1;
 
@@ -51,7 +48,7 @@ public class ImportSaveActivity extends Activity {
                         save.mkdirs();
                         SaveFiles.unzip(in, root, save);
                     } catch (Exception e) {
-                        SaveFiles.deleteTree(save);  // put the previous save back
+                        SaveFiles.deleteTree(save);
                         if (backup.exists()) backup.renameTo(save);
                         throw e;
                     }

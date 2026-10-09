@@ -1,5 +1,5 @@
-#!/bin/sh
-# NSMBU setup in a terminal (Linux): the fallback for the nsmbu-launcher program next to tools/.
+
+
 cd "$(dirname "$0")/.." || exit 1
 DIR="$(pwd)"
 export PYTHONDONTWRITEBYTECODE=1
@@ -8,8 +8,7 @@ for p in python3 python; do
     exec "$p" "$DIR/tools/installer/setup.py" "$@"
   fi
 done
-# No Python 3.8+: fetch the pinned standalone build (tools/installer/toolchains.json, SHA-256 checked),
-# into the release folder (portable release) or the per-user data folder
+
 if [ -f "$DIR/portable.txt" ]; then DATA="$DIR/data"; else DATA="${XDG_DATA_HOME:-$HOME/.local/share}/nsmbu"; fi
 PYDIR="$DATA/python"
 if [ ! -x "$PYDIR/bin/python3" ]; then

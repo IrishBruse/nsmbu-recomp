@@ -87,7 +87,7 @@ private:
 	}
 
 	uint8*	str;
-	uint32	length; /* in bytes */
-	uint32	limit; /* in bytes */
+	uint32	length;
+	uint32	limit;
 	bool	allocated;
 };

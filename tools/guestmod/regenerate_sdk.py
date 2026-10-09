@@ -9,7 +9,6 @@ import tempfile
 REVISION = "47e1dbc3886cfd8233859dffd73efc41a04a9130"
 ROOT = Path(__file__).resolve().parents[2]
 
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--public-clone", type=Path, required=True)
@@ -35,7 +34,6 @@ def main():
         else:
             for path in generated:
                 (target / path.name).write_bytes(path.read_bytes())
-
 
 if __name__ == "__main__":
     main()

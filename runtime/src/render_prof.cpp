@@ -1,4 +1,4 @@
-// Render-thread profiler (render_prof.h).
+
 #include "render_prof.h"
 
 #include <algorithm>
@@ -61,7 +61,6 @@ uint64_t thread_cpu_ns() {
 #endif
 }
 
-// ---------------------------------------------------------------- render-thread state
 bool g_draw_sampled = false;
 uint64_t g_mark = 0;
 int g_upload_kind = kUpOther;
@@ -69,7 +68,7 @@ bool g_track_unique = false;
 uint32_t g_reg_dirty = 0;
 
 namespace {
-constexpr uint32_t kSampleMask = 63;  // draws and register writes: one call in 64 is timed
+constexpr uint32_t kSampleMask = 63;
 struct Window {
     uint64_t frames = 0, holdFrames = 0;
     uint64_t opCount[kOps]{}, opTimed[kOps]{}, opNs[kOps]{};
@@ -83,7 +82,7 @@ struct Window {
 Window W;
 uint64_t frameUpload[kUploadKinds]{};
 std::array<std::vector<std::pair<uint64_t, uint64_t>>, kUploadKinds> reads;
-std::vector<uint32_t> otherRegs(0x10000);  // changed-value writes of non-buffer registers, this window
+std::vector<uint32_t> otherRegs(0x10000);
 uint64_t windowStart = 0, cpuStart = 0, frameCounter = 0, stepsStart = 0;
 uint32_t sampleCounter[kOps]{};
 
@@ -91,12 +90,12 @@ struct ShaderStats {
     uint64_t variants = 0, newPrograms = 0, unusedOnly = 0;
     std::map<std::string, uint64_t> groups;
 };
-ShaderStats shaderStats;  // cumulative (render thread)
+ShaderStats shaderStats;
 
 std::atomic<uint64_t> syncNs[kSyncs], syncCount[kSyncs];
 std::mutex reportMutex;
 std::string report;
-}  // namespace
+}
 
 void mark_slow(Phase p) {
     uint64_t t = now_ns();
@@ -108,7 +107,7 @@ uint64_t op_begin(Op op) {
     if (!enabled()) return 0;
     W.opCount[op]++;
     if ((op == kOpDraw || op == kOpRegs) && (++sampleCounter[op] & kSampleMask)) {
-        if (op == kOpDraw) g_draw_sampled = false;  // also after a sampled draw that threw
+        if (op == kOpDraw) g_draw_sampled = false;
         return 0;
     }
     uint64_t t = now_ns();
@@ -148,11 +147,10 @@ void add_wait(Wait w, uint64_t ns) {
 void add_idle(uint64_t ns) { W.idleNs += ns; }
 
 bool fast_class_reg(uint32_t reg) {
-    // RegDefines.h: mmSQ_ALU_CONSTANT0_0 0xC000; mmSQ_TEX_RESOURCE_WORD0 0xE000 + 0x7E0 (VS uniform
-    // blocks), + 0x250 (PS), + 0xCB0 (GS), + 0x8C0 (vertex attribute buffers), 7 words each
+
     if (reg >= 0xC000 && reg < 0xC000 + 0x1000) return true;
     for (uint32_t base : {0xE7E0u, 0xE250u, 0xECB0u, 0xE8C0u})
-        if (reg >= base && reg < base + 7 * 16) return true;  // includes the vertex stride (pipeline-only)
+        if (reg >= base && reg < base + 7 * 16) return true;
     return false;
 }
 void note_other_reg(uint32_t reg) {
@@ -195,7 +193,6 @@ std::string latest_report() {
     return report;
 }
 
-// names of frequently changing context registers (others are printed as hex addresses)
 static std::string reg_name(uint32_t r) {
     struct Range { uint32_t first, count; const char* name; };
     static const Range ranges[] = {
@@ -244,10 +241,9 @@ void frame_end(bool hold) {
     g_track_unique = (++frameCounter % 16) == 0;
     if (W.frames < 120) return;
 
-    // ---- report
     const double frames = (double)W.frames, wallMs = (t - windowStart) / 1e6;
     const uint64_t cpu = thread_cpu_ns(), steps = interp::logic_steps();
-    auto opMs = [&](int op) {  // estimated ms per frame (sampled ops scaled up)
+    auto opMs = [&](int op) {
         return W.opTimed[op] ? W.opNs[op] / 1e6 * ((double)W.opCount[op] / W.opTimed[op]) / frames : 0.0;
     };
     std::string out;
@@ -373,4 +369,4 @@ void frame_end(bool hold) {
     stepsStart = steps;
 }
 
-}  // namespace rprof
+}

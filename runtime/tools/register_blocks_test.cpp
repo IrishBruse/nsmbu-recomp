@@ -16,7 +16,7 @@ int main() {
     for (int step = 0; step < 20000; ++step) {
         unsigned op = rng() % 8, slot = rng() % contexts.size();
         if (op <= 2) {
-            // Cross block boundaries, identical writes, zeros and writes without a shadow.
+
             size_t first = rng() % words, n = std::min<size_t>(1 + rng() % 600, words - first);
             blocks.touch(first, n);
             for (size_t i = first; i < first + n; ++i) {
@@ -26,12 +26,12 @@ int main() {
             }
         } else if (op == 3) {
             contexts[slot].assign(words, 0); full[slot].assign(words, 0);
-            active = slot; // setup affects shadow only
+            active = slot;
         } else if (op == 4) active = -1;
         else if (op == 5) {
-            regs[primitive] = baseline[primitive] = rng(); // renderer writes only the live file
+            regs[primitive] = baseline[primitive] = rng();
         } else if (op == 6) {
-            // Full-state load reconstructs the map from values, including inactive contexts.
+
             blocks = {};
             blocks.include(regs.data());
             for (const auto& c : contexts) blocks.include(c.data());

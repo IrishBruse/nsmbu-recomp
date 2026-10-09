@@ -1,4 +1,4 @@
-// Flat, per-mod data files. Never resolve a caller-controlled directory or follow a file symlink.
+
 #pragma once
 #include <algorithm>
 #include <cstdint>
@@ -37,7 +37,7 @@ class Files {
 #endif
     }
     bool directory() {
-        // The parent is the manager's Data directory; its parent is trusted manager storage.
+
         if(link(root_.parent_path())||link(root_))return false;
         std::filesystem::create_directories(root_);
         return !link(root_.parent_path())&&!link(root_)&&std::filesystem::is_directory(root_);
@@ -78,4 +78,4 @@ public:
     int32_t read(const std::string& name,void* buffer,uint32_t size) { return transfer(name,buffer,size,false); }
     int32_t write(const std::string& name,const void* buffer,uint32_t size) { return transfer(name,const_cast<void*>(buffer),size,true); }
 };
-} // namespace guestmods
+}

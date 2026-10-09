@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 namespace mods::cemu {
-// Whether a Cemu rules.txt "titleIds" list (comma-separated, any case, spaces allowed) names `title`,
-// the installed game's title ID (g_guest_build_title_id: USA 0005000010143500, EU 0005000010143600).
+
 inline bool targets_title(const std::string& titleids,const std::string& title) {
     std::string want;for(char c:title)want+=(char)std::tolower((unsigned char)c);
     size_t start=0;
@@ -36,13 +35,13 @@ json::Value options(const Pack& pack);
 void import_legacy(const std::filesystem::path& stage,const std::string& source_name);
 struct Selection {std::string id;Pack pack;json::Value config;};
 void validate(const std::vector<Selection>& selections);
-void activate(const std::vector<Selection>& selections); // before guest execution only
-void set_vulkan(bool available); // requested at startup, then actual backend after fallback
+void activate(const std::vector<Selection>& selections);
+void set_vulkan(bool available);
 bool vulkan();
 bool has_shaders();
 bool legacy_pixel_uniforms(uint64_t base);
-float aspect_ratio(); // known NSMBU resolution data patches use the native projection adapter
-// Absolute physical render-target sizes; guest sizes/formats are preserved.
+float aspect_ratio();
+
 bool texture_extent(uint32_t width,uint32_t height,uint32_t format,uint32_t depth,uint32_t tile,uint32_t& out_width,uint32_t& out_height);
 std::string shader_source(uint64_t base,uint64_t aux,bool vertex);
 void report_shader(uint64_t base,uint64_t aux,bool vertex,bool accepted,const std::string& reason);

@@ -1,14 +1,5 @@
-// Quit prompt (issue #65): closing the TV window quits the app, as on Windows and Linux; while a save
-// file is being played, closing it or Quit (Cmd+Q, the Dock's Quit, logout) first asks
-// "Quit NSMBU?" in a sheet on the TV window:
-//   Quit                 quits (the default button, Return)
-//   Cancel               keeps playing (Esc)
-//   Save State and Quit  writes save state slot 1 (as Save States > Save to slot 1, Shift+F1), then quits
-// Before that (boot, title screen, file select) and in test runs nothing asks (quit_prompt.h decides).
-// Closing the GamePad window still only hides it.
-//
-// Test aids: NSMBU_TEST_QUIT_ANSWER=quit|cancel|save shows the prompt also in scripted runs and answers
-// it after 1.5 s; NSMBU_TEST_CLOSE_TV_AT=frame closes the TV window (its close button) at that frame.
+
+
 #import <AppKit/AppKit.h>
 
 #include <cstdlib>
@@ -22,9 +13,9 @@
 namespace {
 const char* env(const char* name) { return getenv(name); }
 NSWindow* g_tv = nil;
-bool g_confirmed = false;  // answered: the next terminate: goes through
-bool g_asking = false;     // the prompt is open
-int g_saving = 0;          // a save state for the quit is being written (its number; 0: none)
+bool g_confirmed = false;
+bool g_asking = false;
+int g_saving = 0;
 
 quitprompt::Request request() {
     quitprompt::Request r;
@@ -44,7 +35,6 @@ void quit_now() {
 
 void ask();
 
-// the save state did not get written: quit anyway, or keep playing
 void save_failed(const std::string& why) {
     LOG("[quit] save state not written (%s)", why.c_str());
     NSAlert* a = [NSAlert new];
@@ -67,7 +57,7 @@ void save_and_quit() {
     LOG("[quit] saving state slot %d before quitting", quitprompt::kSaveSlot);
     ss::request_save(quitprompt::kSaveSlot, [gen](bool ok, const std::string& why) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (g_saving != gen) return;  // timed out before
+            if (g_saving != gen) return;
             g_saving = 0;
             if (ok) {
                 LOG("[quit] save state slot %d written; quitting", quitprompt::kSaveSlot);
@@ -77,7 +67,7 @@ void save_and_quit() {
             }
         });
     });
-    // the game normally saves within a frame or two and writes the file in a few seconds
+
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         if (g_saving != gen) return;
         g_saving = 0;
@@ -94,8 +84,8 @@ void ask() {
                                                    @"replacing what is there.",
                                                    quitprompt::kSaveSlot];
     a.alertStyle = NSAlertStyleWarning;
-    [a addButtonWithTitle:@"Quit"];    // default (Return)
-    [a addButtonWithTitle:@"Cancel"];  // Esc
+    [a addButtonWithTitle:@"Quit"];
+    [a addButtonWithTitle:@"Cancel"];
     [a addButtonWithTitle:@"Save State and Quit"];
     g_asking = true;
     [a beginSheetModalForWindow:g_tv completionHandler:^(NSModalResponse r) {
@@ -110,7 +100,7 @@ void ask() {
             LOG("[quit] answer: Cancel; the game keeps running");
         }
     }];
-    // test runs: answer by themselves (the sheet is shown for real, then ended like a click)
+
     quitprompt::Answer t = quitprompt::test_answer(env);
     if (t == quitprompt::Answer::None) return;
     LOG("[quit] test: TV window %ld, prompt window %ld", (long)g_tv.windowNumber, (long)a.window.windowNumber);
@@ -123,7 +113,6 @@ void ask() {
     });
 }
 
-// a quit request: true if the app may terminate now
 bool quit_request(const char* from) {
     quitprompt::Request r = request();
     switch (quitprompt::decide(r)) {
@@ -139,10 +128,8 @@ bool quit_request(const char* from) {
     }
     return true;
 }
-}  // namespace
+}
 
-// the TV window: its close button and Close Window (Cmd+W) ask to quit; NSWindow's own performClose:
-// would play the alert sound when windowShouldClose: declines
 @interface WWTvWindow : NSWindow
 @end
 @implementation WWTvWindow
@@ -154,11 +141,11 @@ bool quit_request(const char* from) {
 @interface NsmbuQuitDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @end
 @implementation NsmbuQuitDelegate
-// Quit (Cmd+Q), the Dock's Quit, logout
+
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication*)sender {
     return quit_request("Quit") ? NSTerminateNow : NSTerminateCancel;
 }
-// any other way of closing the TV window: the same; the window itself stays until the app quits
+
 - (BOOL)windowShouldClose:(NSWindow*)w {
     if (quit_request("TV window closed")) [NSApp terminate:nil];
     return NO;
@@ -168,9 +155,8 @@ bool quit_request(const char* from) {
 namespace gfx {
 Class tv_window_class() { return [WWTvWindow class]; }
 
-// with the windows (display.mm): the TV window's delegate and the application's
 void install_quit_prompt(NSWindow* tv) {
-    static NsmbuQuitDelegate* d = [NsmbuQuitDelegate new];  // both delegate properties are weak
+    static NsmbuQuitDelegate* d = [NsmbuQuitDelegate new];
     g_tv = tv;
     tv.delegate = d;
     NSApp.delegate = d;
@@ -185,4 +171,4 @@ void install_quit_prompt(NSWindow* tv) {
         }];
     }
 }
-}  // namespace gfx
+}

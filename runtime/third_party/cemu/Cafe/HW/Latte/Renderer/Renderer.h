@@ -1,4 +1,4 @@
-// shim: the decompiler only asks which API it targets
+
 #pragma once
 #include <memory>
 enum class RendererAPI { OpenGL, Vulkan, Metal };

@@ -1,4 +1,4 @@
-// Validate a translated module completely before publishing memory, dispatch entries or hooks.
+
 #pragma once
 #include "nsmbu_guest_abi.h"
 #include <cstdio>
@@ -7,7 +7,7 @@
 #include <unordered_map>
 
 namespace guestmods {
-// existing_replacement returns the owning mod's name, or an empty string.
+
 template<class IsGameFunction, class ExistingReplacement>
 bool validate_module(const NSMBUGuestModuleV1& m, const std::string& owner,
                      IsGameFunction is_game_function, ExistingReplacement existing_replacement,
@@ -55,4 +55,4 @@ bool validate_module(const NSMBUGuestModuleV1& m, const std::string& owner,
     }
     return true;
 }
-} // namespace guestmods
+}

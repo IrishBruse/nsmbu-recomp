@@ -1,9 +1,5 @@
-// End-to-end test of nsmbu-extract on a synthetic Wii U disc image built here with made-up keys
-// and made-up file contents (no game data, no real keys): partition table, system partition with
-// a ticket, game partition with a raw (CBC) cluster and a hashed (H0) cluster, as .wud and .wux.
-// Checks extraction results byte for byte and the error codes for wrong/malformed keys and damage.
-//
-// usage: extract_test NSMBU_EXTRACT_EXE WORKDIR      (run by ctest as "extract_synthetic")
+
+
 #include "crypto.h"
 
 #include <cstdio>
@@ -50,25 +46,21 @@ static std::vector<uint8_t> pattern(size_t n, uint32_t seed) {
 }
 
 struct FileSpec {
-    std::string path;  // "dir/sub/name"
+    std::string path;
     std::vector<uint8_t> data;
     int cluster;
-    bool skip = false;  // FST flag 0x80 (not extracted)
+    bool skip = false;
 };
 
-// Builds an FST (plain) and places file data into cluster buffers.
-// offset_factor 0x20; cluster 0 is raw, cluster 1 (if any) hashed.
 struct PartitionBuilder {
     std::vector<FileSpec> files;
-    std::vector<int> hash_modes;  // per cluster
+    std::vector<int> hash_modes;
 
     struct Node {
         std::map<std::string, Node> dirs;
         std::vector<const FileSpec*> files;
     };
 
-    // returns FST bytes; cluster_data[i] = plaintext cluster content (raw clusters: as laid out;
-    // hashed clusters: file data stream, blocked later)
     std::vector<uint8_t> build(std::vector<std::vector<uint8_t>>& cluster_data, const std::vector<uint32_t>& cluster_sector) {
         const uint32_t factor = 0x20;
         cluster_data.assign(hash_modes.size(), {});
@@ -94,7 +86,7 @@ struct PartitionBuilder {
             names += '\0';
             return o;
         };
-        ents.push_back({0x01000000, 0, 0, 0});  // root dir, size patched later
+        ents.push_back({0x01000000, 0, 0, 0});
         auto file_offset = [&](const FileSpec& f) {
             auto& cd = cluster_data[f.cluster];
             size_t pos = (cd.size() + factor - 1) / factor * factor;
@@ -112,7 +104,7 @@ struct PartitionBuilder {
                 size_t idx = ents.size();
                 ents.push_back({0x01000000 | add_name(name), parent, 0, 0});
                 walk(sub, (uint32_t)idx);
-                ents[idx].size = (uint32_t)ents.size();  // end index
+                ents[idx].size = (uint32_t)ents.size();
             }
         };
         walk(root, 0);
@@ -145,12 +137,11 @@ static void encrypt(const uint8_t key[16], const uint8_t iv_in[16], uint8_t* dat
     aes128_cbc_encrypt(Aes128Enc(key), iv, data, len);
 }
 
-// Writes a partition (header, FST, clusters) at image sector `base_sector`; returns sectors used.
 static uint32_t write_partition(std::vector<uint8_t>& img, uint32_t base_sector, PartitionBuilder& pb, const uint8_t key[16]) {
-    // layout: sector 0 header, sector 1.. FST, then clusters
+
     std::vector<std::vector<uint8_t>> cdata;
     std::vector<uint32_t> csec(pb.hash_modes.size(), 0);
-    auto fst = pb.build(cdata, csec);  // first pass for sizes
+    auto fst = pb.build(cdata, csec);
     uint32_t fst_sectors = (uint32_t)((fst.size() + SECTOR - 1) / SECTOR);
     uint32_t next = 1 + fst_sectors;
     std::vector<std::vector<uint8_t>> cblob(cdata.size());
@@ -186,7 +177,7 @@ static uint32_t write_partition(std::vector<uint8_t>& img, uint32_t base_sector,
         next += (uint32_t)((cblob[c].size() + SECTOR - 1) / SECTOR);
     }
     std::vector<std::vector<uint8_t>> cdata2;
-    fst = pb.build(cdata2, csec);  // second pass with cluster positions
+    fst = pb.build(cdata2, csec);
     std::vector<uint8_t> efst = fst;
     efst.resize((fst.size() + 15) / 16 * 16);
     uint8_t iv0[16] = {};
@@ -225,7 +216,7 @@ static std::string q(const fs::path& p) { return "\"" + p.string() + "\""; }
 
 static int run(const std::string& cmd) {
 #ifdef _WIN32
-    int r = system(("\"" + cmd + "\"").c_str());  // cmd.exe /c strips one level of outer quotes
+    int r = system(("\"" + cmd + "\"").c_str());
     return r;
 #else
     int r = system(cmd.c_str());
@@ -242,13 +233,11 @@ int main(int argc, char** argv) {
     fs::remove_all(work);
     fs::create_directories(work);
 
-    // made-up keys (test only)
     uint8_t disc_key[16], common_key[16], title_key[16];
     for (int i = 0; i < 16; i++) disc_key[i] = (uint8_t)(0x11 * i + 3), common_key[i] = (uint8_t)(0xA5 ^ (i * 7)),
                                  title_key[i] = (uint8_t)(i * 13 + 1);
     const uint8_t title_id[8] = {0x00, 0x05, 0x00, 0x00, 0x10, 0x14, 0x35, 0x00};
 
-    // game partition files
     PartitionBuilder gm;
     gm.hash_modes = {0, 2};
     gm.files = {{"code/red-pro2.rpx", pattern(100000, 1), 0},
@@ -258,7 +247,7 @@ int main(int argc, char** argv) {
                 {"content/small.bin", pattern(17, 5), 1},
                 {"content/Common/Pack/permanent_2d_EuGerman.pack", pattern(300, 10), 1},
                 {"content/skipme.bin", pattern(64, 6), 0, true}};
-    // ticket in the system partition: encrypted title key + title id
+
     std::vector<uint8_t> tik(0x350, 0);
     memcpy(&tik[0x1DC], title_id, 8);
     {
@@ -278,8 +267,8 @@ int main(int argc, char** argv) {
     uint32_t si_used = write_partition(img, si_sector, si, disc_key);
     uint32_t gm_sector = si_sector + si_used + 2;
     write_partition(img, gm_sector, gm, title_key);
-    img.resize(img.size() + SECTOR * 3);  // zero tail (dedupes in the .wux)
-    // disc header magic + encrypted partition table
+    img.resize(img.size() + SECTOR * 3);
+
     std::vector<uint8_t> magic(4);
     put_be32(magic, 0, 0xCC549EB9);
     memcpy(&img[SECTOR * 2], magic.data(), 4);
@@ -300,7 +289,6 @@ int main(int argc, char** argv) {
     write_text(work / "common_hex.txt", hex(common_key) + "\n");
     write_file(work / "common_raw.bin", std::vector<uint8_t>(common_key, common_key + 16));
 
-    // .wux: index + deduplicated sectors
     {
         uint32_t ss = (uint32_t)SECTOR;
         uint64_t n = img.size() / ss;
@@ -366,7 +354,6 @@ int main(int argc, char** argv) {
            "extract .wux (raw-bytes key files)");
     check_tree(work / "out_wux", "extracted .wux files match");
 
-    // --only: just the language files of a disc (the setup's language source), patterns without case
     expect(run(x + ck + " --only content/common/pack/permanent_2d_*.pack --only META/meta.xml --progress extract " + q(wud) +
                " " + q(work / "out_only") + " > " + q(work / "progress_only.txt")) == 0,
            "extract --only");
@@ -383,13 +370,11 @@ int main(int argc, char** argv) {
         expect(s.find("progress 0 300\n") == 0, "--only progress counts only the matching files");
     }
 
-    // keys over stdin
     write_text(work / "keys.txt", "disc " + hex(disc_key) + "\r\ncommon " + hex(common_key) + "\n");
     expect(run(x + " --keys-stdin --disc-key " + q(work / "nonexistent") + " info " + q(work / "disc.wux") + " < " +
                q(work / "keys.txt") + " > " + q(work / "info2.txt")) == 0,
            "keys from stdin");
 
-    // error cases
     uint8_t bad[16];
     memcpy(bad, disc_key, 16);
     bad[5] ^= 1;
@@ -417,11 +402,11 @@ int main(int argc, char** argv) {
         expect(s.find(hex(bad)) == std::string::npos && s.find(hex(common_key)) == std::string::npos,
                "error messages do not print keys");
     }
-    // damage one byte in the hashed cluster's data area -> hash mismatch
+
     {
         std::vector<uint8_t> dmg = img;
         uint64_t off = 0;
-        // find the hashed cluster: last nonzero region before the zero tail; flip a byte well inside it
+
         for (uint64_t i = dmg.size() - SECTOR * 3; i-- > 0;)
             if (dmg[i]) {
                 off = i - 0x8000;

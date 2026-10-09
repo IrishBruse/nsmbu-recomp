@@ -1,17 +1,5 @@
-/* Differential verification harness.
- *
- * For each NSMBU function that has a candidate source implementation (VERIFY(addr, fn) in
- * nsmbu_src), run the recompiled original and the candidate on identical inputs and compare:
- *   - the return value (type from the candidate's signature),
- *   - the net memory effect (every byte whose final value differs from its initial value,
- *     outside the stack below the entry SP),
- *   - the sequence of calls to other guest functions with their argument registers.
- * Callees are not executed (unless a unit links them as `real`): they are recorded and
- * answered by a mock (generated inputs) or with the results and memory effects recorded in
- * the game (recorded inputs, runtime/include/verify_tap.h).
- *
- * usage: verify [-n N] [-seed S] [-rec DIR] [-only ADDR] [-spec FILE] [-image FILE] [-v]
- */
+
+
 #include <setjmp.h>
 
 #include <algorithm>
@@ -34,7 +22,7 @@ namespace gabi {
 thread_local Cpu* cpu;
 static Candidate* g_cands;
 Candidate::Candidate(u32 a, const char* n, EntryFn f, RetKind r) : addr(a), name(n), fn(f), ret(r), next(g_cands) { g_cands = this; }
-}  // namespace gabi
+}
 
 extern "C" {
 int g_ppc_trace;
@@ -44,7 +32,6 @@ void ppc_preempt(Cpu*) {}
 uint64_t ppc_timebase(void) { return 0; }
 }
 
-/* ------------------------------------------------------------------ hashing */
 static inline uint64_t mix(uint64_t x) {
     x += 0x9E3779B97F4A7C15ull;
     x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
@@ -57,7 +44,7 @@ static std::vector<uint32_t>* g_dict;
 static float rand_float(uint64_t h) {
     if (g_dict && !g_dict->empty() && (h >> 50) % 4 == 0) {
         uint32_t v = (*g_dict)[(h >> 20) % g_dict->size()];
-        switch ((h >> 40) % 4) { /* the constant or a neighbour */
+        switch ((h >> 40) % 4) {
         case 1: v += 1; break;
         case 2: v -= 1; break;
         default: break;
@@ -69,8 +56,8 @@ static float rand_float(uint64_t h) {
     case 1: return 1.0f;
     case 2: return -1.0f;
     case 3: return 0.5f;
-    case 4: return (float)((int)((h >> 8) % 64) - 32);  /* small integers */
-    case 5: return (float)((h >> 8) % 100000) / 100.0f; /* 0..1000 */
+    case 4: return (float)((int)((h >> 8) % 64) - 32);
+    case 5: return (float)((h >> 8) % 100000) / 100.0f;
     default: {
         double u = (double)((h >> 11) & 0xFFFFFFFull) / (double)0x10000000;
         double scale = (h >> 40) % 3 == 0 ? 10.0 : ((h >> 40) % 3 == 1 ? 1000.0 : 100000.0);
@@ -79,25 +66,22 @@ static float rand_float(uint64_t h) {
     }
 }
 
-/* a plausible 32-bit word for memory nobody described: zero, small ints, small per-byte values,
- * floats, pointers into the random heap, s16 pairs, -1 patterns, random bits */
 static uint32_t typed_word(uint64_t h) {
     uint32_t k = h % 100, x = (uint32_t)(h >> 20);
     if (k < 14) return 0;
     if (k < 26) return x % 8;
     if (k < 36) return ((x & 3) << 24) | (((x >> 2) & 3) << 16) | (((x >> 4) & 3) << 8) | ((x >> 6) & 3);
-    if (k < 56) return f32_as_u32(rand_float(h >> 7)); /* includes dictionary constants */
+    if (k < 56) return f32_as_u32(rand_float(h >> 7));
     if (k < 72) return 0x30000000u + (x & 0x00FFFFF0u);
     if (k < 82) return ((x & 0xFFFF) << 16) | ((x >> 13) & 0xFFFF);
     if (k < 88) return (k & 1) ? 0xFFFFFFFFu : 0x0000FFFFu;
     return (uint32_t)(h >> 32) ^ x;
 }
 
-/* ------------------------------------------------------------------ memory model */
 struct Page {
     uint8_t d[4096];
     uint8_t init[4096];
-    uint16_t ep[4096]; /* clobber epoch the byte's value is current for */
+    uint16_t ep[4096];
     uint64_t have[64];
     uint64_t wr[64];
 };
@@ -117,10 +101,10 @@ struct CallEv {
     int kind;
     uint32_t r[11];
     double f[9];
-    int nint, nflt;                 /* candidate: declared arguments */
-    std::vector<uint32_t> stk;      /* stack argument words (sp+8...) */
-    std::vector<uint8_t> stkref[4]; /* pointee bytes when a stack argument points into the stack */
-    std::vector<uint8_t> sref[11];  /* pointee bytes of stack pointer arguments */
+    int nint, nflt;
+    std::vector<uint32_t> stk;
+    std::vector<uint8_t> stkref[4];
+    std::vector<uint8_t> sref[11];
 };
 
 struct Patch { uint32_t ea; uint8_t v; };
@@ -138,7 +122,7 @@ static struct VM {
     uint64_t seed = 1;
     Mode mode = MODE_GEN;
     uint32_t entry_sp = 0, stack_lo = 0;
-    /* run state */
+
     std::vector<CallEv> calls;
     std::unordered_map<uint32_t, uint32_t> per_target;
     int depth = 0;
@@ -148,22 +132,19 @@ static struct VM {
     bool can_abort = false;
     std::string abort_reason;
     uint32_t stray = 0, first_stray = 0;
-    /* generated mode: each mocked call starts a new epoch in which it may have changed any
-     * heap/global word (not the image, not the scratch stack): 1 in kClobber per word */
+
     uint32_t epoch = 0;
-    bool clobber = true;      /* -noclobber turns it off */
-    bool clobber_now = true;  /* per input: on for half of the generated inputs (the other half
-                               * keeps values across calls, so deep paths stay reachable) */
-    /* constants the original reads from .rodata (collected by a pre-run): generated floats
-     * come from this dictionary part of the time, so comparisons hit their boundaries */
+    bool clobber = true;
+    bool clobber_now = true;
+
     std::vector<uint32_t> dict;
     bool collect = false;
     std::vector<uint32_t>* cov = nullptr;
     uint32_t cov_func = 0;
     int traps = 0;
-    /* recorded input */
+
     std::vector<RecCall> rec_calls;
-    std::vector<CallEv>* orig_calls = nullptr; /* for translating stack patches to the candidate */
+    std::vector<CallEv>* orig_calls = nullptr;
 } V;
 
 static const Region* image_region(uint32_t ea) {
@@ -172,7 +153,6 @@ static const Region* image_region(uint32_t ea) {
     return nullptr;
 }
 
-/* initial value of a byte; *known: from snapshot / image / stack (not random) */
 static uint8_t initial_byte(uint32_t ea, bool* known) {
     auto it = V.snap.find(ea >> 12);
     if (it != V.snap.end()) {
@@ -221,7 +201,7 @@ static inline void materialize(Page* p, uint32_t ea, bool reading) {
         p->have[o >> 6] |= 1ull << (o & 63);
     }
     if (p->ep[o] != V.epoch) {
-        /* did a mocked call since the byte was last current overwrite its word? (latest wins) */
+
         if (V.clobber && V.clobber_now && V.mode == MODE_GEN && clobberable(ea))
             for (uint32_t e = V.epoch; e > p->ep[o]; e--) {
                 uint64_t h = hash3(V.seed, ea & ~3u, 0xC10B + e);
@@ -254,13 +234,13 @@ static inline void wr8(uint32_t ea, uint8_t v) {
     p->d[o] = v;
     p->wr[o >> 6] |= 1ull << (o & 63);
 }
-/* a callee's write (mock / recorded effect): changes memory but is not the function's own write */
+
 static void patch8(uint32_t ea, uint8_t v) {
     Page* p = page(ea >> 12);
     materialize(p, ea, false);
     p->d[ea & 0xFFF] = v;
 }
-static uint8_t peek8(uint32_t ea) { /* no stray accounting */
+static uint8_t peek8(uint32_t ea) {
     int d = V.depth;
     V.depth = 1;
     uint8_t v = rd8(ea);
@@ -271,14 +251,14 @@ static uint8_t peek8(uint32_t ea) { /* no stray accounting */
 extern "C" {
 uint8_t vm_ld8(uint32_t ea) { tick(); return rd8(ea); }
 uint16_t vm_ld16(uint32_t ea) { tick(); return (uint16_t)(rd8(ea) << 8 | rd8(ea + 1)); }
-static int g_trace; /* -trace SEED: print the memory accesses and calls of that input */
+static int g_trace;
 uint32_t vm_ld32(uint32_t ea) {
     tick();
     uint32_t v = (uint32_t)rd8(ea) << 24 | (uint32_t)rd8(ea + 1) << 16 | (uint32_t)rd8(ea + 2) << 8 | rd8(ea + 3);
     if (g_trace && V.depth == 0) printf("        ld32 %08X -> %08X (epoch %u)\n", ea, v, V.epoch);
     if (V.collect && V.depth == 0 && ea - 0x10000000u < 0x0018C0B0u && (v & 0x7F800000u) != 0x7F800000u && V.dict.size() < 64 &&
         std::find(V.dict.begin(), V.dict.end(), v) == V.dict.end())
-        V.dict.push_back(v); /* a .rodata word (float constant) */
+        V.dict.push_back(v);
     return v;
 }
 uint64_t vm_ld64(uint32_t ea) { return (uint64_t)vm_ld32(ea) << 32 | vm_ld32(ea + 4); }
@@ -335,7 +315,6 @@ static bool snap_has(uint32_t ea) {
     return it->second->has[o >> 6] >> (o & 63) & 1;
 }
 
-/* net effect of a run: bytes whose value changed, outside the scratch stack */
 static std::map<uint32_t, uint8_t> net_writes() {
     std::map<uint32_t, uint8_t> out;
     for (auto& kv : V.pages) {
@@ -346,10 +325,9 @@ static std::map<uint32_t, uint8_t> net_writes() {
                 int b = __builtin_ctzll(m);
                 m &= m - 1;
                 uint32_t o = w * 64 + b, ea = (kv.first << 12) | o;
-                if (ea - V.stack_lo < V.entry_sp + 8 - V.stack_lo) continue; /* own frames + back chain/LR save */
-                materialize(p, ea, false); /* apply calls made after the write (clobber) */
-                /* recorded inputs: a written byte whose initial value was never read is unknown,
-                 * so it counts as written whatever its value */
+                if (ea - V.stack_lo < V.entry_sp + 8 - V.stack_lo) continue;
+                materialize(p, ea, false);
+
                 bool unknown = V.mode == MODE_REC && !snap_has(ea) && !image_region(ea);
                 if (p->d[o] != p->init[o] || unknown) out[ea] = p->d[o];
             }
@@ -358,7 +336,6 @@ static std::map<uint32_t, uint8_t> net_writes() {
     return out;
 }
 
-/* ------------------------------------------------------------------ calls */
 static const CalleeInfo* callee_info(uint32_t t) {
     static std::unordered_map<uint32_t, const CalleeInfo*> idx;
     if (idx.empty())
@@ -373,15 +350,14 @@ static uint32_t typed_ret(uint64_t h) {
     uint32_t k = h % 100;
     if (k < 28) return 0;
     if (k < 54) return 1;
-    if (k < 62) return 0xFFFFFFFFu; /* -1 / 0xFF / 0xFFFF sentinels after shaping */
+    if (k < 62) return 0xFFFFFFFFu;
     if (k < 75) return (uint32_t)(h >> 33) % 16;
     if (k < 90) return 0x30000000u + ((uint32_t)(h >> 20) & 0x00FFFFF0u);
     return (uint32_t)(h >> 32);
 }
 
-static std::unordered_map<uint32_t, std::pair<int64_t, int64_t>> g_ret_specs; /* unit `ret` lines: callee -> result range */
+static std::unordered_map<uint32_t, std::pair<int64_t, int64_t>> g_ret_specs;
 
-/* a result of the shape the real callee returns (GHS callers do not re-extend small results) */
 static uint32_t shape_ret(const CalleeInfo* ci, uint32_t v) {
     if (!ci) return v;
     switch (ci->retkind) {
@@ -395,7 +371,7 @@ static uint32_t shape_ret(const CalleeInfo* ci, uint32_t v) {
 static std::string callee_name(uint32_t t);
 static void do_call(Cpu* c, uint32_t target, int kind, int nint, int nflt) {
     const CalleeInfo* ci = callee_info(target);
-    if (V.depth > 0) { /* inside a real callee: answer silently */
+    if (V.depth > 0) {
         uint64_t h = hash3(V.seed, target, 0xABCDEF + V.per_target[target]++);
         if (!ci || ci->defr >> 3 & 1) c->r[3] = shape_ret(ci, typed_ret(h));
         if (!ci || ci->deff >> 1 & 1) c->f[1].ps0 = c->f[1].ps1 = rand_float(h >> 3);
@@ -413,7 +389,7 @@ static void do_call(Cpu* c, uint32_t target, int kind, int nint, int nflt) {
     for (int i = 3; i <= 10; i++)
         if (in_stack(c->r[i])) {
             uint32_t n = ci && ci->ptrsz[i] ? ci->ptrsz[i] : 4;
-            if (n == 255) { ev.sref[i].push_back(0); continue; } /* storage for a constructor: not an input */
+            if (n == 255) { ev.sref[i].push_back(0); continue; }
             for (uint32_t j = 0; j < n; j++) ev.sref[i].push_back(peek8(c->r[i] + j));
         }
     {
@@ -438,7 +414,7 @@ static void do_call(Cpu* c, uint32_t target, int kind, int nint, int nflt) {
     if (V.mode == MODE_REC) {
         if (k < V.rec_calls.size()) {
             const RecCall& rc = V.rec_calls[k];
-            /* volatile state after the call, as recorded (r1/r2/r13-r31, f14-f31 are preserved) */
+
             Cpu after;
             tap_regs_to(&after, &rc.after);
             c->r[0] = after.r[0];
@@ -449,12 +425,12 @@ static void do_call(Cpu* c, uint32_t target, int kind, int nint, int nflt) {
             c->xer_ca = after.xer_ca;
             c->xer_so = after.xer_so;
             c->xer_ov = after.xer_ov;
-            /* memory effects of the callee seen by the function */
+
             V.depth++;
             for (const Patch& p : rc.patches) {
                 uint32_t ea = p.ea;
                 if (V.is_candidate && in_stack(ea)) {
-                    /* a callee writing through a stack pointer argument: map to the candidate's local */
+
                     uint32_t best = 0, bi = 0;
                     for (int i = 3; i <= 10; i++) {
                         uint32_t a = rc.at.r[i];
@@ -468,13 +444,12 @@ static void do_call(Cpu* c, uint32_t target, int kind, int nint, int nflt) {
             return;
         }
     }
-    /* generated mock: answer in the registers the real callee may write; memory it may have
-     * changed is modelled by the new epoch */
+
     V.epoch++;
     uint64_t h = hash3(V.seed, target, V.per_target[target]++);
     if (!ci || ci->defr >> 3 & 1) c->r[3] = shape_ret(ci, typed_ret(h));
     auto rs = g_ret_specs.find(target);
-    if (rs != g_ret_specs.end() && (h >> 45) % 8 != 0) /* mostly in the declared domain */
+    if (rs != g_ret_specs.end() && (h >> 45) % 8 != 0)
         c->r[3] = (uint32_t)(rs->second.first + (int64_t)((h >> 13) % (uint64_t)(rs->second.second - rs->second.first + 1)));
     if (ci && ci->defr >> 4 & 1) c->r[4] = typed_ret(h >> 5);
     if (!ci || ci->deff >> 1 & 1) c->f[1].ps0 = c->f[1].ps1 = (double)rand_float(h >> 9);
@@ -495,10 +470,9 @@ void vm_call(Cpu* c, uint32_t target, int kind) { do_call(c, target, kind, -1, -
 void gmem_call(Cpu* c, uint32_t target, int kind, int nint, int nflt) { do_call(c, target, kind, nint, nflt); }
 }
 
-/* ------------------------------------------------------------------ inputs */
 struct FieldSpec {
-    uint32_t func; /* 0 = all */
-    int base_reg;  /* -1 absolute */
+    uint32_t func;
+    int base_reg;
     uint32_t off;
     int size;
     bool is_float;
@@ -516,7 +490,7 @@ static void load_specs(const char* path) {
         char kw[32], fn[32], where[64], ty[16];
         double lo, hi;
         int n = sscanf(line, "%31s %31s %63s %15s %lf %lf", kw, fn, where, ty, &lo, &hi);
-        if (!strcmp(kw, "ret")) { /* ret ADDR LO HI: a callee's results (generated mocks) */
+        if (!strcmp(kw, "ret")) {
             long long a, b;
             if (sscanf(line, "%*s %31s %lld %lld", fn, &a, &b) == 3) g_ret_specs[(uint32_t)strtoul(fn, nullptr, 16)] = {a, b};
             continue;
@@ -562,7 +536,7 @@ struct Input {
     Cpu entry;
     bool recorded = false;
     std::vector<RecCall> calls;
-    std::map<uint32_t, uint8_t> rec_net; /* recorded net writes outside the stack (replay check) */
+    std::map<uint32_t, uint8_t> rec_net;
     TapRegs rec_exit;
 };
 
@@ -605,13 +579,12 @@ static void make_generated(const OrigFunc* of, uint64_t seed, Input* in) {
         uint64_t raw;
         if (s.is_float) raw = s.size == 4 ? f32_as_u32((float)v) : f64_as_u64(v);
         else raw = (uint64_t)(int64_t)(s.lo + (double)(h % (uint64_t)(s.hi - s.lo + 1)));
-        if (h % 7 == 0 && !s.is_float) raw = (uint64_t)(int64_t)s.lo; /* edges */
+        if (h % 7 == 0 && !s.is_float) raw = (uint64_t)(int64_t)s.lo;
         if (h % 7 == 1 && !s.is_float) raw = (uint64_t)(int64_t)s.hi;
         for (int k = 0; k < s.size; k++) snap_set(a + k, (uint8_t)(raw >> (8 * (s.size - 1 - k))));
     }
 }
 
-/* tap file -> snapshot + per-call results/patches */
 static bool load_recorded(const char* path, Input* in, std::string* why) {
     FILE* f = fopen(path, "rb");
     if (!f) { *why = "cannot open"; return false; }
@@ -636,7 +609,7 @@ static bool load_recorded(const char* path, Input* in, std::string* why) {
                 auto it = shadow.find(a);
                 bool own_frame = a - (sp - 0x10000) < 0x10000;
                 if (it == shadow.end() && own_frame && !in->calls.empty()) {
-                    /* first read of the function's own frame after a call: a callee's output */
+
                     in->calls.back().patches.push_back({a, v});
                     shadow[a] = v;
                 } else if (it == shadow.end()) { snap_set(a, v); shadow[a] = v; }
@@ -659,12 +632,12 @@ static bool load_recorded(const char* path, Input* in, std::string* why) {
         } else { *why = "bad event"; ok = false; break; }
     }
     fclose(f);
-    /* expected net writes: final shadow values that differ from the initial snapshot */
+
     for (auto& w : writes) {
         uint32_t a = w.first;
         if (a - (sp - 0x10000) < 0x10000 + 8) continue;
         uint8_t fin = shadow[a];
-        bool known = snap_has(a) || image_region(a); /* same rule as net_writes() */
+        bool known = snap_has(a) || image_region(a);
         uint8_t init = 0;
         if (known) init = initial_byte(a, &known);
         if (!known || init != fin) in->rec_net[a] = fin;
@@ -672,7 +645,6 @@ static bool load_recorded(const char* path, Input* in, std::string* why) {
     return ok;
 }
 
-/* ------------------------------------------------------------------ runs and comparison */
 struct Result {
     uint32_t entry_sp = 0;
     Cpu exit;
@@ -726,10 +698,6 @@ static std::string callee_name(uint32_t t) {
     return hex32(t) + (ci && ci->name[0] ? std::string(" ") + ci->name : "");
 }
 
-/* NaN payloads are not part of the specification: when two NaNs meet, which one propagates
- * depends on the host compiler's operand order (in the recompiled original as much as in the
- * candidate), and clang may fold a float load/store pair that would quiet a signalling NaN.
- * So any two NaNs compare equal (-strictnan: bit-exact). */
 static bool g_strict_nan = false;
 static bool is_nan32(uint32_t w) { return (w & 0x7F800000u) == 0x7F800000u && (w & 0x007FFFFFu); }
 static bool same_f(double a, double b) {
@@ -737,10 +705,9 @@ static bool same_f(double a, double b) {
     return f64_as_u64(a) == f64_as_u64(b);
 }
 
-/* net memory effects equal, up to NaN payloads of aligned float words */
 static bool same_net(const std::map<uint32_t, uint8_t>& x, const std::map<uint32_t, uint8_t>& y, uint32_t* where) {
     if (x == y) return true;
-    std::map<uint32_t, int> words; /* aligned words with a difference */
+    std::map<uint32_t, int> words;
     for (auto& kv : x) { auto it = y.find(kv.first); if (it == y.end() || it->second != kv.second) words[kv.first & ~3u] = 1; }
     for (auto& kv : y) { auto it = x.find(kv.first); if (it == x.end() || it->second != kv.second) words[kv.first & ~3u] = 1; }
     for (auto& w : words) {
@@ -760,8 +727,6 @@ static bool same_net(const std::map<uint32_t, uint8_t>& x, const std::map<uint32
     return true;
 }
 
-/* stack objects passed by pointer: same bytes, except that pointers into the stack (e.g. an
- * object pointing at its own members) are compared relative to the object's address */
 static bool same_stack_obj(const std::vector<uint8_t>& x, uint32_t bx, uint32_t spx, const std::vector<uint8_t>& y, uint32_t by,
                            uint32_t spy) {
     if (x.size() != y.size()) return false;
@@ -779,7 +744,6 @@ static bool same_stack_obj(const std::vector<uint8_t>& x, uint32_t bx, uint32_t 
     return true;
 }
 
-/* first difference between original (a) and candidate (b), "" if equivalent */
 static std::string compare(const Result& a, const Result& b, gabi::RetKind rk, const Input& in) {
     char buf[512];
     switch (rk) {
@@ -872,7 +836,6 @@ static std::string compare(const Result& a, const Result& b, gabi::RetKind rk, c
     return "";
 }
 
-/* the replay of the original must reproduce the recording, else the input is unusable */
 static std::string replay_check(const Result& a, const Input& in) {
     char buf[256];
     if (a.stray) { snprintf(buf, sizeof buf, "replay read unrecorded memory (%u bytes, first %08X)", a.stray, a.first_stray); return buf; }
@@ -884,7 +847,6 @@ static std::string replay_check(const Result& a, const Input& in) {
     return "";
 }
 
-/* ------------------------------------------------------------------ main */
 int main(int argc, char** argv) {
     int ngen = 1000, verbose = 0;
     uint64_t seed0 = 1;
@@ -945,13 +907,13 @@ int main(int argc, char** argv) {
             else {
                 if (first.empty()) first = d + "  {" + in.label + "}";
                 if (verbose) printf("    FAIL %s: %s\n", in.label.c_str(), d.c_str());
-                if (verbose > 2) { /* full net effects of both sides */
+                if (verbose > 2) {
                     for (auto& kv : a.net) printf("      orig %08X=%02X%s\n", kv.first, kv.second, b.net.count(kv.first) && b.net.at(kv.first) == kv.second ? "" : "  <");
                     for (auto& kv : b.net) printf("      cand %08X=%02X%s\n", kv.first, kv.second, a.net.count(kv.first) && a.net.at(kv.first) == kv.second ? "" : "  <");
                 }
             }
         };
-        /* dictionary of the original's .rodata constants (pre-runs, not compared) */
+
         V.dict.clear();
         g_dict = nullptr;
         V.collect = true;

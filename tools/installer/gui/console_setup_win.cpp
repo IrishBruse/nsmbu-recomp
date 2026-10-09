@@ -1,6 +1,5 @@
-// See console_setup_win.h. Until 0.2.6 the Windows setup ran a PowerShell script (-ExecutionPolicy Bypass)
-// that downloaded Python; antivirus heuristics read that as a dropper (issue #58). The release now ships the
-// official embeddable Python in tools\python, and this program only starts it.
+
+
 #ifdef _WIN32
 
 #include "console_setup_win.h"
@@ -23,7 +22,6 @@ std::string utf8(const std::wstring& w) {
     return u;
 }
 
-// "The system cannot find the file specified (error 2)"
 std::string error_text(DWORD code) {
     wchar_t* msg = nullptr;
     DWORD n = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM,
@@ -34,7 +32,6 @@ std::string error_text(DWORD code) {
     return (s.empty() ? std::string("error") : s) + " (error " + std::to_string(code) + ")";
 }
 
-// one argument for CreateProcess's command line (the rules CommandLineToArgvW and the C runtime parse)
 std::wstring quote_arg(const std::wstring& a) {
     if (!a.empty() && a.find_first_of(L" \t\n\v\"") == std::wstring::npos) return a;
     std::wstring q = L"\"";
@@ -66,10 +63,8 @@ void print(const std::string& s) {
     }
 }
 
-// the console keeps Ctrl+C for setup.py (KeyboardInterrupt); this program waits for it to finish
 BOOL WINAPI ignore_ctrl(DWORD) { return TRUE; }
 
-// an inheritable copy of a standard handle given to this program, or INVALID_HANDLE_VALUE
 HANDLE given(DWORD which) {
     HANDLE h = GetStdHandle(which), dup = INVALID_HANDLE_VALUE;
     if (!h || h == INVALID_HANDLE_VALUE || GetFileType(h) == FILE_TYPE_UNKNOWN) return INVALID_HANDLE_VALUE;
@@ -84,7 +79,7 @@ HANDLE open_console(const wchar_t* name) {
                        nullptr);
 }
 
-}  // namespace
+}
 
 std::string bundled_python(const std::string& pkg) { return pkg + "tools\\python\\python.exe"; }
 
@@ -93,8 +88,7 @@ bool have_bundled_python(const std::string& pkg) {
 }
 
 int console_setup(const std::string& pkg, const std::vector<std::string>& args) {
-    // This program is a GUI program: it has no console of its own. Output redirected by the caller (a pipe or
-    // a file) is used as it is; otherwise setup.py talks to the console window of the .bat that started it.
+
     HANDLE in = given(STD_INPUT_HANDLE), out = given(STD_OUTPUT_HANDLE), errh = given(STD_ERROR_HANDLE);
     bool console = AttachConsole(ATTACH_PARENT_PROCESS) != 0;
     if (!console && in == INVALID_HANDLE_VALUE && out == INVALID_HANDLE_VALUE) console = AllocConsole() != 0;
@@ -126,7 +120,7 @@ int console_setup(const std::string& pkg, const std::vector<std::string>& args) 
     si.hStdOutput = out;
     si.hStdError = errh;
     PROCESS_INFORMATION pi = {};
-    // no console of its own: the output goes where ours goes (a pipe), without a window
+
     DWORD flags = console ? 0 : CREATE_NO_WINDOW;
     if (!CreateProcessW(wide(python).c_str(), cmd.data(), nullptr, nullptr, TRUE, flags, nullptr, nullptr, &si, &pi)) {
         print("Setup could not start " + python + ": " + error_text(GetLastError()));

@@ -127,7 +127,7 @@ Pack parse(const fs::path& folder){
             for(const auto& [id,value]:section.fields){if(id.starts_with("$"))preset.variables[id]=value;else require(id=="name"||id=="category"||id=="default","Unsupported Cemu preset field: "+id);}
             require(std::none_of(pack.presets.begin(),pack.presets.end(),[&](const auto& p){return p.name==preset.name&&p.category==preset.category;}),"Duplicate Cemu preset name");
             if(std::find(pack.categories.begin(),pack.categories.end(),preset.category)==pack.categories.end())pack.categories.push_back(preset.category);
-            // Default markers move this category's choice to the front without changing other groups.
+
             if(lower(field("default"))=="1"||lower(field("default"))=="true")pack.presets.insert(pack.presets.begin(),std::move(preset));else pack.presets.push_back(std::move(preset));
         }else if(section.name=="textureredefine")pack.textures.push_back({section.fields});
         else throw std::runtime_error("Unsupported Cemu section: "+section.name+" (code patches/control rules need another adapter)");
@@ -150,13 +150,12 @@ Pack parse(const fs::path& folder){
         }else require(!name.ends_with("_vs.txt")&&!name.ends_with("_ps.txt")&&!name.ends_with("_gs.txt")&&!name.ends_with(".glsl"),"Unsupported Cemu shader filename/stage");
     }
     if(fs::exists(folder/"patches.txt")) {
-        // Only the official NSMBU resolution pack's aspect constants are adapted.
-        // No instruction patch, arbitrary guest address, or executable payload runs.
+
         const std::map<std::string,std::map<std::string,std::string>> expected={
             {"nsmbuaspecteur",{{"modulematches","0xb7e748de"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417e0",".float ($aspectratio)"},{"0x101658a8",".float ($aspectratio)"}}},
             {"nsmbuaspectjap",{{"modulematches","0x74bd3f6a"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417f8",".float ($aspectratio)"},{"0x101658c0",".float ($aspectratio)"}}},
             {"nsmbuaspectusa",{{"modulematches","0x475bd29f"},{"0x1004aaf0",".float ($aspectratio)"},{"0x101417d0",".float ($aspectratio)"},{"0x10165898",".float ($aspectratio)"}}}};
-        // the section of the build this port was made from: its addresses are the ones the game has
+
         const std::string build=g_guest_build_name;
         const std::string want=build=="EU"?"nsmbuaspecteur":build=="JP"?"nsmbuaspectjap":"nsmbuaspectusa";
         bool mine=false;std::set<std::string> seen;

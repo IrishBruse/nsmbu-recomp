@@ -1,4 +1,4 @@
-// The name font's characters (game_font.h): SARC pack -> Yaz0-compressed SARC -> BFFNT -> CMAP blocks.
+
 #include "game_font.h"
 
 #include <algorithm>
@@ -19,7 +19,7 @@ namespace {
 
 namespace fs = std::filesystem;
 
-struct Reader {  // bounds-checked reads in the file's byte order
+struct Reader {
     const uint8_t* d;
     size_t n;
     bool big = true;
@@ -63,14 +63,12 @@ std::vector<uint8_t> yaz0(const std::vector<uint8_t>& in) {
     return out;
 }
 
-// a SARC archive's file `name`: offset and size in the archive (header bytes in `h`, which must reach
-// the end of the name table)
 bool sarc_find(const uint8_t* h, size_t n, const char* name, size_t* off, size_t* len) {
     if (n < 0x20 || memcmp(h, "SARC", 4)) return false;
     Reader r{h, n, h[6] == 0xFE};
     const uint32_t data = r.u32(0x0C);
     const uint16_t count = r.u16(0x1A);
-    const size_t names = 0x20 + (size_t)count * 16 + 8;  // after SFAT entries and the SFNT header
+    const size_t names = 0x20 + (size_t)count * 16 + 8;
     for (uint16_t k = 0; k < count; k++) {
         const size_t e = 0x20 + (size_t)k * 16;
         const uint32_t attr = r.u32(e + 4), begin = r.u32(e + 8), end = r.u32(e + 12);
@@ -84,16 +82,15 @@ bool sarc_find(const uint8_t* h, size_t n, const char* name, size_t* off, size_t
     return false;
 }
 
-// the language pack the game loads for this console language (US, EU and JP discs prefix the region)
 fs::path find_pack(int language, std::string* why) {
-    // a language source's pack (game_languages.h) is the one the game reads this run
+
     if (const game_lang::Start s = game_lang::current(); s.pack) return fs::path(s.pack->host);
     static const char* const kWords[] = {"japanese", "english", "french", "german", "italian", "spanish",
                                          "chinese", "korean", "dutch", "portuguese", "russian", "chinese"};
     const std::string word = language >= 0 && language < 12 ? kWords[language] : "english";
     std::error_code ec;
     fs::path dir;
-    // Common/Pack, matched without case (the disc's spelling, any host file system)
+
     fs::path at = fs::path(config::game_dir) / "content";
     for (const char* part : {"common", "pack"}) {
         fs::path next;
@@ -133,26 +130,26 @@ std::shared_ptr<const Glyphs> load(int language) {
     return glyphs;
 }
 
-}  // namespace
+}
 
 bool parse_bffnt(const uint8_t* d, size_t n, Glyphs& out) {
     if (n < 0x14 || (memcmp(d, "FFNT", 4) && memcmp(d, "CFNT", 4))) return false;
     Reader r{d, n, d[4] == 0xFE};
-    const size_t finf = r.u16(6);  // the header's size: FINF follows
+    const size_t finf = r.u16(6);
     if (!r.ok(finf, 32) || memcmp(d + finf, "FINF", 4)) return false;
-    // FINF: ... +0x14 TGLP, +0x18 CWDH, +0x1C CMAP (pointers to block data, 8 bytes after each block's magic)
+
     size_t cmap = r.u32(finf + 0x1C);
     for (int guard = 0; cmap >= 8 && guard < 4096; guard++) {
         const size_t b = cmap - 8;
         if (!r.ok(b, 20) || memcmp(d + b, "CMAP", 4)) return false;
         const uint16_t first = r.u16(b + 8), last = r.u16(b + 10), method = r.u16(b + 12);
         const size_t p = b + 20;
-        if (method == 0) {  // direct: a run of codes
+        if (method == 0) {
             for (uint32_t c = first; c <= last; c++) out.insert(c);
-        } else if (method == 1) {  // table: one glyph index per code, 0xFFFF for none
+        } else if (method == 1) {
             for (uint32_t c = first; c <= last; c++)
                 if (r.ok(p + (c - first) * 2, 2) && r.u16(p + (c - first) * 2) != 0xFFFF) out.insert(c);
-        } else if (method == 2) {  // scan: count, then (code, index) pairs
+        } else if (method == 2) {
             const uint16_t count = r.u16(p);
             for (uint16_t k = 0; k < count && r.ok(p + 2 + k * 4, 4); k++) out.insert(r.u16(p + 2 + k * 4));
         }
@@ -174,7 +171,7 @@ std::shared_ptr<const Glyphs> pack_font(const std::string& pack_path, std::strin
     bool found = false;
     if (fread(head.data(), 1, head.size(), f) == head.size() && !memcmp(head.data(), "SARC", 4)) {
         Reader r{head.data(), head.size(), head[6] == 0xFE};
-        const uint32_t data = r.u32(0x0C);  // the header and name table end where the file data starts
+        const uint32_t data = r.u32(0x0C);
         if (data > 0x20 && data < (64u << 20)) {
             head.resize(data);
             if (fread(head.data() + 0x20, 1, data - 0x20, f) == data - 0x20 &&
@@ -211,4 +208,4 @@ std::shared_ptr<const Glyphs> name_glyphs(int language) {
     return cache[language] = load(language);
 }
 
-}  // namespace game_font
+}

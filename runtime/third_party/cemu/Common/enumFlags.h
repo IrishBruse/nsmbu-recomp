@@ -2,7 +2,6 @@
 
 #include <type_traits>
 
-// enum flag helpers
 template<typename TEnum>
 struct EnableBitMaskOperators
 {
@@ -76,7 +75,6 @@ constexpr bool operator!=(TEnum lhs, std::underlying_type_t<TEnum> rhs)
 
 #define ENABLE_BITMASK_OPERATORS(x) template<> struct EnableBitMaskOperators<x> { static const bool enable = true; };
 
-
 template<typename TEnum>
 struct EnableEnumIterators
 {
@@ -85,7 +83,7 @@ struct EnableEnumIterators
 
 template<typename TEnum>
 	requires EnableEnumIterators<TEnum>::enable
-TEnum& operator++(TEnum& lhs) 
+TEnum& operator++(TEnum& lhs)
 {
 	lhs = static_cast<TEnum>(static_cast<typename std::underlying_type<TEnum>::type>(lhs) + 1);
 	return lhs;
@@ -93,21 +91,21 @@ TEnum& operator++(TEnum& lhs)
 
 template<typename TEnum>
 	requires EnableEnumIterators<TEnum>::enable
-TEnum operator*(TEnum rhs) 
+TEnum operator*(TEnum rhs)
 {
 	return rhs;
 }
 
 template<typename TEnum>
 	requires EnableEnumIterators<TEnum>::enable
-TEnum begin(TEnum value) 
+TEnum begin(TEnum value)
 {
 	return EnableEnumIterators<TEnum>::begin;
 }
 
 template<typename TEnum>
 	requires EnableEnumIterators<TEnum>::enable
-TEnum rbegin(TEnum value) 
+TEnum rbegin(TEnum value)
 {
 	return EnableEnumIterators<TEnum>::rbegin;
 }
@@ -131,4 +129,4 @@ TEnum rend(TEnum r) {
 	static const x end = static_cast<x>(static_cast<typename std::underlying_type<x>::type>(last_value) + 1);\
 	static const x rend = static_cast<x>(static_cast<typename std::underlying_type<x>::type>(first_value) - 1);\
 };
-// todo: rend type must be signed?
+

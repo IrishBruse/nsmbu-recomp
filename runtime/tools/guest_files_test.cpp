@@ -13,7 +13,7 @@ int main(int argc,char** argv) {
     assert(a.read("progress.bin",out,sizeof out)==5&&std::string(out,5)=="hello");
     assert(b.read("progress.bin",out,sizeof out)==-1);
     assert(a.write("progress.bin",data,2)==2);
-    assert(a.read("progress.bin",out,sizeof out)==2); // overwrite truncates
+    assert(a.read("progress.bin",out,sizeof out)==2);
     assert(a.write("empty.bin",nullptr,0)==0);
     for(const auto* name:{"../outside","nested/file","/absolute","bad\\path","NUL","CON.txt","COM1","LPT0","trailing.","hidden:stream",".hidden"})
         assert(a.write(name,data,5)==-1);

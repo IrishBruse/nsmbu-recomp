@@ -34,12 +34,11 @@ import time
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 SCENES = {
-    # slot, left stick (from-to seconds : x : y), right stick
+
     "outset": (3, "0-13:0:1,13-23:1:0.5,23-36:0:-1,36-46:-1:0,46-63:0:1", "20-30:1:0,53-60:-1:0"),
     "windfall": (2, "0-10:0:1,10-20:1:0,20-33:0:-1,33-43:-1:0,43-56:0:1", "13-23:1:0,46-53:-1:0"),
     "still": (1, "", ""),
 }
-
 
 def other_games(own_pid=None):
     """Running game executables (nsmbu*) other than own_pid: the executable name, not the arguments
@@ -55,14 +54,11 @@ def other_games(own_pid=None):
             found.append(line.strip()[:160])
     return found
 
-
 def load1():
     try:
         return os.getloadavg()[0]
     except (OSError, AttributeError):
         return -1.0
-
-
 
 def benchmark_pids(process_listing, own_pid):
     found = []
@@ -79,11 +75,9 @@ def benchmark_pids(process_listing, own_pid):
             found.append(int(pid))
     return found
 
-
 def other_benchmarks():
     result = subprocess.run(["ps", "-Ao", "pid=,args="], capture_output=True, text=True, check=True)
     return benchmark_pids(result.stdout, os.getpid())
-
 
 def worker_pids(process_listing, own_pid):
     """Builds and test drivers; inspect executable/script names, never shell text."""
@@ -111,11 +105,9 @@ def worker_pids(process_listing, own_pid):
             found.append(int(pid))
     return found
 
-
 def other_workers():
     result = subprocess.run(["ps", "-Ao", "pid=,args="], capture_output=True, text=True, check=True)
     return worker_pids(result.stdout, os.getpid())
-
 
 def quiet_reasons(args):
     reasons = []
@@ -139,7 +131,6 @@ def quiet_reasons(args):
             reasons.append("free disk %.2f GB is below %.2f GB" % (free, args.min_free_gb))
     return reasons
 
-
 def wait_for_quiet(args):
     while True:
         reasons = quiet_reasons(args)
@@ -147,7 +138,6 @@ def wait_for_quiet(args):
             return
         print("  waiting: " + "; ".join(reasons), file=sys.stderr, flush=True)
         time.sleep(30)
-
 
 def stop(proc):
     if proc.poll() is not None:
@@ -159,9 +149,7 @@ def stop(proc):
         proc.kill()
         proc.wait(timeout=10)
 
-
 NUM = r"(-?[0-9]+(?:\.[0-9]+)?)"
-
 
 def parse_prof(lines):
     """[prof] report blocks (render_prof.cpp) -> list of dicts, one per 120-frame window."""
@@ -227,13 +215,10 @@ def parse_prof(lines):
             cur["shader_report"] = body
     return windows
 
-
 def summarize(windows):
     """Mean of every numeric field over the measured windows."""
     keys = sorted({k for w in windows for k, v in w.items() if isinstance(v, float)})
     return {k: statistics.fmean([w[k] for w in windows if k in w]) for k in keys}
-
-
 
 def run_statistics(values):
     """Statistics over runs; inclusive quartiles are defined for small samples too."""
@@ -241,7 +226,6 @@ def run_statistics(values):
     return {"median": statistics.median(values), "mean": statistics.fmean(values),
             "min": min(values), "max": max(values), "q1": q1, "q3": q3, "iqr": q3 - q1,
             "stdev": statistics.stdev(values) if len(values) > 1 else 0.0, "n": len(values)}
-
 
 def paired_statistics(results, names):
     if len(names) != 2:
@@ -270,12 +254,10 @@ def paired_statistics(results, names):
                               "paired_iqr_exceeds_paired_median": differences["iqr"] > abs(differences["median"])}
     return {"reference": reference, "comparison": comparison, "metrics": paired}
 
-
 def logic_cpu_samples(lines):
     """Actual main-thread logic pass CPU time, with renderer/vsync waits excluded."""
     return [float(match[1]) for line in lines
             for match in [re.search(r"main thread CPU per pass: logic " + NUM + r" ms", line)] if match]
-
 
 def run_once(args, variant, env_extra, index, out_dir):
     binary = args.variant_binaries.get(variant, args.binary)
@@ -285,7 +267,7 @@ def run_once(args, variant, env_extra, index, out_dir):
     os.makedirs(run_dir)
     shutil.copytree(args.save, os.path.join(run_dir, "save"))
     os.chmod(os.path.join(run_dir, "save"), 0o755)
-    for root, dirs, files in os.walk(os.path.join(run_dir, "save")):  # the copy must be writable
+    for root, dirs, files in os.walk(os.path.join(run_dir, "save")):
         for n in dirs + files:
             os.chmod(os.path.join(root, n), 0o755 if n in dirs else 0o644)
     slot, stick, rstick = SCENES[args.scene]
@@ -308,7 +290,7 @@ def run_once(args, variant, env_extra, index, out_dir):
         "NSMBU_INTERP_PASS_STATS": "1",
     })
     if not args.visible:
-        env["NSMBU_HIDDEN_WINDOWS"] = "1"  # nothing pops up, but nothing is presented either
+        env["NSMBU_HIDDEN_WINDOWS"] = "1"
     if stick:
         env["NSMBU_TEST_STICK"] = stick
     if rstick:
@@ -320,13 +302,12 @@ def run_once(args, variant, env_extra, index, out_dir):
         env["NSMBU_TEST_ORIGIN_LOAD"] = str(origin_load_steps)
     if args.fps in ("60", "120", "240"):
         if origin_load_steps is not None:
-            # Both inputs and the mode switch must use the restored game clock.
-            # An absolute boot step changes RNG evolution when a load lands late.
+
             env["NSMBU_INTERP"] = "0"
             env["NSMBU_TEST_MODE"] = "1@0"
         else:
             env["NSMBU_INTERP_AT_STEP"] = str(load_at + 60)
-        if args.fps != "60":  # the rate, without switching interpolation on before the step above
+        if args.fps != "60":
             env["NSMBU_INTERP"], env["NSMBU_INTERP_FPS"] = "0", args.fps
     if args.display_hz is not None:
         env["NSMBU_DISPLAY_HZ"] = str(args.display_hz)
@@ -336,7 +317,7 @@ def run_once(args, variant, env_extra, index, out_dir):
         env["NSMBU_UNCAPPED"] = "1"
         env["NSMBU_VK_UNCAPPED"] = "1"
     env.update(env_extra)
-    # Recheck both conditions together: a game can start while the load gate waits.
+
     while True:
         if args.gate:
             subprocess.run(args.gate, shell=True, check=True)
@@ -374,7 +355,7 @@ def run_once(args, variant, env_extra, index, out_dir):
                     status = "disturbed"
                     break
                 if args.watch_others and other_games(proc.pid):
-                    status = "disturbed"  # another game started meanwhile: the timings are not usable
+                    status = "disturbed"
                     break
                 time.sleep(1)
         finally:
@@ -411,14 +392,13 @@ def run_once(args, variant, env_extra, index, out_dir):
         result["summary"]["logic_cpu_ms"] = statistics.fmean(logic[1:] or logic)
     if pacing:
         result["summary"]["vulkan_pacing_p95_ms"] = statistics.fmean(pacing[args.skip_windows:] or pacing)
-    if paced:  # paced interpolation: share of in-between frames drawn, per 300 steps
+    if paced:
         result["summary"]["paced_drawn_pct"] = statistics.fmean(paced[1:] or paced)
-    if steps:  # frame interpolation's own count: logic steps/s and frames per step, per 300 steps
+    if steps:
         result["summary"]["interp_frames_per_step"] = statistics.fmean(f for _, f in (steps[1:] or steps))
     with open(os.path.join(run_dir, "result.json"), "w") as f:
         json.dump({"result": result, "windows": windows}, f, indent=1)
     return result
-
 
 def run_with_retries(args, name, env, index, out_dir):
     failures = 0
@@ -430,12 +410,10 @@ def run_with_retries(args, name, env, index, out_dir):
                                                                   "wait_gpu_ms") if k in r["summary"])), flush=True)
         if r["status"] == "ok":
             return r
-        # A shared-machine interruption must not consume a required sample. run_once
-        # waits for the same quiet gates before retrying this position in the A/B order.
+
         if not args.retry_disturbed or r["status"] != "disturbed":
             failures += 1
     return r
-
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -456,8 +434,7 @@ def main():
                    help="show the game windows (presentation, swapchain and vsync pacing are only exercised then)")
     p.add_argument("--uncapped", action="store_true", help="uncapped throughput on either renderer, not gameplay pacing")
     p.add_argument("--seconds", type=float, default=60, help="scenario length in game seconds after --origin")
-    # the state load restores the whole game state, so it only needs the boot to have finished; A
-    # presses from frame 120 skip the intro and title (validated 2026-10-07 at loads 360 and 600)
+
     p.add_argument("--load-frame", type=int, default=450, help="TV frame of the state load")
     p.add_argument("--origin", type=int, default=650, help="TV frame where the scripted input starts")
     p.add_argument("--origin-load-steps", type=int,
@@ -513,11 +490,11 @@ def main():
         if warmup["status"] != "ok":
             p.exit(1, "warmup failed: %s; no measured runs started\n" % warmup["status"])
     for i in range(args.runs):
-        order = variants if i % 2 == 0 else list(reversed(variants))  # A B, B A, ...
+        order = variants if i % 2 == 0 else list(reversed(variants))
         for name, env in order:
             r = run_with_retries(args, name, env, i + 1, args.out)
             results.append(r)
-    # per-variant statistics over the runs
+
     table = {}
     for name, _ in variants:
         runs = [r["summary"] for r in results if r["variant"] == name and r["status"] == "ok" and r["summary"]]
@@ -550,7 +527,6 @@ def main():
             print("%-24s %s" % (k, "  ".join("%s %.2f [%.2f..%.2f]" % (n, table[n][k]["median"], table[n][k]["min"], table[n][k]["max"])
                                             for n, _ in variants if k in table[n])))
     print("summary: %s" % os.path.join(args.out, "summary.json"))
-
 
 if __name__ == "__main__":
     main()

@@ -34,7 +34,7 @@ void push(Stream& s, uint32_t g, uint32_t in_ptr, uint32_t in_avail, uint32_t ou
     st32(g + 48, (uint32_t)s.z.adler);
 }
 
-}  // namespace
+}
 
 HLE(zlib125, inflateInit2_) {
     uint32_t g = arg(c, 0);

@@ -21,7 +21,7 @@ void env(const char* key, const char* value) {
 #include <chrono>
 namespace {
 mods::packages::View view(const std::string& id) {for(auto v:mods::packages::list())if(v.id==id)return v;return {};}
-// Second process on the same storage: a confirmed native package loads after a restart without asking.
+
 int restart_check(const char* storage) {
     using namespace mods::packages;
     env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage);env("NSMBU_TEST_TRUST_NATIVE_MODS",nullptr);

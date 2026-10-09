@@ -24,17 +24,6 @@ class SDLInputConnection extends BaseInputConnection
 
     @Override
     public boolean sendKeyEvent(KeyEvent event) {
-        /*
-         * This used to handle the keycodes from soft keyboard (and IME-translated input from hardkeyboard)
-         * However, as of Ice Cream Sandwich and later, almost all soft keyboard doesn't generate key presses
-         * and so we need to generate them ourselves in commitText.  To avoid duplicates on the handful of keys
-         * that still do, we empty this out.
-         */
-
-        /*
-         * Return DOES still generate a key event, however.  So rather than using it as the 'click a button' key
-         * as we do with physical keyboards, let's just use it to hide the keyboard.
-         */
 
         if (event.getKeyCode() == KeyEvent.KEYCODE_ENTER) {
             if (SDLActivity.onNativeSoftReturnKey()) {
@@ -65,10 +54,9 @@ class SDLInputConnection extends BaseInputConnection
 
     @Override
     public boolean deleteSurroundingText(int beforeLength, int afterLength) {
-        // Workaround to capture backspace key. Ref: http://stackoverflow.com/questions>/14560344/android-backspace-in-webview-baseinputconnection
-        // and https://bugzilla.libsdl.org/show_bug.cgi?id=2265
+
         if (beforeLength > 0 && afterLength == 0) {
-            // backspace(s)
+
             while (beforeLength-- > 0) {
                 nativeGenerateScancodeForUnichar('\b');
             }
@@ -92,7 +80,6 @@ class SDLInputConnection extends BaseInputConnection
         int compareLength = Math.min(text.length(), mCommittedText.length());
         int matchLength, offset;
 
-        /* Backspace over characters that are no longer in the string */
         for (matchLength = 0; matchLength < compareLength; ) {
             int codePoint = mCommittedText.codePointAt(matchLength);
             if (codePoint != text.codePointAt(matchLength)) {
@@ -100,7 +87,7 @@ class SDLInputConnection extends BaseInputConnection
             }
             matchLength += Character.charCount(codePoint);
         }
-        /* FIXME: This doesn't handle graphemes, like '🌬️' */
+
         for (offset = matchLength; offset < mCommittedText.length(); ) {
             int codePoint = mCommittedText.codePointAt(offset);
             nativeGenerateScancodeForUnichar('\b');
@@ -117,7 +104,7 @@ class SDLInputConnection extends BaseInputConnection
                             return;
                         }
                     }
-                    /* Higher code points don't generate simulated scancodes */
+
                     if (codePoint > 0 && codePoint < 128) {
                         nativeGenerateScancodeForUnichar((char)codePoint);
                     }

@@ -5,8 +5,7 @@
 #include <vector>
 
 namespace gfxvk::vk {
-// Emit the same uint32 stream as the original draw conversion. Native guest
-// indices remain on their existing upload path; this helper owns no GPU state.
+
 template<class Read>
 void expand_indices(uint32_t prim, uint32_t count, bool indexed,
                     Read read, std::vector<uint32_t>& out) {
@@ -19,7 +18,7 @@ void expand_indices(uint32_t prim, uint32_t count, bool indexed,
   case 1: case 2: case 3: case 4: case 6: break;
   default: throw std::runtime_error("unsupported Vulkan primitive");
   }
-  // Preserve the original empty-conversion indexed fallback (short fan).
+
   if (!n && indexed) n = count;
   out.resize(n);
   size_t o = 0;
@@ -72,8 +71,7 @@ inline void convert_indices(const void* data, uint32_t prim, uint32_t count,
     expand_indices(prim, count, false, [](uint32_t i) { return i; }, out);
     return;
   }
-  // Empty indexed conversions never invoked the original reader, except
-  // line-loop closure, which still reads index zero when count is zero.
+
   if (!count && prim != 0x12) {
     expand_indices(prim, count, true, [](uint32_t) -> uint32_t {
       throw std::runtime_error("unsupported index type");
@@ -92,4 +90,4 @@ inline void convert_indices(const void* data, uint32_t prim, uint32_t count,
   }
 #undef NSMBU_INDEX_CASE
 }
-} // namespace gfxvk::vk
+}

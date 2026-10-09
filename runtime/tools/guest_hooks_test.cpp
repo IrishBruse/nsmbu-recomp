@@ -1,4 +1,4 @@
-// Exercise the actual hook runner with synthetic game bodies and a port wrapper.
+
 #include "mods/guest_mods.cpp"
 #include <cassert>
 #include <vector>
@@ -11,7 +11,7 @@ extern "C" void guest_hooks_body(Cpu* c);
 extern "C" void guest_hooks_record_body() { calls.push_back(3); }
 static void port(Cpu* c) {
     calls.push_back(1);
-    c->r[3] *= 2; // stand-in for true-60 scaling before game code / replacements
+    c->r[3] *= 2;
     guest_hooks_body(c);
     calls.push_back(6);
 }
@@ -48,8 +48,7 @@ namespace mods::packages {
 static bool in_startup_callback=false, inspected=false;
 std::string directory() { assert(!in_startup_callback); return {}; }
 void start_guests(const GuestInspect& inspect, const GuestLoad&) {
-    // Real start_guests holds the manager mutex while invoking callbacks. Its
-    // directory accessor cannot be called recursively from the build bridge.
+
     in_startup_callback=true;
     try { inspect(GuestPackage{}); assert(false); }
     catch(const std::runtime_error& e) {
@@ -86,10 +85,10 @@ int main() {
     chain.replace = replacement;
     calls.clear(); c.r[3] = 5; port(&c);
     assert((calls == std::vector<int>{1, 2, 7, 3, 5, 4, 6})); assert(c.r[3] == 11);
-    // ORIGINAL bypasses both mods and the port wrapper, and consumes the skip token.
+
     calls.clear(); c.r[3] = 20; guestmods::call_original(&c, 0x02000000);
     assert((calls == std::vector<int>{3})); assert(c.r[3] == 21); assert(c.mod_skip == 0);
-    // Map only synthetic mod data for string/input/heap service checks.
+
     constexpr uint32_t data_base=0x7F000000;
 #ifdef _WIN32
     void* data=VirtualAlloc(mem::ptr(data_base),0x20000,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
@@ -97,17 +96,17 @@ int main() {
     void* data=mmap(mem::ptr(data_base),0x20000,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
 #endif
     assert(data==mem::ptr(data_base));
-    // Typed services select the owning mod by its translated import callsite.
+
     NSMBUGuestModuleV1 module{};module.mem_base=0x7F000000;module.mem_size=4096;
     guestmods::Loaded mod;mod.id="first";mod.m=&module;mod.options["option"]=42;
     guestmods::g_loaded.push_back(std::move(mod));c.pc=0x7F000100;c.r[3]=1;c.r[4]=9;
     guestmods::svc_config_int(&c);assert(c.r[3]==42);
     guestmods::g_loaded[0].options["option"]=true;c.r[3]=1;
     guestmods::svc_config_bool(&c);assert(c.r[3]==1);
-    c.r[3]=1;c.r[4]=9;guestmods::svc_config_int(&c);assert(c.r[3]==9); // wrong type uses fallback
+    c.r[3]=1;c.r[4]=9;guestmods::svc_config_int(&c);assert(c.r[3]==9);
     guestmods::g_loaded[0].options["option"]=2.5;c.r[3]=1;c.f[1].ps0=8;
     guestmods::svc_config_float(&c);assert(c.f[1].ps0==2.5);
-    c.r[3]=1;c.r[4]=9;guestmods::svc_config_int(&c);assert(c.r[3]==9); // non-integral numeric option
+    c.r[3]=1;c.r[4]=9;guestmods::svc_config_int(&c);assert(c.r[3]==9);
     guestmods::svc_logic_dt(&c);assert(c.f[1].ps0==1.0/60.0);
     guestmods::frame(0x100000002ull);guestmods::svc_logic_step(&c);assert(c.r[3]==1&&c.r[4]==2);
     NSMBUGuestModuleV1 second{};second.mem_base=0x7F010000;second.mem_size=4096;

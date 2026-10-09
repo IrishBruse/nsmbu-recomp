@@ -1,8 +1,7 @@
-/* Yaz0 decompressor used by tools/shaderprep.py (loaded with ctypes; built on demand). */
+
 #include <stdint.h>
 #include <stddef.h>
 
-/* returns bytes written, or -1 on malformed input */
 long yaz0_decompress(const uint8_t* src, size_t srclen, uint8_t* dst, size_t dstlen) {
     if (srclen < 16 || src[0] != 'Y' || src[1] != 'a' || src[2] != 'z' || src[3] != '0') return -1;
     size_t s = 16, d = 0;

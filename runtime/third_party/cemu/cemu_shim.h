@@ -1,5 +1,5 @@
-// Minimal replacements for Cemu's common definitions used by the vendored files.
-// Force-included when compiling files under third_party/cemu.
+
+
 #pragma once
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -61,7 +61,7 @@ inline sint32 _swapEndianS32(sint32 v) { return (sint32)__builtin_bswap32((uint3
 using DWORD = uint32_t;
 #endif
 
-#ifdef DEFINE_ENUM_FLAG_OPERATORS // winnt.h's version: same operators
+#ifdef DEFINE_ENUM_FLAG_OPERATORS
 #undef DEFINE_ENUM_FLAG_OPERATORS
 #endif
 #define DEFINE_ENUM_FLAG_OPERATORS(T)                                                                                          \
@@ -90,7 +90,6 @@ inline T GetBits(T value, uint32 index, uint32 numBits) { return (value >> index
 
 #define MPTR_NULL (0)
 
-// logging
 enum class LogType { Force, APIErrors, Shader };
 void cemu_shim_log(const std::string& msg);
 template <typename... Args>
@@ -103,12 +102,10 @@ inline void cemuLog_logDebug(LogType, fmt::format_string<Args...>, Args&&...) {}
 #define cemuLog_logOnce cemuLog_log
 #define cemuLog_logDebugOnce cemuLog_logDebug
 
-// GPU state fields queried by the decompiler (OpenGL-vendor quirks; never AMD here)
 enum { GLVENDOR_UNKNOWN = 0, GLVENDOR_AMD = 1, GLVENDOR_NVIDIA = 2, GLVENDOR_INTEL = 3, GLVENDOR_APPLE = 4 };
 struct LatteGPUStateShim { int glVendor = GLVENDOR_APPLE; };
 inline LatteGPUStateShim LatteGPUState;
 
-// generic formatter for enums (to underlying), as in Cemu's precompiled.h
 template <typename Enum>
     requires std::is_enum_v<Enum>
 struct fmt::formatter<Enum> : fmt::formatter<std::underlying_type_t<Enum>> {

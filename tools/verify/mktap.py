@@ -22,17 +22,15 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
-from funcdb import GenIndex  # noqa: E402
+from funcdb import GenIndex
 
 HOOKS = os.path.join(ROOT, "tools", "recomp", "hooks_tap.txt")
 GEN = os.path.join(ROOT, "build", "gen")
 OUT = os.path.join(GEN, "code_tap.c")
 
-
 def recomp():
     subprocess.run([sys.executable, "tools/recomp/recomp.py", "game/code/red-pro2.rpx", "build/gen"], cwd=ROOT, check=True,
                    stdout=subprocess.DEVNULL)
-
 
 def tap_body(text, addr, imports):
     lines = text.split("\n")
@@ -47,7 +45,6 @@ def tap_body(text, addr, imports):
         ln = re.sub(r"(?<![\w>])(imp_\w+)\(c\);", lambda m: "tap_call(c, %s, 0x%08XU);" % (m.group(1), imports.get(m.group(1), 0)), ln)
         out.append(ln)
     return "\n".join(out)
-
 
 def main():
     args = sys.argv[1:]
@@ -88,7 +85,6 @@ def main():
         out.append("void hook_%08X(Cpu* c) {\n    if (tap_begin(c, 0x%08XU)) { tap_%08X(c); tap_end(c); }\n    else f_%08X_orig(c);\n}\n" % (a, a, a, a))
     open(OUT, "w").write("\n".join(out))
     print("tapped %d functions -> %s" % (len(addrs), os.path.relpath(OUT, ROOT)))
-
 
 if __name__ == "__main__":
     main()

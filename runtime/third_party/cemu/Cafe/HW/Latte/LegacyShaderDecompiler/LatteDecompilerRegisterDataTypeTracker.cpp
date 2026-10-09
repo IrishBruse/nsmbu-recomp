@@ -6,7 +6,7 @@
 
 void LatteDecompiler_analyzeDataTypes(LatteDecompilerShaderContext* shaderContext)
 {
-	// determine default type
+
 	if (shaderContext->analyzer.usesIntegerValues)
 	{
 		shaderContext->typeTracker.defaultDataType = LATTE_DECOMPILER_DTYPE_SIGNED_INT;
@@ -17,7 +17,7 @@ void LatteDecompiler_analyzeDataTypes(LatteDecompilerShaderContext* shaderContex
 		shaderContext->typeTracker.defaultDataType = LATTE_DECOMPILER_DTYPE_FLOAT;
 		shaderContext->typeTracker.genFloatReg = true;
 	}
-	// determine register representation
+
 	if (shaderContext->analyzer.usesRelativeGPRWrite)
 	{
 		shaderContext->typeTracker.useArrayGPRs = true;

@@ -1,4 +1,4 @@
-// The Vulkan renderer's entry in the renderer table (gfx/renderer.h).
+
 #include "api.h"
 #include "buffer_cache.h"
 #include "settings.h"
@@ -9,7 +9,7 @@
 namespace gx2 { void checkpoint_vulkan_caches(); }
 
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
-// AppKit host (gfx/display.mm): windows exist, each view gets a CAMetalLayer for a Vulkan surface
+
 namespace gfx {
 void display_create_windows();
 void display_attach_vulkan(void** tvLayer, void** drcLayer);
@@ -17,7 +17,7 @@ void display_detach();
 void display_start_input();
 void display_vulkan_started();
 void run_appkit_loop();
-}  // namespace gfx
+}
 #endif
 
 namespace render {
@@ -33,7 +33,7 @@ const Backend& vulkan_backend() {
             try {
                 gfxvk::init_appkit(tv, drc);
             } catch (...) {
-                gfx::display_detach();  // the fallback renderer attaches fresh layers
+                gfx::display_detach();
                 throw;
             }
             gfx::display_vulkan_started();
@@ -62,8 +62,8 @@ const Backend& vulkan_backend() {
         b.write_back = gfxvk::write_back_linear_targets;
         b.ss_reset = [] {
             gfxvk::ss_reset_surfaces();
-            gfxvk::buffer_cache_invalidate_all();  // restored memory: every cached range is re-read
-            // save-state replacement can change microcode without advancing the frame
+            gfxvk::buffer_cache_invalidate_all();
+
             gfxvk::vk::reset_shader_memoization();
         };
         b.frame_count = gfxvk::frame_count;
@@ -88,7 +88,7 @@ const Backend& vulkan_backend() {
             case kFeatureFXAA: return gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::FXAA);
             case kFeatureScaleFilter: return gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::ScaleFilter);
             case kFeatureCapture: return true;
-            case kFeatureShaderHeadStart: return false;  // Metal shader cache only
+            case kFeatureShaderHeadStart: return false;
             }
             return true;
         };
@@ -97,4 +97,4 @@ const Backend& vulkan_backend() {
     }();
     return b;
 }
-}  // namespace render
+}

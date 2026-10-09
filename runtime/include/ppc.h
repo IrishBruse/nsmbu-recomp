@@ -1,8 +1,5 @@
-/* Espresso (Wii U PowerPC) CPU state and helpers used by recompiled code.
- *
- * Guest memory is a 4 GiB window mapped at a fixed host address, so a guest
- * effective address converts to a host pointer with a single add.
- */
+
+
 #pragma once
 #include <math.h>
 #include <stdint.h>
@@ -13,8 +10,7 @@ extern "C" {
 #endif
 
 #if defined(__ANDROID__) || (defined(__linux__) && defined(__aarch64__))
-/* arm64 Linux kernels (Android, Raspberry Pi OS and other 4K-page configurations) often have a 39-bit
-   user address space (512 GiB), where 32 TiB is out of reach: stay well below it (64 GiB) */
+
 #define PPC_MEM_BASE ((uint8_t*)0x1000000000ull)
 #else
 #define PPC_MEM_BASE ((uint8_t*)0x200000000000ull)
@@ -23,24 +19,23 @@ extern "C" {
 typedef struct Cpu {
     uint32_t r[32];
     uint32_t lr, ctr;
-    uint8_t cr[32];         /* one byte per CR bit; bit 4n+0 = crN.lt, +1 gt, +2 eq, +3 so */
+    uint8_t cr[32];
     uint8_t xer_so, xer_ov, xer_ca;
     uint8_t xer_bc;
     struct { double ps0, ps1; } f[32];
     uint32_t fpscr;
     uint32_t gqr[8];
-    uint32_t res_addr, res_val; /* lwarx/stwcx. reservation */
-    uint32_t pc;               /* target for indirect dispatch */
-    uint32_t core;             /* host-side: which emulated core this thread runs on */
-    uint32_t mod_skip;         /* guest mods: the next entry of this function runs its original code
-                                  (fills former padding: sizeof(Cpu) and save states are unchanged) */
-    void* thread;              /* host-side: owning guest thread object */
+    uint32_t res_addr, res_val;
+    uint32_t pc;
+    uint32_t core;
+    uint32_t mod_skip;
+
+    void* thread;
 } Cpu;
 
 typedef void (*PpcFunc)(Cpu*);
 
-/* runtime entry points */
-void ppc_dispatch(Cpu* c);                       /* call/jump to c->pc */
+void ppc_dispatch(Cpu* c);
 void ppc_unimplemented(Cpu* c, uint32_t addr, uint32_t insn);
 void ppc_trap(Cpu* c, uint32_t addr);
 uint64_t ppc_timebase(void);
@@ -49,10 +44,9 @@ double ppc_frsqrte(double x);
 
 #define MUSTTAIL __attribute__((musttail))
 
-/* optional guest function-entry trace (runtime switch, see runtime/src/trace.cpp) */
 extern int g_ppc_trace;
 void ppc_trace_enter(uint32_t addr);
-/* per-core scheduling: a higher-priority thread on this core is ready, yield at the next function entry */
+
 extern volatile int g_core_preempt[3];
 void ppc_preempt(Cpu* c);
 #define PPC_ENTER(a) do {                                                     \
@@ -60,18 +54,12 @@ void ppc_preempt(Cpu* c);
         if (__builtin_expect(g_core_preempt[c->core], 0)) ppc_preempt(c);     \
     } while (0)
 
-/* guest mods (docs/mod-sdk-v2.md; game code generated with recomp.py --mod-hooks): every function body
-   checks its flag byte; a set flag means a mod hooks or replaces it, and ppc_mod_run (c->pc = the
-   function) runs the mods' hooks and the replacement or the original. The mod runtime calls the
-   original code by setting c->mod_skip first. Code without --mod-hooks emits no check or hook metadata. */
 #if defined(__GNUC__) && !defined(_WIN32)
 __attribute__((visibility("hidden")))
 #endif
 extern uint8_t* g_mod_hook_flags;
 void ppc_mod_run(Cpu* c);
-/* Do not mark this branch unlikely: Apple clang 17 can outline a cold hook
-   return into an i1-returning helper, invalidating the void musttail call.
-   Keep the entry branch ordinary so musttail stays in its original function. */
+
 #define PPC_MOD_HOOK(i, a) do {                                               \
         if (g_mod_hook_flags[i]) {                                           \
             if (c->mod_skip != (a)) { c->pc = (a); MUSTTAIL return ppc_mod_run(c); } \
@@ -79,16 +67,8 @@ void ppc_mod_run(Cpu* c);
         }                                                                     \
     } while (0)
 
-/* loop back-edge (every backward branch inside a function): a compiler barrier. Guest memory is
-   shared with the other guest threads, but the generated loads are plain loads, and Cpu is
-   __restrict, so without it the compiler may load a guest word once before a call-free loop and spin
-   on the stale value forever: games busy-wait on locks and flags (`while (*lock == 1);`) that another
-   core changes (issue #62: LLVM 16/17, e.g. Apple clang 16 of Xcode 16, turn such a wait into
-   `b .`). The barrier only forces guest memory to be read again on the next iteration; the register
-   file stays in host registers (it is __restrict and not an operand). */
 #define PPC_LOOP() __asm__ __volatile__("" ::: "memory")
 
-/* ---- memory ---- */
 static inline uint8_t* ppc_ptr(uint32_t ea) { return PPC_MEM_BASE + ea; }
 static inline uint8_t ld8(uint32_t ea) { return *ppc_ptr(ea); }
 static inline uint16_t ld16(uint32_t ea) { uint16_t v; memcpy(&v, ppc_ptr(ea), 2); return __builtin_bswap16(v); }
@@ -99,7 +79,6 @@ static inline void st16(uint32_t ea, uint16_t v) { v = __builtin_bswap16(v); mem
 static inline void st32(uint32_t ea, uint32_t v) { v = __builtin_bswap32(v); memcpy(ppc_ptr(ea), &v, 4); }
 static inline void st64(uint32_t ea, uint64_t v) { v = __builtin_bswap64(v); memcpy(ppc_ptr(ea), &v, 8); }
 
-/* ---- bit casts ---- */
 static inline double u64_as_f64(uint64_t u) { double d; memcpy(&d, &u, 8); return d; }
 static inline uint64_t f64_as_u64(double d) { uint64_t u; memcpy(&u, &d, 8); return u; }
 static inline float u32_as_f32(uint32_t u) { float f; memcpy(&f, &u, 4); return f; }
@@ -110,7 +89,6 @@ static inline double ldf64(uint32_t ea) { return u64_as_f64(ld64(ea)); }
 static inline void stf32(uint32_t ea, double d) { st32(ea, f32_as_u32((float)d)); }
 static inline void stf64(uint32_t ea, double d) { st64(ea, f64_as_u64(d)); }
 
-/* ---- integer helpers ---- */
 static inline uint32_t rotl32(uint32_t v, uint32_t sh) { sh &= 31; return sh ? (v << sh) | (v >> (32 - sh)) : v; }
 
 static inline void cr_set_s(Cpu* c, int f, int32_t a, int32_t b) {
@@ -144,7 +122,6 @@ static inline void ppc_mtxer(Cpu* c, uint32_t v) {
     c->xer_so = (v >> 31) & 1; c->xer_ov = (v >> 30) & 1; c->xer_ca = (v >> 29) & 1; c->xer_bc = v & 0x7F;
 }
 
-/* lwarx / stwcx. */
 static inline uint32_t ppc_lwarx(Cpu* c, uint32_t ea) {
     uint32_t raw = __atomic_load_n((uint32_t*)ppc_ptr(ea), __ATOMIC_SEQ_CST);
     c->res_addr = ea; c->res_val = raw;
@@ -163,7 +140,6 @@ static inline void ppc_stwcx(Cpu* c, uint32_t ea, uint32_t v) {
 
 static inline void ppc_dcbz(uint32_t ea) { memset(ppc_ptr(ea & ~31u), 0, 32); }
 
-/* ---- floating point ---- */
 static inline double round25(double d) {
     uint64_t v = f64_as_u64(d);
     v = (v & 0xFFFFFFFFF8000000ull) + (v & 0x8000000ull);
@@ -188,7 +164,7 @@ static inline uint64_t ppc_fctiwz(double d) {
 }
 static inline uint64_t ppc_fctiw(Cpu* c, double d) {
     switch (c->fpscr & 3) {
-    case 0: d = nearbyint(d); break; /* default host mode is round-to-nearest-even */
+    case 0: d = nearbyint(d); break;
     case 1: d = trunc(d); break;
     case 2: d = ceil(d); break;
     case 3: d = floor(d); break;
@@ -197,11 +173,9 @@ static inline uint64_t ppc_fctiw(Cpu* c, double d) {
 }
 static inline double ppc_fsel(double a, double b, double cc) { return a >= 0.0 ? cc : b; }
 
-/* ---- paired single quantization ---- */
-/* 2^e for the 6-bit signed GQR scale, built from float bits (no libm call) */
 static inline float psq_pow2(int e) { return u32_as_f32((uint32_t)(127 + e) << 23); }
 static inline float psq_dequant(uint32_t data, uint32_t type, uint32_t scale) {
-    if (type < 4) return u32_as_f32(data);  /* float: no scaling */
+    if (type < 4) return u32_as_f32(data);
     float s = psq_pow2(-(int)((int32_t)(scale << 26) >> 26));
     switch (type) {
     case 4: return (float)(uint8_t)data * s;

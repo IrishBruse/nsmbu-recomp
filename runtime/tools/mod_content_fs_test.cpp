@@ -1,4 +1,4 @@
-// Exercise the actual HLE filesystem with synthetic files and a small guest-memory window.
+
 #include "runtime.h"
 #include "savestate.h"
 #include "mods/content.h"
@@ -13,7 +13,7 @@
 #else
 #include <sys/mman.h>
 #endif
-// hle/fs.cpp reports opened language packs to the right-to-left text support (not under test)
+
 namespace rtl_text { void language_pack_opened(const std::string&) {} }
 namespace fs=std::filesystem;
 namespace {std::map<std::string,PpcFunc>& functions(){static std::map<std::string,PpcFunc> f;return f;}constexpr uint32_t base=0x10000000;}
@@ -58,15 +58,15 @@ int main(int argc,char** argv){
  h=open("/vol/content/Common/other.bin");assert(read(h,64)=="fallback");close(h);
  for(auto volume:{"code","meta"}){h=open(std::string("/vol/")+volume+"/model.bin");assert(read(h,64)==volume);close(h);}
  h=open("/vol/save/user/model.bin");assert(read(h,64)=="save");close(h);
- // Path and handle stat sizes must both report the file actually read.
+
  mem::write_cstr(base,"/vol/content/Common/model.bin",1024);assert(call("coreinit:FSGetStat",{0,0,base,base+2048,0})==0);assert(ld32(base+2048+0x10)==strlen(expected));
  h=open("/vol/content/Common/model.bin");assert(call("coreinit:FSGetStatFile",{0,0,h,base+2048,0})==0);assert(ld32(base+2048+0x10)==strlen(expected));
  assert(read(h,3)==std::string(expected).substr(0,3));ss::Writer snapshot;fs_ss_save(snapshot);
  assert(read(h,64)==std::string(expected).substr(3));ss::Reader reader(snapshot.b.data(),snapshot.b.size());fs_ss_load(reader);assert(reader.ok&&reader.at_end());assert(read(h,64)==std::string(expected).substr(3));close(h);
- // Update/write opens bypass replacement files, including savestate reopens.
+
  h=open("/vol/content/Common/model.bin","r+b");assert(read(h,3)=="ori");ss::Writer update;fs_ss_save(update);ss::Reader resume(update.b.data(),update.b.size());fs_ss_load(resume);assert(read(h,64)=="ginal");close(h);
  h=open("/vol/save/user/model.bin","wb");memcpy(mem::ptr(base+8192),"safe",4);assert(call("coreinit:FSWriteFile",{0,0,base+8192,1,4,h,0})==4);close(h);assert(text(root/"save"/"user"/"model.bin")=="safe");
- // Directory enumeration retains original names but must describe replacement sizes.
+
  mem::write_cstr(base,"/vol/content/Common",1024);assert(call("coreinit:FSOpenDir",{0,0,base,base+1100,0})==0);auto dir=ld32(base+1100);bool found=false;
  while(call("coreinit:FSReadDir",{0,0,dir,base+2048,0})==0){if(mem::read_cstr(base+2048+0x64)=="model.bin"){found=true;assert(ld32(base+2048+0x10)==strlen(expected));}}
  assert(found);assert(call("coreinit:FSCloseDir",{0,0,dir})==0);

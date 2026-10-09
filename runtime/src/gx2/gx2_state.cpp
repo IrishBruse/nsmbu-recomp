@@ -1,5 +1,5 @@
-// GX2 fixed-function state: blend, depth/stencil, rasterizer, viewport, etc.
-// Register packing follows the GX2 SDK (as documented by Cemu's GX2_State.cpp).
+
+
 #include "gx2_cmd.h"
 #include "gx2_regs.h"
 #include "runtime.h"
@@ -7,13 +7,12 @@
 using namespace Latte;
 
 namespace gx2 {
-static float fa(Cpu* c, int i) { return (float)c->f[1 + i].ps0; }  // i-th float argument
-}  // namespace gx2
+static float fa(Cpu* c, int i) { return (float)c->f[1 + i].ps0; }
+}
 
 using gx2::fa;
 using gx2::set_reg;
 
-// ---------------------------------------------------------------- alpha test
 HLE(gx2, GX2SetAlphaTest) {
     LATTE_SX_ALPHA_TEST_CONTROL ctrl;
     ctrl.set_ALPHA_FUNC((LATTE_SX_ALPHA_TEST_CONTROL::E_ALPHA_FUNC)arg(c, 1));
@@ -28,14 +27,13 @@ HLE(gx2, GX2SetAlphaTestReg) {
     set_reg(REGADDR::SX_ALPHA_REF, ld32(arg(c, 0) + 4));
 }
 HLE(gx2, GX2SetAlphaToMask) {
-    // (enable, GX2AlphaToMaskMode) -> DB_ALPHA_TO_MASK
+
     uint32 enable = arg(c, 0) & 1, mode = arg(c, 1);
-    static const uint32 offsets[] = {0xAA, 0x78, 0xB4, 0x1E, 0x00};  // dither patterns per mode
+    static const uint32 offsets[] = {0xAA, 0x78, 0xB4, 0x1E, 0x00};
     uint32 v = enable | ((mode < 5 ? offsets[mode] : 0) << 8);
     set_reg(mmDB_ALPHA_TO_MASK, v);
 }
 
-// ---------------------------------------------------------------- color / blend
 HLE(gx2, GX2SetColorControl) {
     LATTE_CB_COLOR_CONTROL r;
     r.set_MULTIWRITE_ENABLE(arg(c, 2) != 0);
@@ -74,10 +72,8 @@ HLE(gx2, GX2SetTargetChannelMasks) {
     set_reg(REGADDR::CB_TARGET_MASK, m);
 }
 
-// ---------------------------------------------------------------- depth / stencil
 HLE(gx2, GX2SetDepthStencilControl) {
-    // (depthTest, depthWrite, depthFunc, stencilTest, backStencilTest, frontFunc, frontZPass, frontZFail,
-    //  frontFail, backFunc, backZPass, backZFail, backFail) - args past r10 are on the stack
+
     uint32 a[13];
     for (int i = 0; i < 8; i++) a[i] = arg(c, i);
     for (int i = 8; i < 13; i++) a[i] = ld32(c->r[1] + 8 + 4 * (i - 8));
@@ -101,7 +97,6 @@ HLE(gx2, GX2SetStencilMask) {
     set_reg(REGADDR::DB_STENCILREFMASK_BF, b.getRawValue());
 }
 
-// ---------------------------------------------------------------- rasterizer
 HLE(gx2, GX2SetPolygonControl) {
     LATTE_PA_SU_SC_MODE_CNTL v;
     v.set_FRONT_FACE((LATTE_PA_SU_SC_MODE_CNTL::E_FRONTFACE)arg(c, 0));
@@ -112,7 +107,7 @@ HLE(gx2, GX2SetPolygonControl) {
     v.set_BACK_POLY_MODE((LATTE_PA_SU_SC_MODE_CNTL::E_PTYPE)arg(c, 5));
     v.set_OFFSET_FRONT_ENABLED((arg(c, 6) & 1) != 0);
     v.set_OFFSET_BACK_ENABLED((arg(c, 7) & 1) != 0);
-    v.set_OFFSET_PARA_ENABLED((ld32(c->r[1] + 8) & 1) != 0);  // 9th argument
+    v.set_OFFSET_PARA_ENABLED((ld32(c->r[1] + 8) & 1) != 0);
     set_reg(REGADDR::PA_SU_SC_MODE_CNTL, v.getRawValue());
 }
 HLE(gx2, GX2SetPolygonControlReg) { set_reg(REGADDR::PA_SU_SC_MODE_CNTL, ld32(arg(c, 0))); }
@@ -205,9 +200,8 @@ HLE(gx2, GX2SetDefaultState) {
     set_reg(REGADDR::PA_CL_CLIP_CNTL, clip.getRawValue());
 }
 
-// ---------------------------------------------------------------- shader mode
 HLE(gx2, GX2SetShaderModeEx) {
-    // (mode, gprsVS, stackVS, gprsGS, stackGS, gprsPS, stackPS)
+
     uint32 mode = arg(c, 0);
     bool geometry = mode == 2;
     if (!geometry) set_reg(REGADDR::VGT_GS_MODE, 0);

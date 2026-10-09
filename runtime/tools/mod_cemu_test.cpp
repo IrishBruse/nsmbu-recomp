@@ -18,7 +18,7 @@ int main(int argc,char** argv) {
         if(argc==3){fs::path output=argv[2];fs::create_directories(output);cemu::set_vulkan(true);cemu::activate({{"public-pack",pack,{}}});for(size_t i=0;i<pack.shaders.size();i++){auto& shader=pack.shaders[i];std::ofstream(output/(std::to_string(i)+(shader.vertex?".vert":".frag")))<<cemu::shader_source(shader.base,shader.aux,shader.vertex);}}
         return 0;
     }
-    // titleIds (issue #103): the installed build's title, any case/spacing; USA-only packs don't load on EU
+
     const std::string usa="0005000010143500",eu="0005000010143600";
     assert(cemu::targets_title("0005000010143500",usa)&&!cemu::targets_title("0005000010143500",eu));
     assert(cemu::targets_title("0005000010143600",eu)&&!cemu::targets_title("0005000010143600",usa));
@@ -55,7 +55,7 @@ int main(int argc,char** argv) {
     auto expanded=cemu::shader_source(1,2,false);assert(expanded.find("#define VULKAN 1")!=std::string::npos&&expanded.find("float x=(2.0)")!=std::string::npos);
     assert(cemu::shader_source(1,3,false).empty());
     rejects([&]{cemu::activate({});});
-    // Synthetic SPIR-V scalar buffer: detect descriptor rebinding and offset drift.
+
     std::vector<uint32_t> spirv={0x07230203,0x10000,0,10,0,
         (3u<<16)|22,1,32, (3u<<16)|30,2,1,
         (3u<<16)|71,2,2, (5u<<16)|72,2,0,35,0,
@@ -64,7 +64,7 @@ int main(int argc,char** argv) {
     std::string error;assert(cemu::compatible_shader_interface(spirv,spirv,error));
     auto changed=spirv;changed.back()=7;assert(!cemu::compatible_shader_interface(spirv,changed,error));
     changed=spirv;changed[18]=16;assert(!cemu::compatible_shader_interface(spirv,changed,error));
-    // Pixel inputs without a vertex shader output become the translation's constants.
+
     const char* unfed[32]={};unfed[1]="vec4(0.0, 0.0, 0.0, 1.0)";unfed[12]="vec4(1.0, 1.0, 1.0, 1.0)";
     auto pixel=cemu::const_pixel_inputs("layout(location = 0) in vec4 passParameterSem0;\nlayout(location=1) noperspective in vec4 passParameterSem3;\n"
         "layout( location = 12 ) flat in vec4 tint;\nlayout(location = 12) out vec4 color;\nlayout(location = 1, component = 0) in vec4 other;\n// layout(location = 1) in vec2 uv;\n",unfed);

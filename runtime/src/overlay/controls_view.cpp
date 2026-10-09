@@ -1,6 +1,5 @@
-// Controls drawing for the settings overlay (controls_view.h). The geometry is the one of the macOS
-// Controls window (gfx/controls_ui.mm: controller_def, pro_body, the callout columns), ported to
-// plain C++ and Dear ImGui's draw list; the colours are the overlay's.
+
+
 #include "controls_view.h"
 
 #include <algorithm>
@@ -16,7 +15,6 @@ using namespace input_map;
 namespace overlay {
 namespace {
 
-// ---- colours (the overlay's sea blue)
 ImU32 col(float r, float g, float b, float a = 1) { return ImGui::GetColorU32(ImVec4(r, g, b, a)); }
 struct Palette {
     ImU32 body = col(0.17f, 0.27f, 0.35f), outline = col(0.46f, 0.62f, 0.70f), well = col(0.07f, 0.13f, 0.19f),
@@ -28,7 +26,6 @@ struct Palette {
 };
 ImU32 alpha(ImU32 c, float a) { return (c & 0x00FFFFFFu) | (uint32_t)(std::clamp(a, 0.0f, 1.0f) * ((c >> 24) & 0xFF)) << 24; }
 
-// ---- geometry, in units of the controller's width (y down): controls_ui.mm controller_def
 struct UPt { float x, y; };
 struct URect { float x, y, w, h; };
 struct ControllerDef {
@@ -41,7 +38,7 @@ struct ControllerDef {
 ControllerDef controller_def(bool pro) {
     ControllerDef d{};
     d.pro = pro;
-    if (!pro) {  // GamePad: a wide tablet, screen in the middle
+    if (!pro) {
         d.minY = -0.085f; d.maxY = 0.5f;
         d.lstick = {0.115f, 0.15f}; d.rstick = {0.885f, 0.15f};
         d.dpad = {0.115f, 0.335f}; d.face = {0.885f, 0.315f};
@@ -51,7 +48,7 @@ ControllerDef controller_def(bool pro) {
         d.l = {0.06f, -0.04f, 0.15f, 0.07f};
         d.zl = {0.045f, -0.08f, 0.135f, 0.07f};
         d.screen = {0.255f, 0.07f, 0.49f, 0.28f};
-    } else {  // Pro Controller: two grips
+    } else {
         d.minY = -0.05f; d.maxY = 0.63f;
         d.lstick = {0.2f, 0.2f}; d.rstick = {0.67f, 0.385f};
         d.dpad = {0.33f, 0.385f}; d.face = {0.8f, 0.2f};
@@ -67,8 +64,8 @@ ControllerDef controller_def(bool pro) {
 enum PartKind { kPartRound, kPartShoulder, kPartDpad, kPartStick };
 struct Part {
     int kind, action;
-    ImVec2 a, b;           // rect (round: bounding box)
-    ImVec2 va, vb;         // shoulder: visible strip
+    ImVec2 a, b;
+    ImVec2 va, vb;
     std::string text;
     int dirs[4] = {-1, -1, -1, -1};
     ImVec2 c;
@@ -81,21 +78,20 @@ struct Group {
     std::vector<std::string> labels;
     ImVec2 anchor;
     bool right = false;
-    bool leader = true;            // a line to the anchor (app actions have no part on the controller)
-    ImVec2 a, b;                   // box
-    std::vector<float> rows;       // row top y, one per action
+    bool leader = true;
+    ImVec2 a, b;
+    std::vector<float> rows;
 };
 
-// sizes of the callout columns (points at scale 1), as controls_ui.mm
 const float kColW = 254, kRowH = 23, kMargin = 14, kHeaderH = 22;
 const float kChipX[3] = {50, 110, 170}, kChipW[3] = {56, 56, 78};
 
 struct Geo {
-    float k = 1, s = 1;            // k: callout scale; s: controller width in points
-    ImVec2 o;                      // controller origin
-    ImVec2 org;                    // view origin (screen)
+    float k = 1, s = 1;
+    ImVec2 o;
+    ImVec2 org;
     float colLx = 0, colRx = 0;
-    std::vector<ImVec2> body;      // Pro outline (GamePad: rounded rectangle)
+    std::vector<ImVec2> body;
     ImVec2 bodyA, bodyB;
     bool hasScreen = false;
     ImVec2 screenA, screenB;
@@ -104,12 +100,11 @@ struct Geo {
     std::vector<Group> groups;
 };
 
-// the Pro Controller's outline (controls_ui.mm pro_body), flattened
 void pro_body(std::vector<ImVec2>& out, const std::function<ImVec2(float, float)>& P) {
     struct Seg { UPt c1, c2, p; };
     UPt start = {0.14f, 0.035f};
     const Seg segs[] = {
-        {{0.14f, 0.035f}, {0.86f, 0.035f}, {0.86f, 0.035f}},  // straight top edge
+        {{0.14f, 0.035f}, {0.86f, 0.035f}, {0.86f, 0.035f}},
         {{0.96f, 0.035f}, {1.0f, 0.11f}, {1.0f, 0.2f}},
         {{1.0f, 0.42f}, {0.96f, 0.625f}, {0.86f, 0.625f}},
         {{0.78f, 0.625f}, {0.745f, 0.545f}, {0.70f, 0.52f}},
@@ -130,13 +125,13 @@ void pro_body(std::vector<ImVec2>& out, const std::function<ImVec2(float, float)
         }
         cur = sg.p;
     }
-    out.pop_back();  // closed
+    out.pop_back();
 }
 
 Geo layout(bool pro, FaceLayout fl, ImVec2 org, float w, float h) {
     Geo g;
     g.org = org;
-    // the callouts need about 1060 x 520 points; smaller views shrink them, larger ones grow a little
+
     g.k = std::clamp(std::min(w / 1060.0f, h / 520.0f), 0.55f, 1.3f);
     const float k = g.k;
     ControllerDef d = controller_def(pro);
@@ -174,9 +169,7 @@ Geo layout(bool pro, FaceLayout fl, ImVec2 org, float w, float h) {
         p.text = text;
         g.parts.push_back(p);
     };
-    // face buttons: Wii U positions (X top, A right, B bottom, Y left). With the by-label (Xbox)
-    // preset the letters follow the host pad instead (Y top, B right, A bottom, X left), so each
-    // letter sits where that host button is (issue #78).
+
     if (fl == FaceLayout::kLabels) {
         button(kY, {d.face.x, d.face.y - d.faceSpread}, d.faceR, "Y");
         button(kB, {d.face.x + d.faceSpread, d.face.y}, d.faceR, "B");
@@ -189,8 +182,8 @@ Geo layout(bool pro, FaceLayout fl, ImVec2 org, float w, float h) {
         button(kY, {d.face.x - d.faceSpread, d.face.y}, d.faceR, "Y");
     }
     button(kPlus, d.plus, d.smallR, "+");
-    button(kMinus, d.minus, d.smallR, "\xE2\x88\x92");  // −
-    button(kHome, d.home, d.smallR, "\xE2\x8C\x82");    // ⌂
+    button(kMinus, d.minus, d.smallR, "\xE2\x88\x92");
+    button(kHome, d.home, d.smallR, "\xE2\x8C\x82");
     {
         ImVec2 c = PU(d.dpad);
         float L = d.dpadLen * s, W = d.dpadW * s;
@@ -262,14 +255,13 @@ Geo layout(bool pro, FaceLayout fl, ImVec2 org, float w, float h) {
     group("ZR", {kZR}, {"ZR"}, tabAnchor(kZR), true);
     group("L", {kL}, {"L"}, tabAnchor(kL), false);
     group("R", {kR}, {"R"}, tabAnchor(kR), true);
-    const std::vector<std::string> dirs = {"\xE2\x86\x91", "\xE2\x86\x93", "\xE2\x86\x90", "\xE2\x86\x92"};  // ↑↓←→
+    const std::vector<std::string> dirs = {"\xE2\x86\x91", "\xE2\x86\x93", "\xE2\x86\x90", "\xE2\x86\x92"};
     std::vector<std::string> stickRows = dirs;
     stickRows.push_back("Click");
     group("Left stick (move)", {kLUp, kLDown, kLLeft, kLRight, kStickLClick}, stickRows, PU(d.lstick), false);
     group("Right stick (camera)", {kRUp, kRDown, kRLeft, kRRight, kStickRClick}, stickRows, PU(d.rstick), true);
     group("D-pad", {kDUp, kDDown, kDLeft, kDRight}, dirs, PU(d.dpad), false);
-    // app actions: the bottom of the left column, no leader line ("Photo": the row label column is narrow;
-    // hovering shows "Screenshot (app)")
+
     group("Photo", {kScreenshot}, {"Photo"}, ImVec2(org.x, org.y + h), false);
     g.groups.back().leader = false;
     for (auto& p : g.parts)
@@ -279,7 +271,7 @@ Geo layout(bool pro, FaceLayout fl, ImVec2 org, float w, float h) {
             std::string t = p.action == kHome ? "Home" : p.text;
             group(t.c_str(), {p.action}, {t}, p.c, right);
         }
-    // stack each column in anchor order, as close to the anchors as fits (controls_ui.mm)
+
     for (int side = 0; side < 2; side++) {
         std::vector<Group*> colg;
         for (auto& gr : g.groups)
@@ -313,9 +305,8 @@ Geo layout(bool pro, FaceLayout fl, ImVec2 org, float w, float h) {
     return g;
 }
 
-// ---- drawing helpers
 ImFont* font() { return ImGui::GetFont(); }
-// text centred in [a, b], shrunk (down to 8 points) and then clipped to fit
+
 void text_fit(ImDrawList* dl, const std::string& s, ImVec2 a, ImVec2 b, float size, ImU32 c) {
     const float w = b.x - a.x;
     ImVec2 ts = font()->CalcTextSizeA(size, FLT_MAX, 0, s.c_str());
@@ -359,7 +350,7 @@ std::string binding_summary(const Mapping& m, int a) {
     return out.empty() ? "not bound" : out;
 }
 
-}  // namespace
+}
 
 void draw_controls(ControlsView& v, float w, float h) {
     const Palette P;
@@ -371,7 +362,6 @@ void draw_controls(ControlsView& v, float w, float h) {
     const float pulse = 0.55f + 0.45f * std::sin((float)v.t * 7);
     auto lit = [&](int a) { return a >= 0 && v.act[a] > 0.5f; };
 
-    // ---- hit test the drawing (mouse) and lay out the chips as buttons (mouse, keyboard, controller)
     const ImVec2 mouse = ImGui::GetIO().MousePos;
     const bool mouseIn = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) && in_rect(mouse, org, ImVec2(org.x + w, org.y + h));
     int partHover = -1;
@@ -384,7 +374,7 @@ void draw_controls(ControlsView& v, float w, float h) {
             case kPartShoulder: hit = in_rect(mouse, p.va, p.vb); break;
             case kPartStick:
                 if (in_circle(mouse, p.c, p.capR)) hit = true;
-                else if (in_circle(mouse, p.c, p.R)) {  // the well: the direction it points to
+                else if (in_circle(mouse, p.c, p.R)) {
                     float dx = mouse.x - p.c.x, dy = mouse.y - p.c.y;
                     int q = std::fabs(dx) > std::fabs(dy) ? (dx < 0 ? 2 : 3) : (dy < 0 ? 0 : 1);
                     if (partHover < 0) partHover = p.dirs[q];
@@ -393,14 +383,14 @@ void draw_controls(ControlsView& v, float w, float h) {
             }
             if (hit && partHover < 0) partHover = p.action;
         }
-    // a click on the drawing binds the input clicked: a key or a controller input
+
     const ImVec2 cursor0 = ImGui::GetCursorScreenPos();
     ImGui::SetCursorScreenPos(org);
     ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
     ImGui::SetNextItemAllowOverlap();
     if (ImGui::InvisibleButton("##drawing", ImVec2(w, h)) && partHover >= 0 && v.cap_action < 0) v.start_action = partHover, v.start_col = kColAny;
     ImGui::PopItemFlag();
-    // chips: invisible buttons in callout order (left column, then right), so navigation reaches all of them
+
     struct ChipItem { int action, col; ImVec2 a, b; bool hovered, focused; };
     std::vector<ChipItem> chips;
     for (int side = 0; side < 2; side++)
@@ -432,7 +422,7 @@ void draw_controls(ControlsView& v, float w, float h) {
                     chips.push_back(ch);
                 }
         }
-    // (the drawing's button comes first: the chips on top of it take the mouse)
+
     if (v.hover_action < 0 && partHover >= 0) v.hover_action = partHover;
     ImGui::SetCursorScreenPos(cursor0);
     const int hover = v.hover_action;
@@ -445,13 +435,11 @@ void draw_controls(ControlsView& v, float w, float h) {
         return P.outline;
     };
 
-    // ---- column headers
     const char* heads[3] = {"Key", "Alt key", "Controller"};
     for (float x : {g.colLx, g.colRx})
         for (int c = 0; c < 3; c++)
             text_centered(dl, heads[c], ImVec2(x + (kChipX[c] + kChipW[c] / 2) * k, org.y + (kHeaderH / 2 + 2) * k), 13 * k, P.dim);
 
-    // ---- shoulder tabs (behind the body; ZL/ZR behind L/R)
     for (int pass = 0; pass < 2; pass++)
         for (auto& p : g.parts) {
             if (p.kind != kPartShoulder) continue;
@@ -462,7 +450,7 @@ void draw_controls(ControlsView& v, float w, float h) {
             dl->AddRectFilled(p.a, p.b, lit(p.action) ? P.fill : z ? P.well : P.button, 0.02f * s);
             dl->AddRect(p.a, p.b, rc, 0.02f * s, wd);
         }
-    // ---- body (a soft shadow, then the shape)
+
     if (v.pro) {
         std::vector<ImVec2> sh = g.body;
         for (auto& q : sh) q.y += 4 * k;
@@ -478,7 +466,6 @@ void draw_controls(ControlsView& v, float w, float h) {
         if (p.kind == kPartShoulder)
             text_fit(dl, p.text, p.va, p.vb, std::max(11.0f, (p.vb.y - p.va.y) * 0.62f), lit(p.action) ? P.white : P.buttonText);
 
-    // ---- GamePad screen: the hovered / captured input
     if (g.hasScreen) {
         dl->AddRectFilled(g.screenA, g.screenB, P.screen, 0.01f * s);
         dl->AddRect(g.screenA, g.screenB, P.outline, 0.01f * s, 1);
@@ -502,7 +489,6 @@ void draw_controls(ControlsView& v, float w, float h) {
         for (int q = 1; q < kPadCount; q++) padConnected |= v.pad[q] > 0.05f;
     for (ImVec2 c : g.leds) dl->AddCircleFilled(c, 0.006f * s, padConnected ? P.accent : P.well);
 
-    // ---- leader lines (under the buttons)
     for (auto& gr : g.groups) {
         if (!gr.leader) continue;
         bool h1 = false, warn = false;
@@ -518,7 +504,6 @@ void draw_controls(ControlsView& v, float w, float h) {
         dl->AddCircleFilled(gr.anchor, 2.5f, h1 ? P.accent : P.leader);
     }
 
-    // ---- buttons and sticks
     const float bf = std::max(11.0f, 0.024f * s);
     for (auto& p : g.parts) {
         float wd;
@@ -543,7 +528,7 @@ void draw_controls(ControlsView& v, float w, float h) {
                           : has_conflict(m, a) ? P.warn : P.outline;
                 triangle(dl, ImVec2(p.c.x + std::cos(ang[q]) * r0, p.c.y + std::sin(ang[q]) * r0), ang[q], p.R * 0.14f, c);
             }
-            // cap, moved by the stick's deflection
+
             float dx = v.stick[p.stick][0], dy = -v.stick[p.stick][1];
             float len = std::hypot(dx, dy);
             if (len > 1) dx /= len, dy /= len;
@@ -558,7 +543,7 @@ void draw_controls(ControlsView& v, float w, float h) {
                           lit(p.action) ? P.white : P.buttonText);
         }
     }
-    // d-pad cross
+
     {
         float W = 0;
         ImVec2 c;
@@ -578,12 +563,11 @@ void draw_controls(ControlsView& v, float w, float h) {
                 triangle(dl, ImVec2((p.a.x + p.b.x) / 2, (p.a.y + p.b.y) / 2), ang[p.dirs[0]], W * 0.22f,
                          lit(p.action) ? P.white : P.outline);
             }
-        // cover the inner seams of the arms' outlines
+
         dl->AddRectFilled(ImVec2(c.x - W / 2 + 0.6f, c.y - W / 2 - 1.5f), ImVec2(c.x + W / 2 - 0.6f, c.y + W / 2 + 1.5f), P.button);
         dl->AddRectFilled(ImVec2(c.x - W / 2 - 1.5f, c.y - W / 2 + 0.6f), ImVec2(c.x + W / 2 + 1.5f, c.y + W / 2 - 0.6f), P.button);
     }
 
-    // ---- callouts
     int hoverCode = -1;
     bool hoverPad = false;
     if (v.hover_action >= 0 && v.hover_col >= 0) {
@@ -620,7 +604,7 @@ void draw_controls(ControlsView& v, float w, float h) {
         const bool twin = bound && !hovered && hoverCode >= 0 && hoverPad == isPad && hoverCode == code;
         const float rad = isPad ? (ch.b.y - ch.a.y) / 2 : 4 * k;
         const float fs = 13.5f * k;
-        if (ch.focused)  // keyboard / controller cursor, as ImGui's own (gold)
+        if (ch.focused)
             dl->AddRect(ImVec2(ch.a.x - 3, ch.a.y - 3), ImVec2(ch.b.x + 3, ch.b.y + 3), ImGui::GetColorU32(ImGuiCol_NavCursor), rad + 3, 2.0f);
         if (!bound && !capturing) {
             dashed_rect(dl, ch.a, ch.b, hovered ? P.accent : P.boxEdge);
@@ -639,4 +623,4 @@ void draw_controls(ControlsView& v, float w, float h) {
     ImGui::Dummy(ImVec2(w, 0));
 }
 
-}  // namespace overlay
+}

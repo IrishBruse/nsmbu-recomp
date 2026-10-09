@@ -53,15 +53,13 @@ import zlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Windows embeddable Python runs in isolated mode: it does not add the script
-# directory to sys.path. Resolve shipped sibling modules explicitly.
+
 sys.path.insert(0, HERE)
-import code_mods  # noqa: E402
+import code_mods
 PKG = os.path.normpath(os.path.join(HERE, "..", ".."))
-# Portable release (portable.txt in the release folder): everything setup and the game create stays
-# in <release folder>/data. Without the marker: the per-user locations of earlier releases.
+
 PORTABLE = os.path.isfile(os.path.join(PKG, "portable.txt"))
-# no __pycache__ anywhere (Apple's Python would put it under ~/Library/Caches)
+
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 IS_MAC = sys.platform == "darwin"
@@ -74,22 +72,15 @@ TITLE_IDS = {
     "0005000010143600": "Europe",
     "0005000010143400": "Japan",
 }
-# The builds of the game the port can be made from (tools/recomp/builds.py): the USA build is the
-# canonical one, every other is translated through its own address map (tools/recomp/builds/*.json).
+
 sys.path.insert(0, os.path.join(PKG, "tools", "recomp"))
-import builds as game_builds  # noqa: E402
+import builds as game_builds
 SUPPORTED_BUILDS = {b.title_id: b for b in game_builds.all_builds()}
 SUPPORTED_TITLE = game_builds.canonical_build().title_id
-# The translated code (tools/recomp, the hooks in tools/recomp/hooks*.txt, the runtime) is made for
-# the code of version 0 of the game: the disc and eShop release. An update (0005000E-...) brings
-# other code, and its data files go with that code.
-SUPPORTED_VERSION = 0
-# Every build is identified by the SHA-256 of its code/red-pro2.rpx (builds.py). A checksum only: it
-# identifies the file the port is built from and contains nothing of it (64 hex digits;
-# tools/release/guard.py flags only 32-digit, key-shaped strings). Every source is checked before
-# the code is translated (check_game_version).
-SUPPORTED_RPX_SHA256 = game_builds.canonical_build().sha256
 
+SUPPORTED_VERSION = 0
+
+SUPPORTED_RPX_SHA256 = game_builds.canonical_build().sha256
 
 def supported_titles_text():
     return " or ".join("%s-%s (%s)" % (b.title_id[:8].upper(), b.title_id[8:].upper(), b.name)
@@ -106,14 +97,8 @@ EXTRACT_ERRORS = {
     10: "wrong_title",
 }
 
-
 class SetupError(Exception):
     pass
-
-
-# ---------------------------------------------------------------------------------------------
-# output and logging
-
 
 class Log:
     def __init__(self):
@@ -130,9 +115,7 @@ class Log:
             self.f.write(text.rstrip("\n") + "\n")
             self.f.flush()
 
-
 LOG = Log()
-
 
 class Protocol:
     """--gui-protocol: one JSON object per line on stdout (events), requests as JSON lines on stdin.
@@ -148,9 +131,7 @@ class Protocol:
             self.out.write(line + "\n")
             self.out.flush()
 
-
-GUI = None  # Protocol when running under the graphical installer
-
+GUI = None
 
 def say(text=""):
     if GUI:
@@ -159,7 +140,6 @@ def say(text=""):
         print(text, flush=True)
     LOG.write(text)
 
-
 def step(n, total, text, sid=""):
     if GUI:
         GUI.emit({"event": "step", "n": n, "total": total, "title": text, "id": sid})
@@ -167,7 +147,6 @@ def step(n, total, text, sid=""):
         return
     say("")
     say("[%d/%d] %s" % (n, total, text))
-
 
 class Progress:
     """One updating line: '  label  [#####.....]  42%  detail'."""
@@ -202,13 +181,11 @@ class Progress:
             sys.stdout.flush()
         LOG.write("  %s done %s" % (self.label, detail))
 
-
 def human(n):
     for unit in ("bytes", "KB", "MB", "GB"):
         if n < 1024 or unit == "GB":
             return ("%d %s" % (n, unit)) if unit == "bytes" else ("%.1f %s" % (n, unit))
         n /= 1024.0
-
 
 def run_logged(cmd, cwd=None, env=None, what="command"):
     """Runs a command with its output going to the log; raises SetupError with the output tail."""
@@ -220,11 +197,6 @@ def run_logged(cmd, cwd=None, env=None, what="command"):
         tail = "\n".join(out.strip().splitlines()[-25:])
         raise SetupError("%s failed (exit code %d):\n%s" % (what, p.returncode, tail))
     return out
-
-
-# ---------------------------------------------------------------------------------------------
-# user interaction
-
 
 class UI:
     def __init__(self, interactive):
@@ -287,15 +259,13 @@ class UI:
                 return p
             say("  Not found: %s" % (p or "(nothing entered)"))
 
-
 def clean_path(s):
     s = s.strip()
     if len(s) >= 2 and s[0] == s[-1] and s[0] in "'\"":
         s = s[1:-1]
     elif not IS_WIN:
-        s = re.sub(r"\\(.)", r"\1", s)  # drag and drop in macOS/Linux terminals escapes spaces
+        s = re.sub(r"\\(.)", r"\1", s)
     return os.path.abspath(os.path.expanduser(s)) if s else ""
-
 
 def native_dialog(title, folder, filetypes):
     if os.environ.get("NSMBU_SETUP_NO_DIALOGS"):
@@ -324,16 +294,10 @@ def native_dialog(title, folder, filetypes):
     except OSError:
         return None
 
-
-# ---------------------------------------------------------------------------------------------
-# Windows: dialogs and shortcuts through the Windows API (ctypes)
-
-
 def _win_com():
     import ctypes
-    ctypes.windll.ole32.CoInitializeEx(None, 2)  # COINIT_APARTMENTTHREADED (dialogs and shell objects need STA)
+    ctypes.windll.ole32.CoInitializeEx(None, 2)
     return ctypes
-
 
 def win_file_dialog(title, filetypes):
     """The standard Open dialog (GetOpenFileNameW). Returns the chosen file or None."""
@@ -350,7 +314,6 @@ def win_file_dialog(title, filetypes):
                     ("lCustData", wintypes.LPARAM), ("lpfnHook", ctypes.c_void_p), ("lpTemplateName", wintypes.LPCWSTR),
                     ("pvReserved", ctypes.c_void_p), ("dwReserved", wintypes.DWORD), ("FlagsEx", wintypes.DWORD)]
 
-    # "name\0pattern\0...\0\0", the same filters the dialog had before ("All files" last)
     flt = ctypes.create_unicode_buffer("".join("%s\0%s\0" % (n, p) for n, p in (filetypes or [])) +
                                        "All files (*.*)\0*.*\0\0")
     buf = ctypes.create_unicode_buffer(32768)
@@ -361,12 +324,11 @@ def win_file_dialog(title, filetypes):
     ofn.lpstrFile = ctypes.cast(buf, wintypes.LPWSTR)
     ofn.nMaxFile = len(buf)
     ofn.lpstrTitle = title
-    ofn.Flags = 0x00080000 | 0x00001000 | 0x00000800 | 0x00000008  # EXPLORER | FILEMUSTEXIST | PATHMUSTEXIST | NOCHANGEDIR
+    ofn.Flags = 0x00080000 | 0x00001000 | 0x00000800 | 0x00000008
     get = ctypes.windll.comdlg32.GetOpenFileNameW
     get.argtypes = [ctypes.POINTER(OPENFILENAMEW)]
     get.restype = wintypes.BOOL
     return buf.value if get(ctypes.byref(ofn)) and buf.value else None
-
 
 def win_folder_dialog(title):
     """The standard folder picker (SHBrowseForFolderW). Returns the chosen folder or None."""
@@ -388,7 +350,7 @@ def win_folder_dialog(title):
     bi = BROWSEINFOW()
     bi.pszDisplayName = ctypes.cast(name, wintypes.LPWSTR)
     bi.lpszTitle = title
-    bi.ulFlags = 0x0001 | 0x0040  # BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE (resizable, "Make New Folder")
+    bi.ulFlags = 0x0001 | 0x0040
     pidl = shell32.SHBrowseForFolderW(ctypes.byref(bi))
     if not pidl:
         return None
@@ -397,7 +359,6 @@ def win_folder_dialog(title):
     ctypes.windll.ole32.CoTaskMemFree(pidl)
     return path.value if ok and path.value else None
 
-
 def win_known_folder(csidl):
     """A shell folder (SHGetFolderPathW): 0x02 the Start menu's Programs, 0x10 the Desktop."""
     import ctypes
@@ -405,7 +366,6 @@ def win_known_folder(csidl):
     if ctypes.windll.shell32.SHGetFolderPathW(None, csidl, None, 0, buf) != 0 or not buf.value:
         raise OSError("SHGetFolderPathW(0x%x) failed" % csidl)
     return buf.value
-
 
 def win_shortcut(link, target, arguments="", workdir="", icon=""):
     """Writes a Windows shortcut (.lnk) with the shell's ShellLink object (IShellLinkW + IPersistFile)."""
@@ -416,7 +376,7 @@ def win_shortcut(link, target, arguments="", workdir="", icon=""):
     def guid(s):
         return (ctypes.c_ubyte * 16).from_buffer_copy(uuid.UUID(s).bytes_le)
 
-    def method(obj, index, *argtypes):  # a COM method by its vtable slot; HRESULT failures raise OSError
+    def method(obj, index, *argtypes):
         vtbl = ctypes.cast(ctypes.cast(obj, ctypes.POINTER(ctypes.c_void_p))[0], ctypes.POINTER(ctypes.c_void_p))
         return lambda *a: ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, *argtypes)(vtbl[index])(obj, *a)
 
@@ -430,26 +390,21 @@ def win_shortcut(link, target, arguments="", workdir="", icon=""):
     create = ctypes.windll.ole32.CoCreateInstance
     create.restype = ctypes.HRESULT
     sl, pf = ctypes.c_void_p(), ctypes.c_void_p()
-    create(ctypes.byref(clsid_shell_link), None, 1, ctypes.byref(iid_shell_link_w), ctypes.byref(sl))  # INPROC_SERVER
+    create(ctypes.byref(clsid_shell_link), None, 1, ctypes.byref(iid_shell_link_w), ctypes.byref(sl))
     try:
-        method(sl, 20, wintypes.LPCWSTR)(target)                     # IShellLinkW::SetPath
-        method(sl, 11, wintypes.LPCWSTR)(arguments)                  # SetArguments
-        method(sl, 9, wintypes.LPCWSTR)(workdir)                     # SetWorkingDirectory
+        method(sl, 20, wintypes.LPCWSTR)(target)
+        method(sl, 11, wintypes.LPCWSTR)(arguments)
+        method(sl, 9, wintypes.LPCWSTR)(workdir)
         if icon:
-            method(sl, 17, wintypes.LPCWSTR, ctypes.c_int)(icon, 0)  # SetIconLocation
-        method(sl, 0, ctypes.c_void_p, ctypes.c_void_p)(ctypes.byref(iid_persist_file), ctypes.byref(pf))  # QueryInterface
+            method(sl, 17, wintypes.LPCWSTR, ctypes.c_int)(icon, 0)
+        method(sl, 0, ctypes.c_void_p, ctypes.c_void_p)(ctypes.byref(iid_persist_file), ctypes.byref(pf))
         try:
-            method(pf, 6, wintypes.LPCWSTR, wintypes.BOOL)(link, True)  # IPersistFile::Save
+            method(pf, 6, wintypes.LPCWSTR, wintypes.BOOL)(link, True)
         finally:
             release(pf)
     finally:
         release(sl)
     return link
-
-
-# ---------------------------------------------------------------------------------------------
-# keys (kept in memory only; handed to nsmbu-extract over stdin)
-
 
 def parse_key(data):
     """16 raw bytes, or 32 hex digits (whitespace, an optional 0x and dashes ignored). None if malformed."""
@@ -467,7 +422,6 @@ def parse_key(data):
         return None
     return bytes.fromhex(h)
 
-
 def read_key_file(path):
     try:
         if os.path.getsize(path) > 4096:
@@ -477,7 +431,6 @@ def read_key_file(path):
     except OSError:
         return None
 
-
 class Keys:
     def __init__(self):
         self.disc = None
@@ -485,7 +438,6 @@ class Keys:
 
     def stdin_blob(self):
         return ("disc %s\ncommon %s\n" % (self.disc.hex(), self.common.hex())).encode()
-
 
 def ask_key(ui, what, hint):
     """Asks for a key file or a pasted key; returns 16 bytes."""
@@ -504,16 +456,10 @@ def ask_key(ui, what, hint):
                 return k
             say("  That is not a key: it must be 32 hex digits (0-9, a-f).")
 
-
-# ---------------------------------------------------------------------------------------------
-# locations
-
-
 def default_data_dir():
     if PORTABLE:
         return os.path.join(PKG, "data")
     return legacy_data_dir()
-
 
 def legacy_data_dir():
     """Where releases before 0.2 installed (and where a non-portable setup still does)."""
@@ -524,26 +470,18 @@ def legacy_data_dir():
     base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
     return os.path.join(base, "nsmbu")
 
-
 def free_space(path):
     while not os.path.exists(path):
         path = os.path.dirname(path)
     return shutil.disk_usage(path).free
 
-
-# ---------------------------------------------------------------------------------------------
-# toolchains
-
-
 class Toolchain:
     def __init__(self, cc, cxx, ar, env=None, rsp=False, desc=""):
         self.cc, self.cxx, self.ar, self.env, self.rsp, self.desc = cc, cxx, ar, env, rsp, desc
 
-
 def load_toolchains():
     with open(os.path.join(HERE, "toolchains.json")) as f:
         return json.load(f)
-
 
 def download(url, dst, sha256, size_hint, label):
     """Downloads url to dst with a progress bar and checks the SHA-256 before keeping it."""
@@ -573,7 +511,6 @@ def download(url, dst, sha256, size_hint, label):
                          "Run setup again; if this repeats, report it." % url)
     os.replace(tmp, dst)
 
-
 def ensure_xcode_clt(ui):
     def ok():
         try:
@@ -597,7 +534,6 @@ def ensure_xcode_clt(ui):
         time.sleep(5)
     say("  Command Line Tools installed.")
 
-
 def get_toolchain(name, data_dir, ui):
     tcs = load_toolchains()["toolchains"]
     if name not in tcs:
@@ -611,7 +547,7 @@ def get_toolchain(name, data_dir, ui):
     os.makedirs(root, exist_ok=True)
     tdir = os.path.join(root, tc["dir"])
     marker = os.path.join(tdir, ".nsmbu-toolchain")
-    if os.environ.get("NSMBU_TOOLCHAIN_DIR"):  # CI: a toolchain already unpacked from the same pinned archive
+    if os.environ.get("NSMBU_TOOLCHAIN_DIR"):
         tdir = os.environ["NSMBU_TOOLCHAIN_DIR"]
     elif not (os.path.isfile(marker) and open(marker).read().strip() == tc["sha256"]):
         need = tc.get("size", 0) * 6
@@ -653,17 +589,11 @@ def get_toolchain(name, data_dir, ui):
         return Toolchain([z, "cc"] + t, [z, "c++"] + t, [z, "ar"], env=env, desc="zig " + tc["dir"])
     raise SetupError("unsupported toolchain kind %r" % kind)
 
-
-# ---------------------------------------------------------------------------------------------
-# game files
-
-
 def extractor():
     p = os.path.join(PKG, "tools", "bin", "nsmbu-extract" + EXE_SUFFIX)
     if not os.path.isfile(p):
         raise SetupError("tools/bin/nsmbu-extract%s is missing from this release folder (incomplete download?)" % EXE_SUFFIX)
     return p
-
 
 def disc_info(image, keys):
     p = subprocess.run([extractor(), "--keys-stdin", "info", image], input=keys.stdin_blob(), stdout=subprocess.PIPE,
@@ -678,7 +608,6 @@ def disc_info(image, keys):
         info[k] = v
     return None, "", info
 
-
 def check_title(title_id):
     """Raises SetupError unless this is a version of the game the port can be built from."""
     if title_id in SUPPORTED_BUILDS:
@@ -688,7 +617,6 @@ def check_title(title_id):
         raise SetupError("this is the %s version of New Super Mario Bros. U (title %s). The port can be built from %s."
                          % (region, title_id, supported_titles_text()))
     raise SetupError("this disc is not New Super Mario Bros. U (title id %s)" % title_id)
-
 
 def title_desc(tid, version=None):
     """'New Super Mario Bros. U (USA), version 0', 'the update for New Super Mario Bros. U (USA), version 16', ..."""
@@ -703,9 +631,7 @@ def title_desc(tid, version=None):
         return "downloadable content for %s%s" % (name, v)
     return name + v
 
-
-_ANY_SUPPORTED = object()   # archive_info: "whichever supported build the archive holds"
-
+_ANY_SUPPORTED = object()
 
 def archive_info(path, title=_ANY_SUPPORTED):
     """nsmbu-extract info on a Cemu archive, asking for a title (by default: whichever supported build
@@ -714,11 +640,10 @@ def archive_info(path, title=_ANY_SUPPORTED):
     info: {"titles": [{id, version, folder, files, bytes}], "selected", "title_id", "version", "files", "bytes"}
     (also for problem "wrong_title": what the archive does contain)."""
     if title is _ANY_SUPPORTED:
-        # which build is in there (one pass that only lists), then ask for that one
+
         _, _, listed = _archive_info_one(path, None)
         title = next((t["id"] for t in listed.get("titles", []) if t["id"] in SUPPORTED_BUILDS), SUPPORTED_TITLE)
     return _archive_info_one(path, title)
-
 
 def _archive_info_one(path, title):
     p = subprocess.run([extractor()] + (["--title", title] if title else []) + ["info", path], stdin=subprocess.DEVNULL,
@@ -740,7 +665,6 @@ def _archive_info_one(path, title):
     if info.get("format") != "wua":
         return "image_bad", "not a Cemu Wii U archive", info
     return None, "", info
-
 
 def archive_choice(info):
     """Which title of a Cemu archive the port uses, and why. Returns (folder, notes) or raises SetupError
@@ -778,7 +702,6 @@ def archive_choice(info):
             notes.append("Not used: %s (%s), not needed for this game." % (title_desc(t["id"], t["version"]), t["folder"]))
     return info["selected"], notes
 
-
 def game_folder_title(path):
     meta = os.path.join(path, "meta", "meta.xml")
     try:
@@ -787,7 +710,6 @@ def game_folder_title(path):
         return m.group(1).decode().lower() if m else None
     except OSError:
         return None
-
 
 def code_title_version(path):
     """(title id, title version) from code/app.xml (the code's own metadata), else from meta/meta.xml;
@@ -808,7 +730,6 @@ def code_title_version(path):
             return (tid.group(1).decode().lower() if tid else None), v
     return None, None
 
-
 def file_sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -816,12 +737,10 @@ def file_sha256(path):
             h.update(chunk)
     return h.hexdigest()
 
-
 GAME_VERSION_FIX = ("Use the game's own files: a disc image (.wud/.wux), a Cemu archive (.wua; setup takes the game from it "
                     "and leaves an update out), or the game's folder exactly as dumped (in Cemu: "
                     "mlc01/usr/title/00050000/10143500 for the USA game, 10143600 for the European one; not the "
                     "update in 0005000e/...), without update files copied over it.")
-
 
 def check_game_version(path):
     """The build of the game in `path` (tools/recomp/builds.py), or SetupError if it is not one the
@@ -851,11 +770,9 @@ def check_game_version(path):
     raise SetupError("%s. The port needs New Super Mario Bros. U, %s, version 0 (the disc or eShop release, without the "
                      "update). %s" % (found, supported_titles_text(), GAME_VERSION_FIX))
 
-
 def valid_game_folder(path):
     return (os.path.isfile(os.path.join(path, "code", "red-pro2.rpx")) and os.path.isdir(os.path.join(path, "content"))
             and os.path.isfile(os.path.join(path, "meta", "meta.xml")))
-
 
 def folder_size(path):
     total = 0
@@ -866,7 +783,6 @@ def folder_size(path):
             except OSError:
                 pass
     return total
-
 
 def get_disc_keys(image, ui, args):
     keys = Keys()
@@ -917,7 +833,6 @@ def get_disc_keys(image, ui, args):
         else:
             raise SetupError("cannot read the disc image: %s" % err)
 
-
 def extract_game(image, keys, info, data_dir, title=None):
     """Extracts a disc image (keys) or one title folder of a Cemu archive (title, no keys) into data_dir/game."""
     dst = os.path.join(data_dir, "game")
@@ -933,10 +848,9 @@ def extract_game(image, keys, info, data_dir, title=None):
     try:
         check_game_version(tmp)
     except SetupError:
-        shutil.rmtree(tmp, ignore_errors=True)  # keeps the game files of an earlier setup
+        shutil.rmtree(tmp, ignore_errors=True)
         raise
     replace_dir(tmp, dst)
-
 
 def run_extract(image, keys, out, title=None, only=None):
     """nsmbu-extract into out: a disc image (keys) or one title of a Cemu archive (title, no keys);
@@ -959,9 +873,9 @@ def run_extract(image, keys, out, title=None, only=None):
     what, verifying = "", False
     for line in p.stdout:
         parts = line.decode().split()
-        if parts == ["phase", "verify"]:  # an archive: its SHA-256 is checked before anything is written
+        if parts == ["phase", "verify"]:
             pr, verifying = Progress("checking the archive"), True
-            what = "checking the archive: " if GUI else ""  # the window shows only the detail text
+            what = "checking the archive: " if GUI else ""
         elif parts == ["phase", "extract"]:
             if verifying:
                 pr.done()
@@ -976,7 +890,6 @@ def run_extract(image, keys, out, title=None, only=None):
         shutil.rmtree(out, ignore_errors=True)
         raise SetupError("extracting the game failed: %s" % err)
     pr.done()
-
 
 def copy_game_folder(src, data_dir):
     dst = os.path.join(data_dir, "game")
@@ -1000,7 +913,6 @@ def copy_game_folder(src, data_dir):
     pr.done()
     replace_dir(tmp, dst)
 
-
 def replace_dir(new, dst):
     old = dst + ".old"
     shutil.rmtree(old, ignore_errors=True)
@@ -1009,20 +921,9 @@ def replace_dir(new, dst):
     os.replace(new, dst)
     shutil.rmtree(old, ignore_errors=True)
 
-
-# ---------------------------------------------------------------------------------------------
-# language sources (experimental; docs/language-packs.md)
-#
-# The USA game code with the text, fonts and localised 2D layouts of the player's own European or
-# Japanese game: the game picks its 2D pack (content/Common/Pack/permanent_2d_<Region><Language>.pack:
-# every message, the fonts and the layouts) by the console language and region, and the runtime can
-# give it the European or Japanese ones (runtime/src/game_languages.h). Only those packs (and the
-# disc's meta.xml, for its title id) are taken from the second game, into data/game-lang/<EU|JP>.
-# The second game's code is never used. Tested with the European game; untested with the Japanese one.
-
 LANGUAGE_SOURCE_TITLES = {"0005000010143600": "EU", "0005000010143400": "JP"}
 LANGUAGE_SOURCE_FILES = ["content/Common/Pack/permanent_2d_*.pack", "meta/meta.xml"]
-# the packs the game knows per region (red-pro2.rpx, 0x1048DD4C) and their languages
+
 LANGUAGE_PACKS = {
     "EU": {"permanent_2d_euenglish.pack": "English", "permanent_2d_eufrench.pack": "French",
            "permanent_2d_eugerman.pack": "German", "permanent_2d_euitalian.pack": "Italian",
@@ -1032,10 +933,8 @@ LANGUAGE_PACKS = {
 LANGUAGE_REGION_NAMES = {"EU": "Europe", "JP": "Japan"}
 LANGUAGE_SOURCE_MANIFEST = "language-source.json"
 
-
 def language_root(data_dir):
     return os.path.join(data_dir, "game-lang")
-
 
 def language_source_region(title_id):
     """EU or JP for the title id of a European or Japanese game; SetupError (why it can't be used) otherwise."""
@@ -1051,7 +950,6 @@ def language_source_region(title_id):
     raise SetupError("this is not the European or Japanese version of New Super Mario Bros. U (title %s); a language source "
                      "is title 00050000-10143600 (Europe) or 00050000-10143400 (Japan)" % (tid or "unknown"))
 
-
 def find_dir_nocase(base, *parts):
     """base/part/... matched without case (a disc's spelling on any host); None if a part is missing."""
     at = base
@@ -1066,7 +964,6 @@ def find_dir_nocase(base, *parts):
         at = os.path.join(at, sorted(hit)[0])
     return at
 
-
 def language_files_in(folder):
     """The language packs in an extracted game folder: [(file name, path)], any case."""
     pack = find_dir_nocase(folder, "content", "Common", "Pack")
@@ -1074,7 +971,6 @@ def language_files_in(folder):
         return []
     return sorted((n, os.path.join(pack, n)) for n in os.listdir(pack)
                   if re.match(r"permanent_2d_.*\.pack$", n, re.I) and os.path.isfile(os.path.join(pack, n)))
-
 
 def finish_language_source(tmp, region, title_id, source_name, data_dir):
     """Checks the packs taken into tmp (an extracted folder), writes its manifest and moves it to
@@ -1084,7 +980,7 @@ def finish_language_source(tmp, region, title_id, source_name, data_dir):
     for name, path in language_files_in(tmp):
         if name.lower() not in known:
             ignored.append(name)
-            os.remove(path)  # only the packs the game can load are kept
+            os.remove(path)
             continue
         with open(path, "rb") as f:
             head = f.read(4)
@@ -1110,7 +1006,6 @@ def finish_language_source(tmp, region, title_id, source_name, data_dir):
     LOG.write("language source %s from %s: %s" % (region, source_name, ", ".join(p["file"] for p in packs)))
     return manifest
 
-
 def language_sources(data_dir):
     """The installed language sources: [manifest] (with "dir")."""
     out = []
@@ -1126,7 +1021,6 @@ def language_sources(data_dir):
         out.append(m)
     return out
 
-
 def remove_language_source(data_dir, region):
     region = (region or "").upper()
     if region not in LANGUAGE_PACKS:
@@ -1137,14 +1031,12 @@ def remove_language_source(data_dir, region):
     shutil.rmtree(d)
     return d
 
-
 def installed_build(game_dir):
     """The build the installed game files are, or None when nothing is installed yet."""
     try:
         return game_builds.by_sha256(file_sha256(os.path.join(game_dir, "code", "red-pro2.rpx")))
     except OSError:
         return None
-
 
 def check_language_source_allowed(game_dir):
     """A language source lends the text of a European or Japanese game to the USA game's code
@@ -1156,7 +1048,6 @@ def check_language_source_allowed(game_dir):
     raise SetupError("the installed game is the %s build, which has its own languages; a language source is only "
                      "for the USA build (docs/language-packs.md). Choose the language in the game's settings "
                      "(F1) > Language instead." % build.name)
-
 
 def add_language_source(source, data_dir, keys=None, info=None, game_dir=None):
     """Takes the language packs of a European or Japanese game: source ("image", path) with keys and
@@ -1183,7 +1074,7 @@ def add_language_source(source, data_dir, keys=None, info=None, game_dir=None):
         if not titles:
             found = ", ".join("%s (%s)" % (title_desc(t["id"], t["version"]), t["folder"]) for t in ainfo.get("titles", []))
             for t in ainfo.get("titles", []):
-                language_source_region(t["id"])  # raises with the reason (the USA game, an update...)
+                language_source_region(t["id"])
             raise SetupError("this archive contains no European or Japanese NSMBU (it contains: %s)"
                              % (found or "no Wii U titles"))
         out = []
@@ -1196,7 +1087,7 @@ def add_language_source(source, data_dir, keys=None, info=None, game_dir=None):
         return out
     if kind == "folder":
         folder = path
-        if not os.path.isfile(os.path.join(folder, "meta", "meta.xml")) and \
+        if not os.path.isfile(os.path.join(folder, "meta", "meta.xml")) and\
                 os.path.isfile(os.path.join(os.path.dirname(folder), "meta", "meta.xml")):
             folder = os.path.dirname(folder)
         tid = game_folder_title(folder) or code_title_version(folder)[0]
@@ -1218,7 +1109,6 @@ def add_language_source(source, data_dir, keys=None, info=None, game_dir=None):
         return [finish_language_source(tmp, region, tid, name, data_dir)]
     raise SetupError("unknown language source kind %r" % kind)
 
-
 def language_source_kind(path):
     if os.path.isdir(path):
         return "folder"
@@ -1227,11 +1117,6 @@ def language_source_kind(path):
     if path.lower().endswith((".wux", ".wud")):
         return "image"
     raise SetupError("choose a .wux or .wud disc image, a .wua Cemu archive or an extracted game folder")
-
-
-# ---------------------------------------------------------------------------------------------
-# build
-
 
 def recompile(game_dir, gen_dir, hooks=False):
     shutil.rmtree(gen_dir, ignore_errors=True)
@@ -1242,7 +1127,6 @@ def recompile(game_dir, gen_dir, hooks=False):
     if n == 0:
         raise SetupError("the recompiler wrote no code")
     return n
-
 
 def default_jobs():
     n = os.cpu_count() or 2
@@ -1266,25 +1150,22 @@ def default_jobs():
     except Exception:
         pass
     if mem:
-        n = min(n, max(1, int(mem / (1.5 * (1 << 30)))))  # about 1.5 GB per compiler process
+        n = min(n, max(1, int(mem / (1.5 * (1 << 30)))))
     return max(1, n)
-
 
 def sub(arg, m):
     for k, v in m.items():
         arg = arg.replace("{%s}" % k, v)
     return arg
 
-
 def fwd(p):
     return p.replace("\\", "/")
-
 
 def compile_gamecode(tc, manifest, gen_dir, obj_dir, jobs, cancel=None, progress=None):
     os.makedirs(obj_dir, exist_ok=True)
     srcs = sorted(glob.glob(os.path.join(gen_dir, "code_*.c")))
     srcs += [os.path.join(gen_dir, f) for f in ("table.c", "imports.c")]
-    srcs.sort(key=lambda s: -os.path.getsize(s))  # big files first: better use of the cores
+    srcs.sort(key=lambda s: -os.path.getsize(s))
     m = {"sdk": fwd(os.path.join(PKG, "sdk")), "gen": fwd(gen_dir)}
     flags = [sub(a, m) for a in manifest["gamecode_cflags"]]
     objs = []
@@ -1322,7 +1203,6 @@ def compile_gamecode(tc, manifest, gen_dir, obj_dir, jobs, cancel=None, progress
     pr.done("%d files" % total)
     return sorted(objs)
 
-
 def link_game(tc, manifest, objs, work, out_exe):
     lib = os.path.join(work, "libgamecode.a")
     if os.path.exists(lib):
@@ -1348,11 +1228,6 @@ def link_game(tc, manifest, objs, work, out_exe):
     run_logged(cmd, env=tc.env, what="linking the game")
     if not os.path.isfile(out_exe):
         raise SetupError("the linker produced no executable")
-
-
-# ---------------------------------------------------------------------------------------------
-# launchers
-
 
 def mac_app(app_path, exe_src, data_dir, version):
     """~/Applications/NSMBU.app: the game binary plus a launcher that points it at the data folder."""
@@ -1387,7 +1262,6 @@ def mac_app(app_path, exe_src, data_dir, version):
     os.makedirs(os.path.dirname(app_path), exist_ok=True)
     replace_dir(tmp, app_path)
 
-
 def write_guest_build_config(data_dir, tc):
     """Remember setup's real local toolchain for runtime guest builds (no shell command strings)."""
     def stored_path(path):
@@ -1395,7 +1269,7 @@ def write_guest_build_config(data_dir, tc):
             for root in (PKG, data_dir):
                 try:
                     inside = os.path.commonpath([os.path.abspath(root), path]) == os.path.abspath(root)
-                except ValueError:  # another Windows drive
+                except ValueError:
                     inside = False
                 if inside:
                     relative = os.path.relpath(path, data_dir)
@@ -1415,7 +1289,6 @@ def write_guest_build_config(data_dir, tc):
         json.dump(config, f)
     os.replace(path + ".tmp", path)
 
-
 def game_icon_png(data_dir):
     """The game's own icon (game/meta/iconTex.tga, uncompressed 32-bit) as PNG bytes, or None."""
     try:
@@ -1430,17 +1303,16 @@ def game_icon_png(data_dir):
     if not w or not h or len(d) < start + w * h * 4:
         return None
     rows = []
-    for y in range(h):  # BGRA, bottom row first unless the descriptor says top-down
+    for y in range(h):
         src = y if d[17] & 0x20 else h - 1 - y
         row = bytearray(d[start + src * w * 4:start + (src + 1) * w * 4])
-        row[0::4], row[2::4] = row[2::4], row[0::4]  # -> RGBA
+        row[0::4], row[2::4] = row[2::4], row[0::4]
         rows.append(b"\0" + bytes(row))
 
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
     return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(b"".join(rows), 9)) + chunk(b"IEND", b""))
-
 
 def write_game_icon(data_dir, ico):
     """nsmbu.ico (a PNG-compressed icon) or nsmbu.png in the data folder, from the game's own icon."""
@@ -1456,7 +1328,6 @@ def write_game_icon(data_dir, ico):
         else:
             f.write(png)
     return path
-
 
 def linux_launchers(data_dir, exe):
     play = os.path.join(data_dir, "play.sh")
@@ -1474,17 +1345,15 @@ def linux_launchers(data_dir, exe):
             f.write("Icon=%s\n" % icon)
     return play
 
-
 def windows_shortcuts(data_dir, exe):
     """Start menu and Desktop shortcuts to the built game (a failure is logged, not fatal)."""
     icon = write_game_icon(data_dir, ico=True)
-    for csidl in (0x02, 0x10):  # the Start menu's Programs, the Desktop
+    for csidl in (0x02, 0x10):
         try:
             win_shortcut(os.path.join(win_known_folder(csidl), APP_NAME + ".lnk"), exe, "--game game --save save",
                          data_dir, icon or "")
         except (OSError, AttributeError, ValueError) as e:
             LOG.write("shortcut not created (folder 0x%x): %s" % (csidl, e))
-
 
 def launch(state, data_dir):
     say("")
@@ -1495,17 +1364,11 @@ def launch(state, data_dir):
     exe = state["exe"]
     args = [exe, "--game", state.get("game_dir") or os.path.join(data_dir, "game"), "--save", os.path.join(data_dir, "save")]
     if IS_WIN:
-        subprocess.Popen(args, cwd=data_dir, creationflags=0x00000008 | 0x00000200)  # DETACHED_PROCESS | NEW_GROUP
+        subprocess.Popen(args, cwd=data_dir, creationflags=0x00000008 | 0x00000200)
     else:
         subprocess.Popen(args, cwd=data_dir, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-
-# ---------------------------------------------------------------------------------------------
-# portable release: the launcher, an optional shortcut, the compiler download
-
-
 LAUNCHER = {"darwin": "NSMBU.app", "win32": "NSMBU.exe"}.get(sys.platform, "nsmbu-launcher")
-
 
 def create_shortcut():
     """Optional (portable release): a shortcut to the release folder's launcher. Returns its path."""
@@ -1536,10 +1399,8 @@ def create_shortcut():
     say("  Shortcut: %s" % link)
     return link
 
-
 def toolchain_dir(data_dir):
     return os.path.join(data_dir, "toolchain")
-
 
 def remove_toolchain(data_dir):
     """Deletes the downloaded compiler (repair and guest mod builds need setup to restore it)."""
@@ -1549,19 +1410,12 @@ def remove_toolchain(data_dir):
     say("  Removed the downloaded compiler (%s)" % human(n))
     return n
 
-
-# ---------------------------------------------------------------------------------------------
-# saves
-
-
 def save_user_dir(data_dir):
     return os.path.join(data_dir, "save", "user")
-
 
 def have_save(data_dir):
     user = save_user_dir(data_dir)
     return os.path.isfile(os.path.join(user, "cking.sav"))
-
 
 def import_save(kind, path, data_dir, replace=False):
     """Copies a Wii U save (a folder with cking.sav, or cking.sav itself) into save/user/. An existing
@@ -1596,7 +1450,6 @@ def import_save(kind, path, data_dir, replace=False):
     say("  " + msg)
     return msg
 
-
 def legacy_config_dirs():
     """Settings folders the game used before portable releases (and still uses in source builds)."""
     if IS_MAC:
@@ -1606,9 +1459,7 @@ def legacy_config_dirs():
         return [os.path.join(os.environ.get("APPDATA", ""), "NSMBU")]
     return [os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "nsmbu")]
 
-
 SETTINGS_ITEMS = ["controls.json", "settings.ini", "display.plist", "states", "shadercache"]
-
 
 def import_sources(path=None):
     """(save folder or None, [(source, name)] settings items) of an earlier installation (path=None)
@@ -1633,7 +1484,6 @@ def import_sources(path=None):
     has_save = os.path.isfile(os.path.join(save, "cking.sav"))
     return (save if has_save else None), items
 
-
 def import_existing(data_dir, path=None, replace=False):
     """Copies (never moves) saves and settings of an earlier installation or another release folder."""
     if path and os.path.realpath(path) in (os.path.realpath(PKG), os.path.realpath(data_dir)):
@@ -1650,7 +1500,7 @@ def import_existing(data_dir, path=None, replace=False):
     for src, name in items:
         dst = os.path.join(user, name)
         if os.path.exists(dst):
-            continue  # this folder's own settings win
+            continue
         if os.path.isdir(src):
             shutil.copytree(src, dst)
         else:
@@ -1660,7 +1510,6 @@ def import_existing(data_dir, path=None, replace=False):
         msgs.append("Copied settings: %s" % ", ".join(copied))
         say("  Copied settings to %s: %s" % (user, ", ".join(copied)))
     return "; ".join(msgs)
-
 
 def maybe_import_save(ui, data_dir):
     """Offers to copy an existing save into the port's save folder; never overwrites without asking."""
@@ -1689,11 +1538,6 @@ def maybe_import_save(ui, data_dir):
     except SetupError as e:
         say("  Save not imported: %s (you can copy it to %s later)" % (e, user))
 
-
-# ---------------------------------------------------------------------------------------------
-# main flow
-
-
 def load_manifest():
     p = os.path.join(PKG, "sdk", "manifest.json")
     if not os.path.isfile(p):
@@ -1709,17 +1553,14 @@ def load_manifest():
                          % (m["platform"], host_arch(), "linux-" + host_arch()))
     return m
 
-
 def normalize_arch(a):
     a = a.lower()
     return {"amd64": "x86_64", "x64": "x86_64", "arm64": "aarch64"}.get(a, a)
-
 
 def host_arch():
     """x86_64 or aarch64 (uname -m), which picks the Linux release, its pinned zig and Python."""
     import platform
     return normalize_arch(platform.machine())
-
 
 def read_state(data_dir):
     try:
@@ -1728,7 +1569,6 @@ def read_state(data_dir):
     except (OSError, ValueError):
         return {}
 
-
 def rel_to_data(path, data_dir):
     """Portable release: paths inside the data folder are stored relative to it, so the release folder
     can be moved or renamed; paths outside (an extracted game folder used in place) stay absolute."""
@@ -1736,14 +1576,12 @@ def rel_to_data(path, data_dir):
         return path
     try:
         rel = os.path.relpath(path, data_dir)
-    except ValueError:  # another drive (Windows)
+    except ValueError:
         return path
     return path if rel.startswith("..") else rel.replace(os.sep, "/")
 
-
 def abs_from_data(path, data_dir):
     return os.path.normpath(path if not path or os.path.isabs(path) else os.path.join(data_dir, path))
-
 
 def resolved_state(state, data_dir):
     st = dict(state)
@@ -1752,17 +1590,15 @@ def resolved_state(state, data_dir):
             st[k] = abs_from_data(st[k], data_dir)
     return st
 
-
 def write_state(data_dir, state):
     st = dict(state)
     for k in ("exe", "game_dir", "data_dir"):
         if st.get(k):
             st[k] = rel_to_data(st[k], data_dir)
     if PORTABLE:
-        st.pop("data_dir", None)  # it is where install.json is
+        st.pop("data_dir", None)
     with open(os.path.join(data_dir, "install.json"), "w") as f:
         json.dump(st, f, indent=1)
-
 
 class Ctx:
     """What one setup run works with (paths, the release, the options)."""
@@ -1786,7 +1622,6 @@ class Ctx:
         st = self.state()
         return bool(st) and os.path.isfile(st.get("exe", "")) and valid_game_folder(self.game_dir)
 
-
 STEP_TITLES = {
     "keys": "Checking the disc image and keys",
     "archive": "Checking the Cemu archive",
@@ -1799,14 +1634,12 @@ STEP_TITLES = {
     "app": "Building the game",
 }
 
-
 def plan_steps(kind):
     return {"image": ["keys", "compiler", "extract", "translate", "compile", "app"],
             "archive": ["archive", "compiler", "extract", "translate", "compile", "app"],
             "folder": ["folder", "compiler"] + ([] if PORTABLE else ["copy"]) + ["translate", "compile", "app"],
             "installed": ["compiler", "translate", "compile", "app"],
             "gen": ["compiler", "compile", "app"]}[kind]
-
 
 def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
     """The whole build for one source: ("image", path) | ("archive", path) | ("folder", path) |
@@ -1875,7 +1708,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
         game_dir = os.path.join(data_dir, "game")
         say("  Game files are in %s (%d s)" % (game_dir, time.time() - t0))
     elif kind == "folder":
-        if PORTABLE:  # use the extracted game where it is: no copy
+        if PORTABLE:
             game_dir = os.path.abspath(source[1])
             say("  Using the game files in %s (not copied)" % game_dir)
         else:
@@ -1914,7 +1747,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
     new_exe = exe + ".new" + EXE_SUFFIX
     link_game(tc, manifest, objs, work, new_exe)
     for rf in manifest.get("runtime_files", []):
-        # the data only (copy2 would also copy a downloaded file's "mark of the web" on Windows)
+
         shutil.copyfile(os.path.join(PKG, "sdk", "runtime", rf), os.path.join(exe_dir, rf))
         shutil.copymode(os.path.join(PKG, "sdk", "runtime", rf), os.path.join(exe_dir, rf))
     os.replace(new_exe, exe)
@@ -1926,12 +1759,10 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
              "placeholder_code": kind == "gen",
              "code_mods": code_mods.hooks_option(getattr(args, "code_mods", None))}
     if os.environ.get("APPIMAGE"):
-        # an AppImage (issue #55): its mount is read-only, so nothing is written beside it and
-        # portable.txt is not created. Record which image this was installed from: install.json is
-        # the "what was prepared" file and the setup window reports it back in its hello message.
+
         state["appimage"] = os.environ["APPIMAGE"]
     if PORTABLE:
-        # the game keeps its settings, save states and caches in data/user (runtime: host::portable_user_dir)
+
         with open(os.path.join(exe_dir, "portable.txt"), "w") as f:
             f.write("Portable mode: this game keeps its settings, controls, save states and shader caches in\n"
                     "../user (next to this folder) instead of your user folders. Delete this file to use those.\n")
@@ -1942,7 +1773,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
         if IS_MAC:
             app = os.path.join(ctx.app_dir, APP_NAME + ".app")
             mac_app(app, exe, data_dir, ctx.version)
-            os.remove(exe)  # the app holds the game binary
+            os.remove(exe)
             if not os.listdir(exe_dir):
                 os.rmdir(exe_dir)
             state["app"] = app
@@ -1967,7 +1798,6 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
     write_state(data_dir, state)
     return state
 
-
 def run_language_source(args, ui, data_dir, path):
     """setup --language-source: the language packs of the player's European or Japanese game."""
     say("")
@@ -1984,7 +1814,6 @@ def run_language_source(args, ui, data_dir, path):
             "start.%s" % (LANGUAGE_REGION_NAMES[m["region"]], ", ".join(p["language"] for p in m["packs"]),
                           " This is untested with the Japanese game so far: please report what looks wrong."
                           if m["region"] == "JP" else ""))
-
 
 def main():
     ap = argparse.ArgumentParser(description="NSMBU setup", formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2045,7 +1874,6 @@ def main():
             pass
     return rc
 
-
 def run(args, ui):
     ctx = Ctx(args)
     if getattr(args, "rebuild_code_mods", False):
@@ -2067,7 +1895,7 @@ def run(args, ui):
         run_language_source(args, ui, data_dir, os.path.abspath(clean_path(args.language_source)))
         return 0
 
-    source = None  # ("image", path) | ("archive", path) | ("folder", path) | ("installed", game_dir) | ("gen", dir)
+    source = None
     if args.gen_dir:
         source = ("gen", os.path.abspath(args.gen_dir))
     elif args.archive or (args.image and args.image.lower().endswith(".wua")):
@@ -2129,7 +1957,7 @@ def run(args, ui):
                                  "Choose your NSMBU Cemu archive (.wua)",
                                  filetypes=[("Wii U disc image (*.wux;*.wud)", "*.wux;*.wud")] if i == 0 else
                                  [("Cemu Wii U archive (*.wua)", "*.wua")])
-                # the file decides: a .wua chosen as a disc image is still an archive
+
                 source = ("archive" if p.lower().endswith(".wua") else "image", p)
             else:
                 while True:
@@ -2163,38 +1991,9 @@ def run(args, ui):
         launch(state, data_dir)
     return 0
 
-
-# ---------------------------------------------------------------------------------------------
-# graphical installer interface (--gui-protocol)
-#
-# The graphical installer (tools/installer/gui) runs this script as a child process and talks to it
-# in JSON lines. Events (stdout) all carry "event"; replies to a request also carry its "id".
-#   hello      {version, platform, data_dir, app_dir, log, installed: {...}|null, game_files: bool,
-#               save_exists: bool, toolchain}
-#   log        {text}                       progress  {label, done, total, detail}
-#   step       {n, total, title, id}        (ids: keys archive folder compiler extract copy translate compile app)
-#   reply      {id, ok, ...} for each request below; ok=false carries "problem" and "message"
-# Requests (stdin):
-#   probe        {path}                  -> kind image|archive|folder|invalid, disc_key, common_key, title;
-#                                           archive: title, folder, bytes, message (which title, why)
-#   check_keys   {image, disc_key_file?, common_key_file?, common_key_hex?}
-#                                        -> title_id, files, bytes  (keys stay in memory for install)
-#   install      {source: image|archive|folder|installed, path?, jobs?}  -> streams step/progress/log, then
-#                                           reply {app, exe, data_dir}
-#   import_save  {kind: hd|gc, path, replace?}  -> message; problem "exists" if a save is there
-#   language_sources {}                  -> sources: [{region, title_id, source, packs: [{file, language, bytes}]}]
-#   add_language_source {path, disc_key_file?, common_key_file?, common_key_hex?}
-#                                        -> sources (the added ones); experimental (docs/language-packs.md)
-#   remove_language_source {region}      -> removed (the folder)
-#   launch       {}                      -> starts the installed game
-#   quit         {}
-# Keys never leave this process: they are not logged, not echoed, not written to disk.
-
-
 def find_sidecar_disc_key(image):
     side = os.path.splitext(image)[0] + ".key"
     return side if os.path.isfile(side) and read_key_file(side) else None
-
 
 def find_common_key(image):
     if os.environ.get("WIIU_COMMON_KEY") and parse_key(os.environ["WIIU_COMMON_KEY"]):
@@ -2206,7 +2005,6 @@ def find_common_key(image):
             return p, k
     return None, None
 
-
 KEY_MESSAGES = {
     "disc_key_bad": "The disc key file does not contain a key (16 raw bytes or 32 hex digits).",
     "disc_key_wrong": "The disc key does not match this disc image. It must be the key dumped together with this disc.",
@@ -2216,7 +2014,6 @@ KEY_MESSAGES = {
     "archive_bad": "This file is not a readable Cemu Wii U archive (.wua).",
     "image_damaged": "The disc image is damaged.",
 }
-
 
 def gui_main(args):
     global GUI
@@ -2457,12 +2254,11 @@ def gui_main(args):
             continue
         try:
             h(req)
-        except Exception as e:  # report, keep serving
+        except Exception as e:
             LOG.write("internal error in %s: %r" % (req.get("cmd"), e))
             fail(req, "internal", "%s: %s" % (type(e).__name__, e))
         del req, line
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

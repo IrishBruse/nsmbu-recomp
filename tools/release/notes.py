@@ -10,7 +10,6 @@ import os
 import re
 import sys
 
-
 def changelog_version(readme, version):
     path = os.path.join(os.path.dirname(os.path.abspath(readme)), "CHANGELOG.md")
     with open(path, encoding="utf-8") as f:
@@ -18,7 +17,6 @@ def changelog_version(readme, version):
     ver = version[1:] if version.startswith("v") else version
     m = re.search(r"^## %s\s*$\n(.*?)(?=^## |\Z)" % re.escape(ver), text, re.S | re.M)
     return m.group(1).strip() if m else ""
-
 
 def main():
     readme, version, sums = sys.argv[1:4]
@@ -56,7 +54,6 @@ See "Install" in the README for details.
 %s
 ```
 """ % (version, new or "See CHANGELOG.md.", checksums))
-
 
 if __name__ == "__main__":
     main()

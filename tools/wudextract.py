@@ -28,10 +28,8 @@ BLOCK_SIZE = 0x10000
 BLOCK_HASH_SIZE = 0x400
 BLOCK_FILE_SIZE = 0xFC00
 
-
 def aes_dec(key, iv, data):
     return AES.new(key, AES.MODE_CBC, iv).decrypt(data)
-
 
 def parse_key(data, what):
     data = data.strip() if len(data) != 16 else data
@@ -43,7 +41,6 @@ def parse_key(data, what):
     if len(data) != 16:
         sys.exit("%s: expected 16 bytes or 32 hex digits" % what)
     return data
-
 
 def common_key(image):
     """The Wii U common key, supplied by the user (it is not part of this repository)."""
@@ -57,13 +54,12 @@ def common_key(image):
     sys.exit("Wii U common key not found: set WIIU_COMMON_KEY or put common.key next to the image "
              "(dump it from your own console)")
 
-
 class Wud:
     def __init__(self, path):
         self.f = open(path, "rb")
         hdr = self.f.read(32)
         magic0, magic1, sector_size = struct.unpack_from("<III", hdr, 0)
-        if magic0 == 0x30585557 and magic1 == 0x1099D02E:  # "WUX0"
+        if magic0 == 0x30585557 and magic1 == 0x1099D02E:
             self.compressed = True
             self.sector_size = sector_size
             self.size, = struct.unpack_from("<Q", hdr, 16)
@@ -90,10 +86,8 @@ class Wud:
             length -= n
         return bytes(out)
 
-
 class Entry:
     __slots__ = ("name", "path", "is_dir", "offset", "size", "cluster", "flags")
-
 
 class FST:
     def __init__(self, wud, base, fst_offset, fst_size, key):
@@ -116,7 +110,7 @@ class FST:
             return names[o:names.index(b"\0", o)].decode("utf-8", "replace")
 
         self.entries = []
-        stack = [("", nentries)]  # (dir path, end index)
+        stack = [("", nentries)]
         for i in range(nentries):
             while i >= stack[-1][1]:
                 stack.pop()
@@ -140,7 +134,7 @@ class FST:
         pos = e.offset * self.offset_factor
         remaining = e.size
         base = self._cluster_base(e.cluster)
-        if mode == 2:  # hashed/interleaved
+        if mode == 2:
             blk, within = divmod(pos, BLOCK_FILE_SIZE)
             while remaining > 0:
                 raw = self.wud.read(base + blk * BLOCK_SIZE, BLOCK_SIZE)
@@ -154,13 +148,13 @@ class FST:
                 remaining -= n
                 within = 0
                 blk += 1
-        else:  # raw: CBC over whole cluster, IV = cluster index for block 0
+        else:
             blk, within = divmod(pos, SECTOR)
             if blk == 0:
                 iv = bytes([(e.cluster >> 8) & 0xFF, e.cluster & 0xFF]) + bytes(14)
             else:
                 iv = self.wud.read(base + blk * SECTOR - 16, 16)
-            # decrypt in larger chunks for speed
+
             chunk_sectors = 64
             while remaining > 0:
                 raw = self.wud.read(base + blk * SECTOR, SECTOR * chunk_sectors)
@@ -171,7 +165,6 @@ class FST:
                 remaining -= n
                 within = 0
                 blk += chunk_sectors
-
 
 def open_disc(path):
     key_path = os.path.splitext(path)[0] + ".key"
@@ -220,7 +213,6 @@ def open_disc(path):
     gm = part_fst(parts[gm_idx][1], title_key)
     return parts, gm, title_id.hex()
 
-
 def main():
     image, cmd = sys.argv[1], sys.argv[2]
     parts, gm, tid = open_disc(image)
@@ -241,7 +233,6 @@ def main():
             with open(dst, "wb") as out:
                 gm.read_file(e, out)
             print(e.path, file=sys.stderr)
-
 
 if __name__ == "__main__":
     main()

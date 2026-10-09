@@ -1,6 +1,5 @@
-// CoreAudio output (default output AudioUnit) pulling from a single-producer ring buffer.
-// NSMBU_AUDIO_DUMP=file.wav additionally records everything pushed by the game.
-// NSMBU_NO_AUDIO=1 skips opening the device (the mix still runs and can be dumped).
+
+
 #include "audio_out.h"
 
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
@@ -23,13 +22,13 @@
 namespace audio {
 namespace {
 
-constexpr int kCapacity = 1 << 15;  // frames (~680 ms)
+constexpr int kCapacity = 1 << 15;
 constexpr int kTarget = kRate * 40 / 1000;
 
 int16_t g_ring[kCapacity * 2];
 std::atomic<uint32_t> g_read{0}, g_write{0};
 std::atomic<bool> g_started{false};
-std::atomic<bool> g_flush{false};  // consumer skips everything queued
+std::atomic<bool> g_flush{false};
 std::atomic<bool> g_silent{false};
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 AudioComponentInstance g_unit = nullptr;
@@ -75,7 +74,7 @@ void pull(int16_t* out,uint32_t frames) {
         out[i * 2] = g_ring[idx * 2];
         out[i * 2 + 1] = g_ring[idx * 2 + 1];
     }
-    if (n < frames) {  // underrun: silence
+    if (n < frames) {
         memset(out + n * 2, 0, (frames - n) * 4);
         g_underrun += frames - n;
     }
@@ -87,7 +86,7 @@ OSStatus render(void*,AudioUnitRenderActionFlags*,const AudioTimeStamp*,UInt32,U
 }
 #else
 void SDLCALL render(void*,SDL_AudioStream* stream,int additional,int) {
-    // SDL requests input bytes in our configured S16/stereo format. Keep the callback bounded.
+
     int16_t samples[1024*2];
     while(additional>0) { uint32_t frames=std::min(additional/4,1024);if(!frames)break;
       pull(samples,frames);if(!SDL_PutAudioStreamData(stream,samples,(int)frames*4))break;additional-=(int)frames*4;
@@ -108,7 +107,7 @@ void silent_clock() {
     }
 }
 
-}  // namespace
+}
 
 void init() {
     if (g_started.exchange(true)) return;
@@ -149,7 +148,7 @@ void init() {
     AudioUnitSetProperty(g_unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &fmt, sizeof fmt);
     AURenderCallbackStruct cb{render, nullptr};
     AudioUnitSetProperty(g_unit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb, sizeof cb);
-    // debug: NSMBU_AUDIO_VOLUME=0..1 scales the device volume (e.g. silent tests of the real output path)
+
     if (const char* v = getenv("NSMBU_AUDIO_VOLUME"))
         AudioUnitSetParameter(g_unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, (AudioUnitParameterValue)atof(v), 0);
     if (AudioUnitInitialize(g_unit) != noErr || AudioOutputUnitStart(g_unit) != noErr) {
@@ -172,11 +171,11 @@ void push(const int16_t* stereo, int frames) {
     if (g_dump) {
         fwrite(stereo, 4, frames, g_dump);
         g_dump_frames += frames;
-        if (g_dump_frames % kRate < (uint32_t)frames) write_wav_header();  // keep the file valid about once a second
+        if (g_dump_frames % kRate < (uint32_t)frames) write_wav_header();
     }
     if (!g_unit && !g_silent.load(std::memory_order_acquire)) return;
     uint32_t w = g_write.load(std::memory_order_relaxed), r = g_read.load(std::memory_order_acquire);
-    if (w - r + frames > kCapacity) {  // device stalled: drop rather than overwrite
+    if (w - r + frames > kCapacity) {
         g_dropped += frames;
         return;
     }
@@ -202,4 +201,4 @@ void stats(uint64_t& underrun, uint64_t& dropped) {
     dropped = g_dropped;
 }
 
-}  // namespace audio
+}

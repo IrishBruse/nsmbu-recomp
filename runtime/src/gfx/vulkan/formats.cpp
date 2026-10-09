@@ -1,4 +1,4 @@
-// GX2 surface format mapping. Texel layouts follow Cemu's LatteTextureLoader decoders.
+
 #include "formats.h"
 #include <cstring>
 
@@ -38,7 +38,7 @@ FormatInfo format_info(uint32_t fmt, bool isDepth) {
         default: return {};
         }
     }
-    // Packed normalized expansions have no integer/signed equivalent in this mapping.
+
     if ((isInt || isSigned) && (hw == 0x02 || hw == 0x08 || hw == 0x0A || hw == 0x0B || hw == 0x0C || hw == 0x1B)) return {};
     if (isSigned && hw == 0x19) return {};
     FormatInfo f;
@@ -75,7 +75,7 @@ FormatInfo format_info(uint32_t fmt, bool isDepth) {
     case 0x33: f = make(isSrgb ? VK_FORMAT_BC3_SRGB_BLOCK : VK_FORMAT_BC3_UNORM_BLOCK, 16); f.compressed = true; break;
     case 0x34: f = make(isSigned ? VK_FORMAT_BC4_SNORM_BLOCK : VK_FORMAT_BC4_UNORM_BLOCK, 8); f.compressed = true; break;
     case 0x35: f = make(isSigned ? VK_FORMAT_BC5_SNORM_BLOCK : VK_FORMAT_BC5_UNORM_BLOCK, 16); f.compressed = true; break;
-    // depth formats sampled as color textures
+
     case 0x11: case 0x12: case 0x13: case 0x14: f = make(VK_FORMAT_R32_SFLOAT, 4, FormatInfo::FLOAT, Convert::D24_R32F, 4); break;
     default: return {};
     }
@@ -158,4 +158,4 @@ void convert_row(Convert c, const uint8_t* src, uint8_t* dst, uint32_t n) {
     }
 }
 
-}  // namespace gfxvk
+}

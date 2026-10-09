@@ -1,4 +1,4 @@
-// Run a local tool with an argument vector, never through a shell. Drain bounded output fully.
+
 #pragma once
 #include <algorithm>
 #include <array>
@@ -86,4 +86,4 @@ inline ProcessResult run_process(const std::vector<std::string>& args) {
 #endif
     return result;
 }
-} // namespace host
+}

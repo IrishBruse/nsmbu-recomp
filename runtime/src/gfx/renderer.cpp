@@ -1,4 +1,4 @@
-// Renderer selection, start-up with fallback, and restart (see renderer.h).
+
 #include "app_title.h"
 #include "renderer.h"
 #include "../screenshot.h"
@@ -35,14 +35,14 @@
 #endif
 
 #ifdef NSMBU_HAS_METAL
-// AppKit host (gfx/display.mm): persistent settings, start-up message on the TV window
+
 namespace gfx {
 bool host_setting(const char* key, std::string& value);
 void set_host_setting(const char* key, const std::string& value);
 void show_startup_notice(const std::string& title, const std::string& text);
-}  // namespace gfx
+}
 #endif
-// decompiler output flavour (gx2/decompiler_glue.cpp): MSL for Metal, GLSL/SPIR-V for Vulkan
+
 void select_decompiler_api(render::Api api);
 
 namespace render {
@@ -74,8 +74,8 @@ const Backend* g_backend = nullptr;
 
 namespace {
 Api g_requested = Api::Metal;
-std::string g_reason;            // why the requested renderer did not start
-std::vector<std::string> g_args; // restart arguments (without --renderer)
+std::string g_reason;
+std::vector<std::string> g_args;
 std::atomic<bool> g_shut{false};
 std::atomic<bool> g_pref_changed{false};
 
@@ -103,7 +103,7 @@ Api default_api() {
     return Api::Vulkan;
 #endif
 }
-}  // namespace
+}
 
 const char* api_name(Api a) { return a == Api::Vulkan ? "Vulkan" : "Metal"; }
 const char* api_key(Api a) { return a == Api::Vulkan ? "vulkan" : "metal"; }
@@ -188,17 +188,14 @@ void init() {
 #endif
     if (!fallback) {
 #ifdef NSMBU_SDL_HOST
-        // a player starts the game from the launcher, without a terminal: say why in a message box
-        // (old graphics driver, no Vulkan) and end without a crash report
+
         LOG("FATAL: %s renderer could not start: %s", api_name(b->api), g_reason.c_str());
         const std::string text = std::string("The ") + api_name(b->api) + " renderer could not start.\n\n" + g_reason;
-        const char* hidden = getenv("NSMBU_HIDDEN_WINDOWS");  // test runs: nothing pops up
+        const char* hidden = getenv("NSMBU_HIDDEN_WINDOWS");
 #ifdef __ANDROID__
-        // An Adreno GPU whose system driver is too old can run a custom driver (Mesa Turnip, for
-        // example), but the settings overlay that installs one needs a running renderer: the error
-        // offers it instead. The activity installs and selects it and ends the app.
+
         if ((!hidden || !*hidden || !strcmp(hidden, "0")) && g_reason.find("Adreno") != std::string::npos) {
-            // short: the Android message box does not scroll, its buttons go below the screen
+
             const size_t at = g_reason.rfind("\n\n", g_reason.find("Adreno"));
             const std::string gpu = g_reason.substr(at == std::string::npos ? 0 : at + 2,
                                                     g_reason.find("\n\n", g_reason.find("Adreno")) - (at == std::string::npos ? 0 : at + 2));
@@ -212,7 +209,7 @@ void init() {
             int choice = 0;
             if (SDL_ShowMessageBox(&box, &choice) && choice == 1) {
                 gfxvk::drivers::request_install(true);
-                for (;;) SDL_Delay(1000);  // NsmbuActivity ends the app once the driver is installed
+                for (;;) SDL_Delay(1000);
             }
             fflush(stderr);
             _Exit(1);
@@ -230,7 +227,7 @@ void init() {
         api_name(fallback->api));
     select_decompiler_api(fallback->api);
     g_backend = fallback;
-    fallback->init();  // Metal: a failure here is fatal (no Metal device)
+    fallback->init();
     LOG("[gfx] %s renderer started (fallback)", api_name(fallback->api));
 #ifdef NSMBU_HAS_METAL
     gfx::show_startup_notice(std::string(api_name(b->api)) + " could not start",
@@ -243,7 +240,7 @@ void run_main_loop() { g_backend->run_main_loop(); }
 
 void shutdown() {
     if (g_shut.exchange(true) || !g_backend || !g_backend->shutdown) return;
-    screenshot::finish();  // the screenshots taken are written first (the render thread keeps going)
+    screenshot::finish();
     g_backend->shutdown();
 }
 
@@ -267,7 +264,7 @@ bool restart() {
     std::vector<char*> av;
     for (auto& s : g_args) av.push_back(const_cast<char*>(s.c_str()));
     av.push_back(nullptr);
-    // the environment's NSMBU_RENDERER_RUNTIME would override the new choice
+
     unsetenv("NSMBU_RENDERER_RUNTIME");
     fflush(stdout);
     fflush(stderr);
@@ -277,4 +274,4 @@ bool restart() {
 #endif
 }
 
-}  // namespace render
+}

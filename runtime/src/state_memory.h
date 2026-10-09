@@ -1,4 +1,4 @@
-// Full-state sparse memory serialization, shared with synthetic mod-region tests.
+
 #pragma once
 #include "savestate.h"
 #include <unordered_map>
@@ -43,4 +43,4 @@ void restore_regions(const std::vector<MemoryRegion>& regions,const MemoryChunks
         if(touched(p,kMemoryChunk)&&!memory_chunk_zero(p))memset(p,0,kMemoryChunk);
     }
 }
-} // namespace ss
+}

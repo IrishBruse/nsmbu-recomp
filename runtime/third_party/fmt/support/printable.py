@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
 
-# This script is based on
-# https://github.com/rust-lang/rust/blob/master/library/core/src/unicode/printable.py
-# distributed under https://github.com/rust-lang/rust/blob/master/LICENSE-MIT.
-
-# This script uses the following Unicode tables:
-# - UnicodeData.txt
-
-
 from collections import namedtuple
 import csv
 import os
@@ -71,7 +63,7 @@ def get_codepoints(f):
         yield Codepoint(c, None)
 
 def compress_singletons(singletons):
-    uppers = [] # (upper, # items in lowers)
+    uppers = []
     lowers = []
 
     for i in singletons:
@@ -87,9 +79,8 @@ def compress_singletons(singletons):
     return uppers, lowers
 
 def compress_normal(normal):
-    # lengths 0x00..0x7f are encoded as 00, 01, ..., 7e, 7f
-    # lengths 0x80..0x7fff are encoded as 80 80, 80 81, ..., ff fe, ff ff
-    compressed = [] # [truelen, (truelenaux), falselen, (falselenaux)]
+
+    compressed = []
 
     prev_start = 0
     for start, count in normal:

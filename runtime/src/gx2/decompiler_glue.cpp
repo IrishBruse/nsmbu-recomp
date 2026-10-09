@@ -1,4 +1,4 @@
-// Definitions the vendored Cemu decompiler expects from its host.
+
 #ifdef NSMBU_HAS_VULKAN
 #include "Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.h"
 #endif
@@ -8,8 +8,6 @@
 #include "gfx/renderer.h"
 #include "runtime.h"
 
-// The decompiler emits MSL or GLSL depending on g_renderer's type: set once at start-up (and again if
-// Vulkan cannot start and the game falls back to Metal), before any shader is translated.
 #ifdef NSMBU_HAS_METAL
 std::unique_ptr<Renderer> g_renderer = std::make_unique<MetalRenderer>();
 #else

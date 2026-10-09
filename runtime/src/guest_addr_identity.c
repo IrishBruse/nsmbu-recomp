@@ -1,6 +1,5 @@
-/* Identity address map: the weak default for a link without the recompiled code (unit tests, the
- * build checks with tools/recomp/stubgen.py). build/gen/table.c defines these for real, and its
- * strong definitions win wherever the game code is linked in. See runtime/include/guest_addr.h. */
+
+
 #include "guest_addr.h"
 
 __attribute__((weak)) const GuestStep g_guest_code_steps[] = {{0u, 0}};

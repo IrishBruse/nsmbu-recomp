@@ -1,5 +1,5 @@
 #include "crash_context.h"
-// coreinit: logging, dynamic loading, system info, and small odds and ends.
+
 #include "../overlay/hostui.h"
 #include "../crashrec.h"
 #include "../game_languages.h"
@@ -15,12 +15,10 @@
 
 #include "../runtime.h"
 
-// ---------------------------------------------------------------- guest printf
-// Arguments come either from registers (OSReport: r4.., f1..) or a PPC va_list.
 struct GuestArgs {
     Cpu* c = nullptr;
-    int gpr = 0, fpr = 0;             // next register index (0-based from r3 / f1)
-    uint32_t reg_save = 0, overflow = 0;  // va_list mode when reg_save != 0
+    int gpr = 0, fpr = 0;
+    uint32_t reg_save = 0, overflow = 0;
     uint32_t next_u32() {
         if (reg_save) {
             if (gpr < 8) return ld32(reg_save + 4 * gpr++);
@@ -34,7 +32,7 @@ struct GuestArgs {
         return v;
     }
     uint64_t next_u64() {
-        if (gpr & 1) gpr++;  // 64-bit values use aligned register pairs
+        if (gpr & 1) gpr++;
         uint64_t hi = next_u32();
         return hi << 32 | next_u32();
     }
@@ -99,14 +97,6 @@ static void report(const std::string& s) {
     LOG("[game] %s", t.c_str());
 }
 
-// Console language for UCReadSysConfig("cafe.language"): NSMBU_LANGUAGE=<Wii U code> (0 ja, 1 en,
-// 2 fr, 3 de, 4 it, 5 es, 6 zh, 7 ko, 8 nl, 9 pt, 10 ru, 11 zh-TW), else the setting saved by the
-// settings overlay (Language tab, hostui "language"; read once at start). Unset, out of range or not
-// a number: English. A language the disc has no pack for (game_languages.h) becomes English (or the
-// disc's first language without English), as the USA game itself does with one it doesn't know.
-// NSMBU_LANGUAGE_REGION=eu|jp (else the saved "language_region") takes the language from a language
-// source of that region (game_lang::source_packs(), docs/language-packs.md) when it has that
-// language; language_region.cpp then tells the game that region.
 static uint32_t console_language() {
     static const uint32_t lang = [] {
         const char* why = "NSMBU_LANGUAGE";
@@ -127,7 +117,7 @@ static uint32_t console_language() {
                 LOG("[config] console language %ld (%s)", v, why);
             }
         }
-        // the region: NSMBU_LANGUAGE_REGION, else (unless NSMBU_LANGUAGE alone picked the language) the saved one
+
         std::string region_text;
         const char* env_language = getenv("NSMBU_LANGUAGE");
         if (const char* r = getenv("NSMBU_LANGUAGE_REGION"); r && *r) region_text = r;
@@ -175,9 +165,6 @@ HLE(coreinit, OSConsoleWrite) {
     report(std::string((const char*)mem::ptr(arg(c, 0)), arg(c, 1)));
 }
 
-
-// On a game halt: captures/crash-<time>.log with the guest call chain (named from build/names.tsv
-// when present), the 60 fps pass state and the executing process, for reports from normal play.
 namespace interp { const char* phase_name(); }
 static void write_crash_log(Cpu* c, const std::string& file, uint32_t line, const std::string& msg) {
     std::unordered_map<uint32_t, std::string> names;
@@ -246,7 +233,6 @@ HLE(coreinit, OSPanic) {
     fatal("OSPanic at %s:%d: %s", mem::read_cstr(arg(c, 0)).c_str(), arg(c, 1), msg.c_str());
 }
 
-// ---------------------------------------------------------------- OSDynLoad
 static std::mutex g_dyn_mutex;
 static std::unordered_map<uint32_t, std::string> g_dyn_modules;
 static std::unordered_map<std::string, uint32_t> g_dyn_exports;
@@ -282,7 +268,7 @@ HLE(coreinit, OSDynLoad_FindExport) {
         }
         if (!addr) {
             LOG("[dynload] FindExport(%s, %s) not implemented", key.c_str(), is_data ? "data" : "func");
-            // hand out a stub that logs when called, so the game can still look it up
+
             static void (*stub)(Cpu*) = [](Cpu* c) { log_msg("[dynload] call to unimplemented dynamic export (lr=%08X)", c->lr); c->r[3] = 0; };
             addr = is_data ? mem::runtime_alloc(0x100) : dispatch::register_host(stub, strdup(key.c_str()));
         }
@@ -292,14 +278,13 @@ HLE(coreinit, OSDynLoad_FindExport) {
     ret(c, 0);
 }
 
-// ---------------------------------------------------------------- system info
 HLE(coreinit, OSGetSystemInfo) {
     static uint32_t info = 0;
     if (!info) {
         info = mem::runtime_alloc(0x20);
-        st32(info + 0x00, 248625000);   // bus clock
-        st32(info + 0x04, 1243125000);  // core clock
-        st64(info + 0x08, 0);           // base time
+        st32(info + 0x00, 248625000);
+        st32(info + 0x04, 1243125000);
+        st64(info + 0x08, 0);
         st32(info + 0x10, 0);
     }
     ret(c, info);
@@ -331,8 +316,6 @@ HLE(coreinit, bspGetHardwareVersion) { ret(c, 0); }
 HLE(coreinit, IMGetTimeBeforeAPD) { if (arg(c, 0)) st32(arg(c, 0), 0x7FFFFFFF); ret(c, 0); }
 HLE(coreinit, IMIsAPDEnabledBySysSettings) { if (arg(c, 0)) st32(arg(c, 0), 0); ret(c, 0); }
 
-// ---------------------------------------------------------------- UC (system settings)
-// UCSysConfig entries are 0x54 bytes: name[64], access u32, dataType u32, error s32, dataSize u32, dataPtr u32
 HLE(coreinit, UCOpen) { ret(c, 1); }
 HLE(coreinit, UCClose) { ret(c, 0); }
 HLE(coreinit, UCReadSysConfig) {
@@ -342,8 +325,8 @@ HLE(coreinit, UCReadSysConfig) {
         std::string name = mem::read_cstr(e);
         uint32_t size = ld32(e + 0x4C), data = ld32(e + 0x50);
         uint32_t value = 0;
-        if (name == "cafe.language") value = console_language();  // NSMBU_LANGUAGE or saved, default English
-        else if (name == "cafe.cntry_reg") value = 49;   // USA
+        if (name == "cafe.language") value = console_language();
+        else if (name == "cafe.cntry_reg") value = 49;
         else if (name == "cafe.eula_agree") value = 1;
         else if (name == "cafe.initial_launch") value = 2;
         else if (name == "parent.enable") value = 0;

@@ -11,7 +11,6 @@ import zipfile
 import guard
 import package
 
-
 class SDKPackage(unittest.TestCase):
     def test_platform_sdk_archives_pass_guard(self):
         for platform in ("macos-arm64", "linux-x86_64", "linux-aarch64", "windows-x86_64"):
@@ -47,8 +46,7 @@ class SDKPackage(unittest.TestCase):
                         self.assertIn(sibling.relative_to(package.ROOT).as_posix(), shipped)
 
     def test_packaged_installer_import_in_isolated_python(self):
-        # -I excludes both cwd and the script directory, like Windows' ._pth.
-        # Use only shipped files; importing from the source checkout would hide omissions.
+
         for layout in ("macos", "linux", "windows", "appimage", "android"):
             with self.subTest(layout=layout), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp) / layout
@@ -76,7 +74,6 @@ class SDKPackage(unittest.TestCase):
         problems = []
         guard.check_entry("sdk/guest/include/nsmbu/functions.h", b"0" * 32, problems)
         self.assertTrue(any("key-like" in problem for problem in problems))
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,8 +20,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
-import verify  # noqa: E402
-
+import verify
 
 def bodies(text):
     """(addr, start, end): the code of each verified function, including the helpers defined
@@ -31,16 +30,14 @@ def bodies(text):
     for m in re.finditer(r"NSMBU_FUNC\(\s*0x([0-9A-Fa-f]{8})[^;]*;", text):
         end = text.find("\nVERIFY(", m.end())
         end = end if end > 0 else len(text)
-        # helpers: from the previous VERIFY line (or the first function definition) on
+
         start = prev if prev else text.rfind("\n", 0, text.rfind("\n", 0, m.start()))
         out.append((int(m.group(1), 16), max(start, 0), end))
         prev = text.find("\n", end + 1)
     return out
 
-
 def mutants(text, start, end):
-    # blank out comments (keeping offsets) so mutations only hit code
-    # (and the NSMBU_FUNC/VERIFY bookkeeping, which only names the function)
+
     body = re.sub(r"/\*.*?\*/|//[^\n]*|NSMBU_FUNC\([^;]*;|VERIFY\([^;]*;", lambda m: re.sub(r"[^\n]", " ", m.group(0)),
                   text[start:end], flags=re.S)
     res = []
@@ -69,7 +66,7 @@ def mutants(text, start, end):
         if not s or s.startswith("#") or "/* 0x" in s or s.startswith(("VERIFY(", "NSMBU_")):
             pos += len(ln) + 1
             continue
-        if s.endswith(";") and not s.startswith(("return", "NSMBU_FUNC", "gabi::Local", "//", "/*")) and "=" in s or \
+        if s.endswith(";") and not s.startswith(("return", "NSMBU_FUNC", "gabi::Local", "//", "/*")) and "=" in s or\
                 (s.endswith(";") and re.match(r"^[\w:>.\-]+\(.*\);$", s) and not s.startswith("return")):
             lines.append((pos, pos + len(ln)))
         pos += len(ln) + 1
@@ -81,7 +78,6 @@ def mutants(text, start, end):
             res.append(("swap `%s` / `%s`" % (text[a1:b1].strip()[:30], text[a2:b2].strip()[:30]), a1, b2,
                         text[a2:b2] + between + text[a1:b1]))
     return res
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -126,7 +122,7 @@ def main():
         mexe = os.path.join(out, "mutant")
         lo = [o if not o.endswith(os.path.basename(src) + ".o") else mobj for o in objs]
         subprocess.run(["clang++", "-o", mexe] + lo, cwd=ROOT, check=True)
-        cmd = [mexe, "-spec", spec, "-n", str(a.n)]  # whole unit: helpers can be shared
+        cmd = [mexe, "-spec", spec, "-n", str(a.n)]
         if a.rec:
             cmd += ["-rec", a.rec]
         try:
@@ -144,7 +140,6 @@ def main():
         a.unit, total, broken, killed, survived, 100.0 * killed / max(1, total)))
     for s in surv:
         print("  survivor: " + s)
-
 
 if __name__ == "__main__":
     main()

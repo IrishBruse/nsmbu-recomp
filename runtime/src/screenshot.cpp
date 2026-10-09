@@ -1,4 +1,4 @@
-// Screenshots (see screenshot.h): requests, file names, the setting, the encoding worker, PNG writing.
+
 #include "screenshot.h"
 
 #include <zlib.h>
@@ -28,12 +28,11 @@ namespace screenshot {
 namespace {
 
 std::atomic<int> g_requests{0};
-// never destroyed: the detached worker waits on them until the process ends (destroying a condition
-// variable with a waiter at exit hangs on glibc)
-std::mutex& g_mu = *new std::mutex;  // names, setting, queue, last file
-int g_gamepad = -1;  // -1: not read yet
+
+std::mutex& g_mu = *new std::mutex;
+int g_gamepad = -1;
 std::string& g_last_file = *new std::string;
-std::set<std::string>& g_reserved = *new std::set<std::string>;  // names handed out whose files are not written yet
+std::set<std::string>& g_reserved = *new std::set<std::string>;
 
 struct Job {
     std::string path;
@@ -50,7 +49,7 @@ std::deque<Job>& g_jobs = *new std::deque<Job>;
 std::condition_variable& g_cv = *new std::condition_variable;
 std::condition_variable& g_cv_done = *new std::condition_variable;
 bool g_worker = false;
-constexpr size_t kMaxQueued = 6;  // pictures waiting to be encoded (about 25 MB each at 2x 16:9)
+constexpr size_t kMaxQueued = 6;
 
 std::vector<uint64_t> scripted_frames() {
     std::vector<uint64_t> v;
@@ -85,7 +84,7 @@ void chunk(FILE* f, const char* type, const uint8_t* data, size_t n, bool& ok) {
 void worker() {
     host::set_thread_name("screenshot");
 #ifdef __APPLE__
-    pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0);  // background work: the game threads come first
+    pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0);
 #endif
     for (;;) {
         Job j;
@@ -98,7 +97,7 @@ void worker() {
         auto t0 = std::chrono::steady_clock::now();
         std::string tmp = j.path + ".part";
         bool ok = write_png(tmp, j.w, j.h, j.stride, j.pixels, j.bgra);
-        j.owner.reset();  // the renderer's readback memory goes back now
+        j.owner.reset();
         std::error_code ec;
         if (ok) std::filesystem::rename(tmp, j.path, ec);
         if (!ok || ec) std::filesystem::remove(tmp, ec);
@@ -121,7 +120,6 @@ void worker() {
     }
 }
 
-// a file name not in use: NSMBU_YYYY-MM-DD_HH-MM-SS[_n]
 std::string reserve_base() {
     char stamp[64];
     time_t t = time(nullptr);
@@ -144,7 +142,7 @@ int bound_pad() {
     return input_map::current().pad[input_map::kScreenshot];
 }
 
-}  // namespace
+}
 
 std::string dir() {
     static const std::string d = [] {
@@ -153,7 +151,7 @@ std::string dir() {
         else if (host::portable()) p = host::portable_user_dir() + "/screenshots";
         else {
 #ifdef __APPLE__
-            // next to the states folder (savestate.cpp state_dir)
+
             p = std::string(getenv("HOME") ? getenv("HOME") : ".") + "/Library/Application Support/nsmbu/screenshots";
 #else
             p = host::config_dir() + "/screenshots";
@@ -219,8 +217,6 @@ void set_gamepad_too(bool on) {
     hostui::set("screenshotGamePad", on ? "1" : "0");
 }
 
-// the render thread's swap-to-swap intervals around each screenshot (log: the capture must not make a
-// frame late): the 6 before it and the 6 after it
 namespace {
 double g_intervals[6];
 int g_interval_n = 0, g_after = -1;
@@ -255,7 +251,7 @@ void note_swap(uint64_t frame) {
     g_interval_n = (g_interval_n + 1) % 6;
     (void)frame;
 }
-}  // namespace
+}
 
 bool take(uint64_t frame, std::string& tv, std::string& gamepad) {
     static const std::vector<uint64_t> scripted = scripted_frames();
@@ -305,8 +301,7 @@ void write_async(const std::string& path, uint32_t width, uint32_t height, size_
 
 bool write_png(const std::string& path, uint32_t width, uint32_t height, size_t stride, const uint8_t* rgba, bool bgra) {
     if (!width || !height || !rgba) return false;
-    // scanlines: one filter byte + RGB; per row the filter (None, Sub, Up, Average, Paeth) with the
-    // smallest sum of absolute differences (the usual heuristic: well compressible, cheap)
+
     const size_t rowBytes = size_t(width) * 3;
     std::vector<uint8_t> raw(rowBytes * 2), filtered((rowBytes + 1) * height);
     uint8_t* prev = raw.data();
@@ -354,7 +349,7 @@ bool write_png(const std::string& path, uint32_t width, uint32_t height, size_t 
     }
     uLongf zn = compressBound(uLong(filtered.size()));
     std::vector<uint8_t> z(zn);
-    // level 4: a third of level 6's time on game pictures (about 0.2 s at 2x 21:9), 7% larger
+
     if (compress2(z.data(), &zn, filtered.data(), uLong(filtered.size()), 4) != Z_OK) return false;
     FILE* f = fopen(path.c_str(), "wb");
     if (!f) return false;
@@ -363,9 +358,9 @@ bool write_png(const std::string& path, uint32_t width, uint32_t height, size_t 
     std::vector<uint8_t> ihdr;
     put_be32(ihdr, width);
     put_be32(ihdr, height);
-    ihdr.insert(ihdr.end(), {8, 2, 0, 0, 0});  // 8 bit, RGB, deflate, adaptive filtering, no interlace
+    ihdr.insert(ihdr.end(), {8, 2, 0, 0, 0});
     chunk(f, "IHDR", ihdr.data(), ihdr.size(), ok);
-    const uint8_t srgb = 0;  // sRGB, perceptual intent: the values are display-encoded sRGB
+    const uint8_t srgb = 0;
     chunk(f, "sRGB", &srgb, 1, ok);
     chunk(f, "IDAT", z.data(), zn, ok);
     chunk(f, "IEND", nullptr, 0, ok);
@@ -373,4 +368,4 @@ bool write_png(const std::string& path, uint32_t width, uint32_t height, size_t 
     return ok;
 }
 
-}  // namespace screenshot
+}

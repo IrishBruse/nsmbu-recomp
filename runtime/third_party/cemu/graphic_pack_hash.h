@@ -1,6 +1,5 @@
-// Graphic pack shader hashes (base and auxiliary), as Cemu names replacement shaders.
-// Adapted from Cemu src/Cafe/HW/Latte/Core/LatteShader.cpp
-// Copyright (c) Cemu contributors. Licensed under the Mozilla Public License 2.0 (see LICENSE.txt).
+
+
 #pragma once
 #include "Cafe/HW/Latte/Core/LatteShader.h"
 #include "Cafe/HW/Latte/Core/FetchShader.h"
@@ -16,7 +15,7 @@ inline uint64_t program(const void* bytes, uint32_t size) {
     }
     return a+b;
 }
-// Vulkan variants without geometry shaders, matching Cemu's public pack names.
+
 inline uint64_t base(const void* bytes,uint32_t size,const uint32_t* regs,bool vertex,const LatteFetchShader* fetch) {
     auto hash=program(bytes,size)+LatteSHRC_GetPSInputTable()->key;
     if(vertex) {

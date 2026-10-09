@@ -14,7 +14,7 @@
 #include <vector>
 
 namespace gfxvk {
-// Adapted from the fork's peek_z readback; answers retire with the GPU submission.
+
 void peek_z(const uint32_t* cells, uint32_t n) {
     Surface* depth = nullptr;
     auto range = R.surfaces.equal_range(R.mainDepthAddr);
@@ -134,7 +134,7 @@ void write_rgba_png(const std::string& path,uint32_t width,uint32_t height,const
 void request_tv_dump(const std::string& path,int frames_ahead) {
  std::lock_guard lock(captureMutex);captures.push_back({frame_count()+uint64_t(std::max(frames_ahead,0)),path});
 }
-// Called by the GX2 renderer thread, before swapchain presentation.
+
 void service_captures() {
  if(!R.tv.scan||!R.tv.scan->image)return;
  std::vector<std::string> paths;
@@ -145,4 +145,4 @@ void service_captures() {
   for(const auto& path:paths)try {write_png(path,source.extent.width,source.extent.height,rgba);fprintf(stderr,"[gfx] wrote %s (%ux%u)\n",path.c_str(),source.extent.width,source.extent.height);}catch(const std::exception& e){fprintf(stderr,"[gfx] PNG capture failed: %s\n",e.what());}
  }catch(const std::exception& e){fprintf(stderr,"[gfx] TV capture failed: %s\n",e.what());}
 }
-} // namespace gfxvk
+}

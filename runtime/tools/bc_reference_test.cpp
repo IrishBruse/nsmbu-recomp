@@ -3,7 +3,7 @@
 #include <cstring>
 int main() {
     using namespace gfxvk::bc;
-    // BC1 red endpoint, green endpoint, then interpolants and transparent mode.
+
     uint8_t redgreen[8]={0,0xf8,0xe0,7,0xe4,0xe4,0xe4,0xe4};
     assert((pixel(redgreen,1,false,0)==std::array<uint8_t,4>{255,0,0,255}));
     assert((pixel(redgreen,1,false,1)==std::array<uint8_t,4>{0,255,0,255}));

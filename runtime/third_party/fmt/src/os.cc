@@ -1,11 +1,5 @@
-// Formatting library for C++ - optional OS-specific functionality
-//
-// Copyright (c) 2012 - 2016, Victor Zverovich
-// All rights reserved.
-//
-// For the license information refer to format.h.
 
-// Disable bogus MSVC warnings.
+
 #if !defined(_CRT_SECURE_NO_WARNINGS) && defined(_MSC_VER)
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -19,8 +13,8 @@
 #    include <sys/stat.h>
 #    include <sys/types.h>
 
-#    ifdef _WRS_KERNEL    // VxWorks7 kernel
-#      include <ioLib.h>  // getpagesize
+#    ifdef _WRS_KERNEL
+#      include <ioLib.h>
 #    endif
 
 #    ifndef _WIN32
@@ -30,8 +24,8 @@
 #        define WIN32_LEAN_AND_MEAN
 #      endif
 #      include <io.h>
-#    endif  // _WIN32
-#  endif    // FMT_USE_FCNTL
+#    endif
+#  endif
 
 #  ifdef _WIN32
 #    include <windows.h>
@@ -61,21 +55,19 @@
 
 namespace {
 #ifdef _WIN32
-// Return type of read and write functions.
+
 using rwresult = int;
 
-// On Windows the count argument to read and write is unsigned, so convert
-// it from size_t preventing integer overflow.
 inline unsigned convert_rwcount(size_t count) {
   return count <= UINT_MAX ? static_cast<unsigned>(count) : UINT_MAX;
 }
 #elif FMT_USE_FCNTL
-// Return type of read and write functions.
+
 using rwresult = ssize_t;
 
 inline auto convert_rwcount(size_t count) -> size_t { return count; }
 #endif
-}  // namespace
+}
 
 FMT_BEGIN_NAMESPACE
 
@@ -129,7 +121,7 @@ class utf8_system_category final : public std::error_category {
   }
 };
 
-}  // namespace detail
+}
 
 FMT_API const std::error_category& system_category() noexcept {
   static const detail::utf8_system_category category;
@@ -162,7 +154,7 @@ void detail::format_windows_error(detail::buffer<char>& out, int error_code,
 void report_windows_error(int error_code, const char* message) noexcept {
   do_report_error(detail::format_windows_error, error_code, message);
 }
-#endif  // _WIN32
+#endif
 
 buffered_file::~buffered_file() noexcept {
   if (file_ && FMT_SYSTEM(fclose(file_)) != 0)
@@ -187,7 +179,7 @@ void buffered_file::close() {
 
 auto buffered_file::descriptor() const -> int {
 #ifdef FMT_HAS_SYSTEM
-  // fileno is a macro on OpenBSD.
+
 #  ifdef fileno
 #    undef fileno
 #  endif
@@ -224,16 +216,14 @@ file::file(cstring_view path, int oflag) {
 }
 
 file::~file() noexcept {
-  // Don't retry close in case of EINTR!
-  // See http://linux.derkeiler.com/Mailing-Lists/Kernel/2005-09/3000.html
+
   if (fd_ != -1 && FMT_POSIX_CALL(close(fd_)) != 0)
     report_system_error(errno, "cannot close file");
 }
 
 void file::close() {
   if (fd_ == -1) return;
-  // Don't retry close in case of EINTR!
-  // See http://linux.derkeiler.com/Mailing-Lists/Kernel/2005-09/3000.html
+
   int result = FMT_POSIX_CALL(close(fd_));
   fd_ = -1;
   if (result != 0)
@@ -242,9 +232,7 @@ void file::close() {
 
 auto file::size() const -> long long {
 #  ifdef _WIN32
-  // Use GetFileSize instead of GetFileSizeEx for the case when _WIN32_WINNT
-  // is less than 0x0500 as is the case with some default MinGW builds.
-  // Both functions support large file sizes.
+
   DWORD size_upper = 0;
   HANDLE handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd_));
   DWORD size_lower = FMT_SYSTEM(GetFileSize(handle, &size_upper));
@@ -283,8 +271,7 @@ auto file::write(const void* buffer, size_t count) -> size_t {
 }
 
 auto file::dup(int fd) -> file {
-  // Don't retry as dup doesn't return EINTR.
-  // http://pubs.opengroup.org/onlinepubs/009695399/functions/dup.html
+
   int new_fd = FMT_POSIX_CALL(dup(fd));
   if (new_fd == -1)
     FMT_THROW(system_error(
@@ -309,7 +296,7 @@ void file::dup2(int fd, std::error_code& ec) noexcept {
 }
 
 auto file::fdopen(const char* mode) -> buffered_file {
-// Don't retry as fdopen doesn't return EINTR.
+
 #  if defined(__MINGW32__) && defined(_POSIX_)
   FILE* f = ::fdopen(fd_, mode);
 #  else
@@ -339,17 +326,16 @@ file file::open_windows_file(wcstring_view path, int oflag) {
 pipe::pipe() {
   int fds[2] = {};
 #  ifdef _WIN32
-  // Make the default pipe capacity same as on Linux 2.6.11+.
+
   enum { DEFAULT_CAPACITY = 65536 };
   int result = FMT_POSIX_CALL(pipe(fds, DEFAULT_CAPACITY, _O_BINARY));
 #  else
-  // Don't retry as the pipe function doesn't return EINTR.
-  // http://pubs.opengroup.org/onlinepubs/009696799/functions/pipe.html
+
   int result = FMT_POSIX_CALL(pipe(fds));
 #  endif
   if (result != 0)
     FMT_THROW(system_error(errno, FMT_STRING("cannot create pipe")));
-  // The following assignments don't throw.
+
   read_end = file(fds[0]);
   write_end = file(fds[1]);
 }
@@ -394,5 +380,5 @@ ostream::~ostream() {
   flush();
   delete[] data();
 }
-#endif  // FMT_USE_FCNTL
+#endif
 FMT_END_NAMESPACE

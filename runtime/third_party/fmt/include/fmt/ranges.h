@@ -1,9 +1,4 @@
-// Formatting library for C++ - range and tuple support
-//
-// Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors
-// All rights reserved.
-//
-// For the license information refer to format.h.
+
 
 #ifndef FMT_RANGES_H_
 #define FMT_RANGES_H_
@@ -50,7 +45,6 @@ template <typename T> class is_set {
       !std::is_void<decltype(check<T>(nullptr))>::value && !is_map<T>::value;
 };
 
-// C array overload
 template <typename T, size_t N>
 auto range_begin(const T (&arr)[N]) -> const T* {
   return arr;
@@ -67,7 +61,6 @@ struct has_member_fn_begin_end_t<T, void_t<decltype(*std::declval<T>().begin()),
                                            decltype(std::declval<T>().end())>>
     : std::true_type {};
 
-// Member function overloads.
 template <typename T>
 auto range_begin(T&& rng) -> decltype(static_cast<T&&>(rng).begin()) {
   return static_cast<T&&>(rng).begin();
@@ -77,8 +70,6 @@ auto range_end(T&& rng) -> decltype(static_cast<T&&>(rng).end()) {
   return static_cast<T&&>(rng).end();
 }
 
-// ADL overloads. Only participate in overload resolution if member functions
-// are not found.
 template <typename T>
 auto range_begin(T&& rng)
     -> enable_if_t<!has_member_fn_begin_end_t<T&&>::value,
@@ -108,8 +99,7 @@ template <typename T>
 struct has_mutable_begin_end<
     T, void_t<decltype(*detail::range_begin(std::declval<T&>())),
               decltype(detail::range_end(std::declval<T&>())),
-              // the extra int here is because older versions of MSVC don't
-              // SFINAE properly unless there are distinct types
+
               int>> : std::true_type {};
 
 template <typename T, typename _ = void> struct is_range_ : std::false_type {};
@@ -118,7 +108,6 @@ struct is_range_<T, void>
     : std::integral_constant<bool, (has_const_begin_end<T>::value ||
                                     has_mutable_begin_end<T>::value)> {};
 
-// tuple_size and tuple_element check.
 template <typename T> class is_tuple_like_ {
   template <typename U, typename V = typename std::remove_cv<U>::type>
   static auto check(U* p) -> decltype(std::tuple_size<V>::value, 0);
@@ -129,7 +118,6 @@ template <typename T> class is_tuple_like_ {
       !std::is_void<decltype(check<T>(nullptr))>::value;
 };
 
-// Check for integer_sequence
 #if defined(__cpp_lib_integer_sequence) || FMT_MSC_VERSION >= 1900
 template <typename T, T... N>
 using integer_sequence = std::integer_sequence<T, N...>;
@@ -182,7 +170,7 @@ template <typename T, typename C> class is_tuple_formattable_<T, C, true> {
 template <typename Tuple, typename F, size_t... Is>
 FMT_CONSTEXPR void for_each(index_sequence<Is...>, Tuple&& t, F&& f) {
   using std::get;
-  // Using a free function get<Is>(Tuple) now.
+
   const int unused[] = {0, ((void)f(get<Is>(t)), 0)...};
   ignore_unused(unused);
 }
@@ -208,7 +196,7 @@ void for_each2(Tuple1&& t1, Tuple2&& t2, F&& f) {
 }
 
 namespace tuple {
-// Workaround a bug in MSVC 2019 (v140).
+
 template <typename Char, typename... T>
 using result_t = std::tuple<formatter<remove_cvref_t<T>, Char>...>;
 
@@ -216,10 +204,10 @@ using std::get;
 template <typename Tuple, typename Char, size_t... Is>
 auto get_formatters(index_sequence<Is...>)
     -> result_t<Char, decltype(get<Is>(std::declval<Tuple>()))...>;
-}  // namespace tuple
+}
 
 #if FMT_MSC_VERSION && FMT_MSC_VERSION < 1920
-// Older MSVC doesn't get the reference type correctly for arrays.
+
 template <typename R> struct range_reference_type_impl {
   using type = decltype(*detail::range_begin(std::declval<R&>()));
 };
@@ -236,8 +224,6 @@ using range_reference_type =
     decltype(*detail::range_begin(std::declval<Range&>()));
 #endif
 
-// We don't use the Range's value_type for anything, but we do need the Range's
-// reference type, with cv-ref stripped.
 template <typename Range>
 using uncvref_type = remove_cvref_t<range_reference_type<Range>>;
 
@@ -253,7 +239,6 @@ struct range_format_kind_
 template <range_format K>
 using range_format_constant = std::integral_constant<range_format, K>;
 
-// These are not generic lambdas for compatibility with C++11.
 template <typename Char> struct parse_empty_specs {
   template <typename Formatter> FMT_CONSTEXPR void operator()(Formatter& f) {
     f.parse(ctx);
@@ -276,7 +261,7 @@ template <typename FormatContext> struct format_tuple_element {
   basic_string_view<char_type> separator;
 };
 
-}  // namespace detail
+}
 
 FMT_EXPORT
 template <typename T> struct is_tuple_like {
@@ -359,7 +344,7 @@ using maybe_const_range =
 template <typename R, typename Char>
 struct is_formattable_delayed
     : is_formattable<uncvref_type<maybe_const_range<R>>, Char> {};
-}  // namespace detail
+}
 
 template <typename...> struct conjunction : std::true_type {};
 template <typename P> struct conjunction<P> : P {};
@@ -471,7 +456,7 @@ struct range_formatter<
     for (; it != end; ++it) {
       if (i > 0) out = detail::copy<Char>(separator_, out);
       ctx.advance_to(out);
-      auto&& item = *it;  // Need an lvalue
+      auto&& item = *it;
       out = underlying_.format(item, ctx);
       ++i;
     }
@@ -523,7 +508,6 @@ struct formatter<
   }
 };
 
-// A map formatter.
 template <typename R, typename Char>
 struct formatter<
     R, Char,
@@ -580,7 +564,6 @@ struct formatter<
   }
 };
 
-// A (debug_)string formatter.
 template <typename R, typename Char>
 struct formatter<
     R, Char,
@@ -679,9 +662,6 @@ template <typename Tuple, typename Char> struct tuple_join_view : detail::view {
       : tuple(t), sep{s} {}
 };
 
-// Define FMT_TUPLE_JOIN_SPECIFIERS to enable experimental format specifiers
-// support in tuple_join. It is disabled by default because of issues with
-// the dynamic width and precision.
 #ifndef FMT_TUPLE_JOIN_SPECIFIERS
 #  define FMT_TUPLE_JOIN_SPECIFIERS 0
 #endif
@@ -748,8 +728,7 @@ struct formatter<tuple_join_view<Tuple, Char>, Char,
 };
 
 namespace detail {
-// Check if T has an interface like a container adaptor (e.g. std::stack,
-// std::queue, std::priority_queue).
+
 template <typename T> class is_container_adaptor_like {
   template <typename U> static auto check(U* p) -> typename U::container_type;
   template <typename> static void check(...);
@@ -764,7 +743,7 @@ template <typename Container> struct all {
   auto begin() const -> typename Container::const_iterator { return c.begin(); }
   auto end() const -> typename Container::const_iterator { return c.end(); }
 };
-}  // namespace detail
+}
 
 template <typename T, typename Char>
 struct formatter<
@@ -778,7 +757,7 @@ struct formatter<
   auto format(const T& value, FormatContext& ctx) const -> decltype(ctx.out()) {
     struct getter : T {
       static auto get(const T& v) -> all {
-        return {v.*(&getter::c)};  // Access c through the derived class.
+        return {v.*(&getter::c)};
       }
     };
     return formatter<all>::format(getter::get(value), ctx);
@@ -787,27 +766,11 @@ struct formatter<
 
 FMT_BEGIN_EXPORT
 
-/// Returns a view that formats the iterator range `[begin, end)` with elements
-/// separated by `sep`.
 template <typename It, typename Sentinel>
 auto join(It begin, Sentinel end, string_view sep) -> join_view<It, Sentinel> {
   return {std::move(begin), end, sep};
 }
 
-/**
- * Returns a view that formats `range` with elements separated by `sep`.
- *
- * **Example**:
- *
- *     auto v = std::vector<int>{1, 2, 3};
- *     fmt::print("{}", fmt::join(v, ", "));
- *     // Output: 1, 2, 3
- *
- * `fmt::join` applies passed format specifiers to the range elements:
- *
- *     fmt::print("{:02}", fmt::join(v, ", "));
- *     // Output: 01, 02, 03
- */
 template <typename Range, FMT_ENABLE_IF(!is_tuple_like<Range>::value)>
 auto join(Range&& r, string_view sep)
     -> join_view<decltype(detail::range_begin(r)),
@@ -815,30 +778,12 @@ auto join(Range&& r, string_view sep)
   return {detail::range_begin(r), detail::range_end(r), sep};
 }
 
-/**
- * Returns an object that formats `std::tuple` with elements separated by `sep`.
- *
- * **Example**:
- *
- *     auto t = std::tuple<int, char>(1, 'a');
- *     fmt::print("{}", fmt::join(t, ", "));
- *     // Output: 1, a
- */
 template <typename Tuple, FMT_ENABLE_IF(is_tuple_like<Tuple>::value)>
 FMT_CONSTEXPR auto join(const Tuple& tuple FMT_LIFETIMEBOUND, string_view sep)
     -> tuple_join_view<Tuple, char> {
   return {tuple, sep};
 }
 
-/**
- * Returns an object that formats `std::initializer_list` with elements
- * separated by `sep`.
- *
- * **Example**:
- *
- *     fmt::print("{}", fmt::join({1, 2, 3}, ", "));
- *     // Output: "1, 2, 3"
- */
 template <typename T>
 auto join(std::initializer_list<T> list, string_view sep)
     -> join_view<const T*, const T*> {
@@ -848,4 +793,4 @@ auto join(std::initializer_list<T> list, string_view sep)
 FMT_END_EXPORT
 FMT_END_NAMESPACE
 
-#endif  // FMT_RANGES_H_
+#endif

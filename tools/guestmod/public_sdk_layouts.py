@@ -15,20 +15,18 @@ CURATED = {
 FIELD = re.compile(r'/\*\s*(0x[0-9A-Fa-f]+)\s*\*/\s*(be<\w+>|gptr<[^>]+>|\w+)\s+(\w+)(\[[0-9xXa-fA-F+*/ ()-]+\])?\s*;')
 PRIMITIVES = {'u8', 's8', 'u16', 's16', 'u32', 's32', 'f32', 'f64', 'char'}
 
-
 def body_of(text, name):
     match = re.search(r'\bstruct\s+' + re.escape(name) + r'(?:\s*:\s*\w+)?\s*\{', text)
     if not match:
         raise ValueError('missing public layout: ' + name)
     start, depth = match.end(), 1
-    # Braces inside comments are irrelevant to layout nesting.
+
     masked = re.sub(r'/\*.*?\*/|//[^\n]*', lambda m: ' ' * len(m[0]), text, flags=re.S)
     for end in range(start, len(text)):
         depth += (masked[end] == '{') - (masked[end] == '}')
         if not depth:
             return text[start:end], masked[start:end]
     raise ValueError('unclosed public layout: ' + name)
-
 
 def layout(text, name):
     size = re.search(r'WWHD_SIZE\(\s*' + re.escape(name) + r'\s*,\s*(0x[0-9A-Fa-f]+|[0-9]+)\s*\)', text)
@@ -42,7 +40,7 @@ def layout(text, name):
             continue
         offset, kind, field, array = match.groups()
         if kind.startswith('gptr<'):
-            kind = 'u32'  # guest address, never a host pointer
+            kind = 'u32'
         kind = re.sub(r'be<(\w+)>', r'\1', kind)
         if kind not in PRIMITIVES:
             continue
@@ -66,7 +64,6 @@ def layout(text, name):
     for offset, _, field, _ in fields:
         lines.append(f'NSMBU_SDK_ASSERT(__builtin_offsetof({name}, {field}) == 0x{offset:X}, "{name}.{field}");')
     return '\n'.join(lines) + '\n'
-
 
 def generate(root, output, revision):
     output.mkdir(parents=True, exist_ok=True)

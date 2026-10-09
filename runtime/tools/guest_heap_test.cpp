@@ -15,10 +15,10 @@ int main() {
     for(auto p:pointers)assert(heap.release(p));
     assert(!heap.release(pointers[0]));
     auto whole=heap.allocate(4080);assert(whole==0x7F010010);assert(!heap.allocate(1));assert(heap.release(whole));
-    std::copy(snapshot.begin(),snapshot.end(),memory.begin()); // no host allocator ledger to repair
+    std::copy(snapshot.begin(),snapshot.end(),memory.begin());
     assert(!heap.allocate(4096));
     for(auto p:pointers)assert(heap.release(p));
     assert(heap.allocate(4080)==whole);
-    memory[8]=0;assert(!heap.allocate(1)&&!heap.release(whole)); // malformed state metadata fails closed
+    memory[8]=0;assert(!heap.allocate(1)&&!heap.release(whole));
     std::cout<<"guest heap allocation/coalescing/state restore passed\n";
 }

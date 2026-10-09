@@ -1,10 +1,5 @@
-// Recording taps for the verification harness (tools/verify, runtime/include/verify_tap.h).
-//
-// Off unless NSMBU_TAP=<dir> is set and the build has taps (tools/verify/mktap.py). Then each
-// tapped function records its first NSMBU_TAP_N calls (default 100; NSMBU_TAP_EVERY=k records
-// every k-th call; NSMBU_TAP_AFTER=n starts once the game's step counter g_Counter.mCounter0
-// reaches n) to <dir>/<ADDR>/<n>.tap: entry registers, its own loads and stores, every call it
-// makes with the registers before and after, exit registers.
+
+
 #include <filesystem>
 
 #include <algorithm>
@@ -17,7 +12,7 @@
 #include <vector>
 
 #include "guest_addr.h"
-#include "verify_tap.h"  // not verify_tap_gen.h: the recorder's own accesses are not logged
+#include "verify_tap.h"
 
 extern "C" {
 int tap_begin(Cpu* c, uint32_t func);
@@ -60,12 +55,12 @@ void event(Recorder* r, uint8_t type, uint8_t size, uint32_t ea, uint64_t value,
         r->put(&t, sizeof t);
     }
 }
-}  // namespace
+}
 
 extern "C" int tap_begin(Cpu* c, uint32_t func) {
     std::call_once(g_once, init);
     if (!g_dir) return 0;
-    if (g_after && ld32(GD(0x101FF558)) < g_after) return 0;  // g_Counter.mCounter0
+    if (g_after && ld32(GD(0x101FF558)) < g_after) return 0;
     uint32_t seq;
     {
         std::lock_guard<std::mutex> l(g_mu);
@@ -78,7 +73,7 @@ extern "C" int tap_begin(Cpu* c, uint32_t func) {
     h.magic = TAP_MAGIC;
     h.func = func;
     h.seq = seq;
-    h.frame = ld32(GD(0x101FF558));  // g_Counter.mCounter0
+    h.frame = ld32(GD(0x101FF558));
     tap_regs_from(&h.entry, c);
     r->put(&h, sizeof h);
     t_stack.push_back(r);

@@ -1,5 +1,5 @@
-// Right-to-left text: Arabic shaping and bidirectional order (rtl_text.h). Written from the Unicode
-// data (ArabicShaping.txt joining types, the Arabic Presentation Forms blocks, UAX #9).
+
+
 #include "rtl_text.h"
 
 #include <algorithm>
@@ -8,72 +8,69 @@ namespace rtl {
 
 namespace {
 
-// Arabic letters U+0621..U+064A: joining type and the first presentation form (Forms-B, U+FE80..),
-// in Unicode's order isolated, final[, initial, medial]. Letters without forms there have 0.
 struct Letter {
     Joining join;
-    uint16_t forms;  // first presentation form, 0 = none
+    uint16_t forms;
 };
 constexpr Joining U = Joining::None, R = Joining::Right, D = Joining::Dual, C = Joining::Causing;
 constexpr Letter kLetters[0x64A - 0x621 + 1] = {
-    {U, 0xFE80},  // 0621 hamza (isolated only)
-    {R, 0xFE81},  // 0622 alef with madda above
-    {R, 0xFE83},  // 0623 alef with hamza above
-    {R, 0xFE85},  // 0624 waw with hamza above
-    {R, 0xFE87},  // 0625 alef with hamza below
-    {D, 0xFE89},  // 0626 yeh with hamza above
-    {R, 0xFE8D},  // 0627 alef
-    {D, 0xFE8F},  // 0628 beh
-    {R, 0xFE93},  // 0629 teh marbuta
-    {D, 0xFE95},  // 062A teh
-    {D, 0xFE99},  // 062B theh
-    {D, 0xFE9D},  // 062C jeem
-    {D, 0xFEA1},  // 062D hah
-    {D, 0xFEA5},  // 062E khah
-    {R, 0xFEA9},  // 062F dal
-    {R, 0xFEAB},  // 0630 thal
-    {R, 0xFEAD},  // 0631 reh
-    {R, 0xFEAF},  // 0632 zain
-    {D, 0xFEB1},  // 0633 seen
-    {D, 0xFEB5},  // 0634 sheen
-    {D, 0xFEB9},  // 0635 sad
-    {D, 0xFEBD},  // 0636 dad
-    {D, 0xFEC1},  // 0637 tah
-    {D, 0xFEC5},  // 0638 zah
-    {D, 0xFEC9},  // 0639 ain
-    {D, 0xFECD},  // 063A ghain
-    {D, 0},       // 063B keheh with two dots above
-    {D, 0},       // 063C keheh with three dots below
-    {D, 0},       // 063D farsi yeh with inverted v
-    {D, 0},       // 063E farsi yeh with two dots above
-    {D, 0},       // 063F farsi yeh with three dots above
-    {C, 0},       // 0640 tatweel
-    {D, 0xFED1},  // 0641 feh
-    {D, 0xFED5},  // 0642 qaf
-    {D, 0xFED9},  // 0643 kaf
-    {D, 0xFEDD},  // 0644 lam
-    {D, 0xFEE1},  // 0645 meem
-    {D, 0xFEE5},  // 0646 noon
-    {D, 0xFEE9},  // 0647 heh
-    {R, 0xFEED},  // 0648 waw
-    {D, 0xFEEF},  // 0649 alef maksura (initial/medial: U+FBE8/U+FBE9)
-    {D, 0xFEF1},  // 064A yeh
+    {U, 0xFE80},
+    {R, 0xFE81},
+    {R, 0xFE83},
+    {R, 0xFE85},
+    {R, 0xFE87},
+    {D, 0xFE89},
+    {R, 0xFE8D},
+    {D, 0xFE8F},
+    {R, 0xFE93},
+    {D, 0xFE95},
+    {D, 0xFE99},
+    {D, 0xFE9D},
+    {D, 0xFEA1},
+    {D, 0xFEA5},
+    {R, 0xFEA9},
+    {R, 0xFEAB},
+    {R, 0xFEAD},
+    {R, 0xFEAF},
+    {D, 0xFEB1},
+    {D, 0xFEB5},
+    {D, 0xFEB9},
+    {D, 0xFEBD},
+    {D, 0xFEC1},
+    {D, 0xFEC5},
+    {D, 0xFEC9},
+    {D, 0xFECD},
+    {D, 0},
+    {D, 0},
+    {D, 0},
+    {D, 0},
+    {D, 0},
+    {C, 0},
+    {D, 0xFED1},
+    {D, 0xFED5},
+    {D, 0xFED9},
+    {D, 0xFEDD},
+    {D, 0xFEE1},
+    {D, 0xFEE5},
+    {D, 0xFEE9},
+    {R, 0xFEED},
+    {D, 0xFEEF},
+    {D, 0xFEF1},
 };
 
-// Letters outside U+0621..U+064A with forms in Presentation Forms-A (isolated, final[, initial, medial])
 struct Extra {
     uint16_t cp;
     Joining join;
     uint16_t forms;
 };
 constexpr Extra kExtra[] = {
-    {0x0671, R, 0xFB50},  // alef wasla
-    {0x067E, D, 0xFB56},  // peh
-    {0x0686, D, 0xFB7A},  // tcheh
-    {0x0698, R, 0xFB8A},  // jeh
-    {0x06A9, D, 0xFB8E},  // keheh
-    {0x06AF, D, 0xFB92},  // gaf
-    {0x06CC, D, 0xFBFC},  // farsi yeh
+    {0x0671, R, 0xFB50},
+    {0x067E, D, 0xFB56},
+    {0x0686, D, 0xFB7A},
+    {0x0698, R, 0xFB8A},
+    {0x06A9, D, 0xFB8E},
+    {0x06AF, D, 0xFB92},
+    {0x06CC, D, 0xFBFC},
 };
 
 const Extra* extra(uint32_t cp) {
@@ -84,7 +81,7 @@ const Extra* extra(uint32_t cp) {
 
 bool hebrew_letter(uint32_t cp) { return (cp >= 0x05D0 && cp <= 0x05EA) || (cp >= 0x05EF && cp <= 0x05F2); }
 
-}  // namespace
+}
 
 Joining joining_type(uint32_t cp) {
     if (cp >= 0x0621 && cp <= 0x064A) return kLetters[cp - 0x0621].join;
@@ -162,8 +159,7 @@ Bidi bidi_class(uint32_t cp) {
     if (hebrew_letter(cp) || (cp >= 0xFB1D && cp <= 0xFB4F) || (cp >= 0x0590 && cp <= 0x05FF)) return Bidi::R;
     if ((cp >= 0x0600 && cp <= 0x07BF) || (cp >= 0xFB50 && cp <= 0xFDFF) || (cp >= 0xFE70 && cp <= 0xFEFE))
         return Bidi::AL;
-    // ASCII punctuation and symbols, Latin-1 symbols, general punctuation, arrows, and the private use
-    // area (the game fonts' button pictures): neutral, so they stay with the words around them
+
     if (cp < 0x80 && !((cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z'))) return Bidi::ON;
     if ((cp >= 0xA1 && cp <= 0xBF) || cp == 0xD7 || cp == 0xF7) return Bidi::ON;
     if ((cp >= 0x2010 && cp <= 0x2027) || (cp >= 0x2030 && cp <= 0x2BFF) || (cp >= 0x3001 && cp <= 0x3003) ||
@@ -202,21 +198,18 @@ uint32_t mirror(uint32_t cp) {
     case 0xFF09: return 0xFF08;
     case 0xFF3B: return 0xFF3D;
     case 0xFF3D: return 0xFF3B;
-    // the NSMBU fonts' decorative brackets (private use area) around place names and credits
+
     case 0xE0A0: return 0xE0A1;
     case 0xE0A1: return 0xE0A0;
     }
     return cp;
 }
 
-// ---- shaping ----
-
 namespace {
 
-bool joins_left_side(Joining j) { return j == Joining::Dual || j == Joining::Causing; }   // to the next char
-bool joins_right_side(Joining j) { return j == Joining::Dual || j == Joining::Right || j == Joining::Causing; }  // to the previous
+bool joins_left_side(Joining j) { return j == Joining::Dual || j == Joining::Causing; }
+bool joins_right_side(Joining j) { return j == Joining::Dual || j == Joining::Right || j == Joining::Causing; }
 
-// nearest non-transparent neighbour in direction step (-1 / +1), 0 if none
 uint32_t neighbour(const std::function<uint32_t(size_t)>& at, size_t i, size_t n, int step) {
     for (size_t k = i;;) {
         if (step < 0) {
@@ -231,7 +224,7 @@ uint32_t neighbour(const std::function<uint32_t(size_t)>& at, size_t i, size_t n
     }
 }
 
-}  // namespace
+}
 
 Shaped shape_at(const std::function<uint32_t(size_t)>& at, size_t i, size_t n, const HasGlyph& has) {
     const uint32_t c = at(i);
@@ -240,11 +233,11 @@ Shaped shape_at(const std::function<uint32_t(size_t)>& at, size_t i, size_t n, c
     if (j == Joining::None || j == Joining::Transparent) return {c, false};
     const uint32_t prev = neighbour(at, i, n, -1), next = neighbour(at, i, n, +1);
     const bool join_prev = joins_right_side(j) && joins_left_side(joining_type(prev));
-    // lam-alef: the ligature (when the font has it) replaces the lam; the alef is then skipped
+
     if (c == 0x0644 && lam_alef(next, false) && has(lam_alef(next, join_prev))) return {lam_alef(next, join_prev), false};
     if (lam_alef(c, false) && prev == 0x0644) {
         const uint32_t before_lam = [&] {
-            // the character before the lam decides the ligature's form; find the lam first
+
             size_t k = i;
             while (k > 0 && at(k - 1) != 0x0644) k--;
             return k > 0 ? neighbour(at, k - 1, n, -1) : 0u;
@@ -253,7 +246,7 @@ Shaped shape_at(const std::function<uint32_t(size_t)>& at, size_t i, size_t n, c
     }
     const bool join_next = joins_left_side(j) && joins_right_side(joining_type(next));
     const Form form = join_prev && join_next ? Form::Medial : join_prev ? Form::Final : join_next ? Form::Initial : Form::Isolated;
-    // a missing form: the nearest one that makes sense, else the base letter
+
     const Form fallbacks[4][3] = {
         {Form::Isolated, Form::Isolated, Form::Isolated},
         {Form::Final, Form::Isolated, Form::Isolated},
@@ -277,22 +270,20 @@ std::vector<uint32_t> shape(const std::u16string& s, const HasGlyph& has) {
     return out;
 }
 
-// ---- bidi ----
-
 std::vector<uint8_t> resolve_levels(const std::vector<Bidi>& in, int para) {
     const size_t n = in.size();
     std::vector<Bidi> t = in;
     const Bidi sos = para & 1 ? Bidi::R : Bidi::L;
-    // indices that take part (BN is removed, X9)
+
     std::vector<size_t> idx;
     for (size_t i = 0; i < n; i++)
         if (t[i] != Bidi::BN) idx.push_back(i);
     const size_t m = idx.size();
     auto T = [&](size_t k) -> Bidi& { return t[idx[k]]; };
-    // W1: NSM takes the type of the previous character
+
     for (size_t k = 0; k < m; k++)
         if (T(k) == Bidi::NSM) T(k) = k ? T(k - 1) : sos;
-    // W2: EN after AL becomes AN
+
     {
         Bidi strong = sos;
         for (size_t k = 0; k < m; k++) {
@@ -300,16 +291,16 @@ std::vector<uint8_t> resolve_levels(const std::vector<Bidi>& in, int para) {
             else if (T(k) == Bidi::EN && strong == Bidi::AL) T(k) = Bidi::AN;
         }
     }
-    // W3: AL -> R
+
     for (size_t k = 0; k < m; k++)
         if (T(k) == Bidi::AL) T(k) = Bidi::R;
-    // W4: a single separator between two numbers of the same kind
+
     for (size_t k = 1; k + 1 < m; k++) {
         if (T(k) == Bidi::ES && T(k - 1) == Bidi::EN && T(k + 1) == Bidi::EN) T(k) = Bidi::EN;
         else if (T(k) == Bidi::CS && T(k - 1) == Bidi::EN && T(k + 1) == Bidi::EN) T(k) = Bidi::EN;
         else if (T(k) == Bidi::CS && T(k - 1) == Bidi::AN && T(k + 1) == Bidi::AN) T(k) = Bidi::AN;
     }
-    // W5: terminators next to European numbers
+
     for (size_t k = 0; k < m;) {
         if (T(k) != Bidi::ET) {
             k++;
@@ -322,10 +313,10 @@ std::vector<uint8_t> resolve_levels(const std::vector<Bidi>& in, int para) {
             for (size_t q = k; q < e; q++) T(q) = Bidi::EN;
         k = e;
     }
-    // W6: remaining separators and terminators are neutral
+
     for (size_t k = 0; k < m; k++)
         if (T(k) == Bidi::ES || T(k) == Bidi::ET || T(k) == Bidi::CS) T(k) = Bidi::ON;
-    // W7: EN after L (or an L start) becomes L
+
     {
         Bidi strong = sos;
         for (size_t k = 0; k < m; k++) {
@@ -333,8 +324,7 @@ std::vector<uint8_t> resolve_levels(const std::vector<Bidi>& in, int para) {
             else if (T(k) == Bidi::EN && strong == Bidi::L) T(k) = Bidi::L;
         }
     }
-    // N1/N2: neutrals between strong types of the same direction take it (numbers count as R),
-    // otherwise the embedding direction
+
     auto dir = [](Bidi b) { return b == Bidi::L ? Bidi::L : Bidi::R; };
     auto neutral = [](Bidi b) { return b == Bidi::WS || b == Bidi::ON || b == Bidi::S || b == Bidi::B; };
     for (size_t k = 0; k < m;) {
@@ -350,7 +340,7 @@ std::vector<uint8_t> resolve_levels(const std::vector<Bidi>& in, int para) {
         for (size_t q = k; q < e; q++) T(q) = d;
         k = e;
     }
-    // I1/I2
+
     std::vector<uint8_t> lv(n, (uint8_t)para);
     for (size_t k = 0; k < m; k++) {
         const Bidi b = T(k);
@@ -363,7 +353,7 @@ std::vector<uint8_t> resolve_levels(const std::vector<Bidi>& in, int para) {
         }
         lv[idx[k]] = l;
     }
-    // BN: the level of the previous character (or the paragraph level)
+
     for (size_t i = 0; i < n; i++)
         if (in[i] == Bidi::BN) lv[i] = i ? lv[i - 1] : (uint8_t)para;
     return lv;
@@ -371,7 +361,7 @@ std::vector<uint8_t> resolve_levels(const std::vector<Bidi>& in, int para) {
 
 std::vector<size_t> visual_order(std::vector<uint8_t> lv, const std::vector<bool>& ws, int para) {
     const size_t n = lv.size();
-    // L1: trailing whitespace takes the paragraph level
+
     for (size_t i = n; i > 0 && i - 1 < ws.size() && ws[i - 1]; i--) lv[i - 1] = (uint8_t)para;
     std::vector<size_t> order(n);
     for (size_t i = 0; i < n; i++) order[i] = i;
@@ -381,7 +371,7 @@ std::vector<size_t> visual_order(std::vector<uint8_t> lv, const std::vector<bool
         hi = std::max(hi, l);
         if (l & 1) lo_odd = std::min(lo_odd, l);
     }
-    // L2: from the highest level down to the lowest odd level, reverse every run at or above it
+
     for (int level = hi; level >= (int)lo_odd && level > 0; level--) {
         for (size_t i = 0; i < n;) {
             if (lv[order[i]] < level) {
@@ -397,26 +387,24 @@ std::vector<size_t> visual_order(std::vector<uint8_t> lv, const std::vector<bool
     return order;
 }
 
-// ---- a message ----
-
 Plan plan(const uint16_t* s, size_t n, const HasGlyph& has) {
     Plan p;
     p.code.assign(s, s + n);
     p.skip.assign(n, 0);
     p.level.assign(n, 0);
     p.ws.assign(n, 0);
-    // units: characters and control sequences
+
     std::vector<Bidi> cls(n, Bidi::BN);
     std::vector<uint8_t> is_char(n, 0);
     for (size_t i = 0; i < n;) {
         const uint16_t c = s[i];
-        if (c == 0x0E && i + 3 < n) {  // tag: 0x0E group type size params
+        if (c == 0x0E && i + 3 < n) {
             const size_t len = 4 + s[i + 3] / 2;
-            if (s[i + 1] == 3) cls[i] = Bidi::ON;  // a button icon: a neutral character
+            if (s[i + 1] == 3) cls[i] = Bidi::ON;
             i += len;
             continue;
         }
-        if (c == 0x0F && i + 2 < n) {  // end tag: 0x0F group type
+        if (c == 0x0F && i + 2 < n) {
             i += 3;
             continue;
         }
@@ -426,7 +414,7 @@ Plan plan(const uint16_t* s, size_t n, const HasGlyph& has) {
         i++;
     }
     if (!p.rtl) return p;
-    // shaping, with tags and control codes breaking the joining (a tag's parameters are never letters)
+
     auto at = [&](size_t k) -> uint32_t { return is_char[k] ? s[k] : 0x0Bu; };
     for (size_t i = 0; i < n; i++) {
         if (!is_char[i]) continue;
@@ -435,7 +423,7 @@ Plan plan(const uint16_t* s, size_t n, const HasGlyph& has) {
         if (r.skip) p.skip[i] = 1;
         p.ws[i] = cls[i] == Bidi::WS || cls[i] == Bidi::S;
     }
-    // levels per paragraph (between line breaks)
+
     for (size_t a = 0; a < n;) {
         size_t b = a;
         while (b < n && !(is_char[b] && cls[b] == Bidi::B)) b++;
@@ -445,8 +433,7 @@ Plan plan(const uint16_t* s, size_t n, const HasGlyph& has) {
         if (b < n) p.level[b] = 1;
         a = b + 1;
     }
-    // L4: mirrored brackets at odd levels (the pairs are in the same fonts; `has` describes the
-    // message font only, and the game's decorative brackets are in the menu font)
+
     for (size_t i = 0; i < n; i++)
         if (is_char[i] && (p.level[i] & 1) && mirror(s[i]) != s[i]) p.code[i] = mirror(s[i]);
     return p;
@@ -463,7 +450,7 @@ std::vector<float> reorder_line(const std::vector<Glyph>& g, int para) {
         ws[i] = g[i].ws;
     }
     const std::vector<size_t> order = visual_order(lv, ws, para);
-    // the space after a glyph (letter spacing, kerning, a tag's room) up to its logical successor
+
     auto gap = [&](size_t i) { return i + 1 < n ? g[i + 1].pen - (g[i].pen + g[i].advance) : 0.0f; };
     float x = g[0].pen;
     for (size_t k = 0; k < n; k++) {
@@ -472,11 +459,11 @@ std::vector<float> reorder_line(const std::vector<Glyph>& g, int para) {
         x += g[i].advance;
         if (k + 1 < n) {
             const size_t j = order[k + 1];
-            // neighbours in both orders keep their gap; otherwise the gap that followed this glyph
+
             x += j == i + 1 ? gap(i) : j + 1 == i ? gap(j) : gap(i);
         }
     }
     return out;
 }
 
-}  // namespace rtl
+}

@@ -1,5 +1,5 @@
-// Adapted from Cemu src/Cafe/HW/Latte/Core/LatteRenderTarget.cpp and Renderer/Metal/LatteToMtl.cpp
-// Copyright (c) Cemu contributors. Licensed under the Mozilla Public License 2.0 (see LICENSE.txt).
+
+
 #include "Cafe/HW/Latte/Core/LatteCachedFBO.h"
 #include "Cafe/HW/Latte/Core/LatteShader.h"
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
@@ -16,25 +16,23 @@ uint8 LatteMRT::GetActiveColorBufferMask(const LatteDecompilerShader* pixelShade
 	if (!pixelShader) [[unlikely]]
 		return 0;
 	const uint32* regView = lcr.GetRawView();
-	// check if color buffer output is active
+
 	const Latte::LATTE_CB_COLOR_CONTROL& colorControlReg = lcr.CB_COLOR_CONTROL;
 	uint32 colorBufferDisable = colorControlReg.get_SPECIAL_OP() == Latte::LATTE_CB_COLOR_CONTROL::E_SPECIALOP::DISABLE;
 	if (colorBufferDisable)
 		return 0;
-	cemu_assert_debug(colorControlReg.get_DEGAMMA_ENABLE() == false); // not supported
-	// start with color buffer mask from pixel shader output
+	cemu_assert_debug(colorControlReg.get_DEGAMMA_ENABLE() == false);
+
 	uint8 colorBufferMask = pixelShader->pixelColorOutputMask;
-	// combine color buffer mask with color channel mask from mmCB_TARGET_MASK (disable render buffer if all colors are blocked)
+
 	uint32 channelTargetMask = lcr.CB_TARGET_MASK.get_MASK();
 	for (uint32 i = 0; i < 8; i++)
 	{
 		if (((channelTargetMask >> (i * 4)) & 0xF) == 0)
 			colorBufferMask &= ~(1 << i);
 	}
-	// render targets smaller than the scissor size are not allowed
-	// this fixes a few render issues in Cemu but we dont know if this matches HW behavior
-	// also check for color buffers without a valid pointer
-	cemu_assert_debug(lcr.PA_SC_GENERIC_SCISSOR_TL.get_WINDOW_OFFSET_DISABLE() == true); // todo (not exposed by GX2 API)
+
+	cemu_assert_debug(lcr.PA_SC_GENERIC_SCISSOR_TL.get_WINDOW_OFFSET_DISABLE() == true);
 	uint32 scissorAccessWidth = lcr.PA_SC_GENERIC_SCISSOR_BR.get_BR_X();
 	uint32 scissorAccessHeight = lcr.PA_SC_GENERIC_SCISSOR_BR.get_BR_Y();
 	for (uint32 i = 0; i < 8; i++)
@@ -43,10 +41,10 @@ uint8 LatteMRT::GetActiveColorBufferMask(const LatteDecompilerShader* pixelShade
 			continue;
 		if (regView[mmCB_COLOR0_BASE + i] == MPTR_NULL) [[unlikely]]
 			colorBufferMask &= ~(1 << i);
-		// get width/height
+
 		uint32 regColorSize = regView[mmCB_COLOR0_SIZE + i];
 		uint32 regColorInfo = regView[mmCB_COLOR0_INFO + i];
-		// decode color buffer reg info
+
 		uint32 colorBufferPitch = (((regColorSize >> 0) & 0x3FF) + 1);
 		colorBufferPitch <<= 3;
 		uint32 pitchHeight = (((regColorSize >> 10) & 0xFFFFF) + 1);
@@ -56,18 +54,17 @@ uint8 LatteMRT::GetActiveColorBufferMask(const LatteDecompilerShader* pixelShade
 
 		if ((colorBufferWidth < (sint32)scissorAccessWidth) || (colorBufferHeight < (sint32)scissorAccessHeight))
 		{
-            // log this?
+
 			colorBufferMask &= ~(1<<i);
 		}
 	}
 	return colorBufferMask;
 }
 
-// returns true if depth/stencil buffer is used
 bool LatteMRT::GetActiveDepthBufferMask(const LatteContextRegister& lcr)
 {
 	bool depthBufferMask = true;
-	// if depth test is not used then detach the depth buffer
+
 	bool depthEnable = lcr.DB_DEPTH_CONTROL.get_Z_ENABLE();
 	bool stencilTestEnable = lcr.DB_DEPTH_CONTROL.get_STENCIL_ENABLE();
 	bool backStencilEnable = lcr.DB_DEPTH_CONTROL.get_BACK_STENCIL_ENABLE();
@@ -80,27 +77,26 @@ bool LatteMRT::GetActiveDepthBufferMask(const LatteContextRegister& lcr)
 
 const uint32 _colorBufferFormatBits[] =
 {
-	0, // 0
-	0x200, // 1
-	0, // 2
-	0, // 3
-	0x100, // 4
-	0x300, // 5
-	0x400, // 6
-	0x800, // 7
+	0,
+	0x200,
+	0,
+	0,
+	0x100,
+	0x300,
+	0x400,
+	0x800,
 };
 
 Latte::E_GX2SURFFMT LatteMRT::GetColorBufferFormat(const uint32 index, const LatteContextRegister& lcr)
 {
 	cemu_assert_debug(index < Latte::GPU_LIMITS::NUM_COLOR_ATTACHMENTS);
 	uint32 regColorInfo = lcr.GetRawView()[mmCB_COLOR0_INFO + index];
-	uint32 colorBufferFormat = (regColorInfo >> 2) & 0x3F; // base HW format
+	uint32 colorBufferFormat = (regColorInfo >> 2) & 0x3F;
 	uint32 numberType = (regColorInfo >> 12) & 7;
 	colorBufferFormat |= _colorBufferFormatBits[numberType];
 	return (Latte::E_GX2SURFFMT)colorBufferFormat;
 }
 
-// return GX2 format of current depth buffer
 Latte::E_GX2SURFFMT LatteMRT::GetDepthBufferFormat(const LatteContextRegister& lcr)
 {
 	uint32 regDepthBufferInfo = lcr.GetRawView()[mmDB_DEPTH_INFO];
@@ -172,7 +168,7 @@ MTL::VertexFormat GetMtlVertexFormat(Latte::E_HWFMT format)
 		return MTL::VertexFormatUInt;
 	default:
 		cemuLog_log(LogType::Force, "unsupported vertex format {}", (uint32)format);
-		
+
 		return MTL::VertexFormatInvalid;
 	}
 }
@@ -229,8 +225,6 @@ uint32 GetMtlVertexFormatSize(Latte::E_HWFMT format)
 }
 #endif
 
-// LatteFetchShader: we build fetch shaders directly from GX2 attribute descriptions,
-// so the cache machinery of Cemu's FetchShader.cpp is not needed.
 LatteFetchShader::~LatteFetchShader() {}
 uint32 LatteParsedFetchShaderBufferGroup::getCurrentBufferStride(uint32* contextRegister) const {
     uint32 bufferIndex = this->attributeBufferIndex;
@@ -238,7 +232,6 @@ uint32 LatteParsedFetchShaderBufferGroup::getCurrentBufferStride(uint32* context
     return (contextRegister[bufferBaseRegisterIndex + 2] >> 11) & 0xFFFF;
 }
 
-// ---- from Cemu src/Cafe/HW/Latte/Core/LatteShader.cpp
 LatteShaderPSInputTable _activePSImportTable;
 
 LatteShaderPSInputTable* LatteSHRC_GetPSInputTable()
@@ -248,22 +241,16 @@ LatteShaderPSInputTable* LatteSHRC_GetPSInputTable()
 
 void LatteShader_CreatePSInputTable(LatteShaderPSInputTable* psInputTable, uint32* contextRegisters)
 {
-    // PS control
+
 	uint32 psControl0 = contextRegisters[mmSPI_PS_IN_CONTROL_0];
 	uint32 spi0_positionEnable = (psControl0 >> 8) & 1;
 	uint32 spi0_positionCentroid = (psControl0 >> 9) & 1;
-	cemu_assert_debug(spi0_positionCentroid == 0); // controls gl_FragCoord
-	uint32 spi0_positionAddr = spi0_positionEnable ? ((psControl0 >> 10) & 0x1F) : 0xFFFFFFFF; // controls gl_FragCoord
-	uint32 spi0_paramGen = (psControl0 >> 15) & 0xF; // used for gl_PointCoords
+	cemu_assert_debug(spi0_positionCentroid == 0);
+	uint32 spi0_positionAddr = spi0_positionEnable ? ((psControl0 >> 10) & 0x1F) : 0xFFFFFFFF;
+	uint32 spi0_paramGen = (psControl0 >> 15) & 0xF;
 	uint32 spi0_paramGenAddr = (psControl0 >> 19) & 0x7F;
 	sint32 importIndex = 0;
 
-	//cemu_assert_debug(((psControl0>>26)&3) == 1); // BARYC_SAMPLE_CNTL
-	//cemu_assert_debug((psControl0&(1 << 28)) == 0); // PERSP_GRADIENT_ENA
-	//cemu_assert_debug((psControl0&(1 << 29)) == 0); // LINEAR_GRADIENT_ENA
-	// if LINEAR_GRADIENT_ENA_bit is enabled, the pixel shader accesses gl_ClipSize?
-
-	// VS/GS parameters
 	uint32 numPSInputs = contextRegisters[mmSPI_PS_IN_CONTROL_0] & 0x3F;
 	uint64 key = 0;
 
@@ -272,7 +259,6 @@ void LatteShader_CreatePSInputTable(LatteShaderPSInputTable* psInputTable, uint3
 		key += (uint64)spi0_positionAddr + 1;
 	}
 
-	// parameter gen
 	if (spi0_paramGen != 0)
 	{
 		key += std::rotr<uint64>(spi0_paramGen, 7);
@@ -285,7 +271,6 @@ void LatteShader_CreatePSInputTable(LatteShaderPSInputTable* psInputTable, uint3
 		psInputTable->paramGen = 0;
 	}
 
-	// semantic imports from vertex shader
 #ifdef CEMU_DEBUG_ASSERT
 	uint8 semanticMask[256 / 8] = { 0 };
 #endif
@@ -298,18 +283,12 @@ void LatteShader_CreatePSInputTable(LatteShaderPSInputTable* psInputTable, uint3
 		uint32 psSemanticId = (psInputControl & 0xFF);
 
 		uint8 defaultValue = (psInputControl>>8)&3;
-		// default:
-		// 0 -> 0.0 0.0 0.0 0.0
-		// 1 -> 0.0 0.0 0.0 1.0
-		// 2 -> 1.0 1.0 1.0 0.0
-		// 3 -> 1.0 1.0 1.0 1.0
+
 		cemu_assert_debug(defaultValue <= 1);
 
 		uint32 uknBits = psInputControl & ~((0xFF)|(0x3<<8) | (1 << 10) | (1 << 12));
-		uknBits &= ~0x800; // FLAT_SHADE
-		//cemu_assert_debug(uknBits == 0);
-		//cemu_assert_debug(((psInputControl >> 11) & 1) == 0); // centroid
-		//cemu_assert_debug(((psInputControl >> 17) & 1) == 0); // point sprite coord
+		uknBits &= ~0x800;
+
 		cemu_assert_debug(psSemanticId != 0xFF);
 
 		key += (uint64)psInputControl;
@@ -340,14 +319,11 @@ void LatteShader_CreatePSInputTable(LatteShaderPSInputTable* psInputTable, uint3
 	psInputTable->count = numPSInputs;
 }
 
-// both vertex and geometry/pixel shader depend on PS inputs
-// we prepare the PS import info in advance
 void LatteShader_UpdatePSInputs(uint32* contextRegisters)
 {
 	LatteShader_CreatePSInputTable(&_activePSImportTable, contextRegisters);
 }
 
-// ---- from Cemu src/Cafe/HW/Latte/Core/LatteTextureLegacy.cpp
 Latte::E_GX2SURFFMT LatteTexture_ReconstructGX2Format(const Latte::LATTE_SQ_TEX_RESOURCE_WORD1_N& texUnitWord1, const Latte::LATTE_SQ_TEX_RESOURCE_WORD4_N& texUnitWord4)
 {
 	Latte::E_GX2SURFFMT gx2Format = (Latte::E_GX2SURFFMT)texUnitWord1.get_DATA_FORMAT();
@@ -366,7 +342,6 @@ Latte::E_GX2SURFFMT LatteTexture_ReconstructGX2Format(const Latte::LATTE_SQ_TEX_
 	return gx2Format;
 }
 
-// ---- from Cemu src/Cafe/HW/Latte/Core/LatteShader.cpp
 static void InitUniformLayoutFromDecompiler(
     LatteDecompilerShader* shader,
     const LatteDecompilerOutput_t& decompilerOutput
@@ -374,7 +349,7 @@ static void InitUniformLayoutFromDecompiler(
 {
 	if (g_renderer->GetType() == RendererAPI::OpenGL)
 	{
-		// hack - for OpenGL these are retrieved in _prepareSeparableUniforms()
+
 		shader->uniform.count_uniformRegister = decompilerOutput.uniformOffsetsGL.count_uniformRegister;
 		return;
 	}
@@ -390,7 +365,6 @@ static void InitUniformLayoutFromDecompiler(
     for (sint32 t = 0; t < LATTE_NUM_MAX_TEX_UNITS; t++)
         shader->uniform.loc_framebufferFetchSize[t] = offsets.offset_framebufferFetchSize[t];
 
-    // Texture scale uniforms
     shader->uniform.list_ufTexRescale.clear();
     for (sint32 t = 0; t < LATTE_NUM_MAX_TEX_UNITS; t++)
     {
@@ -405,7 +379,6 @@ static void InitUniformLayoutFromDecompiler(
 
     shader->uniform.loc_verticesPerInstance = offsets.offset_verticesPerInstance;
 
-    // Streamout buffers
     for (sint32 t = 0; t < LATTE_NUM_STREAMOUT_BUFFER; t++)
     {
         shader->uniform.loc_streamoutBufferBase[t] = offsets.offset_streamoutBufferBase[t];
@@ -414,7 +387,6 @@ static void InitUniformLayoutFromDecompiler(
     shader->uniform.uniformRangeSize = offsets.offset_endOfBlock;
 }
 
-// resource mapping + uniform layout, as LatteShader_CreateShaderFromDecompilerOutput does for Metal
 LatteDecompilerShader* FinishDecompiledShader(LatteDecompilerOutput_t& decompilerOutput)
 {
 	LatteDecompilerShader* shader = decompilerOutput.shader;

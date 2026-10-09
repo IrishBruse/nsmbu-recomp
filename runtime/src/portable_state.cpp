@@ -1,4 +1,4 @@
-// Portable save state file format (portable_state.h).
+
 #include "portable_state.h"
 
 #include <cstdio>
@@ -10,7 +10,6 @@
 namespace pstate {
 namespace {
 
-// every key a file may have; anything else is refused (no room for extra data)
 struct Blob { const char* key; size_t size; std::vector<uint8_t> State::*field; };
 const Blob kBlobs[] = {
     {"savedata", kSaveDataSize, &State::savedata},
@@ -25,7 +24,7 @@ const char* const kTextKeys[] = {
     "has_ship", "ship_pos", "ship_angle_y",
     "time_of_day", "date", "controller",
 };
-constexpr size_t kMaxText = 128;  // longest value of a text key
+constexpr size_t kMaxText = 128;
 
 const Blob* find_blob(const std::string& k) {
     for (auto& b : kBlobs)
@@ -68,7 +67,6 @@ bool unhex(const std::string& s, std::vector<uint8_t>& out) {
     return true;
 }
 
-// values are single-line printable text
 std::string clean(const std::string& v) {
     std::string s;
     for (unsigned char c : v)
@@ -81,7 +79,6 @@ std::string trim(const std::string& s) {
     return a == std::string::npos ? "" : s.substr(a, b - a + 1);
 }
 
-// numbers in the C locale whatever the host's locale is
 std::string fnum(float v) {
     std::ostringstream o;
     o.imbue(std::locale::classic());
@@ -113,7 +110,6 @@ void be32(uint8_t* p, uint32_t v) {
 }
 uint32_t rd32(const uint8_t* p) { return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]; }
 
-// splits into lines (the checksum line must be the last); `body` = everything before the checksum line
 bool lines_of(const std::string& text, std::vector<std::pair<std::string, std::string>>& kv, std::string& body,
               std::string& checksum, std::string& why) {
     if (text.size() > kMaxFileSize) {
@@ -154,7 +150,7 @@ bool lines_of(const std::string& text, std::vector<std::pair<std::string, std::s
     return false;
 }
 
-}  // namespace
+}
 
 uint32_t crc32(const void* data, size_t n, uint32_t crc) {
     static uint32_t table[256];
@@ -243,7 +239,7 @@ std::string write(const State& s, std::string& why) {
     snprintf(ck, sizeof ck, "crc32:%08X", crc32(o.data(), o.size()));
     kv("checksum", ck);
     std::string w;
-    if (!blob_check(o, w)) {  // the guard, on what is about to be written
+    if (!blob_check(o, w)) {
         why = "refused to write: " + w;
         return "";
     }
@@ -264,7 +260,7 @@ bool blob_check(const std::string& text, std::string& why) {
             binary += b->size;
         } else if (is_guest_key(k,v)) {
             if(++guest_count>256){why="too many guest mods";return false;}
-            // bounded ID/version metadata, not a binary field
+
         } else if (is_text_key(k)) {
             if (v.size() > kMaxText) {
                 why = "field " + k + " is too long";
@@ -376,4 +372,4 @@ bool read(const std::string& text, State& out, std::string& why) {
     return true;
 }
 
-}  // namespace pstate
+}

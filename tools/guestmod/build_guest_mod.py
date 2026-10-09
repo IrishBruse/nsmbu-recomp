@@ -29,17 +29,15 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import guestmod  # noqa: E402
+import guestmod
 from builds import by_name, canonical_build
 
 REPO = os.path.dirname(os.path.dirname(HERE))
 CFLAGS = ["-O2", "-ffp-contract=off", "-fno-strict-aliasing", "-w", "-fPIC", "-shared"]
 
-
 def module_ext():
     s = platform.system()
     return ".dll" if s == "Windows" else ".dylib" if s == "Darwin" else ".so"
-
 
 def default_cc():
     if os.environ.get("CC"):
@@ -48,15 +46,12 @@ def default_cc():
         return ["xcrun", "clang"]
     return ["clang"]
 
-
 def default_include():
-    # Installed packages carry the runtime ABI separately from the public nsmbu/
-    # guest declarations; the translated module includes only this ABI directory.
+
     installed = os.path.join(REPO, "sdk", "include")
     if os.path.isfile(os.path.join(installed, "nsmbu_guest_abi.h")):
         return installed
     return os.path.join(REPO, "runtime", "include")
-
 
 def abi_version(include):
     with open(os.path.join(include, "nsmbu_guest_abi.h"), encoding="utf-8") as f:
@@ -64,7 +59,6 @@ def abi_version(include):
             if line.startswith("#define NSMBU_GUEST_ABI_VERSION"):
                 return line.split()[2]
     raise guestmod.ModError("nsmbu_guest_abi.h without an ABI version")
-
 
 def package_elf(pkg):
     """Read only package-relative ELF paths; return the validated manifest and ELF bytes."""
@@ -92,7 +86,6 @@ def package_elf(pkg):
         raise guestmod.ModError("guest ELF is missing or larger than 64 MiB")
     return man, elf_path.read_bytes()
 
-
 def translator_for(elf, base, game_build=None):
     if type(base) is not int or base & 0xFFFF or not guestmod.REGION_START <= base < guestmod.REGION_END:
         raise guestmod.ModError("guest base must be 64 KiB aligned within the mod region")
@@ -101,14 +94,12 @@ def translator_for(elf, base, game_build=None):
     except (struct.error, IndexError, UnicodeError) as e:
         raise guestmod.ModError("malformed guest ELF: " + str(e)) from e
 
-
 def inspect_package(pkg, base, game_build=None):
     man, elf = package_elf(pkg)
     t = translator_for(elf, base, game_build)
     return {"ok": True, "id": man["id"], "base": base, "memory_size": t.end - base,
             "allocation_size": (t.end - base + 0xFFFF) & ~0xFFFF,
             "elf_sha256": hashlib.sha256(elf).hexdigest()}
-
 
 def cache_key(elf, mod_id, base, cc, include, game_build=None):
     version = subprocess.run(cc + ["--version"], capture_output=True, text=True)
@@ -120,7 +111,7 @@ def cache_key(elf, mod_id, base, cc, include, game_build=None):
              abi_version(include).encode(),
              json.dumps(vars(game_build), sort_keys=True, default=lambda v: vars(v)).encode(),
              json.dumps([cc, version.stdout, CFLAGS, module_ext()]).encode()]
-    # Version strings alone miss edits between releases. Hash the actual translation/ABI inputs.
+
     inputs = [Path(__file__), Path(guestmod.__file__), Path(HERE).parent / "recomp" / "ppc2c.py",
               Path(include) / "ppc.h", Path(include) / "nsmbu_guest_abi.h",
               Path(HERE).parent / "recomp" / "builds.py"]
@@ -128,7 +119,6 @@ def cache_key(elf, mod_id, base, cc, include, game_build=None):
     for part in parts:
         h.update(hashlib.sha256(part).digest())
     return h.hexdigest()
-
 
 def build(pkg, out, base, cc, include, game_build=None):
     man, elf = package_elf(pkg)
@@ -157,7 +147,6 @@ def build(pkg, out, base, cc, include, game_build=None):
     return {"ok": True, "module": mod, "cached": False, **metadata, "translate_s": round(t1 - t0, 3),
             "compile_s": round(time.time() - t1, 3), "functions": len(t.entries), "hooks": len(t.hooks),
             "services": t.services}
-
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -195,7 +184,6 @@ def main():
     print(json.dumps(r) if a.json else ("inspected %s" % r["id"] if a.inspect and r["ok"] else
                                   "built %s" % r["module"] if r["ok"] else "error: " + r["error"]))
     sys.exit(0 if r["ok"] else 1)
-
 
 if __name__ == "__main__":
     main()

@@ -1,14 +1,5 @@
-// Shader head start: shaders pre-translated from the game's own shader archives (tools/shaderprep.py
-// builds game/shadercache/headstart.bin from the game files and a template of recorded render
-// states). Records use the runtime cache's recipe format:
-//   type 1 ("known"): programs and states seen in play; translated at startup, compiled on first use or
-//                     gradually in the background (like the user cache)
-//   type 2 (pipeline): pipeline recipes seen in play, referencing type 1 shaders by key; built in the
-//                     background once their shaders are compiled (like the user cache's)
-//   type 3 (speculative): other archive programs with states of the same shader family; only
-//                     `nsmbu --warm-shaders` compiles them, to fill the macOS Metal shader cache
-// `nsmbu --warm-shaders` compiles all three kinds.
-// NSMBU_HEADSTART=<file> overrides the location, NSMBU_HEADSTART=0 disables it.
+
+
 #include <chrono>
 #include <thread>
 #include <unordered_map>
@@ -22,10 +13,10 @@
 
 namespace gfx {
 
-bool headstart_translate(const uint32_t* regs, bool vertex, bool compileNow);  // metal_draw.mm
-size_t headstart_compiling();                                                   // metal_draw.mm
-bool headstart_queue_pipeline(const uint8_t* raw, size_t size);                 // metal_draw.mm
-size_t headstart_build_pipelines(int maxInFlight, size_t& built, size_t& dropped);  // metal_draw.mm
+bool headstart_translate(const uint32_t* regs, bool vertex, bool compileNow);
+size_t headstart_compiling();
+bool headstart_queue_pipeline(const uint8_t* raw, size_t size);
+size_t headstart_build_pipelines(int maxInFlight, size_t& built, size_t& dropped);
 
 namespace {
 constexpr uint32_t kRecShader = 1, kRecPipeline = 2, kRecSpeculative = 3;
@@ -35,7 +26,6 @@ std::string headstart_path() {
     return config::game_dir + "/shadercache/headstart.bin";
 }
 
-// guest copies of programs and fetch shaders, shared by all records that use them
 uint32_t guest_copy(std::unordered_map<std::string, uint32_t>& pool, const uint8_t* p, uint32_t size) {
     std::string key((const char*)p, size);
     auto it = pool.find(key);
@@ -50,7 +40,6 @@ struct Stats {
     size_t records = 0, translated = 0, failed = 0, pipelines = 0;
 };
 
-// replays the records of the requested types; returns false if there is no head start
 bool replay(bool speculative, bool compileNow, Stats& st) {
     std::string path = headstart_path();
     if (path == "0") return false;
@@ -95,7 +84,7 @@ bool replay(bool speculative, bool compileNow, Stats& st) {
         st.records++;
         if (headstart_translate(regs.data(), vertex != 0, compileNow)) st.translated++;
         else st.failed++;
-        // warming: keep the number of Metal compiles in flight bounded
+
         if (compileNow && st.records % 64 == 0)
             while (headstart_compiling() > 128) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
@@ -106,9 +95,8 @@ bool replay(bool speculative, bool compileNow, Stats& st) {
 double ms_since(std::chrono::steady_clock::time_point t0) {
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
-}  // namespace
+}
 
-// called from cache_load (render thread, before the first draw): known shaders only
 void headstart_load() {
     auto t0 = std::chrono::steady_clock::now();
     Stats st;
@@ -117,8 +105,6 @@ void headstart_load() {
             st.records, st.translated, st.failed, st.pipelines, ms_since(t0), headstart_path().c_str());
 }
 
-// `nsmbu --warm-shaders`: translate and compile every head-start shader and pipeline once, so the macOS
-// Metal shader cache holds the compiled code before the game first asks for it. Returns when done.
 int headstart_warm() {
     auto t0 = std::chrono::steady_clock::now();
     Stats st;
@@ -136,7 +122,7 @@ int headstart_warm() {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     double tShaders = ms_since(t0);
-    // pipelines: their shaders are all compiled (or failed) now
+
     size_t built = 0, dropped = 0;
     auto last = std::chrono::steady_clock::now();
     while (headstart_build_pipelines(128, built, dropped) > 0 || headstart_compiling() > 0) {
@@ -151,6 +137,6 @@ int headstart_warm() {
     return 0;
 }
 
-}  // namespace gfx
+}
 
-int gfx_headstart_warm() { return gfx::headstart_warm(); }  // main.cpp: --warm-shaders
+int gfx_headstart_warm() { return gfx::headstart_warm(); }

@@ -1,4 +1,4 @@
-// Guest-side allocator metadata lives entirely in the mod region, so states restore the allocator.
+
 #pragma once
 #include <cstdint>
 #include <mutex>
@@ -50,4 +50,4 @@ public:
         return false;
     }
 };
-} // namespace guestmods
+}

@@ -1,4 +1,4 @@
-// shim: boost::container::static_vector as a reserved std::vector
+
 #pragma once
 #include <vector>
 namespace boost { namespace container {

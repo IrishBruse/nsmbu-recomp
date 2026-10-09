@@ -1,21 +1,8 @@
-// Input > Controls…: remap keyboard keys and controller inputs (input_map.h) on a drawing of the
-// selected Wii U controller (GamePad or Pro Controller, as chosen in the Input menu).
-//
-// The drawing is an original, simplified schematic made in code (no artwork). Each button, d-pad
-// direction and stick direction / click on it can be clicked: the window then waits for a key or a
-// host-controller input and binds it (Esc cancels). Callouts on both sides show every binding (key,
-// alternate key, controller); clicking one of those binds just that slot, right-click or its × clears
-// it. Pressed inputs light up and sticks show their deflection, so the mapping can be tried out.
-// Bindings used twice are drawn in orange. Changes apply at once and are saved to controls.json.
-// While this window is the key window, input.mm's key monitor passes key events to it instead of the game.
-//
-// Debug: NSMBU_SHOW_CONTROLS=1 opens the window at start (without the keyboard focus in test runs);
-// NSMBU_CONTROLS_SNAPSHOT=<prefix> then writes <prefix>_{gamepad,pro}_{light,dark}.png of the window
-// after NSMBU_CONTROLS_SNAPSHOT_AT seconds (default 3); NSMBU_CONTROLS_HOVER=<input id, e.g. ZR> shows
-// that input hovered. NSMBU_CONTROLS_SELFTEST=1 drives the window with synthetic events.
+
+
 #import <Cocoa/Cocoa.h>
 #import <GameController/GameController.h>
-#include <Carbon/Carbon.h>  // kVK_* key codes
+#include <Carbon/Carbon.h>
 
 #include <algorithm>
 #include <cmath>
@@ -40,12 +27,9 @@ static NSString* action_list(const std::vector<int>& v) {
     return [names componentsJoinedByString:@", "];
 }
 
-// capture modes: what a click is waiting for
 enum { kCapAny, kCapKey0, kCapKey1, kCapPad };
-// chip slots in a callout row
-enum { kSlotKey0, kSlotKey1, kSlotPad, kSlotCount };
 
-// ---- colours (light / dark)
+enum { kSlotKey0, kSlotKey1, kSlotPad, kSlotCount };
 
 static NSColor* rgb(uint32_t v, CGFloat a = 1) {
     return [NSColor colorWithSRGBRed:((v >> 16) & 255) / 255.0 green:((v >> 8) & 255) / 255.0 blue:(v & 255) / 255.0 alpha:a];
@@ -71,15 +55,13 @@ static const Palette& pal() {
 static NSColor* accent() { return NSColor.controlAccentColor; }
 static NSColor* warn() { return NSColor.systemOrangeColor; }
 
-// ---- text helpers
-
 static NSDictionary* attrs(NSFont* f, NSColor* c) { return @{NSFontAttributeName: f, NSForegroundColorAttributeName: c}; }
 static void draw_centered(NSString* s, NSPoint c, NSFont* f, NSColor* col) {
     NSDictionary* at = attrs(f, col);
     NSSize sz = [s sizeWithAttributes:at];
     [s drawAtPoint:NSMakePoint(c.x - sz.width / 2, c.y - sz.height / 2) withAttributes:at];
 }
-// centered in r, shrinking the font (down to 8 pt) and then truncating to fit
+
 static void draw_fit(NSString* s, NSRect r, CGFloat size, NSFontWeight w, NSColor* col) {
     NSFont* f = [NSFont systemFontOfSize:size weight:w];
     while ([s sizeWithAttributes:attrs(f, col)].width > r.size.width && size > 8) f = [NSFont systemFontOfSize:(size -= 0.5) weight:w];
@@ -91,22 +73,20 @@ static void draw_fit(NSString* s, NSRect r, CGFloat size, NSFontWeight w, NSColo
     [s drawInRect:NSMakeRect(r.origin.x, NSMidY(r) - h / 2, r.size.width, h) withAttributes:at];
 }
 
-// ---- controller geometry, in units of the controller's width (y down)
-
 struct UPt { CGFloat x, y; };
 struct ControllerDef {
     bool pro;
-    CGFloat minY, maxY;  // bounding box y (x is 0..1)
+    CGFloat minY, maxY;
     UPt lstick, rstick, dpad, face, plus, minus, home;
     CGFloat stickR, faceSpread, faceR, smallR, dpadLen, dpadW;
-    NSRect l, zl;  // left shoulder tabs (the right ones are mirrored)
-    NSRect screen; // GamePad only
+    NSRect l, zl;
+    NSRect screen;
 };
 
 static ControllerDef controller_def(bool pro) {
     ControllerDef d{};
     d.pro = pro;
-    if (!pro) {  // GamePad: a wide tablet, screen in the middle
+    if (!pro) {
         d.minY = -0.085; d.maxY = 0.5;
         d.lstick = {0.115, 0.15}; d.rstick = {0.885, 0.15};
         d.dpad = {0.115, 0.335}; d.face = {0.885, 0.315};
@@ -116,7 +96,7 @@ static ControllerDef controller_def(bool pro) {
         d.l = NSMakeRect(0.06, -0.04, 0.15, 0.07);
         d.zl = NSMakeRect(0.045, -0.08, 0.135, 0.07);
         d.screen = NSMakeRect(0.255, 0.07, 0.49, 0.28);
-    } else {  // Pro Controller: two grips
+    } else {
         d.minY = -0.05; d.maxY = 0.63;
         d.lstick = {0.2, 0.2}; d.rstick = {0.67, 0.385};
         d.dpad = {0.33, 0.385}; d.face = {0.8, 0.2};
@@ -144,18 +124,17 @@ static NSBezierPath* pro_body(NSPoint (^P)(CGFloat, CGFloat)) {
     return b;
 }
 
-// parts of the drawing, in view coordinates
 enum PartKind { kPartRound, kPartShoulder, kPartDpad, kPartStick };
 struct Part {
     int kind;
-    int action;     // kPartStick: the click action; sticks also have dirs[]
-    NSRect rect;    // round: bounding box of the circle; shoulder: tab; dpad: arm
-    NSRect vis = NSZeroRect;  // shoulder: the strip not covered by the body / the tab in front
+    int action;
+    NSRect rect;
+    NSRect vis = NSZeroRect;
     NSString* text;
-    int dirs[4] = {-1, -1, -1, -1};  // stick: up, down, left, right
+    int dirs[4] = {-1, -1, -1, -1};
     NSPoint c;
     CGFloat R = 0, capR = 0;
-    int stick = 0;  // 0 left, 1 right
+    int stick = 0;
 };
 
 struct Group {
@@ -164,9 +143,9 @@ struct Group {
     std::vector<NSString*> rowLabels;
     NSPoint anchor;
     bool right;
-    bool leader = true;  // a line to the anchor (app actions have no part on the controller)
+    bool leader = true;
     NSRect box;
-    std::vector<NSRect> rows;  // one per action (the title row of a multi-row group is box top)
+    std::vector<NSRect> rows;
 };
 
 struct Chip { int action, slot; NSRect r; };
@@ -180,7 +159,7 @@ struct Geo {
     NSBezierPath* body;
     NSRect screen = NSZeroRect;
     std::vector<NSRect> leds;
-    std::vector<Part> parts;  // front to back for hit-testing
+    std::vector<Part> parts;
     std::vector<Group> groups;
     std::vector<Chip> chips;
     CGFloat colLx, colRx, drawL, drawR;
@@ -189,7 +168,6 @@ struct Geo {
 static const CGFloat kColW = 254, kRowH = 23, kMargin = 14, kHeaderH = 22;
 static const CGFloat kChipX[kSlotCount] = {50, 110, 170}, kChipW[kSlotCount] = {56, 56, 78};
 
-// live state shared by the window controller and the view
 struct UIState {
     Mapping m;
     bool pro = false;
@@ -197,8 +175,8 @@ struct UIState {
     bool keys[256] = {};
     float pad[kPadCount] = {};
     float act[kActionCount] = {};
-    float stick[2][2] = {};  // deflection of the left / right stick, x right, y up
-    double t = 0;            // for the capture pulse
+    float stick[2][2] = {};
+    double t = 0;
     bool padConnected = false;
 };
 
@@ -208,8 +186,8 @@ struct UIState {
 @property(weak) WWControls* owner;
 @property(assign) UIState* st;
 @property(assign) int hoverAction;
-@property(assign) int hoverSlot;  // -1: the drawing / row, else a chip
-@property(assign) BOOL hoverX;    // over a chip's × (clear)
+@property(assign) int hoverSlot;
+@property(assign) BOOL hoverX;
 - (void)invalidateGeo;
 @end
 
@@ -233,7 +211,6 @@ struct UIState {
 - (void)releaseLocalKeys;
 @end
 
-// routes key presses to the controller (capture, live display) before the window handles them
 @interface WWControlsWindow : NSWindow
 @property(weak) WWControls* controls;
 @end
@@ -255,8 +232,6 @@ struct UIState {
 }
 @end
 
-// ================================================================= the drawing
-
 @implementation WWPadView {
     Geo _g;
 }
@@ -264,7 +239,7 @@ struct UIState {
 - (BOOL)isFlipped { return YES; }
 - (BOOL)acceptsFirstResponder { return YES; }
 - (BOOL)acceptsFirstMouse:(NSEvent*)e { return YES; }
-- (void)keyDown:(NSEvent*)e {}  // keys are handled in the window's sendEvent; no beep
+- (void)keyDown:(NSEvent*)e {}
 - (void)keyUp:(NSEvent*)e {}
 - (void)flagsChanged:(NSEvent*)e {}
 - (void)invalidateGeo { _g.size = NSZeroSize; self.needsDisplay = YES; }
@@ -277,8 +252,6 @@ struct UIState {
                                                                NSTrackingActiveAlways | NSTrackingInVisibleRect
                                                          owner:self userInfo:nil]];
 }
-
-// ---- layout
 
 - (const Geo&)geo {
     NSSize sz = self.bounds.size;
@@ -326,9 +299,7 @@ struct UIState {
         p.text = text;
         g.parts.push_back(p);
     };
-    // face buttons: Wii U positions (X top, A right, B bottom, Y left). With the by-label (Xbox)
-    // preset the letters follow the host pad instead (Y top, B right, A bottom, X left), so each
-    // letter sits where that host button is (issue #78).
+
     if (g.fl == FaceLayout::kLabels) {
         button(kY, {d.face.x, d.face.y - d.faceSpread}, d.faceR, @"Y");
         button(kB, {d.face.x + d.faceSpread, d.face.y}, d.faceR, @"B");
@@ -343,7 +314,7 @@ struct UIState {
     button(kPlus, d.plus, d.smallR, @"+");
     button(kMinus, d.minus, d.smallR, @"−");
     button(kHome, d.home, d.smallR, @"⌂");
-    // d-pad arms: up, down, left, right
+
     {
         NSPoint c = PU(d.dpad);
         CGFloat L = d.dpadLen * s, W = d.dpadW * s;
@@ -370,7 +341,7 @@ struct UIState {
         p.rect = NSMakeRect(p.c.x - p.R, p.c.y - p.R, 2 * p.R, 2 * p.R);
         p.action = i ? kStickRClick : kStickLClick;
         int base = i ? kRUp : kLUp;
-        for (int k = 0; k < 4; k++) p.dirs[k] = base + k;  // up, down, left, right (enum order)
+        for (int k = 0; k < 4; k++) p.dirs[k] = base + k;
         p.text = i ? @"R" : @"L";
         g.parts.push_back(p);
     }
@@ -389,14 +360,13 @@ struct UIState {
     shoulder(kR, mirror(d.l), bodyTop, @"R");
     shoulder(kZL, d.zl, d.l.origin.y, @"ZL");
     shoulder(kZR, mirror(d.zl), d.l.origin.y, @"ZR");
-    auto tabAnchor = [&](int a) {  // the outer end of the visible strip (the label stays clear)
+    auto tabAnchor = [&](int a) {
         for (auto& p : g.parts)
             if (p.kind == kPartShoulder && p.action == a)
                 return NSMakePoint(a == kL || a == kZL ? NSMinX(p.vis) + 3 : NSMaxX(p.vis) - 3, NSMidY(p.vis));
         return NSZeroPoint;
     };
 
-    // callouts
     auto single = [&](NSString* title, int a, NSPoint anchor, bool right) {
         Group gr;
         gr.title = title;
@@ -422,8 +392,7 @@ struct UIState {
     multi(@"Left stick (move)", {kLUp, kLDown, kLLeft, kLRight, kStickLClick}, {@"↑", @"↓", @"←", @"→", @"Click"}, PU(d.lstick), false);
     multi(@"Right stick (camera)", {kRUp, kRDown, kRLeft, kRRight, kStickRClick}, {@"↑", @"↓", @"←", @"→", @"Click"}, PU(d.rstick), true);
     multi(@"D-pad", {kDUp, kDDown, kDLeft, kDRight}, {@"↑", @"↓", @"←", @"→"}, PU(d.dpad), false);
-    // app actions: the bottom of the left column, no leader line ("Photo": the row label column is narrow;
-    // hovering shows "Screenshot (app)")
+
     single(@"Photo", kScreenshot, NSMakePoint(0, sz.height), false);
     g.groups.back().leader = false;
     for (auto& p : g.parts)
@@ -432,7 +401,7 @@ struct UIState {
                          (p.action == kMinus && !g.pro) || (p.action == kHome && g.pro);
             single(p.action == kPlus ? @"+" : p.action == kMinus ? @"−" : p.action == kHome ? @"Home" : p.text, p.action, p.c, right);
         }
-    // stack each column in anchor order, as close to the anchors as fits
+
     for (int side = 0; side < 2; side++) {
         std::vector<Group*> col;
         for (auto& gr : g.groups)
@@ -471,18 +440,15 @@ struct UIState {
     return _g;
 }
 
-// ---- hit testing
-
 static bool in_circle(NSPoint p, NSPoint c, CGFloat r) { return hypot(p.x - c.x, p.y - c.y) <= r; }
 static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.origin.y - 5, 12, 12); }
 
-// action under the point on the drawing or a callout row, -1 if none; slot = chip slot or -1
 - (int)partAt:(NSPoint)p slot:(int*)slot onX:(BOOL*)onX {
     const Geo& g = [self geo];
     *slot = -1;
     *onX = NO;
     const UIState& st = *self.st;
-    // the × of the hovered chip
+
     if (self.hoverSlot >= 0 && self.hoverAction >= 0)
         for (auto& c : g.chips)
             if (c.action == self.hoverAction && c.slot == self.hoverSlot && [self chipBound:c] && NSPointInRect(p, x_rect(c.r))) {
@@ -565,7 +531,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
         return;
     }
     int mode = slot == kSlotKey0 ? kCapKey0 : slot == kSlotKey1 ? kCapKey1 : slot == kSlotPad ? kCapPad : kCapAny;
-    if (self.st->capAction == a && self.st->capMode == mode) [self.owner cancelCapture];  // second click: cancel
+    if (self.st->capAction == a && self.st->capMode == mode) [self.owner cancelCapture];
     else [self.owner beginCapture:a mode:mode];
     [self updateHover:e];
 }
@@ -579,8 +545,6 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
     if (slot >= 0) [self.owner clearAction:a slot:slot];
     else [self.owner showMenuForAction:a event:e view:self];
 }
-
-// ---- drawing
 
 - (bool)lit:(int)a { return a >= 0 && self.st->act[a] > 0.5f; }
 - (bool)hot:(int)a { return a >= 0 && (a == self.hoverAction || a == self.st->capAction); }
@@ -603,7 +567,6 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
     const Palette& P = pal();
     CGFloat s = g.s;
 
-    // column headers
     NSFont* hf = [NSFont systemFontOfSize:10.5 weight:NSFontWeightSemibold];
     NSColor* hc = NSColor.secondaryLabelColor;
     const char* heads[kSlotCount] = {"Key", "Alt key", "Controller"};
@@ -611,7 +574,6 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
         for (int sl = 0; sl < kSlotCount; sl++)
             draw_centered(ns(heads[sl]), NSMakePoint(x + kChipX[sl] + kChipW[sl] / 2, kHeaderH / 2 + 2), hf, hc);
 
-    // shoulder tabs (behind the body; ZL/ZR behind L/R)
     for (int pass = 0; pass < 2; pass++)
         for (auto& p : g.parts) {
             if (p.kind != kPartShoulder) continue;
@@ -626,7 +588,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
             b.lineWidth = w;
             [b stroke];
         }
-    // labels of the tabs: on their visible strip
+
     auto tabLabel = [&](int a, NSString* t) {
         for (auto& p : g.parts)
             if (p.kind == kPartShoulder && p.action == a)
@@ -634,7 +596,6 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
                          [self lit:a] ? NSColor.whiteColor : P.buttonText);
     };
 
-    // body
     [NSGraphicsContext saveGraphicsState];
     NSShadow* sh = [NSShadow new];
     sh.shadowColor = [NSColor colorWithWhite:0 alpha:0.25];
@@ -652,7 +613,6 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
     tabLabel(kL, @"L");
     tabLabel(kR, @"R");
 
-    // GamePad screen: shows the hovered / captured input
     if (!NSIsEmptyRect(g.screen)) {
         NSBezierPath* b = [NSBezierPath bezierPathWithRoundedRect:g.screen xRadius:0.01 * s yRadius:0.01 * s];
         [P.screen setFill];
@@ -681,7 +641,6 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
         [[NSBezierPath bezierPathWithOvalInRect:led] fill];
     }
 
-    // leader lines (under the buttons)
     for (auto& gr : g.groups) {
         if (!gr.leader) continue;
         bool hot = false, warnLine = false;
@@ -720,9 +679,9 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
             draw_centered(p.text, p.c, f, [self lit:p.action] ? NSColor.whiteColor : P.buttonText);
             break;
         }
-        case kPartDpad: break;  // drawn as one cross below
+        case kPartDpad: break;
         case kPartStick: {
-            // well
+
             NSBezierPath* well = [NSBezierPath bezierPathWithOvalInRect:p.rect];
             [P.well setFill];
             [well fill];
@@ -733,7 +692,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
             [(dirHot ? accent() : conflict ? warn() : P.outline) setStroke];
             well.lineWidth = dirHot || conflict ? 2 : 1.2;
             [well stroke];
-            // direction arrows inside the well: up, down, left, right
+
             const CGFloat ang[4] = {-M_PI_2, M_PI_2, M_PI, 0};
             for (int k = 0; k < 4; k++) {
                 int a = p.dirs[k];
@@ -752,7 +711,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
                 [col setFill];
                 [t fill];
             }
-            // cap, moved by the stick's deflection
+
             float dx = st.stick[p.stick][0], dy = -st.stick[p.stick][1];
             float len = std::hypot(dx, dy);
             if (len > 1) { dx /= len; dy /= len; }
@@ -777,7 +736,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
             [[P.outline colorWithAlphaComponent:0.45] setStroke];
             inner.lineWidth = 1;
             [inner stroke];
-            // the moving dot
+
             CGFloat dr = std::max<CGFloat>(2.5, p.capR * 0.16);
             [(len > 0.02f ? accent() : [P.outline colorWithAlphaComponent:0.8]) setFill];
             [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(cc.x - dr, cc.y - dr, 2 * dr, 2 * dr)] fill];
@@ -789,7 +748,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
         case kPartShoulder: break;
         }
     }
-    // d-pad cross
+
     {
         NSBezierPath* cross = [NSBezierPath bezierPath];
         NSRect hull = NSZeroRect;
@@ -824,7 +783,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
                     arm.lineWidth = w;
                     [arm stroke];
                 }
-                // arrow
+
                 int k = p.dirs[0];
                 const CGFloat ang[4] = {-M_PI_2, M_PI_2, M_PI, 0};
                 NSPoint m = NSMakePoint(NSMidX(p.rect), NSMidY(p.rect));
@@ -839,7 +798,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
             }
         [P.outline setStroke];
         cross.lineWidth = 1.2;
-        // outline only the outer edge: stroke the arms, then cover the inner seams with the centre square
+
         for (auto& p : g.parts)
             if (p.kind == kPartDpad && ![self lit:p.action] && [self ringFor:p.action width:&w] == P.outline) {
                 NSBezierPath* arm = [NSBezierPath bezierPathWithRoundedRect:p.rect xRadius:W * 0.18 yRadius:W * 0.18];
@@ -851,7 +810,6 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
         NSRectFill(NSMakeRect(c.x - W / 2 - 1.5, c.y - W / 2 + 0.6, W + 3, W - 1.2));
     }
 
-    // callouts
     for (auto& gr : g.groups) [self drawGroup:gr];
 }
 
@@ -911,7 +869,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
     bool held = bound && (isPad ? st.pad[code] > 0.5f : st.keys[code]);
     bool conflict = bound && !(isPad ? pad_users(m, code, a) : key_users(m, code, a)).empty();
     bool hovered = a == self.hoverAction && sl == self.hoverSlot;
-    // the same key / controller input as the hovered chip: show where else it is used
+
     bool twin = false;
     if (bound && self.hoverAction >= 0 && self.hoverSlot >= 0 && !hovered && (self.hoverSlot == kSlotPad) == isPad) {
         int hc = self.hoverSlot == kSlotPad ? m.pad[self.hoverAction] : m.keys[self.hoverAction][self.hoverSlot];
@@ -928,7 +886,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
         draw_fit(hovered ? @"+ add" : @"—", r, 11, NSFontWeightRegular, hovered ? accent() : NSColor.tertiaryLabelColor);
         return;
     }
-    if (!isPad && !held) {  // keycap: a darker bottom edge
+    if (!isPad && !held) {
         NSBezierPath* edge = [NSBezierPath bezierPathWithRoundedRect:NSOffsetRect(r, 0, 1.5) xRadius:rad yRadius:rad];
         [P.keyEdge setFill];
         [edge fill];
@@ -947,7 +905,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
     if (conflict && !capturing) text = [@"⚠︎ " stringByAppendingString:text];
     NSColor* tc = held ? NSColor.whiteColor : capturing ? accent() : conflict ? warn() : NSColor.labelColor;
     draw_fit(text, NSInsetRect(r, 3, 0), 11, NSFontWeightMedium, tc);
-    if (hovered && bound && !capturing) {  // × to clear
+    if (hovered && bound && !capturing) {
         NSRect xr = x_rect(r);
         NSBezierPath* xc = [NSBezierPath bezierPathWithOvalInRect:xr];
         [(self.hoverX ? NSColor.systemRedColor : NSColor.secondaryLabelColor) setFill];
@@ -959,17 +917,15 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
 
 @end
 
-// ================================================================= window controller
-
 @implementation WWControls {
     UIState _st;
     uint32_t _gen;
-    bool _localKeys[256];  // keys held while this window has the keyboard (not seen by the game)
+    bool _localKeys[256];
     float _padBase[kPadCount];
     NSString* _message;
     int _messageLevel;
     double _messageTime;
-    bool _freezeView;  // snapshot in progress: don't follow the Input menu
+    bool _freezeView;
     NSString* _lastPadInfo;
 }
 
@@ -1000,8 +956,8 @@ static NSTextField* label(NSString* s) {
     w.delegate = self;
     w.releasedWhenClosed = NO;
     w.contentMinSize = NSMakeSize(960, 570);
-    // remembered window frame (NSUserDefaults); not in portable mode, which keeps nothing outside its folder
-    if (!getenv("NSMBU_NO_HOST_INPUT") && !host::portable()) w.frameAutosaveName = @"NSMBUControls2";  // test runs: always the default size
+
+    if (!getenv("NSMBU_NO_HOST_INPUT") && !host::portable()) w.frameAutosaveName = @"NSMBUControls2";
     self.window = w;
     WWRootView* root = [[WWRootView alloc] init];
     w.contentView = root;
@@ -1078,8 +1034,6 @@ static NSTextField* label(NSString* s) {
     [self refreshStatus];
 }
 
-// ---- model <-> view
-
 - (void)reloadFromModel {
     if (generation() != _gen) {
         _st.m = current();
@@ -1093,7 +1047,7 @@ static NSTextField* label(NSString* s) {
     self.deadzone.doubleValue = _st.m.deadzone;
     self.deadzoneValue.stringValue = [NSString stringWithFormat:@"%.0f%%", _st.m.deadzone * 100];
     self.invertY.state = _st.m.invert_camera_y ? NSControlStateValueOn : NSControlStateValueOff;
-    // kCustom: no segment chosen (as the overlay's "(custom)"); either segment then applies its preset
+
     FaceLayout fl = face_layout(_st.m);
     self.faceLayout.selectedSegment = fl == FaceLayout::kCustom ? -1 : fl == FaceLayout::kLabels ? 1 : 0;
 }
@@ -1104,19 +1058,18 @@ static NSTextField* label(NSString* s) {
 }
 
 - (void)commit {
-    set_current(_st.m);  // live: the next game read uses it; saved to controls.json
+    set_current(_st.m);
     _gen = generation();
     self.padView.needsDisplay = YES;
 }
 
-- (void)setStatus:(NSString*)s level:(int)level {  // 0 info, 1 warning, 2 refused
+- (void)setStatus:(NSString*)s level:(int)level {
     _message = s;
     _messageLevel = level;
     _messageTime = CACurrentMediaTime();
     [self refreshStatus];
 }
 
-// status line: capture prompt > recent message > hover > conflicts / help
 - (void)refreshStatus {
     NSString* s;
     int level = 0;
@@ -1164,8 +1117,6 @@ static NSTextField* label(NSString* s) {
 
 - (void)hoverChanged { [self refreshStatus]; }
 
-// ---- live state
-
 - (void)startTimer {
     if (self.timer) return;
     self.timer = [NSTimer timerWithTimeInterval:1.0 / 60 target:self selector:@selector(tick:) userInfo:nil repeats:YES];
@@ -1181,13 +1132,13 @@ static NSTextField* label(NSString* s) {
 - (void)poll {
     static const bool no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
     bool dirty = false;
-    if (generation() != _gen && _st.capAction < 0) {  // changed elsewhere (another window, reset)
+    if (generation() != _gen && _st.capAction < 0) {
         _st.m = current();
         _gen = generation();
         [self syncOptions];
         dirty = true;
     }
-    if (!_freezeView && input::pro_controller() != _st.pro) {  // Input menu
+    if (!_freezeView && input::pro_controller() != _st.pro) {
         _st.pro = input::pro_controller();
         [self syncWhich];
     }
@@ -1198,7 +1149,7 @@ static NSTextField* label(NSString* s) {
     NSArray<GCController*>* pads = no_host ? @[] : GCController.controllers;
     if (!no_host) input::controller_values(v);
     _st.padConnected = pads.count > 0;
-    // capture from a controller: a new press (held inputs count once released)
+
     if (_st.capAction >= 0 && (_st.capMode == kCapAny || _st.capMode == kCapPad)) {
         for (int p = 1; p < kPadCount; p++) {
             if (_padBase[p] > 0.5f) { _padBase[p] = v[p]; continue; }
@@ -1209,7 +1160,7 @@ static NSTextField* label(NSString* s) {
             }
         }
     }
-    // pressed state per action, stick deflection (as the game sees it, without camera inversion)
+
     float act[kActionCount];
     for (int a = 0; a < kActionCount; a++) {
         act[a] = 0;
@@ -1231,7 +1182,7 @@ static NSTextField* label(NSString* s) {
     memcpy(_st.keys, keys, sizeof keys);
     memcpy(_st.pad, v, sizeof v);
     _st.t = CACurrentMediaTime();
-    if (_st.capAction >= 0) dirty = true;  // pulse
+    if (_st.capAction >= 0) dirty = true;
     if (dirty) self.padView.needsDisplay = YES;
 
     NSString* info;
@@ -1247,16 +1198,14 @@ static NSTextField* label(NSString* s) {
         self.padInfo.stringValue = info;
     }
     static int n = 0;
-    if (++n % 15 == 0) [self refreshStatus];  // let messages time out
+    if (++n % 15 == 0) [self refreshStatus];
 }
-
-// ---- capture
 
 - (void)beginCapture:(int)a mode:(int)mode {
     _st.capAction = a;
     _st.capMode = mode;
     _message = nil;
-    if (mode == kCapAny || mode == kCapPad) input::controller_values(_padBase);  // held now: not until released
+    if (mode == kCapAny || mode == kCapPad) input::controller_values(_padBase);
     [self refreshStatus];
     self.padView.needsDisplay = YES;
 }
@@ -1282,25 +1231,25 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
 
 - (BOOL)handleKeyEvent:(NSEvent*)e {
     if (e.type == NSEventTypeKeyDown && (e.modifierFlags & NSEventModifierFlagCommand) && e.keyCode == kVK_ANSI_W) {
-        [self.window performClose:nil];  // Cmd-W, before the Window menu sees it
+        [self.window performClose:nil];
         return YES;
     }
     uint16_t code = e.keyCode & 0xFF;
     bool known = false, down = false;
     if (e.type == NSEventTypeFlagsChanged) down = modifier_down(code, e.modifierFlags, &known);
-    // live display of held keys
+
     if (e.type == NSEventTypeKeyDown) _localKeys[code] = true;
     else if (e.type == NSEventTypeKeyUp) _localKeys[code] = false;
     else if (known) _localKeys[code] = down;
-    if (e.modifierFlags & NSEventModifierFlagCommand) return NO;  // menu shortcuts keep working
+    if (e.modifierFlags & NSEventModifierFlagCommand) return NO;
     if (_st.capAction < 0) {
-        // Esc with nothing to cancel: hand the keyboard back to the game
+
         if (e.type == NSEventTypeKeyDown && code == kVK_Escape && !e.isARepeat) [self.window performClose:nil];
-        return e.type != NSEventTypeFlagsChanged;  // swallow (no beeps); the slider etc. use the mouse
+        return e.type != NSEventTypeFlagsChanged;
     }
     if (e.type == NSEventTypeKeyUp) return YES;
     if (e.type == NSEventTypeFlagsChanged) {
-        if (!known || !down || code == kVK_CapsLock) return YES;  // modifiers bind on press; not Caps Lock (it toggles)
+        if (!known || !down || code == kVK_CapsLock) return YES;
     } else if (e.isARepeat) {
         return YES;
     }
@@ -1325,10 +1274,10 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
                                                    @"Press another key, or Esc.", name, ns(why)]
                   level:2];
         NSBeep();
-        return;  // still waiting
+        return;
     }
     _st.m.keys[a][slot] = code;
-    if (_st.m.keys[a][slot ^ 1] == code) _st.m.keys[a][slot ^ 1] = kNoKey;  // same key twice on one input
+    if (_st.m.keys[a][slot ^ 1] == code) _st.m.keys[a][slot ^ 1] = kNoKey;
     _st.capAction = -1;
     [self commit];
     auto others = key_users(_st.m, code, a);
@@ -1355,8 +1304,6 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
                   level:1];
     LOG("[controls] %s pad = %s", action_id(a), pad_id(p));
 }
-
-// ---- clearing / reset
 
 - (void)clearAction:(int)a slot:(int)slot {
     if (_st.capAction == a) _st.capAction = -1;
@@ -1433,39 +1380,37 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
 
 - (void)whichChanged:(NSSegmentedControl*)c {
     bool pro = c.selectedSegment == 1;
-    // the same as Input > Wii U GamePad / Pro Controller
+
     input::set_pro_controller(pro);
     gfx::show_drc_window(!pro);
     _st.pro = pro;
     [self syncWhich];
-    [self.window makeKeyWindow];  // showing the GamePad window must not take the keyboard from here
+    [self.window makeKeyWindow];
 }
 
 - (void)faceLayoutChanged:(NSSegmentedControl*)c {
-    // the same as Input > Face buttons; rewrites the four face bindings only
+
     apply_face_layout(_st.m, c.selectedSegment == 1 ? FaceLayout::kLabels : FaceLayout::kPosition);
     [self commit];
     [self.padView invalidateGeo];
     [self setStatus:[NSString stringWithFormat:@"Face buttons: %s.", face_layout_label(face_layout(_st.m))] level:0];
 }
 
-// ---- window
-
 - (void)releaseLocalKeys { memset(_localKeys, 0, sizeof _localKeys); }
 
 - (void)windowDidBecomeKey:(NSNotification*)n {
-    input::release_keys();  // keys held for the game would stay down while this window has the keyboard
+    input::release_keys();
     memset(_localKeys, 0, sizeof _localKeys);
     [self reloadFromModel];
 }
 - (void)windowDidResignKey:(NSNotification*)n {
     [self cancelCapture];
-    memset(_localKeys, 0, sizeof _localKeys);  // key-ups now go to the game window
+    memset(_localKeys, 0, sizeof _localKeys);
 }
 - (void)windowWillClose:(NSNotification*)n {
     [self cancelCapture];
     [self stopTimer];
-    // give the keyboard back to the game: the TV window (or any other) becomes key
+
     if (self.window.isKeyWindow)
         for (NSWindow* w in NSApp.orderedWindows)
             if (w != self.window && w.visible && w.canBecomeKeyWindow) {
@@ -1479,12 +1424,10 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
     [self startTimer];
     [self poll];
     const char* hidden = getenv("NSMBU_HIDDEN_WINDOWS");
-    if (hidden && *hidden && strcmp(hidden, "0")) return;  // test runs: never on screen (snapshots still work)
+    if (hidden && *hidden && strcmp(hidden, "0")) return;
     if (takeFocus) [self.window makeKeyAndOrderFront:nil];
     else [self.window orderFront:nil];
 }
-
-// ---- debug: render the window into PNGs (both controllers, light and dark)
 
 - (void)snapshotTo:(NSString*)prefix {
     _freezeView = true;
@@ -1513,10 +1456,6 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
 
 @end
 
-// ================================================================= debug self-test
-// NSMBU_CONTROLS_SELFTEST=1 drives the window with synthetic events (no focus needed) and logs the
-// results; the window stays open with a sample state (swapped A/B, a conflict, a capture in progress).
-
 static WWControls* g_controls;
 
 static NSEvent* key_event(NSWindow* w, uint16_t code, NSString* chars) {
@@ -1526,7 +1465,7 @@ static NSEvent* key_event(NSWindow* w, uint16_t code, NSString* chars) {
 }
 
 static void self_test() {
-    if (!getenv("NSMBU_CONTROLS")) {  // it rewrites the controls file: never the user's own
+    if (!getenv("NSMBU_CONTROLS")) {
         LOG("[controls-test] needs NSMBU_CONTROLS=<scratch file>");
         return;
     }
@@ -1537,32 +1476,32 @@ static void self_test() {
         LOG("[controls-test] %s: %s", ok ? "ok" : "FAILED", what);
         if (!ok) fails++;
     };
-    // 1. A <- J (key field): J is B's key, so the binding works and a conflict warning shows
+
     [c beginCapture:kA mode:kCapKey0];
     [w sendEvent:key_event(w, kVK_ANSI_J, @"j")];
     expect(current().keys[kA][0] == kVK_ANSI_J, "A key 1 = J via a key press");
     expect([c.status.stringValue containsString:@"also bound to B"], "conflict warning names B");
     expect(has_conflict(current(), kA) && has_conflict(current(), kB), "A and B marked as conflicting");
-    // 2. B <- K: A<->B swapped, no conflict left
+
     [c beginCapture:kB mode:kCapKey0];
     [w sendEvent:key_event(w, kVK_ANSI_K, @"k")];
     expect(current().keys[kB][0] == kVK_ANSI_K && conflict_count(current()) == 0, "B key 1 = K: A/B swapped, no conflict");
-    // 3. an app hotkey is refused and capture continues
+
     [c beginCapture:kY mode:kCapKey1];
     [w sendEvent:key_event(w, kVK_ANSI_R, @"r")];
     expect(current().keys[kY][1] == kNoKey, "R (resolution hotkey) refused");
     expect([c.status.stringValue containsString:@"app shortcut"], "hotkey warning shown");
-    // 4. Esc cancels
+
     [w sendEvent:key_event(w, kVK_Escape, @"\x1b")];
     expect(current().keys[kY][1] == kNoKey, "Esc cancels without binding");
-    // 5. clicking the drawing waits for a key or a controller button: a key replaces the main key
+
     [c beginCapture:kHome mode:kCapAny];
     [w sendEvent:key_event(w, kVK_ANSI_G, @"g")];
     expect(current().keys[kHome][0] == kVK_ANSI_G, "Home (drawing click) = G");
-    // 6. clear one slot (× / right-click)
+
     [c clearAction:kHome slot:kSlotKey0];
     expect(current().keys[kHome][0] == kNoKey, "clear Home's key");
-    // 7. controller binding with a conflict
+
     [c beginCapture:kZR mode:kCapPad];
     [w sendEvent:key_event(w, kVK_ANSI_U, @"u")];
     expect(current().keys[kZR][0] == kVK_ANSI_C, "a key does not bind while waiting for a controller");
@@ -1570,17 +1509,17 @@ static void self_test() {
     expect(current().pad[kZR] == kPadY && has_conflict(current(), kX), "ZR pad = Y (X's), conflict");
     [c clearAction:kZR slot:kSlotPad];
     expect(current().pad[kZR] == kPadNone, "clear ZR's controller input");
-    // 8. options
+
     c.invertY.state = NSControlStateValueOn;
     [c invertChanged:c.invertY];
     expect(current().invert_camera_y, "invert camera Y");
-    // 9. the file on disk follows
+
     Mapping disk;
     expect(load_file(default_path(), disk) && disk == current(), "controls.json matches the live mapping");
-    // 10. reset
+
     [c resetNow];
     expect(current() == Mapping::defaults(), "reset to defaults");
-    // sample state for screenshots: A<->B swapped, a conflict, a capture in progress
+
     Mapping m = Mapping::defaults();
     std::swap(m.keys[kA], m.keys[kB]);
     std::swap(m.pad[kA], m.pad[kB]);
@@ -1589,7 +1528,7 @@ static void self_test() {
     set_current(m);
     [c reloadFromModel];
     [c beginCapture:kX mode:kCapAny];
-    [c releaseLocalKeys];  // the synthetic key-downs never get key-ups
+    [c releaseLocalKeys];
     LOG("[controls-test] done, %d failed; window id %ld", fails, (long)w.windowNumber);
 }
 
@@ -1602,7 +1541,7 @@ void show_controls_window() {
 
 bool controls_window_is_key() { return g_controls && g_controls.window.isKeyWindow; }
 
-}  // namespace gfx
+}
 
 @interface WWControlsMenuTarget : NSObject
 @end
@@ -1612,7 +1551,6 @@ bool controls_window_is_key() { return g_controls && g_controls.window.isKeyWind
 
 namespace gfx {
 
-// the Input menu's "Controls…" item (menu.mm)
 NSMenuItem* controls_menu_item() {
     static WWControlsMenuTarget* target = [WWControlsMenuTarget new];
     NSMenuItem* it = [[NSMenuItem alloc] initWithTitle:@"Controls…" action:@selector(open:) keyEquivalent:@""];
@@ -1621,7 +1559,7 @@ NSMenuItem* controls_menu_item() {
     if (selftest || show || snap)
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             if (!g_controls) g_controls = [[WWControls alloc] init];
-            // a test run (NSMBU_NO_HOST_INPUT) never takes the keyboard focus
+
             [g_controls show:!getenv("NSMBU_NO_HOST_INPUT")];
             if (selftest) self_test();
             if (const char* h = getenv("NSMBU_CONTROLS_HOVER")) {
@@ -1639,4 +1577,4 @@ NSMenuItem* controls_menu_item() {
     return it;
 }
 
-}  // namespace gfx
+}

@@ -1,28 +1,5 @@
-// NSMBU: the program a release starts (SDL3 + Dear ImGui).
-//
-// The release contains no game code, so the first start prepares the game once (choose the dump,
-// keys for a disc image, then extract/translate/compile); later starts launch the built game directly, without a
-// window of their own. Holding Shift while starting (macOS, Windows) or --setup opens the setup
-// screens again (repair, update, change the game, import saves).
-//
-// Only a front end. Everything the installation does (keys, extraction, recompiling, compiling,
-// the app, save import) is tools/installer/setup.py, which this program runs as a child process
-// through the release's own launcher ("Install NSMBU.command" or install.sh; they also fetch Python
-// where needed) or, on Windows, directly with the embeddable Python the release ships in tools\python
-// (console_setup_win.cpp), with --gui-protocol: JSON lines on the child's stdout (events) and stdin (requests).
-// See tools/installer/README.md.
-//
-// Keys: a pasted Wii U common key is sent once over the stdin pipe and the buffer is cleared;
-// it is never shown, logged, stored or put on a command line.
-//
-// Options (any other arguments are passed on to setup.py, e.g. --data-dir DIR --app-dir DIR):
-//   --automate FILE      scripted run for tests (see run_automation below)
-//   --screenshots DIR    where --automate / --self-test write PNG screenshots
-//   --self-test          start setup.py, wait for its hello, render the welcome screen, exit 0
-//   --console-setup ARGS (Windows, first argument only) the setup in the console window this program was
-//                        started from: run setup.py ARGS with the bundled Python, exit with its exit code
-//                        (tools\Setup in a console window.bat)
-// With SDL_VIDEO_DRIVER=offscreen the window is never shown (software rendering).
+
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
@@ -56,7 +33,6 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
 
-// the release's terminal setup (the fallback), as the player sees it in the release folder
 #if defined(__APPLE__)
 #define SETUP_IN_TERMINAL "tools/Setup in Terminal.command"
 #elif defined(_WIN32)
@@ -64,9 +40,6 @@
 #else
 #define SETUP_IN_TERMINAL "tools/setup-in-terminal.sh"
 #endif
-
-// ---------------------------------------------------------------------------------------------
-// minimal JSON (the protocol's own messages only)
 
 struct J {
     enum T { Null, Bool, Num, Str, Arr, Obj } t = Null;
@@ -76,12 +49,6 @@ struct J {
     std::vector<J> a;
     std::vector<std::pair<std::string, J>> o;
 
-    // std::pair<std::string, J> has a J member, so it cannot be instantiated while J is incomplete.
-    // libstdc++ takes that literally (and refuses the build); libc++, which the releases build with,
-    // does not. Declaring the special members and get() and defining them below, once J is complete,
-    // keeps the type working with both. std::vector<J> a is fine as it is: vector may hold an
-    // incomplete type until one of its members is used. (Declaring any of these also suppresses the
-    // implicit default constructor, so it is listed too.)
     J();
     J(const J&);
     J(J&&);
@@ -152,7 +119,7 @@ struct JParser {
     }
     std::string string() {
         std::string out;
-        p++;  // opening quote
+        p++;
         while (p < e && *p != '"') {
             if (*p == '\\' && p + 1 < e) {
                 p++;
@@ -256,9 +223,6 @@ static std::string jstr(const std::string& s) {
     return o + "\"";
 }
 
-// ---------------------------------------------------------------------------------------------
-// the setup.py child process
-
 struct Child {
     SDL_Process* proc = nullptr;
     std::string partial;
@@ -277,7 +241,7 @@ struct Child {
         SDL_SetBooleanProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_TO_STDOUT_BOOLEAN, true);
         SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, cwd.c_str());
 #ifdef _WIN32
-        SDL_SetBooleanProperty(props, SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN, true);  // no console window
+        SDL_SetBooleanProperty(props, SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN, true);
 #endif
         proc = SDL_CreateProcessWithProperties(props);
         SDL_DestroyProperties(props);
@@ -343,13 +307,8 @@ static bool run_quick(const std::vector<std::string>& args) {
     return code == 0;
 }
 
-// ---------------------------------------------------------------------------------------------
-// starting the built game
+static std::string g_exe, g_game_dir, g_data_dir;
 
-static std::string g_exe, g_game_dir, g_data_dir;  // set when the game is ready to start
-
-// Replaces this process with the game (macOS, Linux; the Dock keeps showing "NSMBU") or starts
-// it and returns (Windows). The game runs in the data folder (its crash logs go to data/captures).
 static bool launch_game() {
     std::string save = g_data_dir + "/save";
 #ifdef _WIN32
@@ -372,7 +331,7 @@ static bool launch_game() {
     if (chdir(g_data_dir.c_str()) != 0) return false;
     const char* argv[] = {g_exe.c_str(), "--game", g_game_dir.c_str(), "--save", save.c_str(), nullptr};
     execv(g_exe.c_str(), (char* const*)argv);
-    return false;  // only reached when exec failed
+    return false;
 #endif
 }
 
@@ -382,12 +341,9 @@ static bool shift_held() {
 #elif defined(_WIN32)
     return (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
 #else
-    return false;  // Linux: start with --setup (also a menu action of the shortcut)
+    return false;
 #endif
 }
-
-// ---------------------------------------------------------------------------------------------
-// state
 
 enum class Screen { Starting, NeedCLT, Menu, Welcome, Source, Keys, Installing, Error, Save, Done, Fatal };
 
@@ -410,77 +366,67 @@ static const char* screen_name(Screen s) {
 
 struct Step {
     std::string id, title;
-    int state = 0;  // 0 waiting, 1 running, 2 done, 3 failed
+    int state = 0;
     double done = 0, total = 0;
     std::string detail;
 };
 
 struct App {
-    std::string pkg;                   // the unpacked release folder
-    std::vector<std::string> passthru;  // arguments for setup.py
+    std::string pkg;
+    std::vector<std::string> passthru;
     Child child;
     Screen screen = Screen::Starting;
-    std::string fatal;         // what failed (shown under "Setup could not continue")
-    std::string fatal_hint;    // what to do about it
-    std::string fatal_folder;  // a folder the fatal screen offers to show (e.g. where the app really is)
-    std::string fatal_log;     // where the failure was written down
+    std::string fatal;
+    std::string fatal_hint;
+    std::string fatal_folder;
+    std::string fatal_log;
 
-    // hello
     bool hello = false;
     std::string version, data_dir, app_dir, log_path, platform;
     bool installed = false, game_files = false, save_exists = false;
     std::string installed_version;
 
-    // requests
     int next_id = 1, pending_id = 0;
     std::string pending_cmd;
 
-    // source and keys
-    std::string source_path, source_kind;  // kind: image | archive (Cemu .wua, no keys) | folder
+    std::string source_path, source_kind;
     std::string probe_msg;
     bool probe_ok = false;
     std::string disc_key_found, disc_key_file, common_key_found, common_key_file;
-    int common_mode = 0;  // 0 key file, 1 paste
+    int common_mode = 0;
     char paste[128] = {};
     std::string keys_msg;
 
-    // install
     std::vector<Step> steps;
     int current = -1;
     std::string install_source;
-    std::string error_msg, error_back;  // error_back: screen name for Retry
+    std::string error_msg, error_back;
     std::string result_app;
 
-    // portable release
     bool portable = false, legacy = false;
     std::string package, game_dir;
     double free_bytes = 0, source_bytes = 0, toolchain_bytes = 0;
     bool opt_remove_toolchain = false, opt_shortcut = false;
-    std::deque<std::pair<std::string, std::string>> queue;  // requests to send one after another
-    std::string after;                                       // then: play | quit | open
-    bool exec_game = false;                                  // start the game when the window has closed
+    std::deque<std::pair<std::string, std::string>> queue;
+    std::string after;
+    bool exec_game = false;
 
-    // save import
-    int save_kind = 0;  // 0 none, 1 HD folder, 2 earlier installation, 3 another folder
+    int save_kind = 0;
     std::string save_path, save_msg;
     bool confirm_replace = false;
 
-    // log
     std::vector<std::string> log;
     bool log_scroll = false;
     std::string toast;
     double toast_until = 0;
 
-    // file dialogs answer on any thread
     std::mutex dlg_mu;
     std::string dlg_target, dlg_result;
     bool dlg_done = false;
 
-    // CLT (macOS)
     double clt_next_check = 0;
     bool clt_install_started = false;
 
-    // automation
     bool self_test = false;
     std::string shots_dir;
     J script;
@@ -521,9 +467,6 @@ static int request(const std::string& cmd, const std::string& fields) {
 }
 
 static bool busy() { return A.pending_id != 0; }
-
-// ---------------------------------------------------------------------------------------------
-// look
 
 static ImFont* g_font = nullptr;
 static const ImVec4 ACCENT(0.11f, 0.47f, 0.76f, 1.0f);
@@ -607,7 +550,6 @@ static void colored(const ImVec4& col, const std::string& t) {
     ImGui::PopStyleColor();
 }
 
-// a status mark drawn with lines (independent of the font's glyphs): 0 waiting, 1 running, 2 ok, 3 failed
 static void mark(int state) {
     float sz = ImGui::GetFontSize();
     ImVec2 p = ImGui::GetCursorScreenPos();
@@ -634,7 +576,6 @@ static void mark(int state) {
     ImGui::SameLine();
 }
 
-// a button that the automation can also press by its label
 static bool button(const char* label, const ImVec2& size = ImVec2(0, 0), bool primary = false, bool enabled = true) {
     if (!enabled) ImGui::BeginDisabled();
     if (primary) {
@@ -655,7 +596,6 @@ static bool button(const char* label, const ImVec2& size = ImVec2(0, 0), bool pr
     return pressed;
 }
 
-// radio buttons with the regular text height (the frame padding of the big buttons makes them huge)
 static bool radio(const char* label, int* v, int value) {
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 3));
     bool r = ImGui::RadioButton(label, v, value);
@@ -674,7 +614,6 @@ static float button_w(const char* label) {
     return ImGui::CalcTextSize(label, nullptr, true).x + ImGui::GetStyle().FramePadding.x * 2 + 24;
 }
 
-// right-aligned row of buttons at the bottom of the window; returns the index pressed or -1
 static int footer(std::initializer_list<const char*> labels, int primary = -1, int disabled_mask = 0) {
     float h = ImGui::GetFrameHeight() + 8;
     float y = ImGui::GetWindowHeight() - ImGui::GetStyle().WindowPadding.y - h;
@@ -694,9 +633,6 @@ static void show_toast(const std::string& t) {
     A.toast = t;
     A.toast_until = ImGui::GetTime() + 2.5;
 }
-
-// ---------------------------------------------------------------------------------------------
-// actions
 
 static std::string read_file(const std::string& path) {
     size_t n = 0;
@@ -774,8 +710,6 @@ static void set_source(const std::string& path) {
     request("probe", "\"path\":" + jstr(path));
 }
 
-// Any change to the key inputs makes the result of the last check stale: drop its message (neutral
-// state until the next "Check keys"). The same for the save screen's inputs.
 static void keys_changed() {
     if (A.pending_cmd != "check_keys") A.keys_msg.clear();
 }
@@ -815,12 +749,9 @@ static void check_keys() {
     else if (A.common_mode == 0 && !A.common_key_file.empty()) f += ",\"common_key_file\":" + jstr(A.common_key_file);
     A.keys_msg = "Checking the keys...";
     request("check_keys", f);
-    f.assign(f.size(), '\0');                              // the request held the pasted key
-    SDL_memset(A.paste, 0, sizeof A.paste);                // sent once; never kept
+    f.assign(f.size(), '\0');
+    SDL_memset(A.paste, 0, sizeof A.paste);
 }
-
-// ---------------------------------------------------------------------------------------------
-// protocol events
 
 static int step_index(const std::string& id) {
     for (size_t i = 0; i < A.steps.size(); i++)
@@ -843,7 +774,7 @@ static void handle_reply(const J& ev) {
         A.disc_key_found = ev.str("disc_key");
         A.common_key_found = ev.str("common_key");
         A.source_bytes = ev.num("bytes");
-        if (A.source_kind == "archive")  // setup.py says which title is used and why
+        if (A.source_kind == "archive")
             A.probe_msg = ev.str("message");
         else if (A.source_kind == "folder")
             A.probe_msg = ev.boolean("in_place") ? "Extracted game folder: New Super Mario Bros. U (USA). It is used where it is; "
@@ -967,7 +898,7 @@ static void run_queue() {
     std::string a = A.after;
     A.after.clear();
     if (a == "play" && (!A.portable || g_exe.empty())) {
-        request("launch", "");  // setup.py starts the game (non-portable installs)
+        request("launch", "");
         A.after = "quit";
     } else if (a == "play") A.exec_game = true, A.exit_code = 0;
     else if (a == "quit") A.exit_code = 0;
@@ -981,7 +912,7 @@ static void pump_child() {
         A.child.lines.pop_front();
         J ev;
         if (!l.empty() && l[0] == '{' && parse_json(l, ev)) handle_event(ev);
-        else if (!l.empty()) addlog(l);  // the launcher's own output (e.g. fetching Python)
+        else if (!l.empty()) addlog(l);
     }
     if (A.child.exited && A.screen != Screen::Fatal && A.exit_code < 0 && A.child.proc) {
         std::string code = "exit code " + std::to_string(A.child.exit_code);
@@ -997,17 +928,13 @@ static void pump_child() {
     }
 }
 
-// ---------------------------------------------------------------------------------------------
-// screens
-
-static bool details_open = false;  // automation: show the log pane in screenshots
+static bool details_open = false;
 
 static bool details_header() {
     if (details_open) ImGui::SetNextItemOpen(true, ImGuiCond_Always);
     return ImGui::CollapsingHeader("Details");
 }
 
-// height left above the footer buttons (the footer is drawn at the bottom of the window)
 static float space_above_footer() {
     return ImGui::GetContentRegionAvail().y - (ImGui::GetFrameHeight() + 8) - ImGui::GetStyle().ItemSpacing.y * 3;
 }
@@ -1152,7 +1079,7 @@ static void screen_source() {
     int b = footer({"Back", "Next"}, 1, (A.probe_ok && !busy()) ? 0 : 2);
     if (b == 0) go(A.installed ? Screen::Menu : Screen::Welcome);
     if (b == 1) {
-        if (A.source_kind == "folder" || A.source_kind == "archive") start_install(A.source_kind);  // no keys
+        if (A.source_kind == "folder" || A.source_kind == "archive") start_install(A.source_kind);
         else go(Screen::Keys);
     }
 }
@@ -1271,7 +1198,7 @@ static void screen_error() {
     heading("Setup stopped");
     ImGui::PopStyleColor();
     ImGui::Spacing();
-    // the first line says what failed; the rest (tool output) goes into a small scrolling box
+
     std::string head = A.error_msg, rest;
     if (size_t nl = head.find('\n'); nl != std::string::npos) rest = head.substr(nl + 1), head = head.substr(0, nl);
     if (!head.empty()) head[0] = (char)toupper((unsigned char)head[0]);
@@ -1403,7 +1330,7 @@ static void screen_done() {
     auto queue_options = [] {
         if (A.portable && A.toolchain_bytes > 0 && A.opt_remove_toolchain) A.queue.push_back({"remove_toolchain", ""});
         if (A.portable && A.opt_shortcut) A.queue.push_back({"shortcut", ""});
-        A.toolchain_bytes = 0, A.opt_shortcut = false;  // once
+        A.toolchain_bytes = 0, A.opt_shortcut = false;
     };
     if (b == 0) queue_options(), A.after = "quit";
     if (b == 1) open_folder(home_folder());
@@ -1436,29 +1363,18 @@ static void screen_fatal() {
     if (b == 2) open_folder(A.fatal_folder);
 }
 
-// ---------------------------------------------------------------------------------------------
-// startup
-
-// Where the release folder is, and why it was not found (for the message when it isn't).
 struct PackageSearch {
-    std::string pkg;           // the release folder (ends in a separator), empty when not found
-    std::string start;          // the folder the program is in (macOS: the folder containing the original app)
-    std::string checked;        // start + tools/installer/setup.py, where it belongs
-    std::string error;          // why it is not there (strerror)
-    int err = 0;                // errno of that check (0 on Windows)
-    bool translocated = false;  // macOS started a temporary read-only copy of the app
-    bool original_known = true; // ... and said where the original is
+    std::string pkg;
+    std::string start;
+    std::string checked;
+    std::string error;
+    int err = 0;
+    bool translocated = false;
+    bool original_known = true;
 };
 
 #ifdef __APPLE__
-// A downloaded (quarantined) app opened from Finder runs from a random read-only copy ("App Translocation",
-// /private/var/folders/.../AppTranslocation/<id>/d/NSMBU.app) that contains only the app, not
-// the release folder around it. Security.framework says where the original is.
-//
-// Ask about the bundle itself: SecTranslocateCreateOriginalPathForURL fails for paths that do not exist,
-// and SDL_GetBasePath() is the bundle's Contents/Resources, which the release app does not have (issue #48:
-// v0.2.3 asked about Contents/Resources, got nothing back and stopped with "must stay in the unpacked
-// release folder").
+
 static bool untranslocate_bundle(const std::string& bundle, std::string& original, bool& known) {
     original = bundle;
     known = true;
@@ -1474,7 +1390,7 @@ static bool untranslocate_bundle(const std::string& bundle, std::string& origina
     auto release = cf ? (Release)SDL_LoadFunction(cf, "CFRelease") : nullptr;
     auto is_tl = sec ? (IsTranslocated)SDL_LoadFunction(sec, "SecTranslocateIsTranslocatedURL") : nullptr;
     auto orig_fn = sec ? (Original)SDL_LoadFunction(sec, "SecTranslocateCreateOriginalPathForURL") : nullptr;
-    // without the functions (a future macOS) the path still tells
+
     bool translocated = bundle.find("/AppTranslocation/") != std::string::npos;
     if (create && getfs && release) {
         const void* url = create(nullptr, (const unsigned char*)bundle.c_str(), (long)bundle.size(), 1);
@@ -1505,13 +1421,13 @@ static PackageSearch find_package() {
     std::string base = SDL_GetBasePath() ? SDL_GetBasePath() : "./";
     r.start = base;
 #ifdef __APPLE__
-    // base is <bundle>/Contents/Resources/ (SDL), or the executable's folder outside a bundle
+
     size_t app = base.rfind(".app/Contents/");
     if (app != std::string::npos) {
         std::string bundle = base.substr(0, app + 4), original;
         r.translocated = untranslocate_bundle(bundle, original, r.original_known);
         base = original + base.substr(bundle.size());
-        r.start = original.substr(0, original.find_last_of('/') + 1);  // the folder containing the app
+        r.start = original.substr(0, original.find_last_of('/') + 1);
     }
 #endif
     r.checked = r.start + "tools/installer/setup.py";
@@ -1519,7 +1435,7 @@ static PackageSearch find_package() {
         std::string candidate = base + "tools/installer/setup.py";
         SDL_PathInfo info;
         if (SDL_GetPathInfo(candidate.c_str(), &info)) return r.pkg = base, r;
-        if (base == r.start) {  // why it is not next to the app (the place it belongs)
+        if (base == r.start) {
 #ifndef _WIN32
             struct stat sb;
             r.err = stat(candidate.c_str(), &sb) == 0 ? 0 : errno;
@@ -1527,9 +1443,9 @@ static PackageSearch find_package() {
 #else
             r.error = SDL_GetError();
 #endif
-            if (r.err == EPERM || r.err == EACCES) break;  // not allowed to look: that is the answer
+            if (r.err == EPERM || r.err == EACCES) break;
         }
-        // go one directory up
+
         if (base.size() > 1) base.pop_back();
         size_t s = base.find_last_of("/\\");
         if (s == std::string::npos) break;
@@ -1538,7 +1454,6 @@ static PackageSearch find_package() {
     return r;
 }
 
-// "Setup could not continue" when the release folder was not found: what happened, what to do
 static void fail_no_package(const PackageSearch& r) {
     std::string folder = r.start;
     if (folder.size() > 1 && (folder.back() == '/' || folder.back() == '\\')) folder.pop_back();
@@ -1576,13 +1491,6 @@ static void fail_no_package(const PackageSearch& r) {
 #endif
 }
 
-// The game, saves and settings go into the data folder. In a portable release that is <release>/data
-// (portable.txt in the release folder); otherwise the per-user folder of earlier releases, the same
-// rule as setup.py default_data_dir()/legacy_data_dir() (this program cannot call it, so the platform
-// fallbacks are spelled out again). An AppImage has no portable.txt (its mount is read-only,
-// issue #55), so it lands in the per-user folder. --data-dir overrides both.
-// check it can be written before anything starts, so a read-only place (a disk image, a read-only drive or
-// share, a folder of another user) is reported as such and not as a failure halfway through the setup.
 static bool pkg_is_portable(const std::string& pkg) {
     SDL_PathInfo info;
     return !pkg.empty() && SDL_GetPathInfo((pkg + "portable.txt").c_str(), &info);
@@ -1599,10 +1507,10 @@ static std::string data_dir_of(const std::string& pkg, const std::vector<std::st
     const char* home = SDL_getenv("HOME");
     return std::string(home ? home : ".") + "/Library/Application Support/nsmbu";
 #elif defined(_WIN32)
-    // setup.py: os.environ.get("LOCALAPPDATA") or expanduser("~\\AppData\\Local"), then "NSMBU"
+
     const char* root = SDL_getenv("LOCALAPPDATA");
     if (root && *root) return std::string(root) + "\\NSMBU";
-    const char* profile = SDL_getenv("USERPROFILE");  // what expanduser("~") reads here
+    const char* profile = SDL_getenv("USERPROFILE");
     return std::string(profile ? profile : ".") + "\\AppData\\Local\\NSMBU";
 #else
     const char* xdg = SDL_getenv("XDG_DATA_HOME");
@@ -1639,8 +1547,6 @@ static bool check_writable(const std::string& data) {
     return false;
 }
 
-// the failure goes to a log file too: data/setup-window.log in the release folder, or (no release folder or
-// not writable) ~/Library/Logs (macOS), %TEMP% (Windows), $TMPDIR or /tmp
 static std::string fatal_log_file() {
     if (!A.pkg.empty()) {
         std::string data = data_dir_of(A.pkg, A.passthru);
@@ -1693,7 +1599,6 @@ static void fail(const std::string& what, const std::string& todo, const std::st
     }
 }
 
-// the release's version, as package.py wrote it (setup.py reports the same file in its hello)
 static std::string package_version() {
     J m;
     if (!parse_json(read_file(A.pkg + "sdk/manifest.json"), m)) return "";
@@ -1705,7 +1610,7 @@ static void start_child() {
 #if defined(__APPLE__)
     args = {"/bin/bash", A.pkg + "tools/Setup in Terminal.command"};
 #elif defined(_WIN32)
-    // the official embeddable Python shipped in the release (tools\python; no download, no script host)
+
     if (!have_bundled_python(A.pkg)) {
         fail("Setup could not start: " + bundled_python(A.pkg) + " is missing.",
              "The release is incomplete: unzip it again (the whole zip, keeping its folders) and start NSMBU.exe "
@@ -1731,15 +1636,6 @@ static void start_child() {
              A.pkg);
     }
 }
-
-// ---------------------------------------------------------------------------------------------
-// automation (tests): a JSON array of steps, each run when its screen is showing:
-//   {"screen": "keys", "set": {"common_mode": "file", "common_key_file": "..."}, "when_step": "compile",
-//    "idle": true, "shot": "03-keys.png", "click": "Check keys and install"}
-// "set" fields: source (as if chosen in the dialog), disc_key_file, common_key_file, common_mode
-// (file|paste), save_kind (none|hd|legacy|other), save_path, open_details (true). Screenshots are PNG files
-// of the window. The run ends (exit 0) after the last step, or with exit 2 on a 45-minute timeout.
-
 
 static void automation_frame() {
     if (A.script.t != J::Arr) return;
@@ -1775,13 +1671,13 @@ static void automation_frame() {
             else if (k == "open_details") details_open = true;
         }
     }
-    A.stable_frames++;  // frames on this screen (the "set" above runs once, at 0)
+    A.stable_frames++;
     if (st.boolean("idle") && busy()) return;
     if (!st.str("when_step").empty()) {
         int i = step_index(st.str("when_step"));
         if (i < 0 || A.steps[i].state != 1 || A.steps[i].done <= 0) return;
     }
-    if (++A.ready_frames < 20) return;  // conditions met: let the layout settle
+    if (++A.ready_frames < 20) return;
     if (!st.str("shot").empty() && !A.shot_taken) {
         A.shot_pending = st.str("shot");
         A.shot_taken = true;
@@ -1804,7 +1700,6 @@ static void save_shot(SDL_Renderer* r, const std::string& name) {
     SDL_DestroySurface(s);
 }
 
-// The game in this folder is built for this release and its game files are there: start it directly.
 static bool game_ready(const std::string& pkg, const std::vector<std::string>& passthru) {
     SDL_PathInfo info;
     std::string data = data_dir_of(pkg, passthru);
@@ -1812,8 +1707,8 @@ static bool game_ready(const std::string& pkg, const std::vector<std::string>& p
     if (!parse_json(read_file(data + "/install.json"), st) || !parse_json(read_file(pkg + "sdk/manifest.json"), man))
         return false;
     if (st.str("version") != man.str("version") || st.boolean("placeholder_code")) return false;
-    if (!st.str("app").empty()) return false;  // macOS non-portable: started with `open <app>` (setup.py launch)
-    auto resolve = [&](std::string p) {  // install.json keeps paths inside data/ relative to it
+    if (!st.str("app").empty()) return false;
+    auto resolve = [&](std::string p) {
         bool abs = !p.empty() && (p[0] == '/' || p[0] == '\\' || (p.size() > 1 && p[1] == ':'));
         return p.empty() || abs ? p : data + "/" + p;
     };
@@ -1839,7 +1734,7 @@ int main(int argc, char** argv) {
         else if (a == "--screenshots" && i + 1 < argc) A.shots_dir = argv[++i];
         else if (a == "--self-test") A.self_test = true;
         else if (a == "--setup") want_setup = true;
-        else if (a.rfind("-psn_", 0) == 0) continue;  // macOS Finder's process serial number
+        else if (a.rfind("-psn_", 0) == 0) continue;
         else A.passthru.push_back(a);
     }
     if (!automate.empty()) {
@@ -1852,7 +1747,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    // prepared already: start the game right away, no window of our own (Shift / --setup: the setup)
     if (!want_setup && automate.empty() && !A.self_test && !shift_held()) {
         std::string pkg = find_package().pkg;
         if (!pkg.empty() && game_ready(pkg, A.passthru) && launch_game()) return 0;
@@ -1864,7 +1758,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     bool offscreen = SDL_GetCurrentVideoDriver() && !strcmp(SDL_GetCurrentVideoDriver(), "offscreen");
-    if (offscreen) SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");  // tests and CI: no GPU, nothing on screen
+    if (offscreen) SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
     float scale = offscreen ? 1.0f : SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
     if (scale <= 0) scale = 1.0f;
     {
@@ -1874,7 +1768,7 @@ int main(int argc, char** argv) {
         SDL_SetNumberProperty(wp, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, (int)(640 * scale));
         SDL_SetNumberProperty(wp, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER,
                               SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_HIDDEN);
-        // offscreen (tests): no OpenGL default on macOS; the software renderer needs no context
+
         if (offscreen) SDL_SetBooleanProperty(wp, SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN, true);
         g_window = SDL_CreateWindowWithProperties(wp);
         SDL_DestroyProperties(wp);
@@ -1914,7 +1808,7 @@ int main(int argc, char** argv) {
     if (A.pkg.empty()) {
         fail_no_package(found);
     } else if (!check_writable(data_dir_of(A.pkg, A.passthru))) {
-        // fail() has shown why
+
     } else {
 #ifdef __APPLE__
         if (!clt_ok()) go(Screen::NeedCLT);

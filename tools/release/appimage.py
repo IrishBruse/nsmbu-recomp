@@ -24,11 +24,9 @@ import tempfile
 import urllib.request
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-# the project's own icon (not game data: guard.py sees it like any other PNG)
+
 ICON = os.path.join(ROOT, "android", "app", "src", "main", "res", "mipmap-xxxhdpi", "ic_launcher.png")
 
-# appimagetool (the AppImage project's packager), pinned. "continuous" moves; these are release
-# assets. Change a pin only together with a new release.
 APPIMAGETOOL_VERSION = "1.9.1"
 APPIMAGETOOL = {
     "x86_64": ("appimagetool-x86_64.AppImage",
@@ -60,11 +58,9 @@ Name=Setup (repair, update, change the game)
 Exec=nsmbu-launcher --setup
 """
 
-
 def host_arch():
     m = platform.machine().lower()
     return {"amd64": "x86_64", "x86_64": "x86_64", "arm64": "aarch64", "aarch64": "aarch64"}.get(m)
-
 
 def file_sha256(path):
     h = hashlib.sha256()
@@ -72,7 +68,6 @@ def file_sha256(path):
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
-
 
 def ensure_appimagetool(given, arch):
     """The pinned appimagetool for `arch`, or the one given/installed. Returns its path."""
@@ -87,7 +82,7 @@ def ensure_appimagetool(given, arch):
         sys.exit("no pinned appimagetool for %s (got --appimagetool to a build of it)" % arch)
     name, want = APPIMAGETOOL[arch]
     url = APPIMAGETOOL_URL + name
-    # never in the output folder: that must hold only the artifacts
+
     dst = os.path.join(tempfile.gettempdir(), "nsmbu-appimagetool-%s-%s" % (arch, APPIMAGETOOL_VERSION))
     if not (os.path.isfile(dst) and file_sha256(dst) == want):
         print("downloading appimagetool %s (%s)" % (APPIMAGETOOL_VERSION, arch))
@@ -105,7 +100,6 @@ def ensure_appimagetool(given, arch):
         os.chmod(dst, 0o755)
     return dst
 
-
 def package_version(pkg):
     try:
         with open(os.path.join(pkg, "sdk", "manifest.json")) as f:
@@ -113,14 +107,9 @@ def package_version(pkg):
     except (OSError, ValueError):
         return ""
 
-
 def make_appdir(pkg, appdir):
     """PKG_DIR as an AppDir: no portable.txt (read-only mount), plus AppRun, .desktop and the icon."""
-    # data/ is an installation, portable.txt would send every write into the read-only mount
-    # (setup.py PORTABLE, host::portable)
-    # the zip's own "NSMBU.desktop" (an `sh -c 'cd ...'` launcher for the unpacked folder) is
-    # not a valid entry inside an AppImage, and appimagetool validates every .desktop at the root;
-    # the AppImage gets its own nsmbu.desktop below
+
     shutil.copytree(pkg, appdir, symlinks=True,
                     ignore=shutil.ignore_patterns("data", "portable.txt", ".appimagetool-*", "*.desktop"))
     with open(os.path.join(appdir, "AppRun"), "w") as f:
@@ -132,7 +121,6 @@ def make_appdir(pkg, appdir):
         sys.exit("project icon not found: " + ICON)
     shutil.copyfile(ICON, os.path.join(appdir, "nsmbu.png"))
     shutil.copyfile(ICON, os.path.join(appdir, ".DirIcon"))
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -163,7 +151,7 @@ def main():
         appdir = os.path.join(work, name + ".AppDir")
         make_appdir(pkg, appdir)
         env = dict(os.environ)
-        env.update({"ARCH": arch, "APPIMAGE_EXTRACT_AND_RUN": "1"})  # no FUSE needed to run appimagetool
+        env.update({"ARCH": arch, "APPIMAGE_EXTRACT_AND_RUN": "1"})
         version = package_version(pkg)
         if version:
             env["VERSION"] = version
@@ -174,7 +162,6 @@ def main():
     finally:
         shutil.rmtree(work, ignore_errors=True)
     print("wrote", target, os.path.getsize(target) // (1 << 20), "MiB")
-
 
 if __name__ == "__main__":
     main()

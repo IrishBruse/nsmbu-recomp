@@ -1,18 +1,5 @@
-// Crash log helpers (crash_addr.h): module + offset of host addresses, annotated host backtrace.
-//
-// What runs inside a crash handler, and the compromises:
-// - Formatting: snprintf into stack buffers, written with the handler's own output function; no heap.
-// - Windows: GetModuleHandleExW(FROM_ADDRESS | UNCHANGED_REFCOUNT) and GetModuleFileNameW look the
-//   address up in the loader's module list, which can take the loader lock. A crash while another
-//   thread holds it (a DLL being loaded or unloaded at that moment) could hang the report instead of
-//   finishing it; the handler already used stdio and std::filesystem, so this adds no new kind of
-//   risk. The backtrace walks the faulting CONTEXT with RtlLookupFunctionEntry / RtlVirtualUnwind
-//   (x64; the unwind tables of each module, no dbghelp, no symbols) and only reads stack slots that
-//   lie inside the thread's stack.
-// - POSIX: dladdr is not on the async-signal-safe list (glibc and dyld take a loader lock); a crash
-//   inside dlopen/dlclose could hang it. backtrace_symbols_fd, used here before, calls dladdr
-//   internally the same way, so this is the same exposure as before. glibc's backtrace() loads
-//   libgcc_s with malloc on first use: prime() makes that first use happen at start.
+
+
 #include "crash_addr.h"
 
 #include <cstdio>
@@ -30,7 +17,7 @@
 namespace crash_addr {
 
 #ifdef _WIN32
-#define CRASH_ADDR_FMT "%016llX"  // the style of Windows' own crash reports
+#define CRASH_ADDR_FMT "%016llX"
 #else
 #define CRASH_ADDR_FMT "0x%llx"
 #endif
@@ -57,7 +44,7 @@ int describe(char* buf, size_t cap, uintptr_t addr, char* path, size_t path_cap)
     int fn = wn ? WideCharToMultiByte(CP_UTF8, 0, wide, (int)wn, full, (int)sizeof full - 1, nullptr, nullptr) : 0;
     full[fn > 0 ? fn : 0] = 0;
     if (!full[0]) strcpy(full, "?");
-    const uintptr_t base = (uintptr_t)m;  // an HMODULE is the module's load address
+    const uintptr_t base = (uintptr_t)m;
     int n = fit(snprintf(buf, cap, " in %s+0x%llX (base " CRASH_ADDR_FMT ")", base_name(full),
                            (unsigned long long)(addr - base), (unsigned long long)base), cap);
 #else
@@ -67,7 +54,7 @@ int describe(char* buf, size_t cap, uintptr_t addr, char* path, size_t path_cap)
     const uintptr_t base = (uintptr_t)di.dli_fbase;
     int n = fit(snprintf(buf, cap, " in %s+0x%llx (base " CRASH_ADDR_FMT ")", base_name(full),
                            (unsigned long long)(addr - base), (unsigned long long)base), cap);
-    // the nearest exported symbol (functions that are not exported get their predecessor's name)
+
     if (di.dli_sname && di.dli_saddr && addr >= (uintptr_t)di.dli_saddr)
         n += fit(snprintf(buf + n, cap - n, " [%s+0x%llx]", di.dli_sname,
                             (unsigned long long)(addr - (uintptr_t)di.dli_saddr)), cap - n);
@@ -90,7 +77,7 @@ void host_backtrace(int fd, Out out, const void* context) {
 #if defined(_M_X64) || defined(__x86_64__)
     if (context) {
         CONTEXT c = *(const CONTEXT*)context;
-        const NT_TIB* tib = (const NT_TIB*)NtCurrentTeb();  // the handler runs on the faulting thread
+        const NT_TIB* tib = (const NT_TIB*)NtCurrentTeb();
         const DWORD64 lo = (DWORD64)tib->StackLimit, hi = (DWORD64)tib->StackBase;
         for (int i = 0; i < 48 && c.Rip; i++) {
             frame_line(fd, out, i, (uintptr_t)c.Rip);
@@ -102,7 +89,7 @@ void host_backtrace(int fd, Out out, const void* context) {
                 DWORD64 frame = 0;
                 RtlVirtualUnwind(UNW_FLAG_NHANDLER, image, c.Rip, f, &c, &handler_data, &frame, nullptr);
             } else {
-                // a leaf function, or code without unwind tables: the return address is on top
+
                 if (c.Rsp < lo || c.Rsp + 8 > hi) break;
                 c.Rip = *(const DWORD64*)c.Rsp;
                 c.Rsp += 8;
@@ -112,7 +99,7 @@ void host_backtrace(int fd, Out out, const void* context) {
         return;
     }
 #endif
-    // elsewhere: from here (the first frames are the handler and the exception dispatcher)
+
     void* frames[48];
     USHORT nf = RtlCaptureStackBackTrace(0, 48, frames, nullptr);
     for (USHORT i = 0; i < nf; i++) frame_line(fd, out, i, (uintptr_t)frames[i]);
@@ -156,4 +143,4 @@ void prime() {
 }
 #endif
 
-}  // namespace crash_addr
+}

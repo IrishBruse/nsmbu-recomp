@@ -15,7 +15,6 @@ import sys
 
 REPO = Path(__file__).resolve().parents[2]
 
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release', type=Path, required=True)
@@ -30,7 +29,7 @@ def main():
     args = parser.parse_args()
     release, out = args.release.resolve(), args.out.resolve()
     data = (args.data_dir or release / 'data').resolve()
-    out.mkdir(parents=True, exist_ok=False)  # never overwrite another run's evidence
+    out.mkdir(parents=True, exist_ok=False)
     manifest = json.loads((release / 'sdk/manifest.json').read_text())
     binary = data / 'bin' / manifest['exe']
     manager, package = out / 'manager', out / 'play-scene-ticker'
@@ -68,7 +67,7 @@ def main():
         return (out / name / (name + '_01') / 'log').read_text(errors='replace')
 
     off, original = rebuild(0, 'prepare-off')
-    on, _ = rebuild(1, 'prepare-on')  # warm both caches; fresh compilation is recorded separately
+    on, _ = rebuild(1, 'prepare-on')
     log = run('install', 0, {'NSMBU_TEST_MOD_INSTALL': str(package), 'NSMBU_TEST_MOD_ENABLE': 'play-scene-ticker',
                            'NSMBU_TEST_CODE_MOD_REBUILD': '1', 'NSMBU_TEST_OVERLAY': 'open:mods@700'})
     assert '[code mods] rebuild offer: support on for play-scene-ticker' in log
@@ -77,7 +76,7 @@ def main():
     profile = profiles['profiles'][profiles['active']]
     assert not profile.get('enabled', {}).get('play-scene-ticker', False)
     assert 'play-scene-ticker' in profile['code_mod_pending']
-    log = run('active', 1)  # the original launcher must route to the selected hook-enabled executable
+    log = run('active', 1)
     assert '[guestmods] loaded ' in log and 'play-scene-ticker: first return hook' in log
     assert 'play-scene-ticker: logic steps' in log
     profiles = json.loads((manager / 'profiles.json').read_text())
@@ -94,7 +93,6 @@ def main():
               'prepare_on_seconds': on['seconds'], 'cached_off_seconds': final['seconds']}
     (out / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result))
-
 
 if __name__ == '__main__':
     main()

@@ -65,17 +65,15 @@ constexpr T SwapEndian(T value)
 }
 
 #ifndef WIN32
-//static_assert(false, "_BE and _LE need to be adjusted");
+
 #endif
 
-// swap if native isn't big endian
 template <typename T>
 constexpr T _BE(T value)
 {
 	return SwapEndian(value);
 }
 
-// swap if native isn't little endian
 template <typename T>
 constexpr T _LE(T value)
 {
@@ -88,19 +86,15 @@ class betype
 public:
 	constexpr betype() = default;
 
-	// copy
 	constexpr betype(T value)
 		: m_value(SwapEndian(value)) {}
 
-	constexpr betype(const betype& value) = default; // required for trivially_copyable
-	//constexpr betype(const betype& value)
-	//	: m_value(value.m_value) {}
+	constexpr betype(const betype& value) = default;
 
 	template <typename U>
 	constexpr betype(const betype<U>& value)
 		: betype((T)value.value()) {}
 
-	// assigns
 	static betype from_bevalue(T value)
 	{
 		betype result;
@@ -108,10 +102,8 @@ public:
 		return result;
 	}
 
-	// returns LE value
 	constexpr T value() const { return SwapEndian<T>(m_value); }
 
-	// returns BE value
 	constexpr T bevalue() const { return m_value; }
 
 	constexpr operator T() const { return value(); }
@@ -195,14 +187,12 @@ public:
 		return from_bevalue(T(~m_value));
 	}
 
-	// pre-increment
 	betype<T>& operator++() requires std::integral<T>
 	{
 		m_value = SwapEndian(T(value() + 1));
 		return *this;
 	}
 
-	// post-increment
 	betype<T> operator++(int) requires std::integral<T>
 	{
 		betype<T> tmp(*this);
@@ -210,14 +200,12 @@ public:
 		return tmp;
 	}
 
-	// pre-decrement
 	betype<T>& operator--() requires std::integral<T>
 	{
 		m_value = SwapEndian(T(value() - 1));
 		return *this;
 	}
 
-	// post-decrement
 	betype<T> operator--(int) requires std::integral<T>
 	{
 		betype<T> tmp(*this);
@@ -226,7 +214,7 @@ public:
 	}
 
 private:
-	//T m_value{}; // before 1.26.2
+
 	T m_value;
 };
 

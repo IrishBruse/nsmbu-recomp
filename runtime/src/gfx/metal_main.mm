@@ -1,5 +1,5 @@
 #include "gfx/depth_peek.h"
-// Metal renderer: device, window, presentation, clears and copies.
+
 #import <AppKit/AppKit.h>
 #import <ImageIO/ImageIO.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -15,7 +15,7 @@
 
 namespace gfx {
 Renderer R;
-// GPU depth peeks for the game's sun visibility test (fork 73b54e1, Metal adaptation).
+
 void peek_z(const uint32_t* cells, uint32_t n) {
     Surface* depth = nullptr;
     auto range = R.surfaces.equal_range(R.mainDepthAddr);
@@ -61,20 +61,16 @@ void peek_z(const uint32_t* cells, uint32_t n) {
     }];
 }
 
-
 bool log_this_frame();
 
-// windows, full screen, the present shader and the composition of the screens: display.mm
 void display_init();
 void present_screens();
 void request_present_dump(const std::string& path);
 
-// enhancement, toggled in game (Graphics menu or 8; NSMBU_FXAA=1 starts with it on)
 static std::atomic<bool> g_fxaa{[] { const char* e = getenv("NSMBU_FXAA"); return e && atoi(e) != 0; }()};
 bool fxaa_enabled() { return g_fxaa.load(std::memory_order_relaxed); }
 void set_fxaa(bool v) { g_fxaa = v; LOG("[gfx] edge smoothing (FXAA) %s", v ? "on" : "off"); }
 
-// ---------------------------------------------------------------- guest memory
 static void map_guest_range(uint32_t base, uint32_t size) {
     id<MTLBuffer> b = [R.device newBufferWithBytesNoCopy:mem::ptr(base)
                                                   length:size
@@ -94,14 +90,13 @@ id<MTLBuffer> guest_buffer(uint32_t addr, uint32_t* offset) {
     return nil;
 }
 
-// ---------------------------------------------------------------- command buffers
 id<MTLCommandBuffer> command_buffer() {
     if (!R.cmd) R.cmd = [R.queue commandBuffer];
     return R.cmd;
 }
 
 uint32_t g_draws_since_commit = 0;
-std::atomic<uint64_t> g_gpu_ns{0};  // GPU busy time, for the periodic report
+std::atomic<uint64_t> g_gpu_ns{0};
 
 static void track_gpu_time(id<MTLCommandBuffer> cb) {
     [cb addCompletedHandler:^(id<MTLCommandBuffer> b) {
@@ -114,8 +109,7 @@ void end_encoder() {
     if (R.enc) {
         [R.enc endEncoding];
         R.enc = nil;
-        // submit work in chunks so the GPU starts while the frame is still being built (like the
-        // hardware command processor), instead of all at once on swap
+
         static const bool chunked = getenv("NSMBU_NO_CHUNK") == nullptr;
         if (chunked && g_draws_since_commit >= 256 && R.cmd) {
             void pool_retire(id<MTLCommandBuffer> cmd);
@@ -153,13 +147,12 @@ void wait_idle() {
     }
 }
 
-// ---------------------------------------------------------------- init
 void init() {
     R.device = MTLCreateSystemDefaultDevice();
     if (!R.device) fatal("no Metal device");
     R.queue = [R.device newCommandQueue];
     display_init();
-    // GPU-visible guest memory: MEM2 (code data + heaps), runtime objects, foreground bucket, MEM1
+
     map_guest_range(0x10000000, 0x40000000);
     map_guest_range(0x60000000, 0x10000000);
     map_guest_range(0xE0000000, 0x04000000);
@@ -169,10 +162,8 @@ void init() {
 
 void run_main_loop() { [NSApp run]; }
 
-// the MTLDevice's name, for reports (renderer.h Backend::device); "" before init
 std::string device_name() { return R.device ? std::string(R.device.name.UTF8String) : std::string(); }
 
-// ---------------------------------------------------------------- clears
 static void clear_surface(Surface* s, const float* rgba, bool clearDepth, float depth, bool clearStencil, uint32_t stencil,
                           uint32_t firstSlice = 0, uint32_t numSlices = 1) {
     if (!s || !s->tex) return;
@@ -180,7 +171,7 @@ static void clear_surface(Surface* s, const float* rgba, bool clearDepth, float 
     for (uint32_t slice = firstSlice; slice < firstSlice + numSlices; slice++) {
     MTLRenderPassDescriptor* rp = [MTLRenderPassDescriptor renderPassDescriptor];
     rp.depthAttachment.slice = rp.stencilAttachment.slice = slice;
-    if (s->tex.textureType == MTLTextureType3D) rp.colorAttachments[0].depthPlane = slice;  // a volume's slice
+    if (s->tex.textureType == MTLTextureType3D) rp.colorAttachments[0].depthPlane = slice;
     else rp.colorAttachments[0].slice = slice;
     if (s->isDepth) {
         rp.depthAttachment.texture = s->tex;
@@ -214,7 +205,7 @@ void clear_color(const uint32_t* regs, uint32_t cb, const float rgba[4]) {
 }
 
 void clear_depth_stencil(const uint32_t* regs, uint32_t db, float depth, uint32_t stencil, uint32_t flags) {
-    // flags: 1 = depth, 2 = stencil
+
     uint32_t first = 0, num = 1;
     Surface* s = surface_from_depth_buffer(db, &first, &num);
     if (log_this_frame() && s)
@@ -223,27 +214,26 @@ void clear_depth_stencil(const uint32_t* regs, uint32_t db, float depth, uint32_
     clear_surface(s, nullptr, flags & 1, depth, (flags & 2) != 0, stencil, first, num);
 }
 
-// ---------------------------------------------------------------- copies
 void copy_surface(uint32_t src, uint32_t srcMip, uint32_t srcSlice, uint32_t dst, uint32_t dstMip, uint32_t dstSlice) {
     void copy_surface_impl(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
     copy_surface_impl(src, srcMip, srcSlice, dst, dstMip, dstSlice);
 }
 
 void copy_to_scan(uint32_t cb, uint32_t target) {
-    // target: 1 = TV, 4/8 = GamePad
+
     if (log_this_frame()) LOG("[scan] copy %08X to %s", cb, (target & 1) ? "TV" : "DRC");
     Screen& scr = (target & 1) ? R.tv : R.drc;
     Surface* s = surface_from_color_buffer(cb);
     if (!s || !s->tex) return;
     end_encoder();
-    // the image as rendered (internal resolution); the present pass scales it to the window
+
     NSUInteger w = s->tex.width, h = s->tex.height;
     if (!scr.tex || scr.tex.width != w || scr.tex.height != h || scr.tex.pixelFormat != s->tex.pixelFormat) {
         MTLTextureDescriptor* d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:s->tex.pixelFormat
                                                                                      width:w
                                                                                     height:h
                                                                                  mipmapped:NO];
-        d.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;  // render target: mod overlays
+        d.usage = MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
         d.storageMode = MTLStorageModePrivate;
         scr.tex = [R.device newTextureWithDescriptor:d];
     }
@@ -254,7 +244,6 @@ void copy_to_scan(uint32_t cb, uint32_t target) {
     [b endEncoding];
 }
 
-// debug: NSMBU_DUMP_FRAMES=100,300 writes the TV image of those frames to frame_<n>.png
 static std::set<uint64_t> g_dump_frames = [] {
     std::set<uint64_t> f;
     if (const char* e = getenv("NSMBU_DUMP_FRAMES"))
@@ -265,14 +254,12 @@ static std::set<uint64_t> g_dump_frames = [] {
     return f;
 }();
 
-// async: write the file when the GPU gets there instead of stalling (keeps frame timing intact)
 void set_tv_format(uint32_t gx2Format, bool tv) {
     (tv ? R.tv : R.drc).srgb = (gx2Format & 0x400) != 0;
 }
 
-// depth buffers: grey image, contrast-stretched to the range of values present
 static void dump_depth(id<MTLTexture> src, const char* name) {
-    // all array slices side by side
+
     uint32_t w = (uint32_t)src.width, h = (uint32_t)src.height, n = (uint32_t)std::max<NSUInteger>(src.arrayLength, 1);
     MTLPixelFormat pf = src.pixelFormat;
     uint32_t bpp = pf == MTLPixelFormatDepth16Unorm ? 2 : 4;
@@ -399,7 +386,6 @@ void dump_texture(id<MTLTexture> src, const char* name, bool async, bool srgbEnc
     }
 }
 
-// save states: thumbnails and test dumps of the TV image a number of frames from now
 static std::mutex g_tv_dump_mu;
 static std::vector<std::pair<uint64_t, std::string>> g_tv_dumps;
 uint64_t frame_count() { return __atomic_load_n(&R.frame, __ATOMIC_RELAXED); }
@@ -446,7 +432,7 @@ void cache_warm_step();
 
 void swap() {
     cache_warm_step();
-    static bool sync_gpu = getenv("NSMBU_SYNC_GPU") != nullptr;  // debug: no CPU/GPU overlap
+    static bool sync_gpu = getenv("NSMBU_SYNC_GPU") != nullptr;
     if (sync_gpu) wait_idle();
     end_encoder();
     if (log_this_frame()) LOG("[frame] end %llu", (unsigned long long)R.frame);
@@ -455,11 +441,11 @@ void swap() {
     if (g_dump_frames.count(R.frame)) dump_tv(R.frame);
     service_tv_dumps();
     const char* capture_begin_frame();
-    static std::string pendingCapture;  // the TV image is dumped once the captured frame has been drawn
+    static std::string pendingCapture;
     if (!pendingCapture.empty()) {
         dump_texture(R.tv.tex, (pendingCapture + "/tv.png").c_str(), true, R.tv.srgb);
         if (R.drc.tex) dump_texture(R.drc.tex, (pendingCapture + "/gamepad.png").c_str(), true, R.drc.srgb);
-        request_present_dump(pendingCapture + "/present.png");  // the TV window as shown (overlay, bars)
+        request_present_dump(pendingCapture + "/present.png");
         LOG("[gfx] capture written to %s", pendingCapture.c_str());
         pendingCapture.clear();
     }
@@ -470,7 +456,7 @@ void swap() {
         flush();
     }
     if (R.frame % 300 == 1) {
-        // render thread CPU time (excludes sleeping and GPU waits), for performance comparisons
+
         timespec ts{};
         clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts);
         static uint64_t lastCpu = 0;
@@ -489,22 +475,20 @@ void invalidate(uint32_t flags, uint32_t addr, uint32_t size) {
     static int logged = 0;
     if (getenv("NSMBU_LOG_INVALIDATE") && (flags & 0x2) && logged++ < 400)
         LOG("[inval] frame %llu flags %X addr %08X size %X", (unsigned long long)R.frame, flags, addr, size);
-    // GX2_INVALIDATE_MODE_TEXTURE (0x2): the CPU wrote texture data; force a full check of surfaces in
-    // range on next use. Uniform/attribute/shader invalidations need nothing here.
+
     if (!(flags & 0x2)) return;
-    // "invalidate everything" (sent several times per frame) carries no information about CPU writes;
-    // changed textures are caught by the write tracking (write_watch.h, metal_surfaces.mm check_texture)
+
     if (size >= 0x10000000) return;
     uint64_t end = (uint64_t)addr + size;
     auto hits = [&](Surface* s) {
-        // every level once known (after the first check), else the base level estimate
+
         if (s->levelRanges.empty()) return addr < (uint64_t)s->addr + std::max<uint32_t>(s->dataSize, s->pitch * s->height * 4) && s->addr < end;
         for (auto& [b, n] : s->levelRanges)
             if (addr < (uint64_t)b + n && b < end) return true;
         return false;
     };
     for (auto& [a, s] : R.surfaces)
-        // MEM1 holds render targets; CPU-side surfaces there are views of GPU data, not CPU uploads
+
         if (!s->gpuWritten && !(a >= 0xF4000000 && a < 0xF6000000) && hits(s.get())) {
             s->lastCheckedFrame = ~0ull;
             s->dirty = true;
@@ -515,4 +499,4 @@ void invalidate(uint32_t flags, uint32_t addr, uint32_t size) {
         }
 }
 
-}  // namespace gfx
+}

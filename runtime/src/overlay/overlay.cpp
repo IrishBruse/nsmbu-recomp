@@ -1,7 +1,5 @@
 #include <mutex>
-// In-game settings overlay: the Dear ImGui user interface (see overlay.h). The renderers draw the
-// resulting ImDrawData (gfx/overlay_metal.mm, gfx/vulkan/overlay.cpp); the hosts feed input and apply
-// changes on their main thread (hostui.h).
+
 #include "app_title.h"
 #include "overlay.h"
 #include "perf_average.h"
@@ -37,7 +35,7 @@
 #endif
 #ifdef NSMBU_HAS_VULKAN
 #include "../gfx/vulkan/settings.h"
-namespace gfxvk { bool buffer_cache_enabled(); }  // gfx/vulkan/buffer_cache.h
+namespace gfxvk { bool buffer_cache_enabled(); }
 #endif
 #include "../input.h"
 #include "../input_map.h"
@@ -66,15 +64,13 @@ std::atomic<bool> g_open{false};
 std::atomic<bool> g_perf{false};
 PerfAverage g_average;
 std::atomic<float> g_density{1.0f};
-std::atomic<bool> g_wait_release{false};  // just closed: the game sees no buttons until all are released
-std::atomic<double> g_last_frame{0};      // frame() ran (alive(): the game's text prompt can show)
-const bool g_no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;  // test runs ignore the user's input
-// ... except keys a test posts itself (NSMBU_TEST_POST_KEYS, gfx/input.mm; the hidden test window never
-// has the user's keyboard)
-const bool g_no_host_keys = g_no_host && !getenv("NSMBU_TEST_POST_KEYS");
-bool g_pad_b_used = false;  // B answered a dialog this frame: it does not also close the menu
+std::atomic<bool> g_wait_release{false};
+std::atomic<double> g_last_frame{0};
+const bool g_no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
 
-// input events from the host's main thread, replayed into ImGui on the render thread
+const bool g_no_host_keys = g_no_host && !getenv("NSMBU_TEST_POST_KEYS");
+bool g_pad_b_used = false;
+
 struct Event {
     enum Kind { Key, MousePos, MouseButton, Wheel, Focus } kind;
     int code = 0;
@@ -84,9 +80,9 @@ struct Event {
 };
 std::mutex g_mu;
 std::vector<Event> g_events;
-std::atomic<int> g_capture_key{-2};  // remap: key pressed while capturing (-2 none, -1 cancel, -3 clear)
+std::atomic<int> g_capture_key{-2};
 std::atomic<bool> g_capturing_keys{false};
-// keys held while the overlay is open (the Controls tab lights them; the game never sees them)
+
 std::atomic<bool> g_held_keys[256];
 
 void push(const Event& e) {
@@ -127,44 +123,43 @@ ImGuiKey imgui_key(int code) {
     }
 }
 
-// ---------------------------------------------------------------- UI state (render thread)
 enum Tab { kSaves, kGraphics, kDisplay, kMods, kControls, kAbout, kTabs };
 const char* const kTabNames[kTabs] = {"Saves", "Graphics", "Display", "Mods", "Controls", "Language / About"};
 const char* const kTabIds[kTabs] = {"saves", "graphics", "display", "mods", "controls", "about"};
 
 struct Ui {
     bool init = false;
-    int tab = kSaves, select_tab = -1;  // select_tab: switch to this tab next frame (shoulder buttons, tests)
+    int tab = kSaves, select_tab = -1;
     double last_time = 0;
-    // controller
+
     float values[input_map::kPadCount] = {};
     float prev[input_map::kPadCount] = {};
     double options_since = -1;
     bool options_latched = false;
-    // remap capture: action, column (0, 1 keys; 2 controller)
+
     int cap_action = -1, cap_col = 0;
     bool cap_pad_released = false;
     double cap_started = 0;
     std::string cap_note;
-    // save state slots, refreshed twice a second while the Saves tab is shown
+
     ss::SlotInfo slots[ss::kSlots + 1];
     crashrec::AutoInfo autos[crashrec::kAutoSlots + 1];
     double slots_time = -1;
-    // performance
+
     double fps_t0 = 0, fps = 0;
     uint64_t fps_n0 = 0;
     float frame_ms[120] = {};
     int frame_i = 0;
     double last_present = 0;
-    // language (applies on the next start)
+
     int language = -1;
-    int language_at_start = -1;  // the language this start runs with (game_lang: the one on the disc)
-    int language_region = 0;     // game_lang region of a language source (0: the installed game)
+    int language_at_start = -1;
+    int language_region = 0;
     int language_region_at_start = 0;
     bool linearized = false;
     bool just_opened = false;
-    bool list_view = false;  // Controls: the table instead of the drawing
-    int hover_action = -1;   // Controls: input under the cursor (status line)
+    bool list_view = false;
+    int hover_action = -1;
 };
 Ui U;
 
@@ -178,7 +173,6 @@ void post_changed(std::function<void()> fn) {
     });
 }
 
-// ---------------------------------------------------------------- style
 void setup_style() {
     ImGuiStyle& s = ImGui::GetStyle();
     ImGui::StyleColorsDark(&s);
@@ -192,11 +186,11 @@ void setup_style() {
     s.FramePadding = ImVec2(9, 5);
     s.ItemSpacing = ImVec2(10, 7);
     s.WindowBorderSize = 1;
-    s.FrameBorderSize = 1;  // unchecked boxes and radio buttons stay visible on the dark background
+    s.FrameBorderSize = 1;
     s.WindowTitleAlign = ImVec2(0.5f, 0.5f);
     ImVec4* c = s.Colors;
-    // deep sea blue with a teal accent
-    c[ImGuiCol_WindowBg] = ImVec4(0.03f, 0.07f, 0.12f, 0.975f);  // sRGB targets blend in linear light: keep it dense
+
+    c[ImGuiCol_WindowBg] = ImVec4(0.03f, 0.07f, 0.12f, 0.975f);
     c[ImGuiCol_ChildBg] = ImVec4(0.06f, 0.13f, 0.20f, 0.35f);
     c[ImGuiCol_PopupBg] = ImVec4(0.05f, 0.11f, 0.18f, 0.98f);
     c[ImGuiCol_Border] = ImVec4(0.30f, 0.62f, 0.70f, 0.45f);
@@ -218,12 +212,11 @@ void setup_style() {
     c[ImGuiCol_SliderGrab] = ImVec4(0.40f, 0.80f, 0.80f, 1.0f);
     c[ImGuiCol_SliderGrabActive] = ImVec4(0.55f, 0.95f, 0.90f, 1.0f);
     c[ImGuiCol_Separator] = ImVec4(0.30f, 0.62f, 0.70f, 0.35f);
-    c[ImGuiCol_NavCursor] = ImVec4(1.0f, 0.85f, 0.35f, 1.0f);  // controller cursor: gold, easy to follow
+    c[ImGuiCol_NavCursor] = ImVec4(1.0f, 0.85f, 0.35f, 1.0f);
     c[ImGuiCol_TableHeaderBg] = ImVec4(0.08f, 0.24f, 0.34f, 1.0f);
     c[ImGuiCol_TableRowBgAlt] = ImVec4(1, 1, 1, 0.03f);
 }
 
-// a font with arrows and accents if the system has one; Dear ImGui's own scalable font otherwise
 void setup_fonts() {
     ImGuiIO& io = ImGui::GetIO();
     static const char* const candidates[] = {
@@ -259,7 +252,7 @@ void init_context() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;  // nothing written next to the game
+    io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
@@ -271,7 +264,6 @@ void init_context() {
     U.init = true;
 }
 
-// ---------------------------------------------------------------- test switch
 struct TestSwitch {
     bool open = false, perf = false;
     int tab = -1;
@@ -296,10 +288,6 @@ TestSwitch parse_test() {
     return t;
 }
 
-// ---------------------------------------------------------------- controller
-// debug: NSMBU_TEST_PAD=320-400:B+LeftStickRight:0.8+LeftStickUp:0.4 holds host controller inputs
-// (controls.json names, value 1 unless given) during TV frames 320..400. They reach only the
-// Controls tab's live display and the game's text prompt (not the menu navigation, capture or the game).
 void test_pad(float* v) {
     struct Hold { uint64_t from, to; int pad; float value; };
     static const std::vector<Hold> holds = [] {
@@ -342,7 +330,7 @@ void read_controller() {
     input::host_controller_values(U.values);
     using namespace input_map;
     const double t = now_s();
-    // Home: toggles; Select / Minus (View / Share): held half a second opens, a press closes
+
     if (controller_pressed(kPadHome)) set_open(!is_open());
     if (controller_down(kPadOptions)) {
         if (!U.options_latched) {
@@ -390,7 +378,6 @@ void feed_gamepad(ImGuiIO& io, bool enabled) {
     key(ImGuiKey_GamepadStart, kPadMenu);
 }
 
-// ---------------------------------------------------------------- widgets
 void help(const char* text) {
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | ImGuiHoveredFlags_ForTooltip)) ImGui::SetTooltip("%s", text);
 }
@@ -418,7 +405,7 @@ void warn(const char* fmt, ...) {
     ImGui::PopStyleColor();
     va_end(ap);
 }
-// a radio button that runs `set` on the main thread when chosen
+
 bool radio(const char* label, bool active, bool enabled = true) {
     ImGui::BeginDisabled(!enabled);
     bool clicked = ImGui::RadioButton(label, active) && !active;
@@ -434,7 +421,6 @@ bool check(const char* label, bool value, bool* out, bool enabled = true) {
     return changed;
 }
 
-// ---------------------------------------------------------------- tabs
 void refresh_slots(bool force) {
     double t = now_s();
     if (!force && U.slots_time >= 0 && t - U.slots_time < 0.5) return;
@@ -475,7 +461,7 @@ void tab_saves() {
                 if (!s.compatible) d += "  (incompatible)";
                 ImGui::TextUnformatted(d.c_str());
                 if (s.older_other && s.portable) {
-                    // decision: an older full state stays on disk; say so (it is large and must not be shared)
+
                     ImGui::TextDisabled("also holds an older full state (slot%d.bin, %.0f MB)", i, s.older_bytes / 1048576.0);
                     if (ImGui::IsItemHovered())
                         ImGui::SetTooltip("Kept on disk, not loaded: the newer portable state is. It contains game data: "
@@ -500,7 +486,7 @@ void tab_saves() {
         }
         ImGui::EndTable();
     }
-    // bug reports: the portable state and the save file, never a full state
+
     static double copiedAt = -10;
     if (ImGui::Button("Copy save for bug report")) {
         std::string text = ss::bug_report_text();
@@ -522,7 +508,7 @@ void tab_saves() {
          "These files contain game code and data: never attach them to a bug report.");
     heading("Screenshots");
     {
-        // the Screenshot binding (Controls tab): its keys and controller input
+
         const input_map::Mapping m = input_map::current();
         std::string keys;
         for (int k : m.keys[input_map::kScreenshot])
@@ -618,7 +604,7 @@ void tab_graphics() {
     help("60 fps is the game rate.\n"
          "120, 165 and 240 fps are the higher rates. The game logic stays at 60 steps a second.\n"
          "The display shows at most its refresh rate.");
-    // the display's refresh rate, and what the chosen rate draws on it (interp::output_fps)
+
     if (const int hz = interp::display_hz(); hz > 0) {
         const int out = interp::output_fps();
         if (m == 1 && out < f)
@@ -643,7 +629,7 @@ void tab_graphics() {
             note("Off: if this computer cannot reach %d fps, the whole game slows down (the performance\n"
                  "overlay then shows fewer than 30 logic steps/s). Turn it on to keep the game's speed.", interp::fps());
     }
-    // debug only, not saved (gx2::uncapped)
+
     bool unc;
     if (check("Uncapped (debug: the game runs too fast)", gx2::uncapped(), &unc)) hostui::post([unc] { gx2::set_uncapped(unc); });
     help("Debug only, to see how many frames a second this computer can draw: no frame limit and no\n"
@@ -701,7 +687,7 @@ void tab_graphics() {
         static const char* const tips[] = {"FIFO: every frame waits for the display's refresh; no tearing (default)",
                                            "MAILBOX: the newest finished frame is shown at the next refresh; no tearing, less delay",
                                            "IMMEDIATE: frames are shown at once; lowest delay, may tear"};
-        // the mode in use: the setting, or vsync when this driver does not offer it
+
         const int in_use = gfxvk::present_mode_offered(gfxvk::present_mode()) ? gfxvk::present_mode() : gfxvk::kPresentFifo;
         for (int i = 0; i < gfxvk::kPresentModes; i++) {
             if (i) ImGui::SameLine();
@@ -728,11 +714,11 @@ void tab_graphics() {
     heading("Overlay");
     if (check("Performance overlay (FPS, frame time)", perf_shown(), &v)) set_perf_shown(v);
     if (ImGui::Button("Reset performance averages")) g_average.reset();
-    // the render-thread profiler's latest report (render_prof.h), for performance bug reports
+
     static double copiedAt = -10;
     if (ImGui::Button("Copy performance report")) {
         std::string report = rprof::latest_report();
-        // which build, system, GPU and rendering-path switches (report_header.h)
+
         reporthdr::Info h;
         h.version = build::version();
         h.commit = build::commit();
@@ -765,7 +751,7 @@ void tab_display() {
     bool v;
     heading("Window");
     if (check("Full screen", hostui::fullscreen(), &v)) hostui::post([v] { hostui::set_fullscreen(v); });
-#ifndef __ANDROID__  // always full screen there
+#ifndef __ANDROID__
     help(!strcmp(hostui::name(), "AppKit") ? "The TV window (Cmd+F); remembered for the next start"
                                            : "The TV window (F11 or Alt+Enter); remembered for the next start");
 #endif
@@ -777,8 +763,7 @@ void tab_display() {
         if (radio(f[i], hostui::scale_filter() == i, fok)) hostui::post([i] { hostui::set_scale_filter(i); });
     }
     heading("GamePad screen");
-    // the modes of display_modes.h; a host offers those it can show (no "Separate window" without one,
-    // as on Android)
+
     const int mode = hostui::drc_mode();
     if (hostui::drc_modes() >= 4) {
         static const char* const modes[] = {"Separate window", "Picture-in-picture", "Automatic picture-in-picture", "Off",
@@ -797,7 +782,7 @@ void tab_display() {
               hostui::drc_available() && !(hostui::drc_modes() >= 4 && (mode == 3 || mode == 4))))
         hostui::post([v] { hostui::show_drc(v); });
     if (hostui::drc_modes() >= 4 && (mode == 1 || mode == 2)) {
-        // the overlay's corner, size and opacity (also in the Display menu on macOS)
+
         static const char* const corners[] = {"Top left", "Top right", "Bottom left", "Bottom right"};
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Picture-in-picture corner:");
@@ -825,11 +810,9 @@ void tab_display() {
     }
 }
 
-// The one-time native code confirmation (packages.h confirm_native): asked before enable() for each
-// native package the player has not confirmed; Cancel (also B) leaves everything disabled.
 struct NativeConfirm {
-    std::string id, name;                                // the package the player is enabling
-    std::vector<std::pair<std::string, std::string>> native;  // what needs confirming (it, dependencies)
+    std::string id, name;
+    std::vector<std::pair<std::string, std::string>> native;
     bool open_now = false;
 };
 void native_confirm_dialog(NativeConfirm& c, std::string& error) {
@@ -854,7 +837,7 @@ void native_confirm_dialog(NativeConfirm& c, std::string& error) {
         accept = ImGui::Button("Enable", ImVec2(120, 0));
         ImGui::SameLine();
         answered = ImGui::Button("Cancel", ImVec2(120, 0)) || accept;
-        ImGui::SetItemDefaultFocus();  // keyboard and controller start on Cancel
+        ImGui::SetItemDefaultFocus();
         if (controller_pressed(input_map::kPadB)) { answered = true; accept = false; g_pad_b_used = true; }
     }
     if (accept) {
@@ -877,8 +860,7 @@ void package_controls() {
     using namespace mods::packages;
     static std::string error;
     static NativeConfirm confirm;
-    // debug: NSMBU_TEST_MOD_ENABLE=<package id> ticks that package's checkbox once in test runs (the
-    // confirmation then shows for unconfirmed native code)
+
     static const char* test_enable = g_no_host ? getenv("NSMBU_TEST_MOD_ENABLE") : nullptr;
     static char source[1024] = {}, new_profile[65] = {};
     static std::mutex picker_mutex;
@@ -1003,8 +985,7 @@ void package_controls() {
 void code_mod_dialog() {
     auto status=mods::code::status();
     if(!status.requested)return;
-    // Explicit test acceptance drives the same offer/rebuild path in an isolated,
-    // input-free run. The normal native-code trust check still runs first.
+
     static bool test_accepted=false;
     if(g_no_host&&getenv("NSMBU_TEST_CODE_MOD_REBUILD")&&!test_accepted&&!status.building&&!status.ready) {
         test_accepted=true;mods::code::begin();
@@ -1063,8 +1044,8 @@ void apply_capture() {
     const int a = U.cap_action, colm = U.cap_col;
     int code = g_capture_key.exchange(-2);
     bool done = false;
-    if (code == -1) done = true;  // Esc: cancel
-    else if (code == -3) {         // Backspace / Delete: clear
+    if (code == -1) done = true;
+    else if (code == -3) {
         if (colm == kColPad) m.pad[a] = kPadNone;
         else m.keys[a][colm == kColAny ? 0 : colm] = kNoKey;
         input_map::set_current(m);
@@ -1078,8 +1059,7 @@ void apply_capture() {
         }
     }
     if (!done) {
-        // controller: wait for all inputs to be released, then take the first one pressed (controller
-        // slots); for a key slot, B cancels
+
         int pressed = -1;
         bool any = false;
         for (int p = 1; p < kPadCount; p++) {
@@ -1092,14 +1072,14 @@ void apply_capture() {
                 m.pad[a] = pressed;
                 input_map::set_current(m);
             }
-            done = true;  // (key slots: any controller input cancels)
+            done = true;
         }
     }
-    if (!done && now_s() - U.cap_started > 8) done = true;  // nothing pressed: give up
+    if (!done && now_s() - U.cap_started > 8) done = true;
     if (done) {
         U.cap_action = -1;
         g_capturing_keys = false;
-        g_wait_release = true;  // the controller input just assigned does not also act in the menu
+        g_wait_release = true;
     }
 }
 
@@ -1111,7 +1091,6 @@ std::string summary(const input_map::Mapping& m, int a) {
     return out.empty() ? "not bound" : out;
 }
 
-// the table (List view)
 void controls_list(input_map::Mapping& m, float h) {
     if (ImGui::BeginTable("map", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchSame,
                           ImVec2(0, h))) {
@@ -1149,7 +1128,6 @@ void controls_list(input_map::Mapping& m, float h) {
     }
 }
 
-// ---------------------------------------------------------------- gyro (motion/motion.h)
 void save_gyro(const motion::Settings& g) {
     hostui::post([g] {
         motion::set_settings(g);
@@ -1169,7 +1147,7 @@ void load_gyro() {
     if (saved && !axis) motion::upgrade_from_first_release(g);
     motion::set_settings(g);
 }
-// the Gyro window (Controls tab > Gyro...): source, axis, sensitivity, invert, recalibrate, Cemuhook server
+
 void gyro_window(bool& open) {
     const char* title = "Gyro aiming##gyro";
     if (open) { ImGui::OpenPopup(title); open = false; }
@@ -1232,7 +1210,7 @@ void gyro_window(bool& open) {
         if (ImGui::SliderInt("Controller slot", &slot, 1, 4)) g.dsu_slot = slot - 1;
         note("A Cemuhook (DSU) server: DS4Windows, BetterJoy, SteamDeckGyroDSU or a phone app; default 127.0.0.1, port 26760.");
     }
-    // recalibrate: a controller input and/or a key
+
     const char* pad_name = g.recenter_pad > 0 ? input_map::pad_label(g.recenter_pad) : "None";
     ImGui::SetNextItemWidth(220);
     if (ImGui::BeginCombo("Recalibrate: controller", pad_name)) {
@@ -1246,7 +1224,7 @@ void gyro_window(bool& open) {
         if (ImGui::Selectable("None", g.recenter_key < 0)) g.recenter_key = -1;
         for (int k = 0; k < 256; k++) {
             std::string id = input_map::key_id(k);
-            if (id.rfind("Key", 0) == 0) continue;  // unnamed codes
+            if (id.rfind("Key", 0) == 0) continue;
             if (ImGui::Selectable(input_map::key_label(k).c_str(), g.recenter_key == k)) g.recenter_key = k;
         }
         ImGui::EndCombo();
@@ -1266,12 +1244,12 @@ void gyro_window(bool& open) {
 void tab_controls() {
     bool v;
     input_map::Mapping m = input_map::current();
-    // top: which controller the keyboard and controllers act as (the drawing follows), view switch
+
     const bool pro = input::pro_controller();
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Keyboard and controllers act as");
     ImGui::SameLine();
-    // the choice is saved (issue #26: every start went back to the GamePad and showed its screen)
+
     if (radio("Wii U GamePad", !pro))
         hostui::post([] { hostui::set_pro_controller(false); hostui::set("proController", "0"); });
     ImGui::SameLine();
@@ -1281,7 +1259,7 @@ void tab_controls() {
                     ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x);
     ImGui::Checkbox("List view", &U.list_view);
     help("A plain table of all inputs instead of the controller drawing");
-    // face-button preset (issue #78): which host face buttons drive A/B/X/Y
+
     const input_map::FaceLayout fl = input_map::face_layout(m);
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Face buttons");
@@ -1303,7 +1281,7 @@ void tab_controls() {
         ImGui::SameLine();
         ImGui::TextDisabled("(custom)");
     }
-    // status line: capture prompt > note > hovered input > duplicates > help
+
     std::string status;
     ImVec4 sc(0.70f, 0.78f, 0.84f, 1.0f);
     if (U.cap_action >= 0) {
@@ -1340,8 +1318,7 @@ void tab_controls() {
         test_pad(live);
         cv.pad = live;
         cv.t = now_s();
-        // live display: pressed inputs and stick deflection through the current mapping, from the raw
-        // host state (as the Controls window's poll; camera inversion left out)
+
         static bool keys[256];
         for (int i = 0; i < 256; i++) keys[i] = g_held_keys[i].load(std::memory_order_relaxed);
         cv.keys = keys;
@@ -1380,7 +1357,7 @@ void tab_controls() {
         input_map::set_current(m);
     }
     ImGui::SameLine(0, 24);
-    // issue #35: a way to keep the controller motors still (saved; NSMBU_RUMBLE=0 starts with it off)
+
     if (check("Rumble", rumble::enabled(), &v, input::has_rumble())) {
         rumble::set_enabled(v);
         hostui::post([v] { hostui::set("rumble", v ? "1" : "0"); });
@@ -1409,7 +1386,6 @@ int saved_language() {
     return 1;
 }
 
-// the region of the saved language when it comes from a language source (game_lang::kNoRegion: the game's own)
 int saved_language_region() {
     std::string v;
     if (hostui::get("language_region", v)) {
@@ -1419,7 +1395,6 @@ int saved_language_region() {
     return game_lang::kNoRegion;
 }
 
-// "English, French and Spanish"
 std::string language_list(const std::vector<int>& langs) {
     std::string s;
     for (size_t k = 0; k < langs.size(); k++)
@@ -1446,7 +1421,7 @@ void tab_about() {
         U.language = saved_language();
         U.language_region = saved_language_region();
         const game_lang::Start now = game_lang::current();
-        U.language_at_start = now.language;  // the game reads it early in the boot
+        U.language_at_start = now.language;
         U.language_region_at_start = now.pack ? now.region : game_lang::kNoRegion;
         if (U.language_at_start < 0) {
             const game_lang::Start s = game_lang::choose(env_set ? env_language : U.language,
@@ -1465,13 +1440,12 @@ void tab_about() {
              "languages need a disc that carries them.", game_lang::region().c_str(), language_list(avail).c_str());
     ImGui::BeginDisabled(env_set);
     for (int i : {1, 2, 5, 3, 4, 8, 9, 10, 7, 0, 6, 11}) {
-        if (i != 1 && i != 3 && i != 9 && i != 0) ImGui::SameLine();  // rows of three
+        if (i != 1 && i != 3 && i != 9 && i != 0) ImGui::SameLine();
         if (radio(game_lang::name(i), U.language == i && U.language_region == game_lang::kNoRegion,
                   game_lang::is_available(i)))
             choose_language(i, game_lang::kNoRegion);
     }
-    // the languages of the language sources (a European or Japanese disc of the player's, set up with
-    // the setup's --language-source): docs/language-packs.md
+
     for (int region : {(int)game_lang::kEurope, (int)game_lang::kJapan}) {
         const std::vector<int> langs = game_lang::source_languages(region);
         if (langs.empty()) continue;
@@ -1541,7 +1515,7 @@ void perf_window(bool menu_open) {
         ImGui::Text("%.0f fps   %.1f ms (worst %.1f)", U.fps, sum / 120.0f, worst);
         ImGui::Text("Average %.1f fps   %.1f logic steps/s", g_average.fps, g_average.logic);
         {
-            // slow motion: frame interpolation without Keep game speed below its frame target
+
             static double t0 = 0; static uint64_t s0 = 0; static double rate = 30;
             if (t0 == 0 || t - t0 < 0) { t0 = t; s0 = interp::executed_steps(); }
             else if (t - t0 >= 2.0) { rate = (double)(interp::executed_steps() - s0) / (t - t0); t0 = t; s0 = interp::executed_steps(); }
@@ -1575,11 +1549,11 @@ void settings_window() {
                           ImGuiWindowFlags_NoSavedSettings;
     bool open = true;
     if (U.just_opened) {
-        ImGui::SetNextWindowFocus();  // keyboard / controller navigation starts in the menu
+        ImGui::SetNextWindowFocus();
         U.just_opened = false;
     }
     if (ImGui::Begin(app_title::kSettings, &open, fl)) {
-        // L / R on a controller switch tabs
+
         if (U.cap_action < 0 && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
             if (controller_pressed(input_map::kPadLB)) U.select_tab = (U.tab + kTabs - 1) % kTabs;
             if (controller_pressed(input_map::kPadRB)) U.select_tab = (U.tab + 1) % kTabs;
@@ -1609,21 +1583,20 @@ void settings_window() {
         }
     }
     ImGui::End();
-    // B (not while choosing an input or in a list) or the close button closes the menu
+
     if (!open) set_open(false);
     if (U.cap_action < 0 && controller_pressed(input_map::kPadB) && !g_pad_b_used && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
         set_open(false);
     g_pad_b_used = false;
 }
 
-}  // namespace
+}
 
-// ---------------------------------------------------------------- API
 bool is_open() { return g_open.load(std::memory_order_relaxed); }
 void set_open(bool open) {
     if (g_open.exchange(open) == open) return;
     for (auto& k : g_held_keys) k = false;
-    input::release_keys();  // keys held now belong to the menu (opening) or are not stuck in the game (closing)
+    input::release_keys();
     if (!open) g_wait_release = true;
     if (open) {
         mods::mouse_release();
@@ -1644,19 +1617,19 @@ void set_perf_shown(bool on) {
 bool key(int code, bool down, bool repeat, int mods) {
     if (g_no_host_keys) return false;
 #ifdef __APPLE__
-    // Cmd+, (the macOS settings shortcut; the AppKit host gets it as the app menu's Settings... item)
+
     if (code == kVK_ANSI_Comma && (mods & kSuper) && !g_capturing_keys.load()) {
         if (down && !repeat) set_open(!is_open());
         return true;
     }
 #endif
-    // F1 (no modifiers; Shift+F1 saves slot 1) toggles; Esc closes
+
     if (code == kVK_F1 && !(mods & (kShift | kCtrl | kAlt | kSuper))) {
         if (down && !repeat && !g_capturing_keys.load()) set_open(!is_open());
         if (!g_capturing_keys.load()) return true;
     }
     if (!is_open()) {
-        // the game's text prompt (text_entry.h) has the keyboard while it shows
+
         if (!text_entry::active()) return false;
         text_entry::key(code, down, repeat);
         return true;
@@ -1701,12 +1674,12 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         prefs_read = true;
         std::string v;
         if (hostui::get("perfOverlay", v)) g_perf = v == "1";
-        // the saved controller choice (NSMBU_PRO_CONTROLLER wins); it also hides or shows the GamePad screen
+
         if (!getenv("NSMBU_PRO_CONTROLLER") && hostui::get("proController", v))
             hostui::post([pro = v == "1"] { hostui::set_pro_controller(pro); });
-        // the saved rumble choice (NSMBU_RUMBLE wins)
+
         if (!rumble::env_override() && hostui::get("rumble", v)) rumble::set_enabled(v != "0");
-        // the saved gyro settings (NSMBU_GYRO overrides the source)
+
         hostui::post([] { load_gyro(); });
     }
     if (!test.done && render::frame_count() + 1 >= test.at) {
@@ -1717,8 +1690,7 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         LOG("[overlay] test switch: %s", getenv("NSMBU_TEST_OVERLAY"));
     }
 #ifdef NSMBU_HAS_VULKAN
-    // debug: NSMBU_TEST_PRESENT_MODE=mailbox@330 picks Graphics > Presentation at TV frame 330, as the
-    // radio button does (the swapchains are recreated)
+
     static const char* tpm = getenv("NSMBU_TEST_PRESENT_MODE");
     if (tpm) {
         const char* at = strchr(tpm, '@');
@@ -1741,14 +1713,13 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
     g_average.sample(t, gx2::flips_presented(), interp::executed_steps(), int(render::active()),
                      interp::mode(), interp::fps(), hostui::res_scale());
     read_controller();
-    // the game's text prompt shows unless the menu is open over it (the menu has the input then)
+
     const bool open = is_open(), perf = perf_shown(), text = !open && text_entry::active();
-    // save state notices (saved, refused during a cutscene, loaded into another Quest Log) show over the
-    // game for a few seconds while the menu is closed (the window title is not visible everywhere)
+
     const std::string toast = open ? std::string() : ss::last_message();
     U.linearized = false;
     if (!open && !perf && !text && toast.empty()) {
-        if (U.init) {  // forget events and pressed keys while nothing is shown
+        if (U.init) {
             std::lock_guard<std::mutex> lk(g_mu);
             g_events.clear();
         }
@@ -1760,7 +1731,7 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         if (renderer_init) renderer_init();
     }
     ImGuiIO& io = ImGui::GetIO();
-    // UI scale: HiDPI backing scale, and larger on large windows (a TV across the room)
+
     const float scale = std::max({1.0f, g_density.load(), ph / 820.0f});
     io.DisplaySize = ImVec2(pw / scale, ph / scale);
     io.DisplayFramebufferScale = ImVec2(scale, scale);
@@ -1787,15 +1758,15 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         }
     }
     apply_capture();
-    feed_gamepad(io, open && U.cap_action < 0);  // the text prompt reads the controller itself
+    feed_gamepad(io, open && U.cap_action < 0);
     ImGui::NewFrame();
     if (open) settings_window();
     if (text) {
         float pad[input_map::kPadCount];
         std::copy(std::begin(U.values), std::end(U.values), pad);
-        if (g_no_host) test_pad(pad);  // NSMBU_TEST_PAD drives the on-screen keyboard in test runs
+        if (g_no_host) test_pad(pad);
         if (text_entry::draw(pad)) {
-            // answered: the game sees no buttons until the one that confirmed is released
+
             for (auto& k : g_held_keys) k = false;
             g_wait_release = true;
         }
@@ -1839,4 +1810,4 @@ void linearize_colors(ImDrawData* d) {
         }
 }
 
-}  // namespace overlay
+}

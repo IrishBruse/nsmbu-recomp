@@ -1,4 +1,4 @@
-// shim: render-target helpers used by the decompiler (implemented in latte_mrt.cpp)
+
 #pragma once
 #include "Cafe/HW/Latte/ISA/LatteReg.h"
 struct LatteDecompilerShader;

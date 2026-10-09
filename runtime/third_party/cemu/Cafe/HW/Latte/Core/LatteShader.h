@@ -20,7 +20,6 @@ LatteDecompilerShader* LatteSHRC_FindVertexShader(uint64 baseHash, uint64 auxHas
 LatteDecompilerShader* LatteSHRC_FindGeometryShader(uint64 baseHash, uint64 auxHash);
 LatteDecompilerShader* LatteSHRC_FindPixelShader(uint64 baseHash, uint64 auxHash);
 
-
 #define GPU7_PS_MAX_INPUTS	32
 
 struct LatteShaderPSInputTable
@@ -31,14 +30,12 @@ struct LatteShaderPSInputTable
 		bool isFlat;
 		bool isNoPerspective;
 	};
-	psImport_t import[GPU7_PS_MAX_INPUTS]{}; // GPR is index
+	psImport_t import[GPU7_PS_MAX_INPUTS]{};
 	sint32 count;
 	uint64 key;
 	uint8 paramGen;
 	uint8 paramGenGPR;
 
-	// returns semantic id of vertex shader output by index
-	// the returned semanticId may not have a match in the pixel shader (use hasPSImportForSemanticId to determine matched exports)
 	static sint32 getVertexShaderOutParamSemanticId(uint32* contextRegisters, sint32 index)
 	{
 		cemu_assert_debug(index >= 0 && index < 32);
@@ -60,7 +57,7 @@ struct LatteShaderPSInputTable
 	{
 		if (semanticId > LATTE_ANALYZER_IMPORT_INDEX_PARAM_MAX)
 			return nullptr;
-		// get import based on semanticId
+
 		sint32 psInputIndex = -1;
 		for (sint32 f = 0; f < this->count; f++)
 		{
@@ -74,7 +71,7 @@ struct LatteShaderPSInputTable
 	{
 		if (semanticId > LATTE_ANALYZER_IMPORT_INDEX_PARAM_MAX)
 			return -1;
-		// get import based on semanticId
+
 		sint32 psInputIndex = -1;
 		for (sint32 f = 0; f < this->count; f++)
 		{
@@ -119,7 +116,6 @@ void LatteShader_CleanupAfterCompile(LatteDecompilerShader* shader);
 void LatteShader_DumpShader(uint64 baseHash, uint64 auxHash, LatteDecompilerShader* shader);
 void LatteShader_DumpRawShader(uint64 baseHash, uint64 auxHash, uint32 type, uint8* programCode, uint32 programLen);
 
-// shader cache file
 void LatteShaderCache_Load();
 void LatteShaderCache_Close();
 
@@ -127,5 +123,4 @@ void LatteShaderCache_writeSeparableVertexShader(uint64 shaderBaseHash, uint64 s
 void LatteShaderCache_writeSeparableGeometryShader(uint64 shaderBaseHash, uint64 shaderAuxHash, uint8* geometryShader, uint32 geometryShaderSize, uint8* gsCopyShader, uint32 gsCopyShaderSize, uint32* contextRegisters, uint32* hleSpecialState, uint32 vsRingParameterCount);
 void LatteShaderCache_writeSeparablePixelShader(uint64 shaderBaseHash, uint64 shaderAuxHash, uint8* pixelShader, uint32 pixelShaderSize, uint32* contextRegisters, bool usesGeometryShader);
 
-// todo - refactor this
 sint32 LatteDecompiler_getTextureSamplerBaseIndex(LatteConst::ShaderType shaderType);

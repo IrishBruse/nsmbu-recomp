@@ -17,12 +17,12 @@
 #include "buffer_cache_core.h"
 namespace gfxvk {
 struct Buffer { ResourceUse use; VkBuffer buffer=VK_NULL_HANDLE; VkDeviceMemory memory=VK_NULL_HANDLE; void* mapped=nullptr; VkDeviceSize size=0;
-                VkMemoryPropertyFlags properties=0; /* of the memory type create_buffer chose */ };
+                VkMemoryPropertyFlags properties=0;  };
 struct UploadSlice { VkBuffer buffer=VK_NULL_HANDLE; VkDeviceSize offset=0,size=0; void* mapped=nullptr; };
 struct CachedGuestLayout;
 struct Surface {
  ResourceUse use;
-    std::shared_ptr<Surface> mipChain; // sampled companion assembled from GPU-rendered levels
+    std::shared_ptr<Surface> mipChain;
     uint64_t mipChainSeq = ~0ull;
  VkImage image=VK_NULL_HANDLE; VkDeviceMemory memory=VK_NULL_HANDLE; VkImageView view=VK_NULL_HANDLE;
  VkImageType imageType=VK_IMAGE_TYPE_2D; VkImageViewType viewType=VK_IMAGE_VIEW_TYPE_2D;
@@ -32,21 +32,21 @@ struct Surface {
  uint32_t addr=0,mipAddr=0,width=0,height=0,slices=1,pitch=0,mips=1,format=0,dim=1,tileMode=0,swizzle=0;
  bool isDepth=false,gpuWritten=false,dirty=true,bcDecoded=false;
  uint64_t writeSeq=0,contentHash=0,lastCheckedFrame=~0ull,sparseHash=0;
- bool formatViews=false; // another surface at this address has the same texel bits in another format (adopt_newer_alias)
- uint64_t writtenBackSeq=0; // writeSeq when last written back to guest memory (linear surfaces, write_back_linear_targets)
- // CPU textures: write stamp (write_watch.h) of all levels' pages at the last full check
+ bool formatViews=false;
+ uint64_t writtenBackSeq=0;
+
  uint64_t watchStamp=0; bool watched=false;
  uint32_t dataSize=0; FormatInfo fmt;
  mutable std::shared_ptr<CachedGuestLayout> guestLayout;
  float scale=1,sx=1,sy=1;
- float ax=1,ay=1; // aspect-ratio factors of screen-shaped targets (surfaces.cpp)
+ float ax=1,ay=1;
 };
 struct SurfaceDesc { uint32_t addr=0,mipAddr=0,width=0,height=0,slices=1,pitch=0,mips=1,format=0,dim=1,tileMode=0,swizzle=0; bool isDepth=false; };
 struct Screen {
 #ifdef NSMBU_SDL_HOST
  SDL_Window* window=nullptr;
 #else
- void* window=nullptr; // CAMetalLayer of the AppKit view (display.mm)
+ void* window=nullptr;
 #endif
  VkSurfaceKHR surface=VK_NULL_HANDLE; VkSwapchainKHR swapchain=VK_NULL_HANDLE;
  VkFormat swapFormat=VK_FORMAT_UNDEFINED; VkExtent2D swapExtent{};
@@ -60,7 +60,7 @@ struct Screen {
  std::atomic<int> width{1280},height{720};
 };
 struct GpuScopeMetadata {
- uint32_t kind=0; // 0 render pass, 1 feedback copy.
+ uint32_t kind=0;
  std::array<VkFormat,8> colors{};
  VkFormat depth=VK_FORMAT_UNDEFINED;
  VkExtent3D extent{};
@@ -74,9 +74,9 @@ struct Renderer {
  VkInstance instance=VK_NULL_HANDLE; VkPhysicalDevice physicalDevice=VK_NULL_HANDLE; VkDevice device=VK_NULL_HANDLE;
  VkPhysicalDeviceFeatures enabledFeatures{};
  bool computeQueue=false;
- bool dynamicRenderingKHR=false; // VK_KHR_dynamic_rendering (device older than Vulkan 1.3)
+ bool dynamicRenderingKHR=false;
  bool portabilitySubset=false,imageViewSwizzle=true,imageViewReinterpretation=true;
- bool imageView2DOn3DImage=true; // 2D views of volume slices (render targets); core Vulkan 1.1, optional in the portability subset
+ bool imageView2DOn3DImage=true;
  bool samplerMipLodBias=true,separateStencilMaskRef=true,constantAlphaColorBlendFactors=true,vertexAttributeAccessBeyondStride=true,samplerMirrorClampToEdge=false;
  VkPhysicalDeviceProperties properties{}; VkQueue queue=VK_NULL_HANDLE; uint32_t queueFamily=0;
  bool gpuTimestampsEnabled=false,gpuPassTimestampsEnabled=false;
@@ -90,7 +90,7 @@ struct Renderer {
  uint64_t pipelineCacheChangedFrame=0;
  VkCommandPool commandPool=VK_NULL_HANDLE; VkCommandBuffer cmd=VK_NULL_HANDLE; VkFence fence=VK_NULL_HANDLE;
  VkDescriptorPool descriptorPool=VK_NULL_HANDLE; bool recording=false,rendering=false;
- // Descriptor reuse must include this epoch: pool handles repeat after reset.
+
  uint64_t submissionGeneration=0;
  uint64_t vertexBindCalls=0,vertexBindSkips=0;
  uint64_t descriptorLookups=0,descriptorCacheHits=0,descriptorAllocations=0,descriptorFastHits=0;
@@ -116,10 +116,7 @@ struct Renderer {
  struct UploadBlock { Buffer buffer; VkDeviceSize used=0; };
  std::vector<UploadBlock> uploadBlocks;
  uint64_t uploadAllocations=0,uploadBytes=0;
- // Upload arena memory is HOST_CACHED|HOST_COHERENT (every block so far): CPU reads of it are as fast as
- // heap reads (Apple silicon/MoltenVK, many UMA drivers). uploadReadsDirect: the snapshot reuse caches
- // and the native index scan may read mapped upload slices instead of keeping CPU copies (auto: when
- // uploadCached; NSMBU_VK_UPLOAD_READS=shadow|direct forces a mode). Set by allocate_upload.
+
  bool uploadCached=false,uploadReadsDirect=false;
  uint64_t vertexHistoryReuseChecks=0,vertexHistoryReuseHits=0,vertexHistoryReuseBytes=0;
  uint64_t vertexHistoryRequests=0,vertexHistoryMatches=0,vertexHistoryBytes=0;
@@ -128,10 +125,9 @@ struct Renderer {
  uint64_t vertexReuseChecks=0,vertexReuseHits=0,vertexReuseBytes=0,vertexReuseCompareNs=0;
  std::vector<std::function<void()>> completions;
  std::vector<Buffer> garbageBuffers;
- std::vector<bufcache::Region> garbageCacheRegions; // buffer cache regions replaced while recording
+ std::vector<bufcache::Region> garbageCacheRegions;
  struct RetiredImage { VkImage image;VkDeviceMemory memory;std::vector<VkImageView> views; }; std::vector<RetiredImage> garbageImages;
- // Each submission retains its pools, upload bytes and deferred objects until
- // its fence completes. The fields above alias the active recording slot.
+
  struct Submission {
   VkCommandPool commandPool=VK_NULL_HANDLE;
   VkCommandBuffer cmd=VK_NULL_HANDLE;
@@ -145,7 +141,7 @@ struct Renderer {
   std::array<GpuScope,maxGpuScopes> gpuScopes{};
   uint32_t gpuScopeCount=0,activeRenderScope=UINT32_MAX;
   bool pending=false;
-  uint64_t serial=0; // Submission order on the single graphics queue.
+  uint64_t serial=0;
   std::vector<UploadBlock> uploadBlocks;
   std::vector<std::function<void()>> completions;
   std::vector<Buffer> garbageBuffers;
@@ -156,25 +152,24 @@ struct Renderer {
  size_t activeSubmission=0;
  Screen tv,drc;
  std::unordered_multimap<uint32_t,std::unique_ptr<Surface>> surfaces;
- std::vector<Surface*> linearTargets; // linear-aligned colour surfaces (never removed, like surfaces): GX2DrawDone write-back
+ std::vector<Surface*> linearTargets;
 };
 extern Renderer R;
-// Render-thread checkpoint; failures leave the cache dirty for a later retry.
+
 void save_pipeline_cache();
-// Only guest GX2Flush uses this asynchronous path. flush() remains a drain for
-// readbacks and renderer tools; final presentation also waits synchronously.
+
 void flush_async();
 void reset_pipeline_lookup_cache();
 uint64_t draw_batch_submissions();
 void vk_check(VkResult result,const char* operation);
 uint32_t memory_type(uint32_t bits,VkMemoryPropertyFlags properties);
-// preferred: extra property flags used when a memory type has them (else the required ones only)
+
 Buffer create_buffer(VkDeviceSize size,VkBufferUsageFlags usage,VkMemoryPropertyFlags properties,
                      VkMemoryPropertyFlags preferred=0);
-// host-visible TRANSFER_DST buffer the CPU reads back, host-cached where available
+
 Buffer create_readback_buffer(VkDeviceSize size);
 UploadSlice allocate_upload(VkDeviceSize size,VkDeviceSize alignment);
-// Renderer smoke tests exercise the production snapshot helper with host data.
+
 UploadSlice vertex_window_smoke_snapshot(uint32_t binding,uint32_t address,
     uint32_t reservation,uint32_t windowOffset,uint32_t windowLength,
     const void* data,bool poisonUnused);
@@ -205,8 +200,7 @@ Surface* surface_from_depth_buffer(uint32_t,uint32_t* firstSlice=nullptr,uint32_
 Surface* sampled_texture(const uint32_t*,bool);
 void upload_surface(Surface*);
 void resample(Surface*,Surface*,uint32_t slices,float uMax=1,float vMax=1,uint32_t dstW=0,uint32_t dstH=0);
-// scaled depth copies: blitted where the device can, else drawn (surfaces.cpp, issue #72);
-// NSMBU_VK_DEPTH_COPY=draw / =none override this for tests
+
 enum class DepthCopyOverride { None, Draw, Unsupported };
 extern DepthCopyOverride g_depthCopyOverride;
 float res_scale();void set_res_scale(float);void latch_res_scale();
@@ -214,4 +208,4 @@ uint64_t next_write_seq();
 inline void mark_gpu_written(Surface* s){s->gpuWritten=true;s->writeSeq=next_write_seq();}
 }
 
-namespace gfxvk { void reset_feedback_images(); } // Call before device teardown, then drain retirements.
+namespace gfxvk { void reset_feedback_images(); }

@@ -94,7 +94,7 @@ Status status(){
     if(state.building&&!status_path.empty())try {
         auto v=read(status_path);state.stage=v.get("stage").string();
         state.done=unsigned(v.get("done").number);state.total=unsigned(v.get("total").number);
-    }catch(...){} // atomic status may not have been published yet
+    }catch(...){}
     return state;
 }
 void cancel(){std::lock_guard guard(mutex);if(state.building&&!cancel_path.empty())std::ofstream(cancel_path)<<"cancel";}

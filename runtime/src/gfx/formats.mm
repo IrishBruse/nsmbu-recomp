@@ -1,4 +1,4 @@
-// GX2 surface format mapping. Texel layouts follow Cemu's LatteTextureLoader decoders.
+
 #include "formats.h"
 
 namespace gfx {
@@ -71,7 +71,7 @@ FormatInfo format_info(uint32_t fmt, bool isDepth) {
     case 0x33: f = make(isSrgb ? MTLPixelFormatBC3_RGBA_sRGB : MTLPixelFormatBC3_RGBA, 16); f.compressed = true; break;
     case 0x34: f = make(isSigned ? MTLPixelFormatBC4_RSnorm : MTLPixelFormatBC4_RUnorm, 8); f.compressed = true; break;
     case 0x35: f = make(isSigned ? MTLPixelFormatBC5_RGSnorm : MTLPixelFormatBC5_RGUnorm, 16); f.compressed = true; break;
-    // depth formats sampled as color textures
+
     case 0x11: case 0x12: case 0x13: case 0x14: f = make(MTLPixelFormatR32Float, 4, FormatInfo::FLOAT, Convert::D24_R32F, 4); break;
     default: f = make(MTLPixelFormatRGBA8Unorm, 4); break;
     }
@@ -150,4 +150,4 @@ void convert_row(Convert c, const uint8_t* src, uint8_t* dst, uint32_t n) {
     }
 }
 
-}  // namespace gfx
+}

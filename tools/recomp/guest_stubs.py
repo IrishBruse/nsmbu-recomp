@@ -21,7 +21,6 @@ fence = re.compile(r"\bT60_FENCE_(?:LINK|ANY)\(([0-9A-F]{8})")
 hook_def = re.compile(r"\bhook_([0-9A-F]{8})\s*\(")
 site_def = re.compile(r"\bsite_([0-9A-F]{8})\s*\(")
 
-
 def runtime_texts():
     for ext in ("c", "cpp", "h", "mm"):
         for path in glob.glob(os.path.join(root, "runtime", "**", "*." + ext), recursive=True):
@@ -29,7 +28,6 @@ def runtime_texts():
                 continue
             with open(path, errors="replace") as f:
                 yield f.read()
-
 
 def symbols():
     found = set()
@@ -39,7 +37,6 @@ def symbols():
         for addr in fence.findall(text):
             found.add("f_%s_orig" % addr)
     return sorted(found)
-
 
 def hook_lists():
     hooks, sites = set(), set()
@@ -55,13 +52,11 @@ def hook_lists():
                 hooks.add(int(line, 16))
     return hooks, sites
 
-
 def defined(pattern):
     found = set()
     for text in runtime_texts():
         found.update(int(addr, 16) for addr in pattern.findall(text))
     return found
-
 
 def main(out):
     names = symbols()
@@ -81,7 +76,6 @@ def main(out):
     with open(out, "w") as f:
         f.write("\n".join(lines))
     print("%d weak guest stubs, %d hooks, %d sites -> %s" % (len(names), len(missing_hooks), len(missing_sites), out))
-
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

@@ -1,6 +1,5 @@
-// GX2 surface size/alignment calculation.
-// Adapted from Cemu src/Cafe/OS/libs/gx2/GX2_Surface.cpp
-// Copyright (c) Cemu contributors. Licensed under the Mozilla Public License 2.0 (see LICENSE.txt).
+
+
 #include "Cafe/OS/libs/gx2/GX2_Surface.h"
 #include "gx2_surface_calc.h"
 
@@ -108,4 +107,4 @@ void CalcSurfaceSizeAndAlignment(GX2Surface* surface) {
     }
 }
 
-}  // namespace gx2calc
+}

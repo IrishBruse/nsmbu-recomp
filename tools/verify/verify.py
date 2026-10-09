@@ -15,12 +15,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FP = ["-ffp-contract=off", "-fno-fast-math", "-fno-strict-aliasing"]
 
-
 def sh(cmd):
     r = subprocess.run(cmd, cwd=ROOT)
     if r.returncode:
         sys.exit(r.returncode)
-
 
 def build(unit):
     out = os.path.join(ROOT, "build", "verify", unit)
@@ -35,7 +33,7 @@ def build(unit):
             srcs += f[1:]
     inc = ["-Iruntime/include", "-Itools/verify/include", "-Itools/verify/src", "-Insmbu_src/include"]
     objs = []
-    for src, lang in [(os.path.join(out, "unit.c"), "c"), ("runtime/src/espresso_fp.c", "c"), ("tools/verify/src/harness.cpp", "c++")] + \
+    for src, lang in [(os.path.join(out, "unit.c"), "c"), ("runtime/src/espresso_fp.c", "c"), ("tools/verify/src/harness.cpp", "c++")] +\
             [(s, "c++") for s in srcs]:
         obj = os.path.join(out, os.path.basename(src) + ".o")
         objs.append(obj)
@@ -50,7 +48,6 @@ def build(unit):
     sh(["clang++", "-o", exe] + objs)
     return exe
 
-
 def newest_header():
     t = 0
     for d in ("tools/verify/include", "tools/verify/src", "nsmbu_src/include", "runtime/include"):
@@ -59,14 +56,12 @@ def newest_header():
                 t = max(t, os.path.getmtime(os.path.join(dp, f)))
     return t
 
-
 def main():
     unit = sys.argv[1]
     exe = build(unit)
     spec = os.path.join(HERE, "units", unit + ".txt")
     r = subprocess.run([exe, "-spec", spec] + sys.argv[2:], cwd=ROOT)
     sys.exit(r.returncode)
-
 
 if __name__ == "__main__":
     main()

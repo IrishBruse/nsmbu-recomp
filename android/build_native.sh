@@ -1,19 +1,5 @@
-#!/usr/bin/env bash
-# Builds the native libraries of the Android app (arm64-v8a) with the NDK: the game as libmain.so,
-# with SDL3, glslang, zlib and LZ4 built in the same CMake run from the pinned sources (URL + SHA-256)
-# of cmake/WindowsDependencies.cmake (NSMBU_BUNDLED_DEPS; SDL 3.4.18, the version of the app's SDL
-# Java files), and copies libmain.so, libSDL3.so and libc++_shared.so to android/app/libs/arm64-v8a
-# for Gradle (cd android && ./gradlew assembleRelease).
-#
-# usage: android/build_native.sh
-# env:   ANDROID_SDK (default $ANDROID_HOME or $ANDROID_SDK_ROOT, else the SDK's usual place:
-#        ~/Library/Android/sdk, ~/Android/Sdk, C:/Android/Sdk), NDK_VERSION (default 30.0.16248370),
-#        JOBS (default 8), GEN_DIR (default build/gen), OUT (default android/build),
-#        CPU (default generic: any arm64 phone. CPU=oryon-1 tunes for the Snapdragon 8 Elite, e.g.
-#        Galaxy S25, where the port was measured; the APK then runs only on that CPU family)
-# The game code in build/gen is generated from your own game (tools/recomp/recomp.py) and stays on
-# your machine; the APK built from it contains it and must not be distributed. CI builds this with
-# placeholder code (tools/recomp/stubgen.py) only to check that it compiles.
+
+
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"
@@ -27,8 +13,8 @@ sdk="${ANDROID_SDK:-${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$default_sdk}}}"
 ndk="$sdk/ndk/${NDK_VERSION:-30.0.16248370}"
 [ -f "$ndk/build/cmake/android.toolchain.cmake" ] || { echo "no NDK at $ndk (sdkmanager --install \"ndk;${NDK_VERSION:-30.0.16248370}\")"; exit 1; }
 jobs="${JOBS:-8}"
-api=33  # Android 13: bionic backtrace() (crash logs); Vulkan 1.3 phones ship 13 or newer
-# CMake and Ninja: from PATH, else the SDK's newest
+api=33
+
 cmake="$(command -v cmake || true)"
 [ -n "$cmake" ] || cmake="$(ls -d "$sdk"/cmake/*/bin 2>/dev/null | tail -1)/cmake$exe"
 ninja="$(command -v ninja || true)"
@@ -48,10 +34,10 @@ mkdir -p "$out"
 libs="$here/app/libs/arm64-v8a"
 mkdir -p "$libs"
 bin="$ndk/toolchains/llvm/prebuilt/$host"
-"$bin/bin/llvm-strip$exe" --strip-unneeded "$out/libmain.so" -o "$libs/libmain.so"  # 400 MB -> 52 MB
+"$bin/bin/llvm-strip$exe" --strip-unneeded "$out/libmain.so" -o "$libs/libmain.so"
 cp "$(find "$out/_deps" -name libSDL3.so -print -quit)" "$libs/"
 cp "$bin/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" "$libs/"
-# libadrenotools loads these hooks by soname from ApplicationInfo.nativeLibraryDir.
+
 for hook in main_hook hook_impl file_redirect_hook gsl_alloc_hook; do
     hook_file="$(find "$out/_deps" -name "lib${hook}.so" -print -quit)"
     [ -n "$hook_file" ] || { echo "missing AdrenoTools hook: $hook"; exit 1; }

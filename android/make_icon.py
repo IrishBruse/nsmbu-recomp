@@ -21,14 +21,11 @@ if not os.path.exists(src):
     sys.exit(f"{src} not found (the extracted game's meta folder)")
 art = Image.open(src).convert("RGBA")
 
-
 def write(path, image):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     image.save(path)
     print("wrote", os.path.relpath(path, here))
 
-
-# adaptive icon: the picture is the 108 dp background layer (432 px at xxxhdpi); the launcher masks it
 write(os.path.join(out, "drawable-nodpi", "ic_game_art.png"), art.resize((432, 432), Image.LANCZOS))
 os.makedirs(os.path.join(out, "mipmap-anydpi-v26"), exist_ok=True)
 with open(os.path.join(out, "mipmap-anydpi-v26", "ic_game.xml"), "w") as f:
@@ -38,7 +35,6 @@ with open(os.path.join(out, "mipmap-anydpi-v26", "ic_game.xml"), "w") as f:
             '    <foreground android:drawable="@android:color/transparent" />\n'
             '</adaptive-icon>\n')
 
-# legacy icons (48 dp): the picture with rounded corners
 for name, size in (("mdpi", 48), ("hdpi", 72), ("xhdpi", 96), ("xxhdpi", 144), ("xxxhdpi", 192)):
     big = art.resize((size * 4, size * 4), Image.LANCZOS)
     mask = Image.new("L", big.size, 0)

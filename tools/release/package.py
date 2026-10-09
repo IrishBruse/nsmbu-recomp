@@ -35,7 +35,7 @@ import zipfile
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 OBJ_EXT = (".o", ".obj")
 LIB_EXT = (".a", ".lib", ".tbd", ".dylib", ".so")
-# files shipped from the source tree (relative to ROOT -> relative to the package)
+
 TOOL_FILES = [
     "tools/rpx.py",
     "tools/wudextract.py",
@@ -97,7 +97,6 @@ Name=Setup (repair, update, change the game)
 Exec=sh -c 'cd "$(dirname "%k")" && exec ./nsmbu-launcher --setup'
 """
 
-
 def add_setup_gui(pkg, platform, exe, version):
     """The program a release starts: the first start prepares the game, later starts launch it."""
     if platform.startswith("macos"):
@@ -106,7 +105,7 @@ def add_setup_gui(pkg, platform, exe, version):
         v = re.sub(r"[^0-9.]", "", version.lstrip("v")) or "0"
         with open(os.path.join(app, "Info.plist"), "w") as f:
             f.write(MAC_SETUP_PLIST % (v, v))
-        if shutil.which("codesign"):  # ad-hoc: seals the bundle (not a developer signature)
+        if shutil.which("codesign"):
             subprocess.run(["codesign", "--force", "--deep", "-s", "-", os.path.join(pkg, SETUP_APP + ".app")], check=True)
     elif platform.startswith("windows"):
         copy(exe, os.path.join(pkg, SETUP_APP + ".exe"))
@@ -123,7 +122,6 @@ VENDORED_LICENSES = {
     "metal-cpp (Apache-2.0)": "runtime/third_party/metal-cpp/LICENSE.txt",
     "xxHash (BSD-2-Clause)": "runtime/third_party/xxhash/LICENSE",
 }
-
 
 def split_command(cmd):
     """Tokenize a command line as Ninja runs it (POSIX shell or Windows CreateProcess rules)."""
@@ -145,12 +143,10 @@ def split_command(cmd):
         out.append("".join(cur))
     return out
 
-
 def link_command(build):
     lines = subprocess.check_output(["ninja", "-C", build, "-t", "commands", "nsmbu"], text=True).splitlines()
     cmd = lines[-1].strip()
-    # CMake wraps link rules (": && CMD && :" on POSIX hosts, 'cmd.exe /C "cd . && CMD && ..."' on
-    # Windows) and may chain post-build steps (copying SDL3.dll): keep the part that writes nsmbu
+
     m = re.match(r'^(?:\S*[\\/])?cmd(?:\.exe)? /C "(.*)"$', cmd, re.I)
     if m:
         cmd = m.group(1)
@@ -161,13 +157,12 @@ def link_command(build):
     cmd = links[0]
     args = []
     for a in split_command(cmd):
-        if a.startswith("@") and os.path.isfile(os.path.join(build, a[1:])):  # response file (ninja -d keeprsp)
+        if a.startswith("@") and os.path.isfile(os.path.join(build, a[1:])):
             with open(os.path.join(build, a[1:])) as f:
                 args += split_command(f.read().replace("\n", " "))
         else:
             args.append(a)
     return args
-
 
 def gamecode_flags(build):
     with open(os.path.join(build, "compile_commands.json")) as f:
@@ -200,11 +195,9 @@ def gamecode_flags(build):
         out.append(a)
     return out
 
-
 def is_system_path(p):
     p = p.replace("\\", "/")
     return "/MacOSX.platform/" in p or "/CommandLineTools/SDKs/" in p or p.startswith("/usr/lib/") or p.startswith("/lib/")
-
 
 def build_link_recipe(build, pkg, linkonly):
     args = link_command(build)
@@ -217,7 +210,7 @@ def build_link_recipe(build, pkg, linkonly):
     it = iter(enumerate(args))
     for i, a in it:
         if i == 0:
-            continue  # the compiler driver: the installer supplies its own
+            continue
         if skip:
             skip = False
             continue
@@ -226,7 +219,7 @@ def build_link_recipe(build, pkg, linkonly):
             skip = True
             continue
         if a.startswith("-Wl,--out-implib") or a.startswith("-Wl,-rpath,"):
-            continue  # build-machine paths; the installer sets its own rpath ($ORIGIN on Linux)
+            continue
         if a == "-isysroot":
             skip = True
             continue
@@ -236,12 +229,11 @@ def build_link_recipe(build, pkg, linkonly):
             if name in ("libgamecode.a", "gamecode.lib"):
                 recipe.append("{gamecode}")
                 continue
-            # the game's Windows resources (VERSIONINFO + manifest) from our own generated .rc
-            # (cmake/WindowsResources.cmake; windres writes a COFF object named .rc.res)
+
             own_res = re.fullmatch(r"CMakeFiles/nsmbu\.dir/generated/nsmbu\.rc\.res",
                                    os.path.relpath(path, build).replace("\\", "/"))
             if a.lower().endswith(OBJ_EXT) or own_res:
-                # flatten CMakeFiles/nsmbu.dir/runtime/src/x.cpp.o -> obj/runtime_src_x.cpp.o
+
                 rel = os.path.relpath(path, build).replace("\\", "/")
                 rel = re.sub(r"^CMakeFiles/[^/]+\.dir/", "", rel)
                 flat = re.sub(r"[^A-Za-z0-9_.+-]", "_", rel)
@@ -250,7 +242,7 @@ def build_link_recipe(build, pkg, linkonly):
                 objs += 1
                 continue
             if is_system_path(path) and os.path.realpath(path) not in linkonly:
-                # an SDK / system library: link by name so the player's own SDK provides it
+
                 base = re.sub(r"^lib", "", name)
                 base = re.sub(r"\.(tbd|dylib|so)(\.\d+)*$", "", base)
                 recipe.append("-l" + base)
@@ -263,14 +255,13 @@ def build_link_recipe(build, pkg, linkonly):
                     seen_names[name] = real
                     shutil.copy2(real, os.path.join(pkg, "sdk", "lib", name))
                     libs += 1
-                recipe.append("{sdk}/lib/" + name)  # repeated libraries keep their place (link order)
+                recipe.append("{sdk}/lib/" + name)
                 continue
             sys.exit("unexpected file on the link line: " + a)
         recipe.append(a)
     if objs == 0 or "{gamecode}" not in recipe:
         sys.exit("link line not understood (no objects or no libgamecode.a): " + " ".join(args))
     return args[0], recipe, objs, libs
-
 
 def add_windows_python(pkg, zip_path):
     """The official embeddable Python, unpacked unmodified into tools/python (its exe and DLLs keep the PSF
@@ -302,11 +293,9 @@ def add_windows_python(pkg, zip_path):
     if names != set(expected["files"]):
         sys.exit("the embeddable Python lacks: " + ", ".join(sorted(set(expected["files"]) - names)))
 
-
 def copy(src, dst):
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     shutil.copy2(src, dst)
-
 
 def make_zip(src_dir, zip_path):
     base = os.path.basename(src_dir)
@@ -323,13 +312,11 @@ def make_zip(src_dir, zip_path):
                 with open(full, "rb") as f:
                     z.writestr(info, f.read(), compresslevel=9)
 
-
 def copy_sdk_headers(pkg):
     """Shared by every platform: public declarations use nsmbu/, never a game/ tree."""
     shutil.copytree(os.path.join(ROOT, "runtime", "include"), os.path.join(pkg, "sdk", "include"))
     shutil.copytree(os.path.join(ROOT, "runtime", "guest", "include"),
                     os.path.join(pkg, "sdk", "guest", "include"))
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -385,12 +372,12 @@ def main():
     for hp in sorted(os.listdir(os.path.join(ROOT, "tools", "recomp"))):
         if re.match(r"hooks.*\.txt$", hp):
             copy(os.path.join(ROOT, "tools", "recomp", hp), os.path.join(pkg, "tools", "recomp", hp))
-    # the address maps of the builds the port can be made from (tools/recomp/builds.py, docs/builds.md)
+
     for bp in sorted(os.listdir(os.path.join(ROOT, "tools", "recomp", "builds"))):
         if bp.endswith(".json"):
             copy(os.path.join(ROOT, "tools", "recomp", "builds", bp),
                  os.path.join(pkg, "tools", "recomp", "builds", bp))
-    # the extractor must be self-contained: zstd from the pinned source, linked statically (cmake/Zstd.cmake)
+
     try:
         with open(os.path.join(build, "nsmbu-zstd.txt")) as f:
             kind, _, zstd_license = f.read().strip().partition(" ")
@@ -401,12 +388,11 @@ def main():
                  "(on by default with -DNSMBU_BUNDLED_DEPS=ON)" % build)
     copy(os.path.join(build, "nsmbu-extract" + exe_suffix), os.path.join(pkg, "tools", "bin", "nsmbu-extract" + exe_suffix))
 
-    # the setup in a terminal (the fallback for the program above), in tools/
     inst = os.path.join(ROOT, "tools", "installer")
     if a.platform.startswith("macos"):
         copy(os.path.join(inst, "install-macos.command"), os.path.join(pkg, "tools", "Setup in Terminal.command"))
     elif a.platform.startswith("windows"):
-        # runs "NSMBU.exe --console-setup", which runs setup.py with the bundled Python
+
         if not a.setup_gui:
             sys.exit("windows: --setup-gui is required (tools/Setup in a console window.bat runs NSMBU.exe)")
         if not a.windows_python:
@@ -415,7 +401,7 @@ def main():
         copy(os.path.join(inst, "install-windows.bat"), os.path.join(pkg, "tools", "Setup in a console window.bat"))
     else:
         copy(os.path.join(inst, "install-linux.sh"), os.path.join(pkg, "tools", "setup-in-terminal.sh"))
-    # portable release: everything stays in this folder (setup.py and the game look for this file)
+
     with open(os.path.join(pkg, "portable.txt"), "w") as f:
         f.write(PORTABLE_TXT)
 
@@ -431,7 +417,7 @@ def main():
     licdir = os.path.join(pkg, "third-party-licenses")
     os.makedirs(licdir)
     entries = dict(VENDORED_LICENSES)
-    # zstd: compiled into tools/bin/nsmbu-extract on every platform (pinned source, cmake/Zstd.cmake)
+
     entries["Zstandard (BSD-3-Clause)"] = zstd_license
     if a.platform.startswith("windows"):
         entries["Python (PSF-2.0)"] = os.path.join(pkg, "tools", "python", "LICENSE.txt")
@@ -458,7 +444,6 @@ def main():
         zp = pkg + ".zip"
         make_zip(pkg, zp)
         print("wrote", zp, os.path.getsize(zp) // (1 << 20), "MiB")
-
 
 if __name__ == "__main__":
     main()

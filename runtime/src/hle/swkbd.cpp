@@ -1,6 +1,5 @@
-// swkbd: the system software keyboard. Text is entered in the settings overlay's text prompt
-// (overlay/text_entry.h: field, on-screen keyboard for controllers), where the overlay can't show in a
-// host dialog (input::prompt_text), or NSMBU_SWKBD_TEXT for unattended runs, instead of the GamePad keyboard.
+
+
 #include <atomic>
 #include <mutex>
 #include <chrono>
@@ -12,25 +11,25 @@
 
 namespace {
 
-constexpr int kMaxForm = 4096;      // 16-bit characters
+constexpr int kMaxForm = 4096;
 constexpr uint32_t kStateBlank = 0, kStateDisplayed = 2;
 
 struct State {
     std::mutex mu;
     bool active = false;
-    bool keyboard_only = false;     // SwkbdAppearKeyboard (text goes to the receiver buffer)
+    bool keyboard_only = false;
     bool decided = false, cancelled = false;
-    bool pending = false;           // host prompt finished, not yet applied on a guest thread
+    bool pending = false;
     bool pending_ok = false;
     std::u16string pending_text;
-    bool live_pending = false;      // the prompt's text changed: the game's receiver is told on a guest thread
+    bool live_pending = false;
     std::u16string live_text;
     std::u16string text;
     int max_len = kMaxForm - 1;
-    std::u16string hint;            // input form: the guide text in the empty field
-    int language = 1, mode = 0;     // ConfigArg: swkbd language and keyboard mode (0 full, 1 numbers, 2 UTF-8, 3 NNID)
-    uint32_t receiver[6] = {};      // ReceiverArg: IEventReceiver*, stringBuf, stringBufSize, fixedCharLimit, cursorPos, selectFrom
-    uint32_t form_buf = 0;          // guest copy for SwkbdGetInputFormString
+    std::u16string hint;
+    int language = 1, mode = 0;
+    uint32_t receiver[6] = {};
+    uint32_t form_buf = 0;
     uint32_t change_param = 0;
 };
 State S;
@@ -53,7 +52,6 @@ std::string narrow(const std::u16string& s) {
     return o;
 }
 
-// UTF-8 (NSMBU_SWKBD_TEXT) to UTF-16; a malformed sequence becomes U+FFFD
 std::u16string utf8_to_u16(const char* s) {
     std::u16string out;
     const auto* p = (const unsigned char*)s;
@@ -81,8 +79,6 @@ void read_receiver(uint32_t arg) {
     for (int i = 0; i < 6; i++) S.receiver[i] = ld32(arg + i * 4);
 }
 
-// ConfigArg, at the start of both KeyboardArg and AppearArg (layout as wut / Cemu): language +0x00,
-// controller type +0x04, keyboard mode +0x08. The name screen asks with English 1, mode 0 (full).
 void read_config(uint32_t a) {
     S.language = (int)ld32(a + 0x00);
     S.mode = (int)ld32(a + 0x08);
@@ -92,7 +88,7 @@ void read_config(uint32_t a) {
 void start_prompt() {
     S.decided = S.cancelled = S.pending = S.live_pending = false;
     if (const char* t = getenv("NSMBU_SWKBD_TEXT")) {
-        S.pending_text = utf8_to_u16(t);  // "Łódź", "Größe": characters, not bytes
+        S.pending_text = utf8_to_u16(t);
         if ((int)S.pending_text.size() > S.max_len) S.pending_text.resize(S.max_len);
         S.pending_ok = S.pending = true;
         return;
@@ -114,11 +110,10 @@ void start_prompt() {
         S.live_text = text;
         S.live_pending = true;
     };
-    // the overlay's prompt; the host's own (window title, macOS sheet) where the overlay can't show
+
     if (!text_entry::start(r, done)) input::prompt_text(S.text, S.max_len, done);
 }
 
-// Push the text into the app's receiver buffer and notify its IEventReceiver.
 void text_changed(Cpu* c) {
     uint32_t buf = S.receiver[1], size = S.receiver[2];
     if (buf && size > 1) {
@@ -144,7 +139,7 @@ void sleep_ms(int ms) {
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
-}  // namespace
+}
 
 #define SWKBD(name) HLE(swkbd, name)
 
@@ -167,7 +162,7 @@ SWKBD(SwkbdAppearInputForm__3RplFRCQ3_2nn5swkbd9AppearArg) {
     int32_t max = (int32_t)ld32(a + 0xD0);
     S.max_len = max <= 0 ? kMaxForm - 1 : std::min(max, kMaxForm - 1);
     S.text = read_u16(ld32(a + 0xC8), S.max_len);
-    S.hint = read_u16(ld32(a + 0xCC), 256);  // InputFormArg (at +0xC0): initial text +0x08, hint +0x0C, max +0x10
+    S.hint = read_u16(ld32(a + 0xCC), 256);
     read_config(a);
     S.active = true;
     S.keyboard_only = false;
@@ -182,7 +177,7 @@ SWKBD(SwkbdAppearKeyboard__3RplFRCQ3_2nn5swkbd11KeyboardArg) {
     read_receiver(a + 0xA8);
     uint32_t size = S.receiver[2];
     S.max_len = size > 1 ? std::min<int>(size - 1, kMaxForm - 1) : 0;
-    if ((int32_t)S.receiver[3] > 0) S.max_len = std::min<int>(S.max_len, (int32_t)S.receiver[3]);  // fixedCharLimit
+    if ((int32_t)S.receiver[3] > 0) S.max_len = std::min<int>(S.max_len, (int32_t)S.receiver[3]);
     S.text.clear();
     S.hint.clear();
     read_config(a);
@@ -193,14 +188,12 @@ SWKBD(SwkbdAppearKeyboard__3RplFRCQ3_2nn5swkbd11KeyboardArg) {
     ret(c, 1);
 }
 
-// the game takes the keyboard away (e.g. leaves the screen): the overlay's prompt closes with it
 SWKBD(SwkbdDisappearInputForm__3RplFv) { S.active = false; text_entry::dismiss(); ret(c, 1); }
 SWKBD(SwkbdDisappearKeyboard__3RplFv) { S.active = false; text_entry::dismiss(); ret(c, 1); }
 
-// The game polls this every frame: apply a finished prompt here, on a guest thread.
 SWKBD(SwkbdCalc__3RplFRCQ3_2nn5swkbd14ControllerInfo) {
     std::unique_lock<std::mutex> lk(S.mu);
-    // while typing: the receiver gets each change, so the game's name field shows the text in its font
+
     if (S.live_pending && !S.pending && S.active) {
         S.live_pending = false;
         S.text = S.live_text;
@@ -247,7 +240,7 @@ SWKBD(SwkbdGetDrawStringInfo__3RplFPQ3_2nn5swkbd14DrawStringInfo) {
 }
 
 SWKBD(SwkbdInitLearnDic__3RplFPv) {
-    // empty learning dictionary in the layout the system library expects (from Cemu)
+
     uint32_t d = arg(c, 0);
     if (!d) { ret(c, 0); return; }
     constexpr uint32_t kSize = 0xA460, kEntries = 1000, kStride = 0x20, kIndex = kEntries + 1, kMagic = 0x4E4A4443;
@@ -270,13 +263,11 @@ SWKBD(SwkbdInitLearnDic__3RplFPv) {
     ret(c, 1);
 }
 
-// background work the real library does on helper threads; pretend there is a little
 SWKBD(SwkbdIsNeedCalcSubThreadFont__3RplFv) { ret(c, g_need_font > 0); }
 SWKBD(SwkbdIsNeedCalcSubThreadPredict__3RplFv) { ret(c, g_need_predict > 0); }
 SWKBD(SwkbdCalcSubThreadFont__3RplFv) { if (g_need_font > 0) { g_need_font--; sleep_ms(5); } }
 SWKBD(SwkbdCalcSubThreadPredict__3RplFv) { if (g_need_predict > 0) { g_need_predict--; sleep_ms(5); } }
 
-// drawing and options: the host dialog stands in for both screens
 SWKBD(SwkbdDrawTV__3RplFv) {}
 SWKBD(SwkbdDrawDRC__3RplFv) {}
 SWKBD(SwkbdMuteAllSound__3RplFb) {}

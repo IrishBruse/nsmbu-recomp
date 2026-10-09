@@ -1,4 +1,4 @@
-# zstd (BSD-3-Clause, https://github.com/facebook/zstd) for the extractor (nsmbu-extract), which
+# zstd (BSD-3-Clause, https:
 # needs it to read Cemu's Wii U archives (.wua). Defines the target nsmbu_zstd.
 #
 # Developer builds use a system zstd when there is one (its CMake package, else pkg-config libzstd),
@@ -49,13 +49,5 @@ else()
   FetchContent_MakeAvailable(zstd)
   # lib/common, lib/decompress and lib/compress (no CLI, no multithreading, no assembly); compression is
   # used by the extractor's tests only (a synthetic archive), the linker leaves it out of nsmbu-extract
-  file(GLOB NSMBU_ZSTD_SOURCES ${zstd_SOURCE_DIR}/lib/common/*.c ${zstd_SOURCE_DIR}/lib/decompress/*.c
-                              ${zstd_SOURCE_DIR}/lib/compress/*.c)
-  add_library(nsmbu_zstd_static STATIC ${NSMBU_ZSTD_SOURCES})
-  target_include_directories(nsmbu_zstd_static PUBLIC ${zstd_SOURCE_DIR}/lib)
-  target_compile_definitions(nsmbu_zstd_static PRIVATE ZSTD_DISABLE_ASM XXH_NAMESPACE=ZSTD_)
-  target_compile_options(nsmbu_zstd_static PRIVATE -w -O2)
-  target_link_libraries(nsmbu_zstd INTERFACE nsmbu_zstd_static)
-  # tools/release/package.py ships this license with the extractor
-  file(WRITE ${CMAKE_BINARY_DIR}/nsmbu-zstd.txt "bundled ${zstd_SOURCE_DIR}/LICENSE\n")
-endif()
+  file(GLOB NSMBU_ZSTD_SOURCES ${zstd_SOURCE_DIR}/lib/common
+

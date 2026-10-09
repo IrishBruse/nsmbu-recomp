@@ -41,7 +41,7 @@
 #include "runtime.h"
 #ifdef __ANDROID__
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>  // main() becomes SDL_main, called by SDLActivity
+#include <SDL3/SDL_main.h>
 namespace interp { void set_mode(int); }
 #endif
 
@@ -49,7 +49,7 @@ namespace interp { void set_mode(int); }
 namespace gfxvk { int renderer_smoke_test(); }
 #endif
 #ifdef NSMBU_HAS_METAL
-int gfx_headstart_warm();  // gfx/shader_headstart.mm
+int gfx_headstart_warm();
 #endif
 
 void mem_setup_heaps(uint32_t data_end);
@@ -57,9 +57,7 @@ void trace_dump(FILE* f, unsigned last);
 void mem_init_data_imports(uint32_t alloc_slot, uint32_t alloc_ex_slot, uint32_t free_slot);
 
 #ifndef _WIN32
-// Memory crashes (SIGSEGV/SIGBUS/...): the report goes to the terminal and to
-// captures/crash-<time>.log (registers, guest return chain, host backtrace, crash recovery's
-// automatic state, the last log lines). Only write() and preformatted text after the crash.
+
 static int g_crash_fd = -1;
 static void crash_raw(int fd, const char* s, size_t n) {
     if (write(2, s, n) < 0) {}
@@ -90,7 +88,7 @@ static void crash_handler(int sig, siginfo_t* si, void* uctx) {
     else
         n = snprintf(buf, sizeof buf, "\nCRASH: signal %d at host address %p\n", sig, si->si_addr);
     crash_out(fd, buf, n);
-    // the faulting instruction and the module holding it (a driver, an overlay's layer, the game)
+
     char where[384], mpath[512] = "", line[1024];
     if (uintptr_t pc = crash_addr::context_pc(uctx)) {
         crash_addr::describe(where, sizeof where, pc, mpath, sizeof mpath);
@@ -101,7 +99,7 @@ static void crash_handler(int sig, siginfo_t* si, void* uctx) {
             crash_out(fd, line, n);
         }
     }
-    // a host fault address inside a module (a write to read-only data, a jump into a data section)
+
     if (!(a >= base && a < base + 0x100000000ull) && crash_addr::describe(where, sizeof where, a)) {
         n = crash_addr::fit(snprintf(line, sizeof line, "  fault address %p%s\n", si->si_addr, where), sizeof line);
         crash_out(fd, line, n);
@@ -115,7 +113,7 @@ static void crash_handler(int sig, siginfo_t* si, void* uctx) {
                          c->r[i + 2], c->r[i + 3], c->r[i + 4], c->r[i + 5], c->r[i + 6], c->r[i + 7]);
             crash_out(fd, buf, n);
         }
-        // guest return chain (back-chain words on the guest stack; names: build/names.tsv)
+
         crash_out(fd, "  guest call chain:", 19);
         uint32_t sp = c->r[1];
         for (int i = 0; i < 24 && sp >= 0x10000000u && sp < 0xF0000000u; i++) {
@@ -141,7 +139,7 @@ static void crash_handler(int sig, siginfo_t* si, void* uctx) {
         FILE* f = fopen("trace_dump.txt", "w");
         if (f) { trace_dump(f, 3000); fclose(f); if (write(2, "[trace] wrote trace_dump.txt\n", 29) < 0) {} }
     }
-    input::stop_rumble_now();  // controllers keep their last motor level after the process (issue #35)
+    input::stop_rumble_now();
     _exit(128 + sig);
 }
 
@@ -176,13 +174,13 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
     strftime(path,sizeof path,"captures/crash-%Y%m%d-%H%M%S.log",&tmv);
     int fd=_open(path,_O_WRONLY|_O_CREAT|_O_TRUNC|_O_BINARY,_S_IREAD|_S_IWRITE);
     char buf[256]; int n;
-    // the module holding the faulting instruction (issue #41: a driver or an overlay's Vulkan layer)
+
     char where[384], mpath[512]="", line[1024];
     using crash_addr::fit;
     crash_addr::describe(where,sizeof where,(uintptr_t)ex->ExceptionRecord->ExceptionAddress,mpath,sizeof mpath);
     n=fit(snprintf(line,sizeof line,"CRASH: Windows exception %08lX at %p%s\n",code,ex->ExceptionRecord->ExceptionAddress,where),sizeof line); win_crash_out(fd,line,n);
     if(mpath[0]){n=fit(snprintf(line,sizeof line,"  module: %s\n",mpath),sizeof line); win_crash_out(fd,line,n);}
-    // access violations (and in-page errors): read / write / execute, and of which address
+
     const EXCEPTION_RECORD* er=ex->ExceptionRecord;
     if((code==EXCEPTION_ACCESS_VIOLATION||code==EXCEPTION_IN_PAGE_ERROR)&&er->NumberParameters>=2){
         const ULONG_PTR kind=er->ExceptionInformation[0], target=er->ExceptionInformation[1];
@@ -201,7 +199,7 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
     crashrec::crash_note(fd,win_crash_out);
     if(fd>=0){win_crash_log_only(fd,"\n--- last log lines ---\n",24); log_ring_write(fd,win_crash_log_only); _close(fd); fprintf(stderr,"[crash] wrote %s\n",path);}
     if(g_ppc_trace) { FILE* f=fopen("trace_dump.txt","w"); if(f){trace_dump(f,3000);fclose(f);} }
-    input::stop_rumble_now();  // controllers keep their last motor level after the process (issue #35)
+    input::stop_rumble_now();
     return EXCEPTION_EXECUTE_HANDLER;
 }
 static void install_crash_handler() { SetUnhandledExceptionFilter(crash_handler); crash_addr::prime(); }
@@ -216,20 +214,18 @@ static void init_data_imports() {
         else if (n == "MEMAllocFromDefaultHeapEx") alloc_ex = im.addr;
         else if (n == "MEMFreeToDefaultHeap") free_ = im.addr;
         else if (n == "__gh_FOPEN_MAX") st32(im.addr, 20);
-        else if (n == "environ") st32(im.addr, im.addr + 0x10);  // empty environment list
+        else if (n == "environ") st32(im.addr, im.addr + 0x10);
     }
     mem_init_data_imports(alloc, alloc_ex, free_);
 }
 
-// Portable mode (portable.txt next to the executable, see host::portable_user_dir): the macOS paths
-// that do not go through host::config_dir() get their existing overrides pointed into the folder.
 static void apply_portable_mode() {
     if (!host::portable()) return;
     const std::string u = host::portable_user_dir();
     std::error_code ec;
     std::filesystem::create_directories(u, ec);
     auto set = [](const char* k, const std::string& v) {
-        if (getenv(k)) return;  // an explicit override wins
+        if (getenv(k)) return;
 #ifdef _WIN32
         _putenv_s(k, v.c_str());
 #else
@@ -243,12 +239,8 @@ static void apply_portable_mode() {
 #endif
 }
 
-// The Vulkan renderer's validated opt-in CPU paths (docs/vulkan.md, "Opt-in CPU experiments"), on by
-// default on every platform: on a Galaxy S25 Ultra they took the render thread from about 40 to
-// 30 ms per frame; on an M3 Max (MoltenVK) together they cut render-thread CPU by 8-14% with no
-// measurable cost from any single one (docs/performance.md, 2026-10-07). NAME=0 turns one off.
 static void default_vulkan_cpu_paths() {
-    for (const char* name : reporthdr::kVulkanCpuPaths) {  // the list: report_header.cpp
+    for (const char* name : reporthdr::kVulkanCpuPaths) {
 #ifdef _WIN32
         if (!getenv(name)) _putenv_s(name, "1");
 #else
@@ -257,10 +249,6 @@ static void default_vulkan_cpu_paths() {
     }
 }
 
-// captures/nsmbu.log: the whole log of this run (the previous run's is kept as nsmbu-previous.log), so
-// players can attach it to an issue; on Windows the console output of the game is otherwise lost.
-// User paths are redacted as in crash logs. NSMBU_LOG_FILE=<path> writes elsewhere, =0 turns it off
-// (Android: off unless set; logcat has it). The file stops at 64 MiB.
 static int g_log_fd = -1;
 static size_t g_log_bytes = 0;
 static constexpr size_t kLogFileMax = 64u << 20;
@@ -303,7 +291,7 @@ static void start_log_file() {
     g_log_fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 #endif
     if (g_log_fd < 0) { LOG("[log] cannot write %s", path.c_str()); return; }
-    log_ring_write(g_log_fd, log_file_line);  // the lines logged before (only the boot so far)
+    log_ring_write(g_log_fd, log_file_line);
     log_set_sink(log_file_sink);
     LOG("[log] writing %s", path.c_str());
 }
@@ -313,25 +301,19 @@ int main(int argc, char** argv) {
     apply_portable_mode();
     default_vulkan_cpu_paths();
 #ifdef _WIN32
-    // Windows sleeps in steps of the system timer (15.6 ms by default): sleep_for(1 ms) took
-    // 15.7 ms, the 3 ms AX frame loop ran in bursts and vsync waits alternated 15.7 / 31.5 ms.
-    // 1 ms resolution for the whole process; Windows restores it when the process exits.
+
     timeBeginPeriod(1);
 #endif
 #ifdef __ANDROID__
-    // Everything lives in the app's external files folder (Android/data/<package>/files), which a
-    // computer can reach over USB: game/ (the extracted game: code, content, meta), save/, and the
-    // settings and shader caches in config/. Relative paths (captures/) resolve there too.
+
     if (const char* dir = SDL_GetAndroidExternalStoragePath()) {
         if (chdir(dir) != 0) fprintf(stderr, "cannot enter %s\n", dir);
         setenv("XDG_CONFIG_HOME", (std::string(dir) + "/config").c_str(), 1);
-        // draw batching (the default everywhere since; kept explicit) and the CPU paths
-        // (default_vulkan_cpu_paths) are on; env.txt can turn any off
+
         setenv("NSMBU_VK_DRAW_BATCH", "2048", 0);
-        // 60 fps (frame interpolation) is on unless chosen otherwise (settings.ini, read when the
-        // renderer starts); platform/perf_hint.cpp pauses it where the phone cannot keep up
+
         if (!getenv("NSMBU_INTERP") && !getenv("NSMBU_TRUE60")) interp::set_mode(1);
-        // env.txt there: one NAME=value per line (the NSMBU_ options of the README); # comments
+
         if (FILE* f = fopen("env.txt", "r")) {
             char line[512];
             while (fgets(line, sizeof line, f)) {
@@ -362,24 +344,23 @@ int main(int argc, char** argv) {
     crash_context::initialize();
     install_crash_handler();
     start_log_file();
-    // which build on which system: also in crash logs (their last log lines)
+
     LOG("[boot] %s %s (%s), %s", app_title::kName, build::version(), build::commit(), reporthdr::os_description().c_str());
-    // test aid: NSMBU_TEST_HOST_CRASH=1 crashes inside a system library (strlen of a bad pointer), so
-    // the crash log's module names can be checked (CTest crash_log_module, runtime/tools/crash_log_test.cmake)
+
     if (getenv("NSMBU_TEST_HOST_CRASH")) {
         LOG("[boot] NSMBU_TEST_HOST_CRASH: crashing on purpose in the C library");
         size_t (*volatile len)(const char*) = strlen;
 #ifndef _WIN32
-        // the C library's own strlen: zig links its own copy into the executable (Linux releases)
+
         if (void* f = dlsym(RTLD_DEFAULT, "strlen")) len = (size_t (*)(const char*))f;
 #endif
         LOG("%zu", len((const char*)(uintptr_t)16));
     }
-    // Metal or Vulkan: --renderer=, NSMBU_RENDERER_RUNTIME, Graphics > Renderer (gfx/renderer.h)
+
     render::choose(argc, argv);
 #ifdef NSMBU_HAS_VULKAN
     if(renderer_smoke) {
-        // GPU self-test of the Vulkan renderer (no game files): always Vulkan, no fallback
+
         int result = 1;
         host::with_autorelease_pool([&] {
             render::g_backend = &render::vulkan_backend();
@@ -396,7 +377,7 @@ int main(int argc, char** argv) {
 #endif
     mods::manager::load_saved();
     mods::cemu::set_vulkan(render::requested()==render::Api::Vulkan);
-    mods::content::set_game_root(config::game_dir);  // loose imports (fan translations) find their game path
+    mods::content::set_game_root(config::game_dir);
     mods::packages::set_code_mod_support(guestmods::hooks_built() && mods::code::enabled());
     mods::packages::initialize();
     mem::init();
@@ -407,7 +388,7 @@ int main(int argc, char** argv) {
                (address >= mem::kMem1 && end <= uint64_t(mem::kMem1) + mem::kMem1Size) ||
                (address >= mem::kFgBucket && end <= uint64_t(mem::kFgBucket) + mem::kFgBucketSize);
     };
-    // Store noncapturing callbacks: native mods operate on guest data, on the game thread.
+
     static auto valid_memory = valid_mod_memory;
     mods::packages::set_memory_access(
         [](uint32_t a, void* out, size_t n) -> int {
@@ -427,7 +408,7 @@ int main(int argc, char** argv) {
         g_guest_build_name, g_guest_build_title_id, m.entry, m.sda_base, m.sda2_base, m.data_end);
 
     dispatch::init();
-    guestmods::init();  // trusted manager packages, before guest threads start
+    guestmods::init();
     init_data_imports();
     mem_setup_heaps(m.data_end);
     threads::init(m);
@@ -436,11 +417,11 @@ int main(int argc, char** argv) {
     uint32_t arg0 = mem::runtime_alloc(16);
     mem::write_cstr(arg0, config::kRpxName, 16);
     st32(argv_arr, arg0);
-    // the game runs on its own threads; the process main thread belongs to the window system
+
     render::init();
     mods::cemu::set_vulkan(render::active()==render::Api::Vulkan);
     if (warm_shaders) {
-        // compile the shader head start once (fills the macOS Metal shader cache), then quit
+
 #ifdef NSMBU_HAS_METAL
         if (render::active() == render::Api::Metal) return gfx_headstart_warm();
 #endif

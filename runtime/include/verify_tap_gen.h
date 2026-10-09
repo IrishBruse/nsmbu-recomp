@@ -1,5 +1,5 @@
-/* Included by build/gen/code_tap.c (tools/verify/mktap.py): the tapped copies' own memory
- * accesses and calls go through the recorder (runtime/src/verify_tap.cpp). */
+
+
 #pragma once
 #include "ppc.h"
 #include "verify_tap.h"

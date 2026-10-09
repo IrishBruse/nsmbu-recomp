@@ -1,16 +1,5 @@
-// Crash recovery (see crashrec.h).
-//
-// Automatic states are ordinary save states in <states>/auto/auto<n>.bin (save state slots 101..103,
-// rotating). Right after one is captured, <states>/auto/auto<n>.input starts: one record per pad read
-// on a logic pass (the input the game actually used), written unbuffered so a crash loses nothing.
-//
-// Replay (NSMBU_REPLAY=<n>, optional NSMBU_REPLAY_AT=<TV frame>, default 1500): once the game is
-// running, automatic state n is loaded and the pad reads after the load return the recorded input in
-// order; when the recording ends, live input takes over. Crash recovery saves nothing during a replay.
-//
-// On/off: Save States menu, or NSMBU_CRASH_RECOVERY=0|1 for one start; the menu choice is kept in
-// <states>/crash_recovery.cfg. NSMBU_CRASH_RECOVERY_INTERVAL=<seconds> (default 120).
-// Test aid: NSMBU_TEST_CRASH_AT=<TV frame> crashes on purpose.
+
+
 #include "crashrec.h"
 #include "crash_context.h"
 
@@ -50,20 +39,18 @@ std::string input_path(int n) { return auto_dir() + "/auto" + std::to_string(n) 
 std::string cfg_path() { return ss::states_dir() + "/crash_recovery.cfg"; }
 
 std::mutex g_mu;
-std::atomic<int> g_enabled{-1};  // -1: not read yet
-int g_next = 1;                  // next automatic state to write
-FILE* g_rec = nullptr;           // recording for the latest automatic state
+std::atomic<int> g_enabled{-1};
+int g_next = 1;
+FILE* g_rec = nullptr;
 uint32_t g_rec_seq = 0;
 std::chrono::steady_clock::time_point g_last_save;
 bool g_save_pending = false;
 
-// replay
-int g_replay = 0;                // automatic state being replayed (0: none)
+int g_replay = 0;
 FILE* g_play = nullptr;
 bool g_play_started = false;
 uint64_t g_replay_at = 1500;
 
-// preformatted for crash handlers
 char g_note[512] = "crash recovery: off\n";
 
 void update_note(int latest, const char* when) {
@@ -89,7 +76,7 @@ bool read_cfg() {
         fclose(f);
         if (ok) return v != 0;
     }
-    return false;  // off unless chosen
+    return false;
 }
 
 void start_recording(int n) {
@@ -101,7 +88,7 @@ void start_recording(int n) {
     fwrite(kMagic, 1, 8, g_rec);
 }
 
-}  // namespace
+}
 
 bool enabled() {
     int v = g_enabled.load();
@@ -119,7 +106,7 @@ bool enabled() {
 }
 
 void set_enabled(bool on) {
-    enabled();  // make sure the replay settings are read
+    enabled();
     g_enabled = on ? 1 : 0;
     if (FILE* f = fopen(cfg_path().c_str(), "w")) { fprintf(f, "%d\n", on ? 1 : 0); fclose(f); }
     std::lock_guard<std::mutex> lk(g_mu);
@@ -146,7 +133,7 @@ void service() {
         next_context = context_now + std::chrono::seconds(1);
     }
     bool on = enabled();
-    // test aid: NSMBU_TEST_CRASH_AT=<TV frame> crashes on purpose (checks the crash log and replay hints)
+
     static const uint64_t crash_at = getenv("NSMBU_TEST_CRASH_AT") ? strtoull(getenv("NSMBU_TEST_CRASH_AT"), nullptr, 10) : 0;
     if (crash_at && render::frame_count() >= crash_at) {
         LOG("[crashrec] NSMBU_TEST_CRASH_AT: crashing on purpose");
@@ -168,7 +155,7 @@ void service() {
     auto now = std::chrono::steady_clock::now();
     if (g_last_save.time_since_epoch().count() == 0) g_last_save = now;
     if (g_save_pending && now - g_last_save >= std::chrono::seconds(interval_seconds() + 60)) {
-        g_save_pending = false;  // the game stayed busy (ss gives up after 30 tries): try again next interval
+        g_save_pending = false;
         g_last_save = now;
     }
     if (!g_save_pending && now - g_last_save >= std::chrono::seconds(interval_seconds())) {
@@ -209,14 +196,14 @@ input::PadState read(int pad) {
                     p.tx = r.tx; p.ty = r.ty;
                     return p;
                 }
-                fseek(g_play, -(long)sizeof r, SEEK_CUR);  // the other pad's read comes first: not ours yet
+                fseek(g_play, -(long)sizeof r, SEEK_CUR);
             } else {
                 LOG("[crashrec] replay: recorded input ended, live input from now on");
                 fclose(g_play);
                 g_play = nullptr;
             }
         }
-        if (g_play) return input::PadState{};  // replay pending: no live input until it is used up
+        if (g_play) return input::PadState{};
         return input::read();
     }
     input::PadState p = input::read();
@@ -251,4 +238,4 @@ void crash_note(int fd, void (*out)(int, const char*, size_t)) {
     out(fd, g_note, strnlen(g_note, sizeof g_note));
 }
 
-}  // namespace crashrec
+}

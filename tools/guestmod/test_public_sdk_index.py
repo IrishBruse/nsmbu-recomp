@@ -5,7 +5,6 @@ from public_sdk_layouts import layout
 from public_sdk_bindings import bindings, guest_type
 from public_sdk_data import declarations
 
-
 class PublicDeclarations(unittest.TestCase):
     def test_scalar_and_pointer_return(self):
         for text, result, name in [
@@ -88,7 +87,6 @@ class PublicDeclarations(unittest.TestCase):
     def test_member_verification_retains_name(self):
         match = VERIFY.search('VERIFY(0x02000000, &Actor::execute);')
         self.assertEqual(match[2], '&Actor::execute')
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -9,7 +9,7 @@ struct Status {
 bool enabled();
 void startup(int argc, char** argv);
 bool restart(std::string& error);
-void request(bool on, const std::string& pending_mod = {}); // confirmation is shown in the Mods page
+void request(bool on, const std::string& pending_mod = {});
 Status status();
 void begin();
 void cancel();

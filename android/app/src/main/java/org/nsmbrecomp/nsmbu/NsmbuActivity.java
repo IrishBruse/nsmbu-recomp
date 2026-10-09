@@ -19,7 +19,6 @@ import org.libsdl.app.SDLActivity;
 
 import java.io.File;
 
-// The game: SDL loads libmain.so and runs its SDL_main (runtime/src/main.cpp).
 public class NsmbuActivity extends SDLActivity {
     @Override
     protected String[] getLibraries() {
@@ -28,8 +27,7 @@ public class NsmbuActivity extends SDLActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // The game files go to Android/data/org.nsmbrecomp.nsmbu/files/game (code, content, meta):
-        // create the folders so they show up for copying over USB.
+
         File files = getExternalFilesDir(null);
         if (files != null) {
             new File(files, "game").mkdirs();
@@ -71,8 +69,7 @@ public class NsmbuActivity extends SDLActivity {
 
     private static final int GPU_DRIVER_REQUEST = 4972;
     private static native String installGpuDriver(String path, boolean select);
-    // afterFailure: the renderer could not start with the system driver (renderer.cpp), so the
-    // installed driver is selected and the app ends; it runs from the next start
+
     private boolean driverAfterFailure;
     public void chooseGpuDriver(boolean afterFailure) {
         driverAfterFailure = afterFailure;
@@ -88,7 +85,7 @@ public class NsmbuActivity extends SDLActivity {
             return;
         }
         final android.net.Uri uri = data.getData();
-        // Copy the content URI into internal storage; no broad storage permissions needed.
+
         new Thread(() -> {
             File zip = null;
             String error = "";
@@ -122,18 +119,11 @@ public class NsmbuActivity extends SDLActivity {
         System.exit(0);
     }
 
-    // Frame interpolation at 120/240 fps (runtime/src/platform/display_rate.cpp, called from native
-    // code on any thread). Phones with 90/120 Hz screens often run apps at 60 Hz unless the app asks
-    // for more, so the game asks for a display mode of the same resolution with at least the
-    // frame rate it draws, and reads back the rate the display actually runs at.
-
-    // the display's current refresh rate (Hz; 0: no display)
     public static float displayRefreshRate() {
         Display d = mSingleton != null ? mSingleton.getDisplay() : null;
         return d != null ? d.getRefreshRate() : 0;
     }
 
-    // the highest refresh rate the display offers at its current resolution
     public static float maxRefreshRate() {
         Display d = mSingleton != null ? mSingleton.getDisplay() : null;
         if (d == null) return 0;
@@ -145,8 +135,6 @@ public class NsmbuActivity extends SDLActivity {
         return best;
     }
 
-    // ask for the display mode (same resolution) with the lowest refresh rate of at least hz, or the
-    // highest one if none reaches it; hz <= 0 leaves the choice to the system again
     public static void requestRefreshRate(final float hz) {
         final SDLActivity a = mSingleton;
         if (a == null) return;

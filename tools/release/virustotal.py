@@ -21,14 +21,12 @@ import uuid
 import zipfile
 
 API = "https://www.virustotal.com/api/v3"
-MIN_GAP = 16.0  # seconds between requests: the free tier allows 4 per minute
+MIN_GAP = 16.0
 BIG = 32 * 1024 * 1024
 _last = [0.0]
 
-
 def notice(msg):
     print("::notice title=VirusTotal::" + msg.replace("\n", " "), flush=True)
-
 
 def request(method, url, key, body=None, ctype=None, timeout=300):
     wait = _last[0] + MIN_GAP - time.time()
@@ -45,13 +43,11 @@ def request(method, url, key, body=None, ctype=None, timeout=300):
     finally:
         _last[0] = time.time()
 
-
 def multipart(name, data):
     boundary = uuid.uuid4().hex
     head = ('--%s\r\nContent-Disposition: form-data; name="file"; filename="%s"\r\n'
             "Content-Type: application/octet-stream\r\n\r\n" % (boundary, name.replace('"', "_"))).encode("utf-8")
     return head + data + ("\r\n--%s--\r\n" % boundary).encode(), "multipart/form-data; boundary=" + boundary
-
 
 def load(spec):
     if os.path.isfile(spec):
@@ -64,14 +60,12 @@ def load(spec):
                 return member, z.read(n)
     raise FileNotFoundError("%s not found in %s" % (member, zpath))
 
-
 def upload(key, name, data):
     url = API + "/files"
     if len(data) > BIG:
         url = request("GET", API + "/files/upload_url", key)["data"]
     body, ctype = multipart(name, data)
     return request("POST", url, key, body, ctype)["data"]["id"]
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -95,7 +89,7 @@ def main():
                 item["link"] = "https://www.virustotal.com/gui/file/" + item["sha256"]
                 item["analysis"] = upload(key, name, data)
                 print("uploaded %s (%d bytes, sha256 %s)" % (name, len(data), item["sha256"]), flush=True)
-            except Exception as e:  # monitor only: report and go on
+            except Exception as e:
                 item["error"] = "upload failed: %s" % e
                 notice("%s: %s" % (spec, item["error"]))
             items.append(item)
@@ -146,7 +140,6 @@ def main():
             f.write("\n".join(lines) + "\n")
     return 0
 
-
 def render_notes(report_path):
     """the release-notes section for a finished report (publish follow-up job): links and counts per file"""
     rep = json.load(open(report_path))
@@ -167,7 +160,6 @@ def render_notes(report_path):
                 "(%s), reported to the vendors as false positives; see issue #58." % ", ".join(flagged)]
     return "\n".join(out) + "\n"
 
-
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--render-notes":
         try:
@@ -177,6 +169,6 @@ if __name__ == "__main__":
         sys.exit(0)
     try:
         sys.exit(main())
-    except Exception as e:  # never fail the release
+    except Exception as e:
         notice("monitor error: %s" % e)
         sys.exit(0)

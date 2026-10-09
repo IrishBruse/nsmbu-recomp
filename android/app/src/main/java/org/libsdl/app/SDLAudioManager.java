@@ -20,7 +20,7 @@ class SDLAudioManager {
     static void initialize() {
         mAudioDeviceCallback = null;
 
-        if(Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */)
+        if(Build.VERSION.SDK_INT >= 24 )
         {
             mAudioDeviceCallback = new AudioDeviceCallback() {
                 @Override
@@ -45,13 +45,11 @@ class SDLAudioManager {
     }
 
     static void release(Context context) {
-        // no-op atm
+
     }
 
-    // Audio
-
     private static AudioDeviceInfo getInputAudioDeviceInfo(int deviceId) {
-        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+        if (Build.VERSION.SDK_INT >= 24 ) {
             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
             for (AudioDeviceInfo deviceInfo : audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)) {
                 if (deviceInfo.getId() == deviceId) {
@@ -63,7 +61,7 @@ class SDLAudioManager {
     }
 
     private static AudioDeviceInfo getPlaybackAudioDeviceInfo(int deviceId) {
-        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+        if (Build.VERSION.SDK_INT >= 24 ) {
             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
             for (AudioDeviceInfo deviceInfo : audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
                 if (deviceInfo.getId() == deviceId) {
@@ -75,12 +73,12 @@ class SDLAudioManager {
     }
 
     static void registerAudioDeviceCallback() {
-        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+        if (Build.VERSION.SDK_INT >= 24 ) {
             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
-            // get an initial list now, before hotplug callbacks fire.
+
             for (AudioDeviceInfo dev : audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
                 if (dev.getType() == AudioDeviceInfo.TYPE_TELEPHONY) {
-                    continue;  // Device cannot be opened
+                    continue;
                 }
                 nativeAddAudioDevice(dev.isSink(), dev.getProductName().toString(), dev.getId());
             }
@@ -92,24 +90,21 @@ class SDLAudioManager {
     }
 
     static void unregisterAudioDeviceCallback() {
-        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+        if (Build.VERSION.SDK_INT >= 24 ) {
             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
             audioManager.unregisterAudioDeviceCallback(mAudioDeviceCallback);
         }
     }
 
-    /** This method is called by SDL using JNI. */
     static void audioSetThreadPriority(boolean recording, int device_id) {
         try {
 
-            /* Set thread name */
             if (recording) {
                 Thread.currentThread().setName("SDLAudioC" + device_id);
             } else {
                 Thread.currentThread().setName("SDLAudioP" + device_id);
             }
 
-            /* Set thread priority */
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
 
         } catch (Exception e) {

@@ -9,8 +9,7 @@ import sys
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools" / "installer"))
-import setup  # noqa: E402
-
+import setup
 
 def main():
     if sys.platform == "darwin":
@@ -19,13 +18,13 @@ def main():
         name = "llvm-mingw-20260922"
     else:
         name = "zig-0.16.0"
-    # Use setup's existing checksummed downloader and compiler command selection.
+
     tc = setup.get_toolchain(name, str(REPO / "build" / "guestmod-ci"), None)
     if tc.env:
         os.environ.update(tc.env)
     os.environ["CC"] = shlex.join(tc.cc)
     if sys.platform == "win32":
-        # llvm-mingw is the native module compiler, not the modder's PowerPC toolchain.
+
         bin_dir = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "LLVM" / "bin"
         os.environ.setdefault("NSMBU_PPC_CLANG", str(bin_dir / "clang.exe"))
         os.environ.setdefault("NSMBU_PPC_LLD", str(bin_dir / "ld.lld.exe"))
@@ -55,7 +54,6 @@ def main():
     subprocess.run(command, input="", text=True, check=True)
     print("Host module compiler:", tc.desc, flush=True)
     subprocess.run([sys.executable, str(REPO / "tools" / "guestmod" / "test_guestmod.py"), "-v"], check=True)
-
 
 if __name__ == "__main__":
     main()
