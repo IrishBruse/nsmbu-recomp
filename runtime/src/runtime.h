@@ -105,6 +105,7 @@ void park_sleep_until(std::chrono::steady_clock::time_point t,
 // (1: any such thread, 2: only at the place a loaded snapshot has them)
 bool quiesce(int timeout_ms, std::string& busy, int entry_mode = 0, int entry_after_ms = 0);
 void thaw();
+void wait_prefix_parked(const char* prefix, int timeout_ms);
 }  // namespace threads
 
 // ---- time ----

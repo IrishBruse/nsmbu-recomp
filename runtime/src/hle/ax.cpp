@@ -620,18 +620,21 @@ void ax_ss_load(ss::Reader& r) {
 }
 
 HLE(snd_core, AXInit) {
-    std::lock_guard<std::mutex> lk(g_ax_mutex);
-    if (g_running) return;
-    g_vpb_base = mem::runtime_alloc(kVpbSize * kMaxVoices, 32);
-    for (int i = 0; i < kMaxVoices; i++) {
-        g_voices[i] = Voice{};
-        memset(g_drc.mix[i], 0, sizeof g_drc.mix[i]);
-        g_voices[i].vpb = g_vpb_base + i * kVpbSize;
-        st32(g_voices[i].vpb + kVpbIndex, i);
+    {
+        std::lock_guard<std::mutex> lk(g_ax_mutex);
+        if (g_running) return;
+        g_vpb_base = mem::runtime_alloc(kVpbSize * kMaxVoices, 32);
+        for (int i = 0; i < kMaxVoices; i++) {
+            g_voices[i] = Voice{};
+            memset(g_drc.mix[i], 0, sizeof g_drc.mix[i]);
+            g_voices[i].vpb = g_vpb_base + i * kVpbSize;
+            st32(g_voices[i].vpb + kVpbIndex, i);
+        }
+        init_buffers();
+        audio::init();
+        g_running = true;
     }
-    init_buffers();
-    audio::init();
-    g_running = true;
+    if (getenv("NSMBU_NO_AUDIO")) threads::wait_prefix_parked("Audio", 1000);
     std::thread(frame_thread).detach();
     LOG("[ax] initialized, %d voices", kMaxVoices);
 }

@@ -1265,6 +1265,29 @@ bool quiesce(int timeout_ms, std::string& busy, int entry_mode, int entry_after_
     }
 }
 
+void wait_prefix_parked(const char* prefix, int timeout_ms) {
+    auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    bool saw = false;
+    for (;;) {
+        bool busy = false;
+        {
+            std::lock_guard<std::mutex> lk(g_threads_mutex);
+            for (auto& [g, t] : g_threads) {
+                (void)g;
+                if (t == t_self || !t->started || t->exited) continue;
+                uint32_t n = ld32(t->guest + osthread::kName);
+                std::string s = n >= 0x10000 ? mem::read_cstr(n) : "";
+                if (s.rfind(prefix, 0) != 0) continue;
+                saw = true;
+                if (t->wst.load() != kParked) busy = true;
+            }
+        }
+        if (saw && !busy) return;
+        if (std::chrono::steady_clock::now() > end) return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
 void thaw() {
     g_entry_parks = 0;
     {

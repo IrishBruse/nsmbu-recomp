@@ -10,10 +10,12 @@
 #endif
 
 #include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 #include "runtime.h"
@@ -28,6 +30,7 @@ int16_t g_ring[kCapacity * 2];
 std::atomic<uint32_t> g_read{0}, g_write{0};
 std::atomic<bool> g_started{false};
 std::atomic<bool> g_flush{false};  // consumer skips everything queued
+std::atomic<bool> g_silent{false};
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 AudioComponentInstance g_unit = nullptr;
 #else
@@ -92,6 +95,19 @@ void SDLCALL render(void*,SDL_AudioStream* stream,int additional,int) {
 }
 #endif
 
+void silent_clock() {
+    const int frames = kRate * 3 / 1000;
+    std::vector<int16_t> buf((size_t)frames * 2);
+    auto next = std::chrono::steady_clock::now();
+    while (g_silent.load(std::memory_order_acquire)) {
+        next += std::chrono::milliseconds(3);
+        pull(buf.data(), (uint32_t)frames);
+        std::this_thread::sleep_until(next);
+        auto now = std::chrono::steady_clock::now();
+        if (now - next > std::chrono::milliseconds(30)) next = now;
+    }
+}
+
 }  // namespace
 
 void init() {
@@ -103,7 +119,12 @@ void init() {
             fseek(g_dump, 44, SEEK_SET);
         }
     }
-    if (getenv("NSMBU_NO_AUDIO")) return;
+    if (getenv("NSMBU_NO_AUDIO")) {
+        g_silent.store(true, std::memory_order_release);
+        std::thread(silent_clock).detach();
+        LOG("[audio] output off");
+        return;
+    }
 
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
     AudioComponentDescription desc{};
@@ -153,7 +174,7 @@ void push(const int16_t* stereo, int frames) {
         g_dump_frames += frames;
         if (g_dump_frames % kRate < (uint32_t)frames) write_wav_header();  // keep the file valid about once a second
     }
-    if (!g_unit) return;
+    if (!g_unit && !g_silent.load(std::memory_order_acquire)) return;
     uint32_t w = g_write.load(std::memory_order_relaxed), r = g_read.load(std::memory_order_acquire);
     if (w - r + frames > kCapacity) {  // device stalled: drop rather than overwrite
         g_dropped += frames;
@@ -168,7 +189,7 @@ void push(const int16_t* stereo, int frames) {
 }
 
 int buffered_frames() {
-    if (!g_unit) return kTarget;
+    if (!g_unit && !g_silent.load(std::memory_order_acquire)) return kTarget;
     return (int)(g_write.load(std::memory_order_acquire) - g_read.load(std::memory_order_acquire));
 }
 
