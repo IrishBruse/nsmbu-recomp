@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "id": "play-scene-ticker",
+  "name": "Play scene ticker (guest mod example)",
+  "version": "0.1.0",
+  "game_id": "nsmbu-usa",
+  "kind": "guest",
+  "guest": {"api_version": 1, "elf": "mod.elf"},
+  "options": [{"id": "every", "type": "number", "name": "Logic steps between log lines", "default": 60, "min": 1, "max": 6000}]
+}

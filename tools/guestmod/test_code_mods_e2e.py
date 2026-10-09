@@ -33,12 +33,12 @@ def main():
     out.mkdir(parents=True, exist_ok=False)  # never overwrite another run's evidence
     manifest = json.loads((release / 'sdk/manifest.json').read_text())
     binary = data / 'bin' / manifest['exe']
-    manager, package = out / 'manager', out / 'heart-ticker'
+    manager, package = out / 'manager', out / 'play-scene-ticker'
     package.mkdir()
-    shutil.copy2(REPO / 'examples/guest-mods/heart-ticker/manifest.json', package / 'manifest.json')
+    shutil.copy2(REPO / 'examples/guest-mods/play-scene-ticker/manifest.json', package / 'manifest.json')
     subprocess.run([args.ppc_clang, '--target=powerpc-unknown-eabi', '-mcpu=750', '-O2', '-ffreestanding',
                     '-fno-builtin', '-nostdlib', '-fno-jump-tables', '-ffunction-sections', '-fdata-sections',
-                    '-I' + str(REPO / 'runtime/guest/include'), '-c', str(REPO / 'examples/guest-mods/heart-ticker/mod.c'),
+                    '-I' + str(REPO / 'runtime/guest/include'), '-c', str(REPO / 'examples/guest-mods/play-scene-ticker/mod.c'),
                     '-o', str(package / 'mod.o')], check=True)
     subprocess.run([args.ppc_lld, '-m', 'elf32ppc', '-r', str(package / 'mod.o'), '-o', str(package / 'mod.elf')], check=True)
 
@@ -55,7 +55,7 @@ def main():
 
     def run(name, mode, extra=None):
         env = {'WWHD_CODE_MODS': str(mode), 'WWHD_MOD_MANAGER_DIR': str(manager),
-               'WWHD_TEST_TRUST_NATIVE_MODS': 'heart-ticker'}
+               'WWHD_TEST_TRUST_NATIVE_MODS': 'play-scene-ticker'}
         env.update(extra or {})
         with (out / (name + '-driver.log')).open('w') as log:
             subprocess.run([sys.executable, str(REPO / 'tools/bench/run_bench.py'), '--binary', str(binary),
@@ -69,27 +69,27 @@ def main():
 
     off, original = rebuild(0, 'prepare-off')
     on, _ = rebuild(1, 'prepare-on')  # warm both caches; fresh compilation is recorded separately
-    log = run('install', 0, {'WWHD_TEST_MOD_INSTALL': str(package), 'WWHD_TEST_MOD_ENABLE': 'heart-ticker',
+    log = run('install', 0, {'WWHD_TEST_MOD_INSTALL': str(package), 'WWHD_TEST_MOD_ENABLE': 'play-scene-ticker',
                            'WWHD_TEST_CODE_MOD_REBUILD': '1', 'WWHD_TEST_OVERLAY': 'open:mods@700'})
-    assert '[code mods] rebuild offer: support on for heart-ticker' in log
+    assert '[code mods] rebuild offer: support on for play-scene-ticker' in log
     assert '[code mods] rebuild ready; restart required' in log
     profiles = json.loads((manager / 'profiles.json').read_text())
     profile = profiles['profiles'][profiles['active']]
-    assert not profile.get('enabled', {}).get('heart-ticker', False)
-    assert 'heart-ticker' in profile['code_mod_pending']
+    assert not profile.get('enabled', {}).get('play-scene-ticker', False)
+    assert 'play-scene-ticker' in profile['code_mod_pending']
     log = run('active', 1)  # the original launcher must route to the selected hook-enabled executable
-    assert '[guestmods] loaded ' in log and 'heart-ticker: first return hook' in log
-    assert 'heart-ticker: life (quarter hearts)' in log
+    assert '[guestmods] loaded ' in log and 'play-scene-ticker: first return hook' in log
+    assert 'play-scene-ticker: logic steps' in log
     profiles = json.loads((manager / 'profiles.json').read_text())
     profile = profiles['profiles'][profiles['active']]
-    assert profile['enabled']['heart-ticker'] and not profile.get('code_mod_pending', {})
+    assert profile['enabled']['play-scene-ticker'] and not profile.get('code_mod_pending', {})
     final, ready = rebuild(0, 'final-off')
     assert final['cached'] and original['gamecode_objects']
     assert ready['gamecode_objects'] == original['gamecode_objects']
     assert ready['generated'] == original['generated']
     assert '[guestmods] loaded ' not in run('disabled', 0)
     result = {'install_offer_rebuild': True, 'disabled_until_restart': True,
-              'heart_ticker_active_after_restart': True, 'off_again_cached': True,
+              'play_scene_ticker_active_after_restart': True, 'off_again_cached': True,
               'off_code_identical': True, 'prepare_off_seconds': off['seconds'],
               'prepare_on_seconds': on['seconds'], 'cached_off_seconds': final['seconds']}
     (out / 'result.json').write_text(json.dumps(result, indent=2) + '\n')

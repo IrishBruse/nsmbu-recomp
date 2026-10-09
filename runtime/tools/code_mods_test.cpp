@@ -58,12 +58,12 @@ os.replace(a.code_mods_status+'.tmp',a.code_mods_status)
     auto path=root/"guest-sdk.json";std::ofstream(path)<<mods::json::dump(config);
     env("WWHD_GUEST_BUILD_CONFIG",path.string());env("WWHD_CODE_MODS","0");
     assert(!enabled());env("WWHD_CODE_MODS","1");assert(enabled());
-    request(true,"heart-ticker");assert(status().requested);assert(!status().building);
+    request(true,"play-scene-ticker");assert(status().requested);assert(!status().building);
     begin();
     auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
     while(status().building&&std::chrono::steady_clock::now()<deadline)std::this_thread::sleep_for(std::chrono::milliseconds(10));
     auto result=status();assert(result.ready&&!result.building&&result.error.empty());
-    assert(result.exe=="fixture executable"&&queued=="heart-ticker");
+    assert(result.exe=="fixture executable"&&queued=="play-scene-ticker");
     std::string saved;assert(hostui::get("code-mods",saved)&&saved=="1");
     clear_env("WWHD_CODE_MODS");assert(enabled()); // the persisted preference survives the override
     env("WWHD_CODE_MODS","0");assert(!enabled());

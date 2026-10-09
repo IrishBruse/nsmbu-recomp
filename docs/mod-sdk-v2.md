@@ -629,14 +629,14 @@ or disable mods. Use the same mod versions that created a state when reproducing
 | translator, install-time build | `tools/guestmod/guestmod.py`, `tools/guestmod/build_guest_mod.py` |
 | SDK header | `runtime/guest/include/wwhd_guest.h` |
 | tests | `tools/guestmod/test_guestmod.py` (needs a PowerPC clang: `WWHD_PPC_CLANG`, `WWHD_PPC_LLD`) |
-| examples | `examples/guest-mods/heart-ticker` (entry + return hook of Link's per-step function, calls a game function; hearts tick down a quarter at a time to half and refill), `examples/guest-mods/addcalc-replace` (replaces `cLib_addCalc2` by an equivalent implementation; every other call goes to the game's original) |
+| examples | `examples/guest-mods/play-scene-ticker` (entry + return hook on `dScnPly_Execute` with a configurable log interval), `examples/guest-mods/smooth-step-replace` (replaces `cLib_addCalc2` by an equivalent implementation; every other call goes to the game's original) |
 
 ```sh
 python3 tools/recomp/recomp.py game/code/cking.rpx build/gen --mod-hooks
 cmake --build build/cmake                                   # as usual
 make -C examples/guest-mods CLANG=/opt/homebrew/opt/llvm/bin/clang LLD=/opt/homebrew/opt/lld/bin/ld.lld
-python3 tools/guestmod/build_guest_mod.py examples/guest-mods/heart-ticker --out build/guestcache --base 0x7F000000
-python3 tools/guestmod/build_guest_mod.py examples/guest-mods/addcalc-replace --out build/guestcache --base 0x7F100000
+python3 tools/guestmod/build_guest_mod.py examples/guest-mods/play-scene-ticker --out build/guestcache --base 0x7F000000
+python3 tools/guestmod/build_guest_mod.py examples/guest-mods/smooth-step-replace --out build/guestcache --base 0x7F100000
 ```
 
 These commands describe the prototype build. Install the packages through the manager
