@@ -14,3 +14,4 @@ Read the justfile for dev commands.
 `docs/upstream-wwhd-readme.md` is the archived Wind Waker HD readme.
 Leave the upstream repository name, the recorded upstream commit, and Wind Waker product names in `docs/nsmbu.md` and in that archive.
 Read `.cursor/skills/upstream-merge/SKILL.md` before you take a newer Wind Waker HD commit.
+Read `.cursor/skills/scripted-run/SKILL.md` before a frame dump or a scripted boot.
