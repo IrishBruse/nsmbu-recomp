@@ -13,7 +13,7 @@ You supply the disc image, the keys, and the game files.
 
 ## Status
 
-Currently 1-1 plays through scripted runs past the former frame ~7080 shader-dispatch crash.
+Currently 1-1 is completable in 0.2.0, with slowdown below 60 fps.
 
 ## Install
 

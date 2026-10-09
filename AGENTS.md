@@ -2,6 +2,7 @@
 
 The first sentence under `## Status` in `README.md` is the current play status.
 Update this sentence when play progress changes.
+Include the release version in that sentence.
 
 ## Map
 
