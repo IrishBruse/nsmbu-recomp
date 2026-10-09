@@ -1,7 +1,7 @@
 # Gyro aiming
 
-On the Wii U, Wind Waker HD lets you aim in first person by moving the GamePad: the bow, hookshot,
-boomerang, telescope, Picto Box, grappling hook and the plain first-person look (R3) all use it.
+On the Wii U, games can read the GamePad gyro for aiming and similar motion input.
+This port maps that motion to a **virtual GamePad** when the game asks for it.
 The port has no GamePad, so it turns a **virtual GamePad** with one of these sources:
 
 | Source | What it uses |
@@ -96,8 +96,9 @@ frame. Measured in R3 look (`NSMBU_TEST_GYRO`, Outset): a GamePad turn of 60° r
   controllers, the one that moves drives the GamePad (another takes over when it turns while the
   active one rests). Sensor timestamps that do not advance (a driver without them, a clock that
   stalls) fall back to the arrival times, so the motion never stops because of them. The mouse source
-  only takes movement while the game aims (first-person camera or an item aim, from
-  `mods/camera.cpp`); the pointer is captured then, and the mouse camera mod leaves the mouse alone.
+  only takes movement while the game aims.
+  `motion::set_aiming` records that state.
+  The pointer is captured then (`platform/mouse_sdl.cpp`, `mods/mouse.mm`).
 - `game_hooks.cpp` (`tools/recomp/hooks_gyro.txt`): in Pro Controller mode, while a source is on,
   `02618604` skips its mode-0 check, so the game reads the virtual GamePad's motion exactly as with
   the GamePad: same camera code, the in-game Gyro switch, its stick dead zone (now the Pro

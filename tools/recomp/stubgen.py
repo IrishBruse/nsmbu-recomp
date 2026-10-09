@@ -21,6 +21,8 @@ root = os.path.normpath(os.path.join(here, "..", ".."))
 def hook_lists():
     hooks, sites = set(), set()
     for hp in [os.path.join(here, "hooks.txt")] + sorted(glob.glob(os.path.join(here, "hooks_*.txt"))):
+        if not os.path.exists(hp):
+            continue
         for line in open(hp):
             line = line.split("#")[0].strip()
             if line.startswith("@"):

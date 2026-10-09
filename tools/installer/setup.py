@@ -735,8 +735,8 @@ def archive_choice(info):
                          "(it contains: %s)." % found)
     version = int(info.get("version", -1))
     if version != SUPPORTED_VERSION:
-        raise SetupError("the game in this archive is version %d; the port is built for version %d of The Wind Waker "
-                         "HD (USA), the disc and eShop release (folder %s)." % (version, SUPPORTED_VERSION, info["selected"]))
+        raise SetupError("the game in this archive is version %d; the port is built for version %d of New Super Mario "
+                         "Bros. U (USA), the disc and eShop release (folder %s)." % (version, SUPPORTED_VERSION, info["selected"]))
     notes = []
     for t in titles:
         if t["folder"] == info["selected"]:
@@ -1314,7 +1314,7 @@ def mac_app(app_path, exe_src, data_dir, version):
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>%s</string>
   <key>CFBundleDisplayName</key><string>%s</string>
-  <key>CFBundleIdentifier</key><string>io.github.zeldawwhdrecomp.wwhd</string>
+  <key>CFBundleIdentifier</key><string>io.github.zeldansmbrecomp.nsmbu</string>
   <key>CFBundleExecutable</key><string>launch</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>%s</string>
@@ -1479,30 +1479,23 @@ def have_save(data_dir):
 
 
 def import_save(kind, path, data_dir, replace=False):
-    """Copies an HD save (a folder with cking.sav, or cking.sav itself) or converts a GameCube save
-    (.gci, tools/savegame/gc2hd.py) into save/user/. An existing save is only replaced when asked,
-    and then first moved to save/user.backup-<time>. Returns a message."""
+    """Copies a Wii U save (a folder with cking.sav, or cking.sav itself) into save/user/. An existing
+    save is only replaced when asked, and then first moved to save/user.backup-<time>. Returns a message."""
     user = save_user_dir(data_dir)
     if have_save(data_dir) and not replace:
         raise SetupError("a save already exists in %s" % user)
+    if kind != "hd":
+        raise SetupError("unknown save import kind %r" % kind)
     tmp = os.path.join(data_dir, "save-import.tmp")
     shutil.rmtree(tmp, ignore_errors=True)
     os.makedirs(tmp)
     try:
-        if kind == "gc":
-            if not os.path.isfile(path) or not path.lower().endswith(".gci"):
-                raise SetupError("choose a GameCube save file (.gci)")
-            out = run_logged([sys.executable, os.path.join(PKG, "tools", "savegame", "gc2hd.py"), path, "-o", tmp],
-                             what="converting the GameCube save")
-            if not os.path.isfile(os.path.join(tmp, "cking.sav")):
-                raise SetupError("the GameCube save could not be converted:\n" + out.strip()[-500:])
-        else:
-            src = os.path.dirname(path) if os.path.isfile(path) else path
-            savs = [f for f in os.listdir(src) if f.endswith(".sav")] if os.path.isdir(src) else []
-            if "cking.sav" not in savs:
-                raise SetupError("no cking.sav in %s" % src)
-            for f in savs:
-                shutil.copy2(os.path.join(src, f), os.path.join(tmp, f))
+        src = os.path.dirname(path) if os.path.isfile(path) else path
+        savs = [f for f in os.listdir(src) if f.endswith(".sav")] if os.path.isdir(src) else []
+        if "cking.sav" not in savs:
+            raise SetupError("no cking.sav in %s" % src)
+        for f in savs:
+            shutil.copy2(os.path.join(src, f), os.path.join(tmp, f))
         backup = None
         if os.path.isdir(user) and os.listdir(user):
             backup = user + ".backup-" + time.strftime("%Y%m%d-%H%M%S")
@@ -1513,8 +1506,6 @@ def import_save(kind, path, data_dir, replace=False):
         shutil.rmtree(tmp, ignore_errors=True)
     n = len([f for f in os.listdir(user) if f.endswith(".sav")])
     msg = "Copied %d save file%s to %s" % (n, "" if n == 1 else "s", user)
-    if kind == "gc":
-        msg = "Converted the GameCube save to %s" % os.path.join(user, "cking.sav")
     if backup:
         msg += " (the previous save is in %s)" % backup
     say("  " + msg)
@@ -1595,9 +1586,8 @@ def maybe_import_save(ui, data_dir):
         say("  Your existing save in %s is kept." % user)
         return
     options = ["no, start with a new save",
-               "a Wind Waker HD save (a folder with cking.sav, e.g. from Cemu or a Wii U)",
-               "a GameCube Wind Waker save (.gci, converted to HD)",
-               "copy saves and settings from another Wind Waker HD folder"]
+               "an NSMBU save (a folder with cking.sav, e.g. from Cemu or a Wii U)",
+               "copy saves and settings from another NSMBU folder"]
     legacy = PORTABLE and any(import_sources())
     if legacy:
         options.append("copy saves and settings from my earlier installation (copied, not moved)")
@@ -1605,15 +1595,12 @@ def maybe_import_save(ui, data_dir):
     if i == 0:
         return
     try:
-        if i == 3:
-            import_existing(data_dir, ui.pick_path("Choose the other Wind Waker HD folder", folder=True))
-        elif i == 4:
+        if i == 2:
+            import_existing(data_dir, ui.pick_path("Choose the other NSMBU folder", folder=True))
+        elif i == 3:
             import_existing(data_dir)
         elif i == 1:
             import_save("hd", ui.pick_path("Choose the folder that contains cking.sav", folder=True), data_dir)
-        else:
-            import_save("gc", ui.pick_path("Choose the GameCube save (.gci)",
-                                           filetypes=[("GameCube save (*.gci)", "*.gci")]), data_dir)
     except SetupError as e:
         say("  Save not imported: %s (you can copy it to %s later)" % (e, user))
 

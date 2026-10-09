@@ -38,9 +38,6 @@ TOOL_FILES = [
     "tools/recomp/recomp.py",
     "tools/recomp/analyze.py",
     "tools/recomp/ppc2c.py",
-    "tools/savegame/gc2hd.py",
-    "tools/savegame/wwsave.py",
-    "tools/savegame/README.md",
 ]
 INSTALLER_FILES = [
     "tools/installer/setup.py",
@@ -67,10 +64,10 @@ This file marks the folder as portable; without it, setup uses the per-user fold
 MAC_SETUP_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleName</key><string>Wind Waker HD</string>
-  <key>CFBundleDisplayName</key><string>Wind Waker HD</string>
-  <key>CFBundleIdentifier</key><string>io.github.zeldawwhdrecomp.wwhd</string>
-  <key>CFBundleExecutable</key><string>wind-waker-hd</string>
+  <key>CFBundleName</key><string>NSMBU</string>
+  <key>CFBundleDisplayName</key><string>NSMBU</string>
+  <key>CFBundleIdentifier</key><string>io.github.zeldansmbrecomp.nsmbu</string>
+  <key>CFBundleExecutable</key><string>nsmbu-launcher</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>%s</string>
   <key>CFBundleVersion</key><string>%s</string>

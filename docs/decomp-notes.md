@@ -1,9 +1,8 @@
 # NSMBU ↔ GameCube decompilation: findings
 
-Function names for NSMBU (`red-pro2.rpx`) come from
-`python3 tools/decomp/match.py game/code/red-pro2.rpx tww build/names.tsv` (about 1 minute). Needs
-`tww/` (zeldaret/tww) built from your own GameCube disc image (`tww/build/GZLE01`). Outputs (all
-in git-ignored `build/`):
+These notes record a match of this executable against the Wind Waker GameCube decompilation.
+The matcher scripts are not in this tree.
+Outputs of that match (all in git-ignored `build/`) were:
 
 - `names.tsv`: address, name, source file, evidence, score (match probability for `graph`/`tu`).
 - `nsmbu_to_gc.tsv`: NSMBU address → GameCube mangled symbol, source file, module, GameCube
@@ -11,15 +10,13 @@ in git-ignored `build/`):
 - `coverage.tsv`: per translation unit, GameCube functions vs. matched.
 - `regions.tsv`: long unmatched stretches (HD-only code).
 
-Helper tools: `layout.py` (structure offsets, below), `timers.py` (frame timers, below),
-`datamap.py` (NSMBU addresses of GameCube globals), `heldout.py` (precision test), `train.py`
-(refits the pair-scoring model).
+The sections below keep the layout, timer, and data-map findings from that match.
 
 ### Evidence and measured precision
 
 | Evidence | Meaning | Count | Held-out precision |
 |---|---|---|---|
-| `manual` | hand-verified (`tools/decomp/manual_names.tsv`) | 11 | — |
+| `manual` | hand-verified names | 11 | — |
 | `assert` | assert text (file + condition) | 191 | near-certain |
 | `profile` | actor profile method tables (process-name IDs) | 1,477 | near-certain |
 | `strings` | rare string/float literals + file neighbourhood | 353 | high (used as test truth) |
@@ -347,8 +344,7 @@ Debug aids: `NSMBU_LINK_TRACE`, `NSMBU_CAM_TRACE`, `NSMBU_ACTOR_DUMP=path:FN|lin
 
 ### Per-step logic in the other actors (survey for the next conversions)
 
-`tools/true60/actor_survey.py [d_a_]` scans the generated code of every named actor function and
-writes `build/true60_survey.tsv`, one line per GameCube source file. It reports:
+A survey of the generated actor code, one line per GameCube source file, reported:
 - calls to the primitives that true60 already scales;
 - inline step counters: a 16/32-bit field loaded, ±1, stored back. The offset is from the base
   register, usually `this`; Link's code often uses `this+0x448`. Example: Link's `-0x652A`
@@ -673,7 +669,7 @@ Key daPy_lk_c fields (GameCube → NSMBU): `mCurProc` 0x31D8→0x65F0, `mStickDi
 
 ## Frame-count timers (catalogue)
 
-`tools/decomp/timers.py` lists fields that are decremented by one (load, `addi -1`, store back)
+Fields decremented by one (load, `addi -1`, store back)
 or passed to `cLib_calcTimer`. It covers code reachable from an actor's Execute (method table,
 `execute` methods, PTMF procedure tables of the same file) in the GameCube build. Each entry gets
 its NSMBU offset when the matched NSMBU function has the same number of decrement sites.
@@ -698,7 +694,7 @@ Free functions on `xxx_class*` count as that class.
 
 ## Structure layouts (GameCube → NSMBU)
 
-`tools/decomp/layout.py` aligns the loads/stores through `this` (or the first argument) of every
+Loads and stores through `this` (or the first argument) of every
 matched pair. Each aligned pair votes GameCube offset → NSMBU offset. Field names come from the
 `/* 0x... */` comments in the decompilation headers.
 
@@ -796,31 +792,13 @@ Tried without gain: raising the file-window cap from 400 to 1,000 candidates (+0
 runtime).
 
 
-## Gameplay mods (runtime/src/mods/, Gameplay menu)
+## Gameplay mods
 
-All off by default; hooks in `tools/recomp/hooks_mods.txt`. Test switches `WWHD_MOD_*`, traces
-`WWHD_MODS_TRACE`, test aids `WWHD_TEST_RSTICK` / `WWHD_RSTICK`, `WWHD_TEST_MOUSE`,
-`WWHD_TEST_WHEEL`, `WWHD_TEST_GOTO`, `WWHD_TEST_DOOR_DELETE` (see the sources).
+The upstream camera, wall-climb, quick-door, fast-scene, and cheat mods are removed.
+The package manager remains.
+`hooks_mods.txt` and `hooks_climb.txt` are removed.
 
-| WWHD | What | Used for |
-|---|---|---|
-| `0250FDC8` `dCamera_c::manualCamera` | right-stick camera: bezier-shaped stick → `cLib_chaseF` on the turning speed `this+0x154` (+0.25/step) → yaw += speed × 0.92 × f25 (param, 8) → drawn U/V smoothed (≈0.66) | sites `@02510448`/`@025104A0` (speed), `@0251053C` (f28 = vertical rate), `@02510EA0`/`@02510EE4` (V/U smoothing) |
-| `025071FC` `dCamera_c::subjectCamera` | first-person camera | mouse → right stick (rate) |
-| `0252A684` `dDoor_info_c::getDemoAction`, `021C0078` `daMbdoor_c::getDemoAction` | door event cut (action table: 16 = TALK) | quick doors |
-| `101F36CC` | `l_fopOvlpM_overlap[0]` (request: `+0x20` task) | fast scene changes |
-| `101F3A1C` | `g_fpcDtTg_Queue` (delete tags: `+8` next, `+0xC` process, `+0x18` timer; `fpcDtTg_Do` `025DDE44`) | quick doors leave deletion out of the extra steps (issue #61, `runtime/src/mods/turbo_steps.h`) |
-| `101F3328` | `g_fopAcTg_Queue` (actor tags: `+8` next, `+0xC` actor; `fopAcIt_Executor` `025D51DC`) | test aid `WWHD_TEST_DOOR_DELETE` |
-| `101F5088` | game pad state (sead controller): `+0x124` held, `+0x18` pressed, `+0x1C` released, `+0x40` hold counter, `+0x130/0x134` main stick, `+0x138/0x13C` right stick | cleared triggers in extra steps |
-| `daPy_lk_c+0x68D9` | `mReadyItemBtn` (0 X, 1 Y, 2 R; from `itemTrigger` `023EAB40`) | left click while aiming |
-
-Measured (Outset, copy of the user's save): the original right-stick camera ramps 0.48, 1.13, 1.84 …
-to 7.36°/step over 10 steps and eases out over 4 steps plus a tail; the direct camera turns
-7.36°/step × stick × speed from the first step and stops on release (same in interpolation and true
-60, 30 steps/s: 220.8°/s at full deflection). Link's house door, A press → control inside: 170
-frames; quick doors 78; fast scene changes 166; both 74 (the ≈34-frame wait for the new scene's
-archives is not shortened).
-
-## Aspect ratio (runtime/src/aspect.cpp, Graphics menu "Aspect ratio", `WWHD_ASPECT`)
+## Aspect ratio (runtime/src/aspect.cpp, Graphics menu "Aspect ratio", `NSMBU_ASPECT`)
 
 The game draws a 16:9 screen of 1280x720 guest pixels. Other aspect ratios keep the guest sizes and
 change three things.
