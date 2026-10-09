@@ -1593,7 +1593,7 @@ bool threads_ss_check(ss::Reader r, std::string& why) {
         if (t && t->service) { snprintf(buf, sizeof buf, "thread %08X is a service thread here", s.guest); why = buf; return false; }
         bool live_s = s.started && !s.exited;
         if (!t) {
-            if (!live_s && !s.exited) continue;  // created but not started: recreated on load
+            if (!live_s) continue;
             snprintf(buf, sizeof buf, "thread %08X (running in the save) does not exist yet", s.guest);
             why = buf;
             return false;
@@ -1647,7 +1647,8 @@ void threads_ss_load(ss::Reader& r) {
         for (auto& s : recs) {
             auto it = g_threads.find(s.guest);
             HostThread* t;
-            if (it == g_threads.end()) {  // created but not started in the save
+            if (it == g_threads.end()) {
+                if (s.exited) continue;
                 t = new HostThread();
                 t->guest = s.guest;
                 g_threads[s.guest] = t;
