@@ -74,10 +74,10 @@ class CoverageTests(unittest.TestCase):
         entries, skipped = builds.read_hooks(builds.hook_files(), builds.canonical_build())
         self.assertEqual(skipped, [])
         self.assertEqual([canon for _, canon, _, _ in entries],
-                         [0x024BD6EC, 0x02A764F8, 0x0281B4EC, 0x0281B970])
+                         [0x024BD6EC, 0x02A764F8, 0x0229F0C8, 0x0281B4EC, 0x0281B970])
         for site, canon, native, where in entries:
             self.assertEqual(canon, native, where)
-            self.assertFalse(site, where)
+            self.assertEqual(site, canon == 0x0229F0C8, where)
 
     def test_runtime_game_literals_are_wrapped_and_mapped(self):
         errors = []
