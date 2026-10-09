@@ -40,7 +40,7 @@ void environment(std::ostringstream& out) {
 #endif
     for (char** e = env; e && *e; ++e) {
         std::string_view line(*e);
-        if (!line.starts_with("WWHD_")) continue;
+        if (!line.starts_with("NSMBU_")) continue;
         auto equal = line.find('=');
         auto key = line.substr(0, equal);
         // Settings are useful; key/token material must never enter a crash artifact.

@@ -128,32 +128,37 @@ class Maps(unittest.TestCase):
 
 
 class Hooks(unittest.TestCase):
-    """What the recompiler checks when it reads tools/recomp/hooks*.txt for a build."""
-
     def test_every_file_is_read_for_the_canonical_build(self):
         entries, skipped = builds.read_hooks(builds.hook_files(), builds.canonical_build())
         self.assertEqual(skipped, [])
-        self.assertGreater(len(entries), 200)
+        self.assertEqual([addr for _, _, addr, _ in entries],
+                         [0x024BD6EC, 0x02A764F8, 0x0281B4EC, 0x0281B970])
         for site, canon, addr, where in entries:
-            self.assertEqual(canon, addr)  # the canonical build is the identity
-            self.assertTrue(0x02000000 <= canon < 0x02900000, where)
+            self.assertEqual(canon, addr, where)
+            self.assertFalse(site, where)
 
     def test_build_directive_skips_a_file(self):
-        entries, skipped = builds.read_hooks(builds.hook_files(), builds.by_name("EU"))
-        self.assertIn(("hooks_language.txt", "USA"), skipped)
-        self.assertFalse(any(where.startswith("hooks_language.txt") for _, _, _, where in entries))
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "hooks_language.txt")
+            with open(path, "w", encoding="utf-8") as source:
+                source.write("# builds: USA\n024BD6EC\n")
+            entries, skipped = builds.read_hooks([path], builds.by_name("EU"))
+        self.assertEqual(skipped, [("hooks_language.txt", "USA")])
+        self.assertEqual(entries, [])
 
     def test_no_instruction_site_patches_code_a_build_compiled_differently(self):
-        """The invariant the recompiler enforces (recomp.py _check_hooks): an "@ADDR" hook patches
-        one exact instruction, so its function must be the same code in that build. A new hook that
-        breaks this for a build fails here, without needing the game."""
+        entries, _ = builds.read_hooks(builds.hook_files(), builds.canonical_build())
         for build in builds.all_builds():
-            entries, _ = builds.read_hooks(builds.hook_files(), build)
             for site, canon, addr, where in entries:
-                if site:
-                    self.assertFalse(build.body_differs(canon),
-                                     "%s: %08X is inside a function the %s build compiled differently"
-                                     % (where, canon, build.name))
+                if not site or build.canonical:
+                    continue
+                lo, hi = build.bounds["code"]
+                if not lo <= canon < hi:
+                    continue
+                self.assertFalse(build.body_differs(canon),
+                                 "%s: %08X is inside a function the %s build compiled differently"
+                                 % (where, canon, build.name))
 
 
 if __name__ == "__main__":

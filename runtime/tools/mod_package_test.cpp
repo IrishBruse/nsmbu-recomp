@@ -1,5 +1,6 @@
 #include "mods/packages.h"
 #include "mods/content.h"
+#include "platform/process.h"
 #include <cassert>
 #include <cstdlib>
 #include <string>

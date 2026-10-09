@@ -33,9 +33,9 @@ def file_hashes(paths, base=None):
 
 
 def hooks_option(value=None):
-    value = os.environ.get('WWHD_CODE_MODS', '0') if value is None else str(value)
+    value = os.environ.get('NSMBU_CODE_MODS', '0') if value is None else str(value)
     if value not in ('0', '1'):
-        raise ValueError('WWHD_CODE_MODS / --code-mods must be 0 or 1')
+        raise ValueError('NSMBU_CODE_MODS / --code-mods must be 0 or 1')
     return value == '1'
 
 
@@ -44,7 +44,7 @@ def fingerprint(pkg, manifest, game_dir, compiler, hooks):
     h = hashlib.sha256()
     h.update(json.dumps({'format': 1, 'manifest': manifest, 'compiler': compiler,
                          'hooks': bool(hooks)}, sort_keys=True).encode())
-    paths = [Path(game_dir) / 'code/cking.rpx']
+    paths = [Path(game_dir) / 'code/red-pro2.rpx']
     for directory in ('sdk', 'tools/recomp'):
         paths += sorted(p for p in (Path(pkg) / directory).rglob('*')
                         if p.is_file() and '__pycache__' not in p.parts)

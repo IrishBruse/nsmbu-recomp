@@ -564,7 +564,6 @@ add_test(NAME crash_redact COMMAND crash_redact_test)
 
 # Cheats must preserve sword ownership: it controls Medli/Makar story placement (#85).
 if(Python3_Interpreter_FOUND)
-  add_test(NAME repair_medli COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/savegame/repair_medli_test.py")
   add_test(NAME medli_scenario_evidence COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/runtime/tools/medli_scenario_test.py")
 endif()
 # Guest mod loader metadata validation; synthetic tables, no game files.

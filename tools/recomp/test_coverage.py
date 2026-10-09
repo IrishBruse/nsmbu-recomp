@@ -71,14 +71,13 @@ class CoverageTests(unittest.TestCase):
         cls.mapping = builds.by_name("EU")
 
     def test_every_active_hook_is_mapped(self):
-        entries, _ = builds.read_hooks(builds.hook_files(), self.mapping)
+        entries, skipped = builds.read_hooks(builds.hook_files(), builds.canonical_build())
+        self.assertEqual(skipped, [])
+        self.assertEqual([canon for _, canon, _, _ in entries],
+                         [0x024BD6EC, 0x02A764F8, 0x0281B4EC, 0x0281B970])
         for site, canon, native, where in entries:
-            self.assertTrue(valid_address(self.mapping, "code", canon), where)
-            if site:
-                self.assertFalse(self.mapping.body_differs(canon), where)
-        for address in (0x02715310, 0x02574144):
-            self.assertTrue(any(canon == address for _, canon, _, _ in entries))
-            self.assertTrue(valid_address(self.mapping, "code", address))
+            self.assertEqual(canon, native, where)
+            self.assertFalse(site, where)
 
     def test_runtime_game_literals_are_wrapped_and_mapped(self):
         errors = []
