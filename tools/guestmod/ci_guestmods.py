@@ -27,27 +27,27 @@ def main():
     if sys.platform == "win32":
         # llvm-mingw is the native module compiler, not the modder's PowerPC toolchain.
         bin_dir = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "LLVM" / "bin"
-        os.environ.setdefault("WWHD_PPC_CLANG", str(bin_dir / "clang.exe"))
-        os.environ.setdefault("WWHD_PPC_LLD", str(bin_dir / "ld.lld.exe"))
+        os.environ.setdefault("NSMBU_PPC_CLANG", str(bin_dir / "clang.exe"))
+        os.environ.setdefault("NSMBU_PPC_LLD", str(bin_dir / "ld.lld.exe"))
     elif sys.platform == "darwin":
         prefix = subprocess.check_output(["brew", "--prefix", "llvm"], text=True).strip()
         lld_prefix = subprocess.check_output(["brew", "--prefix", "lld"], text=True).strip()
-        os.environ["WWHD_PPC_CLANG"] = str(Path(prefix) / "bin" / "clang")
-        os.environ["WWHD_PPC_LLD"] = str(Path(lld_prefix) / "bin" / "ld.lld")
+        os.environ["NSMBU_PPC_CLANG"] = str(Path(prefix) / "bin" / "clang")
+        os.environ["NSMBU_PPC_LLD"] = str(Path(lld_prefix) / "bin" / "ld.lld")
     else:
-        os.environ["WWHD_PPC_CLANG"] = shutil.which("clang") or "clang"
-        os.environ["WWHD_PPC_LLD"] = shutil.which("ld.lld") or "ld.lld"
+        os.environ["NSMBU_PPC_CLANG"] = shutil.which("clang") or "clang"
+        os.environ["NSMBU_PPC_LLD"] = shutil.which("ld.lld") or "ld.lld"
     sys.path.insert(0, str(REPO / "tools" / "guestmod"))
     import test_guestmod
     if not test_guestmod.ppc_ok():
-        for name in ("WWHD_PPC_CLANG", "WWHD_PPC_LLD"):
+        for name in ("NSMBU_PPC_CLANG", "NSMBU_PPC_LLD"):
             print(name, os.environ[name], "exists:", Path(os.environ[name]).exists(), flush=True)
-        subprocess.run([os.environ["WWHD_PPC_CLANG"], "--print-targets"], check=False)
+        subprocess.run([os.environ["NSMBU_PPC_CLANG"], "--print-targets"], check=False)
         raise SystemExit("PowerPC clang/lld unavailable: refusing to skip module compile tests in CI")
     subprocess.run([sys.executable, str(REPO / "tools/installer/test_setup.py"), "GuestBuildConfig", "CodeModsBuild"], check=True)
     subprocess.run([sys.executable, str(REPO / "tools/guestmod/test_public_sdk_index.py")], check=True)
     subprocess.run([sys.executable, str(REPO / "tools/bench/test_run_bench.py")], check=True)
-    command = [os.environ["WWHD_PPC_CLANG"], "--target=powerpc-unknown-eabi",
+    command = [os.environ["NSMBU_PPC_CLANG"], "--target=powerpc-unknown-eabi",
                "-ffreestanding", "-fsyntax-only", "-x", "c", "-",
                "-I", str(REPO / "runtime/guest/include"),
                "-include", str(REPO / "runtime/guest/include/nsmbu_guest.h"),

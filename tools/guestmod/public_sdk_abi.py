@@ -29,6 +29,6 @@ def aliases(root):
         raise ValueError('public six-byte vector return ABI changed')
     # A PowerPC unsigned-long-long result uses r3 (high word), r4 (low word).
     # Expose these explicit register results, never a C struct with a hidden result pointer.
-    result['Pair32'] = 'wwhd_gpr_pair'
-    result['SxyzResult'] = 'wwhd_gpr_pair'
+    result['Pair32'] = 'nsmbu_gpr_pair'
+    result['SxyzResult'] = 'nsmbu_gpr_pair'
     return result

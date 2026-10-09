@@ -39,8 +39,8 @@ bool enable_after_code_rebuild(const std::string& id,std::string&){queued=id;ret
 int main(int argc,char** argv){
     assert(argc==2);
     namespace fs=std::filesystem;using namespace mods::code;
-    clear_env("WWHD_CODE_MODS");assert(!enabled()); // absent preference starts off
-    auto root=fs::temp_directory_path()/("wwhd-code-service-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    clear_env("NSMBU_CODE_MODS");assert(!enabled()); // absent preference starts off
+    auto root=fs::temp_directory_path()/("nsmbu-code-service-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     fs::create_directories(root);
     auto tool=root/"setup fixture.py";
     std::ofstream(tool)<<R"(import argparse,json,os
@@ -56,8 +56,8 @@ os.replace(a.code_mods_status+'.tmp',a.code_mods_status)
     config["python"].type=mods::json::Value::Array;config["python"].array.emplace_back(argv[1]);
     config["setup"]=tool.string();config["data_dir"]=root.string();
     auto path=root/"guest-sdk.json";std::ofstream(path)<<mods::json::dump(config);
-    env("WWHD_GUEST_BUILD_CONFIG",path.string());env("WWHD_CODE_MODS","0");
-    assert(!enabled());env("WWHD_CODE_MODS","1");assert(enabled());
+    env("NSMBU_GUEST_BUILD_CONFIG",path.string());env("NSMBU_CODE_MODS","0");
+    assert(!enabled());env("NSMBU_CODE_MODS","1");assert(enabled());
     request(true,"play-scene-ticker");assert(status().requested);assert(!status().building);
     begin();
     auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
@@ -65,10 +65,10 @@ os.replace(a.code_mods_status+'.tmp',a.code_mods_status)
     auto result=status();assert(result.ready&&!result.building&&result.error.empty());
     assert(result.exe=="fixture executable"&&queued=="play-scene-ticker");
     std::string saved;assert(hostui::get("code-mods",saved)&&saved=="1");
-    clear_env("WWHD_CODE_MODS");assert(enabled()); // the persisted preference survives the override
-    env("WWHD_CODE_MODS","0");assert(!enabled());
+    clear_env("NSMBU_CODE_MODS");assert(enabled()); // the persisted preference survives the override
+    env("NSMBU_CODE_MODS","0");assert(!enabled());
     assert(hostui::get("code-mods",saved)&&saved=="1"); // override never rewrites it
-    clear_env("WWHD_CODE_MODS");
+    clear_env("NSMBU_CODE_MODS");
     dismiss();assert(!status().requested);
     request(false);dismiss();assert(!status().building); // declining never starts setup
     request(false);begin();
@@ -76,7 +76,7 @@ os.replace(a.code_mods_status+'.tmp',a.code_mods_status)
     while(status().building&&std::chrono::steady_clock::now()<deadline)std::this_thread::sleep_for(std::chrono::milliseconds(10));
     assert(status().ready&&status().error.empty());
     assert(hostui::get("code-mods",saved)&&saved=="0"&&!enabled());
-    env("WWHD_CODE_MODS","1");assert(enabled());
+    env("NSMBU_CODE_MODS","1");assert(enabled());
     assert(hostui::get("code-mods",saved)&&saved=="0");
     fs::remove_all(root);
 }

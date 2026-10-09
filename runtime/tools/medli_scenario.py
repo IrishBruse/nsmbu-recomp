@@ -35,7 +35,7 @@ def resource_gate(work):
     while True:
         commands = subprocess.run(["ps", "-axo", "comm"], capture_output=True, text=True).stdout
         benchmark = subprocess.run(["ps", "-axo", "command"], capture_output=True, text=True).stdout
-        busy = any(Path(line.strip()).name == "wwhd" for line in commands.splitlines())
+        busy = any(Path(line.strip()).name == "nsmbu" for line in commands.splitlines())
         bench = re.search(r"^\S*python[\d.]*\s+(?:-\S+\s+)*(\S*/)?run_bench\.py(?:\s|$)", benchmark, re.M | re.I)
         if os.getloadavg()[0] <= 30 and shutil.disk_usage(work).free > 15 * 1024**3 and not busy and not bench:
             return
@@ -96,27 +96,27 @@ def main():
     pokes += [f"{CHIEF_ENTER}:104741F0:" + warp(0, 0, "Atorizk")]
     pokes += restart(UPPER_ENTER, "Atorizk", 0, (1350,700,-1146), -16384)
     env = {
-        "WWHD_PRESS": scenario.presses(), "WWHD_TEST_ORIGIN": str(ORIGIN),
-        "WWHD_INTERP": "0", "WWHD_INTERP_FPS": str(max(60, fps)), "WWHD_DISPLAY_HZ": "0",
-        "WWHD_TEST_MODE": f"{mode}@0", "WWHD_TEST_END": str(END),
-        "WWHD_TEST_PRESS": ",".join(f"{t}-{t+.15}:8000" for t in pulse_times),
-        "WWHD_TEST_POKE": ",".join(pokes),
-        "WWHD_TEST_STICK": f"{CHIEF_ENTER+7}-{CHIEF_ENTER+11}:0:1",
-        "WWHD_TEST_GOTO": f"{ORIGIN/30+UPPER_ENTER+7}:1290:-1146",
-        "WWHD_ACTOR_DUMP": "medli.bin:02289E28:100", "WWHD_LINK_TRACE": "link.txt",
-        "WWHD_SAVEINFO_DUMP": "saveinfo.bin", "WWHD_SAVEINFO_AT": ",".join(map(str, checkpoints)),
-        "WWHD_PORTABLE_SAVE_AT": ",".join(f"{ORIGIN+fps*t}:{i+1}" for i,t in enumerate(checkpoints)),
-        "WWHD_DUMP_FRAMES": ",".join(str(ORIGIN+fps*t) for t in checkpoints),
-        "WWHD_RENDERER_RUNTIME": a.renderer,
-        "WWHD_SHADER_CACHE": str(a.cache_dir / "medli-metal.bin"),
-        "WWHD_VK_SHADER_CACHE": str(a.cache_dir / "medli-vulkan"),
-        "WWHD_MOD_QUICK_DOORS": "1" if a.turbo else "0",
-        "WWHD_MOD_FAST_SCENES": "1" if a.turbo else "0",
+        "NSMBU_PRESS": scenario.presses(), "NSMBU_TEST_ORIGIN": str(ORIGIN),
+        "NSMBU_INTERP": "0", "NSMBU_INTERP_FPS": str(max(60, fps)), "NSMBU_DISPLAY_HZ": "0",
+        "NSMBU_TEST_MODE": f"{mode}@0", "NSMBU_TEST_END": str(END),
+        "NSMBU_TEST_PRESS": ",".join(f"{t}-{t+.15}:8000" for t in pulse_times),
+        "NSMBU_TEST_POKE": ",".join(pokes),
+        "NSMBU_TEST_STICK": f"{CHIEF_ENTER+7}-{CHIEF_ENTER+11}:0:1",
+        "NSMBU_TEST_GOTO": f"{ORIGIN/30+UPPER_ENTER+7}:1290:-1146",
+        "NSMBU_ACTOR_DUMP": "medli.bin:02289E28:100", "NSMBU_LINK_TRACE": "link.txt",
+        "NSMBU_SAVEINFO_DUMP": "saveinfo.bin", "NSMBU_SAVEINFO_AT": ",".join(map(str, checkpoints)),
+        "NSMBU_PORTABLE_SAVE_AT": ",".join(f"{ORIGIN+fps*t}:{i+1}" for i,t in enumerate(checkpoints)),
+        "NSMBU_DUMP_FRAMES": ",".join(str(ORIGIN+fps*t) for t in checkpoints),
+        "NSMBU_RENDERER_RUNTIME": a.renderer,
+        "NSMBU_SHADER_CACHE": str(a.cache_dir / "medli-metal.bin"),
+        "NSMBU_VK_SHADER_CACHE": str(a.cache_dir / "medli-vulkan"),
+        "NSMBU_MOD_QUICK_DOORS": "1" if a.turbo else "0",
+        "NSMBU_MOD_FAST_SCENES": "1" if a.turbo else "0",
     }
     if a.cheat:
-        env["WWHD_CHEAT"] = "sword"
+        env["NSMBU_CHEAT"] = "sword"
     if a.portable:
-        env["WWHD_PORTABLE_LOAD"] = str(a.portable.resolve())
+        env["NSMBU_PORTABLE_LOAD"] = str(a.portable.resolve())
     log = scenario.run_game(str(a.binary), str(a.game), str(d), env,
                             lambda text: (d / "test_done").exists(), 600)
     sys_path = Path(__file__).resolve().parents[2] / "tools/savegame"

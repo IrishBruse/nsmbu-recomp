@@ -7,18 +7,18 @@
 // scaling filter is left out: the picture is not resized). Never the settings overlay, the notices or
 // the performance overlay. Optionally (setting "Also save the GamePad screen", off by default) the
 // GamePad picture as a second file while it is shown (GamePad window or picture-in-picture).
-// Where: <user data>/screenshots, next to the states folder: ~/Library/Application Support/wwhd,
-// %APPDATA%\WWHD or ~/.config/wwhd for source builds, data/user in a release folder (portable.txt);
-// WWHD_SCREENSHOT_DIR overrides. Files: WindWakerHD_YYYY-MM-DD_HH-MM-SS[_n].png (local time; _2, _3 ...
+// Where: <user data>/screenshots, next to the states folder: ~/Library/Application Support/nsmbu,
+// host config dir, or data/user in a release folder (portable.txt);
+// NSMBU_SCREENSHOT_DIR overrides. Files: NSMBU_YYYY-MM-DD_HH-MM-SS[_n].png (local time; _2, _3 ...
 // when several land in the same second), the GamePad picture as ..._GamePad.png.
 //
 // Both renderers compose the picture on the GPU into an RGBA8 image (display-encoded sRGB values, as
-// the frame dumps, WWHD_DUMP_FRAMES) in the frame's own command buffer, read it back once the GPU is
+// the frame dumps, NSMBU_DUMP_FRAMES) in the frame's own command buffer, read it back once the GPU is
 // done with that frame (Metal: completion handler; Vulkan: the submission's fence, polled at swaps) and
 // hand it to a worker thread that encodes and writes the PNG: the frame is never stalled for it.
 //
-// Test: WWHD_TEST_SCREENSHOT=600,900 takes screenshots at those TV frames (as the key would);
-// WWHD_SCREENSHOT_GAMEPAD=0|1 sets the GamePad option for that start (test runs do not read settings).
+// Test: NSMBU_TEST_SCREENSHOT=600,900 takes screenshots at those TV frames (as the key would);
+// NSMBU_SCREENSHOT_GAMEPAD=0|1 sets the GamePad option for that start (test runs do not read settings).
 #pragma once
 #include <cstdint>
 #include <functional>

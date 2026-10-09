@@ -531,15 +531,15 @@ if(ANDROID)
   include(FetchContent)
   # libadrenotools and its pinned linkernsbypass submodule are BSD-2-Clause.
   # The loader uses gipa directly; no volk dependency.
-  FetchContent_Declare(wwhd_adrenotools
+  FetchContent_Declare(nsmbu_adrenotools
     GIT_REPOSITORY https://github.com/bylaws/libadrenotools.git
     GIT_TAG 8fae8ce254dfc1344527e05301e43f37dea2df80
     GIT_SUBMODULES lib/linkernsbypass)
-  function(wwhd_add_adrenotools)
+  function(nsmbu_add_adrenotools)
     set(BUILD_SHARED_LIBS OFF)
-    FetchContent_MakeAvailable(wwhd_adrenotools)
+    FetchContent_MakeAvailable(nsmbu_adrenotools)
   endfunction()
-  wwhd_add_adrenotools()
+  nsmbu_add_adrenotools()
   target_link_libraries(nsmbu PRIVATE adrenotools)
   add_dependencies(nsmbu main_hook hook_impl file_redirect_hook gsl_alloc_hook)
 endif()
@@ -623,7 +623,7 @@ add_executable(aspect_panes_test runtime/tools/aspect_panes_test.cpp)
 target_include_directories(aspect_panes_test PRIVATE runtime/src)
 add_test(NAME aspect_panes COMMAND aspect_panes_test)
 
-if(WWHD_HAS_VULKAN)
+if(NSMBU_HAS_VULKAN)
   add_executable(barrier_state_test runtime/tools/barrier_state_test.cpp)
   target_include_directories(barrier_state_test PRIVATE runtime/src)
   target_include_directories(barrier_state_test SYSTEM PRIVATE $<TARGET_PROPERTY:Vulkan::Vulkan,INTERFACE_INCLUDE_DIRECTORIES>)

@@ -1,6 +1,6 @@
 // Validate a translated module completely before publishing memory, dispatch entries or hooks.
 #pragma once
-#include "wwhd_guest_abi.h"
+#include "nsmbu_guest_abi.h"
 #include <cstdio>
 #include <string>
 #include <unordered_set>
@@ -9,7 +9,7 @@
 namespace guestmods {
 // existing_replacement returns the owning mod's name, or an empty string.
 template<class IsGameFunction, class ExistingReplacement>
-bool validate_module(const WWHDGuestModuleV1& m, const std::string& owner,
+bool validate_module(const NSMBUGuestModuleV1& m, const std::string& owner,
                      IsGameFunction is_game_function, ExistingReplacement existing_replacement,
                      std::string& error) {
     constexpr uint32_t start = 0x7F000000, end = 0x80000000;
@@ -32,7 +32,7 @@ bool validate_module(const WWHDGuestModuleV1& m, const std::string& owner,
     }
     for (uint32_t i = 0; i < m.hook_count; ++i) {
         const auto& h = m.hooks[i];
-        if (h.kind < WWHD_GUEST_REPLACE || h.kind > WWHD_GUEST_HOOK_RETURN ||
+        if (h.kind < NSMBU_GUEST_REPLACE || h.kind > NSMBU_GUEST_HOOK_RETURN ||
             !h.fn || !functions.count(h.func)) {
             error = "module has an invalid hook descriptor"; return false;
         }
@@ -43,7 +43,7 @@ bool validate_module(const WWHDGuestModuleV1& m, const std::string& owner,
             char b[96]; std::snprintf(b, sizeof b, "hook target %08X is not a game function", h.target);
             error = b; return false;
         }
-        if (h.kind == WWHD_GUEST_REPLACE) {
+        if (h.kind == NSMBU_GUEST_REPLACE) {
             std::string prior = existing_replacement(h.target);
             if (!replacements.insert(h.target).second) prior = owner;
             if (!prior.empty()) {

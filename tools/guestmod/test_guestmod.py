@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests of the guest mod translator (Mod SDK v2 prototype).
 
-Builds the example mods with a PowerPC-capable clang (WWHD_PPC_CLANG / WWHD_PPC_LLD, or clang and
+Builds the example mods with a PowerPC-capable clang (NSMBU_PPC_CLANG / NSMBU_PPC_LLD, or clang and
 ld.lld on PATH; skipped without one), translates them and compiles the modules with the host
 compiler. No game files are needed.
 """
@@ -21,8 +21,8 @@ sys.path.insert(0, HERE)
 import guestmod  # noqa: E402
 import build_guest_mod as builder  # noqa: E402
 
-CLANG = os.environ.get("WWHD_PPC_CLANG") or shutil.which("clang")
-LLD = os.environ.get("WWHD_PPC_LLD") or shutil.which("ld.lld")
+CLANG = os.environ.get("NSMBU_PPC_CLANG") or shutil.which("clang")
+LLD = os.environ.get("NSMBU_PPC_LLD") or shutil.which("ld.lld")
 FLAGS = ["--target=powerpc-unknown-eabi", "-mcpu=750", "-O2", "-ffreestanding", "-fno-builtin", "-nostdlib",
          "-fno-jump-tables", "-ffunction-sections", "-fdata-sections",
          "-I", os.path.join(REPO, "runtime", "guest", "include")]
@@ -212,7 +212,7 @@ NSMBU_REPLACE(0x02000004, u32, pair_low, (nsmbu_gpr_pair value)) {
 }
 '''
         driver = r'''
-#include "wwhd_guest_abi.h"
+#include "nsmbu_guest_abi.h"
 #include <assert.h>
 #ifdef _WIN32
 #include <windows.h>
@@ -223,16 +223,16 @@ int main(int argc, char** argv) {
     assert(argc == 2);
 #ifdef _WIN32
     HMODULE library = LoadLibraryA(argv[1]); assert(library);
-    WWHDGuestInitV1 init = (WWHDGuestInitV1)GetProcAddress(library, WWHD_GUEST_INIT_SYMBOL);
+    NSMBUGuestInitV1 init = (NSMBUGuestInitV1)GetProcAddress(library, NSMBU_GUEST_INIT_SYMBOL);
 #else
     void* library = dlopen(argv[1], RTLD_NOW); assert(library);
-    WWHDGuestInitV1 init = (WWHDGuestInitV1)dlsym(library, WWHD_GUEST_INIT_SYMBOL);
+    NSMBUGuestInitV1 init = (NSMBUGuestInitV1)dlsym(library, NSMBU_GUEST_INIT_SYMBOL);
 #endif
     assert(init);
     volatile int preempt[3] = {0};
-    WWHDGuestHostV1 host = {0}; host.size = sizeof(host);
-    host.abi_version = WWHD_GUEST_ABI_VERSION; host.core_preempt = preempt;
-    const WWHDGuestModuleV1* module = init(&host); assert(module && module->hook_count == 2);
+    NSMBUGuestHostV1 host = {0}; host.size = sizeof(host);
+    host.abi_version = NSMBU_GUEST_ABI_VERSION; host.core_preempt = preempt;
+    const NSMBUGuestModuleV1* module = init(&host); assert(module && module->hook_count == 2);
     Cpu cpu = {0}; int pairs = 0, lows = 0;
     for (uint32_t i = 0; i < module->hook_count; ++i) if (module->hooks[i].target == 0x02000000) {
         ++pairs; module->hooks[i].fn(&cpu);
@@ -274,7 +274,7 @@ class BuildInterfaceTest(unittest.TestCase):
             self.assertEqual(builder.default_include(), os.path.join(d, "runtime", "include"))
             installed = Path(d, "sdk", "include")
             installed.mkdir(parents=True)
-            (installed / "wwhd_guest_abi.h").write_text("/* ABI fixture */")
+            (installed / "nsmbu_guest_abi.h").write_text("/* ABI fixture */")
             self.assertEqual(builder.default_include(), str(installed))
 
     def test_package_paths_and_ids(self):
@@ -307,7 +307,7 @@ class BuildInterfaceTest(unittest.TestCase):
 
     def test_cache_invalidation(self):
         with tempfile.TemporaryDirectory() as d:
-            for name in ("ppc.h", "wwhd_guest_abi.h"):
+            for name in ("ppc.h", "nsmbu_guest_abi.h"):
                 shutil.copy(Path(REPO, "runtime", "include", name), d)
             with mock.patch.object(builder.subprocess, "run", return_value=mock.Mock(returncode=0, stdout="clang test")):
                 def key(elf=b"elf", mod_id="mod", base=0x7F000000, cc=None):
@@ -318,7 +318,7 @@ class BuildInterfaceTest(unittest.TestCase):
                 self.assertNotEqual(initial, key(mod_id="other"))
                 self.assertNotEqual(initial, key(base=0x7F100000))
                 self.assertNotEqual(initial, key(cc=["zig", "cc"]))
-                for name in ("ppc.h", "wwhd_guest_abi.h"):
+                for name in ("ppc.h", "nsmbu_guest_abi.h"):
                     p = Path(d, name); before = p.read_bytes()
                     p.write_bytes(before + b"\n/* changed ABI source */\n")
                     self.assertNotEqual(initial, key())

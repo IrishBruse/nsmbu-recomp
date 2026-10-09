@@ -24,21 +24,21 @@ def main():
         raise ValueError("unsupported executable")
     directory = scenario.prepare(args.work, f"{build.name}-{args.language}-{args.renderer}", args.save)
     env = {
-        "WWHD_LANGUAGE": str(args.language), "WWHD_RENDERER_RUNTIME": args.renderer,
-        "WWHD_INTERP": "0", "WWHD_INTERP_FPS": "120", "WWHD_DISPLAY_HZ": "0",
-        "WWHD_INTERP_PACED": "0", "WWHD_TEST_ORIGIN": "600",
-        "WWHD_TEST_MODE": "1@28", "WWHD_TEST_MODES": "2@38,0@48",
-        "WWHD_TEST_END": "52", "WWHD_TEST_DEBUG": "1",
-        "WWHD_TEST_PRESS": ",".join(f"{t}-{t + .15}:8000" for t in (5, 8, 11, 14, 17, 20)),
-        "WWHD_TEST_STICK": "29-31:0:1,39-41:0:1",
+        "NSMBU_LANGUAGE": str(args.language), "NSMBU_RENDERER_RUNTIME": args.renderer,
+        "NSMBU_INTERP": "0", "NSMBU_INTERP_FPS": "120", "NSMBU_DISPLAY_HZ": "0",
+        "NSMBU_INTERP_PACED": "0", "NSMBU_TEST_ORIGIN": "600",
+        "NSMBU_TEST_MODE": "1@28", "NSMBU_TEST_MODES": "2@38,0@48",
+        "NSMBU_TEST_END": "52", "NSMBU_TEST_DEBUG": "1",
+        "NSMBU_TEST_PRESS": ",".join(f"{t}-{t + .15}:8000" for t in (5, 8, 11, 14, 17, 20)),
+        "NSMBU_TEST_STICK": "29-31:0:1,39-41:0:1",
         # Boot 600 + 28*30 + 10*120 + 10*60 + 2*30 = 3300.
-        "WWHD_PORTABLE_SAVE_AT": "3300:1", "WWHD_DUMP_FRAMES": "1200,2160,2940,3300",
+        "NSMBU_PORTABLE_SAVE_AT": "3300:1", "NSMBU_DUMP_FRAMES": "1200,2160,2940,3300",
     }
     done = lambda log: Path(directory, "test_done").exists()
     log = scenario.run_game(args.binary, args.game, directory, env, done, 300)
     state = Path(directory, "states/slot1.wwstate")
     checks = {
-        "language": f"console language {args.language} (WWHD_LANGUAGE)" in log,
+        "language": f"console language {args.language} (NSMBU_LANGUAGE)" in log,
         "interpolation": "60 fps mode 1" in log,
         "true60": "60 fps mode 2" in log,
         "return_to_30": "60 fps mode 0" in log,

@@ -33,7 +33,7 @@
 
 #include "recomp_table.h"
 #include "runtime.h"
-#include "wwhd_guest_abi.h"
+#include "nsmbu_guest_abi.h"
 
 extern "C" {
 unsigned g_mod_hook_count = 0;  // initialized only by a hook-enabled game-code build
@@ -62,7 +62,7 @@ struct Chain {
 std::unordered_map<uint32_t, Chain> g_chains;  // built before the game starts, read-only afterwards
 struct Loaded {
     std::string path,id,version;
-    const WWHDGuestModuleV1* m=nullptr;
+    const NSMBUGuestModuleV1* m=nullptr;
     uint32_t region_size=0;
     mods::json::Value options;
     std::unique_ptr<Heap> heap;
@@ -138,8 +138,8 @@ PpcFunc service(const char* name) {
     return it == kServices.end() ? nullptr : it->second;
 }
 
-const WWHDGuestHostV1 kHost = {
-    sizeof(WWHDGuestHostV1), WWHD_GUEST_ABI_VERSION,
+const NSMBUGuestHostV1 kHost = {
+    sizeof(NSMBUGuestHostV1), NSMBU_GUEST_ABI_VERSION,
     ppc_dispatch, ppc_unimplemented, ppc_trap, ppc_timebase, ppc_fres, ppc_frsqrte, ppc_preempt,
     g_core_preempt, call_original, service,
 };
@@ -147,10 +147,10 @@ const WWHDGuestHostV1 kHost = {
 bool load_one(const std::string& path, std::string& err,const mods::packages::GuestPackage& pkg,uint32_t base,uint32_t reserved) {
 #ifdef _WIN32
     void* lib = (void*)LoadLibraryA(path.c_str());
-    auto init = lib ? (WWHDGuestInitV1)(void*)GetProcAddress((HMODULE)lib, WWHD_GUEST_INIT_SYMBOL) : nullptr;
+    auto init = lib ? (NSMBUGuestInitV1)(void*)GetProcAddress((HMODULE)lib, NSMBU_GUEST_INIT_SYMBOL) : nullptr;
 #else
     void* lib = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-    auto init = lib ? (WWHDGuestInitV1)dlsym(lib, WWHD_GUEST_INIT_SYMBOL) : nullptr;
+    auto init = lib ? (NSMBUGuestInitV1)dlsym(lib, NSMBU_GUEST_INIT_SYMBOL) : nullptr;
 #endif
     if (!lib) { err = "cannot load the module"; return false; }
     struct LibraryGuard {
@@ -164,9 +164,9 @@ bool load_one(const std::string& path, std::string& err,const mods::packages::Gu
 #endif
         }
     } guard{lib};
-    if (!init) { err = "not a guest mod module (no " WWHD_GUEST_INIT_SYMBOL ")"; return false; }
-    const WWHDGuestModuleV1* m = init(&kHost);
-    if (!m || m->size < sizeof(WWHDGuestModuleV1) || m->abi_version != WWHD_GUEST_ABI_VERSION) {
+    if (!init) { err = "not a guest mod module (no " NSMBU_GUEST_INIT_SYMBOL ")"; return false; }
+    const NSMBUGuestModuleV1* m = init(&kHost);
+    if (!m || m->size < sizeof(NSMBUGuestModuleV1) || m->abi_version != NSMBU_GUEST_ABI_VERSION) {
         err = "module ABI does not match this game version: rebuild the mod";
         return false;
     }
@@ -192,15 +192,15 @@ bool load_one(const std::string& path, std::string& err,const mods::packages::Gu
     if (m->image_size) memcpy(mem::ptr(m->mem_base), m->image, m->image_size);
     for (uint32_t i = 0; i < m->func_count; i++) dispatch::set(m->funcs[i].addr, m->funcs[i].fn);
     for (uint32_t i = 0; i < m->hook_count; i++) {
-        const WWHDGuestHook& h = m->hooks[i];
+        const NSMBUGuestHook& h = m->hooks[i];
         Chain& ch = g_chains[h.target];
         ch.addr = h.target;
         ch.ordinal = (uint32_t)ordinal_of(h.target);
-        if (h.kind == WWHD_GUEST_REPLACE) { ch.replace = h.fn; ch.replace_mod = pkg.id; }
-        else if (h.kind == WWHD_GUEST_HOOK_ENTRY) ch.entry.push_back(h.fn);
+        if (h.kind == NSMBU_GUEST_REPLACE) { ch.replace = h.fn; ch.replace_mod = pkg.id; }
+        else if (h.kind == NSMBU_GUEST_HOOK_ENTRY) ch.entry.push_back(h.fn);
         else ch.ret.insert(ch.ret.begin(), h.fn);  // return hooks run in reverse load order
         g_mod_hook_flags[ch.ordinal] = 1;
-        LOG("[guestmods] %s %08X", h.kind == WWHD_GUEST_REPLACE ? "replace" : h.kind == WWHD_GUEST_HOOK_ENTRY ? "entry hook" : "return hook",
+        LOG("[guestmods] %s %08X", h.kind == NSMBU_GUEST_REPLACE ? "replace" : h.kind == NSMBU_GUEST_HOOK_ENTRY ? "entry hook" : "return hook",
             h.target);
     }
     g_loaded.push_back(std::move(loaded));
@@ -232,7 +232,7 @@ void init() {
     auto tools=[&]() -> BuildBridge& {
         if(!g_mod_hook_count)throw std::runtime_error("Guest mods require game code built with --mod-hooks; run setup with guest hooks enabled");
         if(!bridge){
-            const char* path=std::getenv("WWHD_GUEST_BUILD_CONFIG");
+            const char* path=std::getenv("NSMBU_GUEST_BUILD_CONFIG");
             auto candidate=std::make_unique<BuildBridge>(BuildBridge::read(path?path:"guest-sdk.json",cache));
             if(!std::filesystem::is_regular_file(candidate->builder)||!std::filesystem::is_directory(candidate->include))
                 throw std::runtime_error("Guest mod build tools are missing; run setup again from a complete release folder");
@@ -264,7 +264,7 @@ void init() {
         uint32_t reserved=(uint32_t(memory.number)+pkg.heap_size+0xFFFF)&~0xFFFFu;
         if(module.empty()||!load_one(module,error,pkg,base,reserved))throw std::runtime_error(error.empty()?"Guest builder returned no module":error);
     });
-    if(getenv("WWHD_GUEST_MODS"))LOG("[guestmods] WWHD_GUEST_MODS is retired; install and trust guest packages in the mod manager");
+    if(getenv("NSMBU_GUEST_MODS"))LOG("[guestmods] NSMBU_GUEST_MODS is retired; install and trust guest packages in the mod manager");
 }
 
 std::vector<ModIdentity> enabled_mods() {

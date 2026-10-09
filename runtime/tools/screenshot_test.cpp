@@ -99,14 +99,14 @@ static bool read_png(const std::string& path, uint32_t& w, uint32_t& h, std::vec
 
 int main() {
     namespace fs = std::filesystem;
-    const fs::path dir = fs::temp_directory_path() / ("wwhd_screenshot_test_" + std::to_string(time(nullptr)));
+    const fs::path dir = fs::temp_directory_path() / ("nsmbu_screenshot_test_" + std::to_string(time(nullptr)));
     fs::create_directories(dir);
 #ifdef _WIN32
-    _putenv_s("WWHD_SCREENSHOT_DIR", dir.string().c_str());
-    _putenv_s("WWHD_TEST_SCREENSHOT", "7,9");
+    _putenv_s("NSMBU_SCREENSHOT_DIR", dir.string().c_str());
+    _putenv_s("NSMBU_TEST_SCREENSHOT", "7,9");
 #else
-    setenv("WWHD_SCREENSHOT_DIR", dir.string().c_str(), 1);
-    setenv("WWHD_TEST_SCREENSHOT", "7,9", 1);
+    setenv("NSMBU_SCREENSHOT_DIR", dir.string().c_str(), 1);
+    setenv("NSMBU_TEST_SCREENSHOT", "7,9", 1);
 #endif
 
     // 1. the PNG writer: an image with gradients, noise, flat areas and a row stride; RGBA and BGRA

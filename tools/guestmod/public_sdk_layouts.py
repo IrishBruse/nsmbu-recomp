@@ -62,9 +62,9 @@ def layout(text, name):
     for offset, kind, field, array in fields:
         pad = f'u8 _pad_{field}[0x{offset:X}]; ' if offset else ''
         lines.append(f'    struct __attribute__((packed)) {{ {pad}{kind} {field}{array}; }};')
-    lines += [f'}} {name};', f'WWHD_SDK_ASSERT(sizeof({name}) == {size[1]}, "{name} size");']
+    lines += [f'}} {name};', f'NSMBU_SDK_ASSERT(sizeof({name}) == {size[1]}, "{name} size");']
     for offset, _, field, _ in fields:
-        lines.append(f'WWHD_SDK_ASSERT(__builtin_offsetof({name}, {field}) == 0x{offset:X}, "{name}.{field}");')
+        lines.append(f'NSMBU_SDK_ASSERT(__builtin_offsetof({name}, {field}) == 0x{offset:X}, "{name}.{field}");')
     return '\n'.join(lines) + '\n'
 
 

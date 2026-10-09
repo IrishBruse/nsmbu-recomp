@@ -7,10 +7,10 @@ static void fn(Cpu*) {}
 static void other(Cpu*) {}
 int main() {
     uint8_t image[4]{};
-    WWHDGuestFunc funcs[] = {{0x7F000000, fn}};
-    WWHDGuestHook hooks[] = {{WWHD_GUEST_REPLACE, 0x02000000, 0x7F000000, 0, fn},
-                             {WWHD_GUEST_REPLACE, 0x02000000, 0x7F000000, 0, fn}};
-    WWHDGuestModuleV1 m{sizeof(m), WWHD_GUEST_ABI_VERSION, "test", 0x7F000000, 4096,
+    NSMBUGuestFunc funcs[] = {{0x7F000000, fn}};
+    NSMBUGuestHook hooks[] = {{NSMBU_GUEST_REPLACE, 0x02000000, 0x7F000000, 0, fn},
+                             {NSMBU_GUEST_REPLACE, 0x02000000, 0x7F000000, 0, fn}};
+    NSMBUGuestModuleV1 m{sizeof(m), NSMBU_GUEST_ABI_VERSION, "test", 0x7F000000, 4096,
                         image, sizeof(image), funcs, 1, hooks, 1};
     std::string error, prior;
     auto check = [&] {
@@ -25,9 +25,9 @@ int main() {
     prior.clear(); m.hook_count = 2;
     assert(!check());
     assert(error.find("second-mod and second-mod") != std::string::npos);
-    hooks[1].kind = WWHD_GUEST_HOOK_ENTRY;
+    hooks[1].kind = NSMBU_GUEST_HOOK_ENTRY;
     assert(check()); // replacement plus entry/return hooks are allowed
-    hooks[1].kind = WWHD_GUEST_HOOK_RETURN;
+    hooks[1].kind = NSMBU_GUEST_HOOK_RETURN;
     assert(check());
     hooks[1].kind = 99; assert(!check());
     m.hook_count = 1;

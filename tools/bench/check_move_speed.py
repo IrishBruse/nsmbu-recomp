@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check actual WWHD_LINK_TRACE displacement from paired 30/true60 hold-to-boost runs.
+"""Check actual NSMBU_LINK_TRACE displacement from paired 30/true60 hold-to-boost runs.
 
 Usage: check_move_speed.py EVIDENCE_DIR [--factor 2] [--stock TRACE]
 EVIDENCE_DIR contains speed-30/{off,on}_01/link.trace and speed-true60 equivalents.

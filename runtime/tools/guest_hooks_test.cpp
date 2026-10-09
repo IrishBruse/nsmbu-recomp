@@ -65,12 +65,12 @@ int main() {
     assert(!guestmods::hooks_built());
     ppc_mod_register(1, test_mod_flags, test_mod_bodies);
     assert(guestmods::hooks_built());
-    const char* missing="__wwhd_nonexistent_guest_build_config_for_test__.json";
+    const char* missing="__nsmbu_nonexistent_guest_build_config_for_test__.json";
     assert(!std::filesystem::exists(missing));
 #ifdef _WIN32
-    _putenv_s("WWHD_GUEST_BUILD_CONFIG",missing);
+    _putenv_s("NSMBU_GUEST_BUILD_CONFIG",missing);
 #else
-    setenv("WWHD_GUEST_BUILD_CONFIG",missing,1);
+    setenv("NSMBU_GUEST_BUILD_CONFIG",missing,1);
 #endif
     guestmods::init();
     assert(mods::packages::inspected);
@@ -98,7 +98,7 @@ int main() {
 #endif
     assert(data==mem::ptr(data_base));
     // Typed services select the owning mod by its translated import callsite.
-    WWHDGuestModuleV1 module{};module.mem_base=0x7F000000;module.mem_size=4096;
+    NSMBUGuestModuleV1 module{};module.mem_base=0x7F000000;module.mem_size=4096;
     guestmods::Loaded mod;mod.id="first";mod.m=&module;mod.options["option"]=42;
     guestmods::g_loaded.push_back(std::move(mod));c.pc=0x7F000100;c.r[3]=1;c.r[4]=9;
     guestmods::svc_config_int(&c);assert(c.r[3]==42);
@@ -110,7 +110,7 @@ int main() {
     c.r[3]=1;c.r[4]=9;guestmods::svc_config_int(&c);assert(c.r[3]==9); // non-integral numeric option
     guestmods::svc_logic_dt(&c);assert(c.f[1].ps0==1.0/60.0);
     guestmods::frame(0x100000002ull);guestmods::svc_logic_step(&c);assert(c.r[3]==1&&c.r[4]==2);
-    WWHDGuestModuleV1 second{};second.mem_base=0x7F010000;second.mem_size=4096;
+    NSMBUGuestModuleV1 second{};second.mem_base=0x7F010000;second.mem_size=4096;
     guestmods::Loaded another;another.id="second";another.m=&second;another.options["option"]=84;
     guestmods::g_loaded.push_back(std::move(another));c.pc=0x7F010100;c.r[3]=1;
     guestmods::svc_config_int(&c);assert(c.r[3]==84);

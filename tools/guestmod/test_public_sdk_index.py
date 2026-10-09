@@ -38,7 +38,7 @@ class PublicDeclarations(unittest.TestCase):
             {'name': 'vector', 'address': 0x02000004, 'return': 'UnknownValue',
              'parameters': ''}]}
         text, skipped = bindings(index)
-        self.assertIn('s32, wwhd_execute_02000000, (void* self, f32 scale)', text)
+        self.assertIn('s32, nsmbu_execute_02000000, (void* self, f32 scale)', text)
         self.assertEqual([f['name'] for f in skipped], ['vector'])
         self.assertEqual(guest_type('bool*'), 'u8*')
 
@@ -61,13 +61,13 @@ class PublicDeclarations(unittest.TestCase):
         self.assertEqual(match[2], 'execute')
 
     def test_verified_register_pair_return_is_not_a_c_struct(self):
-        index = {'revision': 'public', 'abi_aliases': {'Pair32': 'wwhd_gpr_pair'},
+        index = {'revision': 'public', 'abi_aliases': {'Pair32': 'nsmbu_gpr_pair'},
                  'functions': [{'name': 'pair', 'address': 0x02000000,
                                 'return': 'Pair32', 'parameters': 'void*'}]}
         text, skipped = bindings(index)
         self.assertFalse(skipped)
-        self.assertIn('wwhd_gpr_pair, wwhd_pair_02000000, (void* arg0)', text)
-        self.assertIn('WWHD_RESULT_R3', text)
+        self.assertIn('nsmbu_gpr_pair, nsmbu_pair_02000000, (void* arg0)', text)
+        self.assertIn('NSMBU_RESULT_R3', text)
 
     def test_member_declaration(self):
         match = DECL.search('\ns32 Actor::execute() {')
@@ -81,9 +81,9 @@ class PublicDeclarations(unittest.TestCase):
                                {'name': '&Actor::draw', 'address': 0x02000008}],
                  'unresolved_declarations': []}
         text = symbols_header(index)
-        self.assertIn('WWHD_ADDR_execute_02000000 0x02000000', text)
-        self.assertNotIn('#define WWHD_ADDR_execute ', text)
-        self.assertIn('#define WWHD_ADDR_Actor__draw ', text)
+        self.assertIn('NSMBU_ADDR_execute_02000000 0x02000000', text)
+        self.assertNotIn('#define NSMBU_ADDR_execute ', text)
+        self.assertIn('#define NSMBU_ADDR_Actor__draw ', text)
 
     def test_member_verification_retains_name(self):
         match = VERIFY.search('VERIFY(0x02000000, &Actor::execute);')

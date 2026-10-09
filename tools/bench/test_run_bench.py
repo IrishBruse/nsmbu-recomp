@@ -132,7 +132,7 @@ class BenchmarkStatistics(unittest.TestCase):
 102 /usr/bin/python3 /other/run_bench.py --runs 2
 103 /bin/zsh -lc 'python3 /repo/tools/bench/run_bench.py'
 104 /usr/bin/python3 /repo/tools/bench/test_run_bench.py
-105 /usr/bin/wwhd --game /game
+105 /usr/bin/nsmbu --game /game
 106 /Applications/Python.app/Contents/MacOS/Python /other/run_bench.py --runs 10
 """
         self.assertEqual(benchmark_pids(listing, 101), [102, 106])

@@ -18,9 +18,10 @@ class SDKPackage(unittest.TestCase):
             with self.subTest(platform=platform), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp) / ("WindWakerHD-test-" + platform)
                 package.copy_sdk_headers(str(root))
-                headers = root / "sdk/guest/include/wwhd"
+                headers = root / "sdk/guest/include/nsmbu"
+                include = root / "sdk/guest/include"
                 self.assertTrue((headers / "functions.h").is_file())
-                self.assertTrue((headers / "bindings.h").is_file())
+                self.assertTrue((include / "nsmbu_guest.h").is_file())
                 self.assertFalse((headers.parent / "game").exists())
                 archive = Path(tmp) / "sdk.zip"
                 with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
@@ -69,11 +70,11 @@ class SDKPackage(unittest.TestCase):
         guard.check_entry("sdk/guest/include/game/link.h", b"/* declarations */", problems)
         self.assertTrue(any("game file tree" in problem for problem in problems))
         problems = []
-        guard.check_entry("sdk/guest/include/wwhd/bindings.h",
+        guard.check_entry("sdk/guest/include/nsmbu/bindings.h",
                           b"void f_02000000(Cpu* __restrict c) {\n", problems)
         self.assertTrue(any("recompiled game functions" in problem for problem in problems))
         problems = []
-        guard.check_entry("sdk/guest/include/wwhd/functions.h", b"0" * 32, problems)
+        guard.check_entry("sdk/guest/include/nsmbu/functions.h", b"0" * 32, problems)
         self.assertTrue(any("key-like" in problem for problem in problems))
 
 

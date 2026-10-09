@@ -1,6 +1,6 @@
 """Synthetic driver packages only: no downloaded driver or game material."""
 import pathlib, subprocess, sys, tempfile, zipfile, json
-with tempfile.TemporaryDirectory(prefix="wwhd-driver-test-") as work:
+with tempfile.TemporaryDirectory(prefix="nsmbu-driver-test-") as work:
     root = pathlib.Path(work)
     elf = bytearray(64)
     elf[:7] = b"\x7fELF\x02\x01\x01"

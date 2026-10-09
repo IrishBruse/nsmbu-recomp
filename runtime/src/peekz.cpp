@@ -12,7 +12,7 @@
 // counted as hidden. The hook sends the cells to the render thread instead (OP_PEEK_Z), which
 // copies those pixels of the main depth buffer and writes the answers once the GPU is done: a
 // frame later, which the game expects anyway (it judges the previous step's answers and asks
-// again). WWHD_PEEKZ=0 keeps the game's own function.
+// again). NSMBU_PEEKZ=0 keeps the game's own function.
 #include <algorithm>
 #include <cstdlib>
 #include <vector>
@@ -23,7 +23,7 @@
 extern "C" void f_0252E388_orig(Cpu* c);  // dDlst_peekZ_c::peekData
 
 extern "C" void hook_0252E388(Cpu* c) {
-    static const bool off = [] { const char* e = getenv("WWHD_PEEKZ"); return e && atoi(e) == 0; }();
+    static const bool off = [] { const char* e = getenv("NSMBU_PEEKZ"); return e && atoi(e) == 0; }();
     if (off) { f_0252E388_orig(c); return; }
     const uint32_t obj = c->r[3];
     const uint32_t n = std::min<uint32_t>(ld8(obj), 64);
@@ -52,7 +52,7 @@ void publish(uint64_t ticket, const std::vector<uint32_t>& destinations, const s
     static std::mutex mutex;
     static std::unordered_map<uint32_t, uint64_t> completed;
     std::lock_guard lock(mutex);
-    static const bool log = getenv("WWHD_PEEKZ_LOG") != nullptr;
+    static const bool log = getenv("NSMBU_PEEKZ_LOG") != nullptr;
     for (size_t i = 0; i < destinations.size(); i++) {
         uint32_t dst = destinations[i];
         if (!dst || completed[dst] >= ticket) continue;

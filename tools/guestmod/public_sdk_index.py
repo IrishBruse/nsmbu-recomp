@@ -92,10 +92,10 @@ def symbols_header(index):
              ' * USA version 0 addresses. Contains declarations only. */', '#pragma once', '']
     for name, addresses in sorted(names.items()):
         for address in sorted(addresses):
-            lines.append(f'#define WWHD_ADDR_{name}_{address:08X} 0x{address:08X}')
+            lines.append(f'#define NSMBU_ADDR_{name}_{address:08X} 0x{address:08X}')
         if len(addresses) == 1:
             address = next(iter(addresses))
-            lines.append(f'#define WWHD_ADDR_{name} WWHD_ADDR_{name}_{address:08X}')
+            lines.append(f'#define NSMBU_ADDR_{name} NSMBU_ADDR_{name}_{address:08X}')
     return '\n'.join(lines) + '\n'
 
 

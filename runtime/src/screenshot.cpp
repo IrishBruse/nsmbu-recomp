@@ -54,7 +54,7 @@ constexpr size_t kMaxQueued = 6;  // pictures waiting to be encoded (about 25 MB
 
 std::vector<uint64_t> scripted_frames() {
     std::vector<uint64_t> v;
-    if (const char* e = getenv("WWHD_TEST_SCREENSHOT"))
+    if (const char* e = getenv("NSMBU_TEST_SCREENSHOT"))
         for (const char* p = e; *p;) {
             char* end;
             uint64_t f = strtoull(p, &end, 10);
@@ -121,11 +121,11 @@ void worker() {
     }
 }
 
-// a file name not in use: WindWakerHD_YYYY-MM-DD_HH-MM-SS[_n]
+// a file name not in use: NSMBU_YYYY-MM-DD_HH-MM-SS[_n]
 std::string reserve_base() {
     char stamp[64];
     time_t t = time(nullptr);
-    strftime(stamp, sizeof stamp, "WindWakerHD_%Y-%m-%d_%H-%M-%S", localtime(&t));
+    strftime(stamp, sizeof stamp, "NSMBU_%Y-%m-%d_%H-%M-%S", localtime(&t));
     const std::string d = dir() + "/";
     std::error_code ec;
     std::filesystem::create_directories(d, ec);
@@ -149,12 +149,12 @@ int bound_pad() {
 std::string dir() {
     static const std::string d = [] {
         std::string p;
-        if (const char* e = getenv("WWHD_SCREENSHOT_DIR"); e && *e) p = e;
+        if (const char* e = getenv("NSMBU_SCREENSHOT_DIR"); e && *e) p = e;
         else if (host::portable()) p = host::portable_user_dir() + "/screenshots";
         else {
 #ifdef __APPLE__
             // next to the states folder (savestate.cpp state_dir)
-            p = std::string(getenv("HOME") ? getenv("HOME") : ".") + "/Library/Application Support/wwhd/screenshots";
+            p = std::string(getenv("HOME") ? getenv("HOME") : ".") + "/Library/Application Support/nsmbu/screenshots";
 #else
             p = host::config_dir() + "/screenshots";
 #endif
@@ -202,7 +202,7 @@ void poll_controller(const float* values) {
 bool gamepad_too() {
     std::lock_guard<std::mutex> lk(g_mu);
     if (g_gamepad < 0) {
-        if (const char* e = getenv("WWHD_SCREENSHOT_GAMEPAD"); e && *e) g_gamepad = atoi(e) != 0;
+        if (const char* e = getenv("NSMBU_SCREENSHOT_GAMEPAD"); e && *e) g_gamepad = atoi(e) != 0;
         else {
             std::string v;
             g_gamepad = hostui::get("screenshotGamePad", v) && v == "1";

@@ -41,7 +41,7 @@ Keep a new upstream engine feature that shares a hunk with a Wind Waker deletion
 
 Wind Waker product features stay deleted: built-in cheats, climb, camera, turbo, GameCube save import, `tools/savegame`, and Wind Waker hook lists.
 
-Leave guest ABI symbols as upstream wrote them: `WWHD_GUEST_*`, `wwhd_guest.h`, and `WWHDGuest*`.
+Use NSMBU guest ABI names (`NSMBU_GUEST_*`, `nsmbu_guest.h`, `NSMBUGuest*`) in this fork.
 
 Rename a new environment variable to `NSMBU_` only when this tree's runtime already reads the `NSMBU_` form.
 

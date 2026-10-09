@@ -20,12 +20,12 @@ def declarations(read_source, revision):
              ' * Revision: ' + revision,
              ' * CC0-1.0; see public-wwhd-LICENSE. USA version 0.',
              ' * Pointer slots contain guest addresses; tables contain no copied game bytes. */',
-             '#pragma once', '#include "../wwhd_guest.h"', '']
+             '#pragma once', '#include "../nsmbu_guest.h"', '']
     for name, source, pattern in BINDINGS:
         matches = list(re.finditer(pattern, read_source(source)))
         if len(matches) != 1:
             raise ValueError('public data declaration changed: ' + name)
-        lines += [f'/* wwhd_src/{source} */', f'#define WWHD_ADDR_{name} {matches[0][1]}']
+        lines += [f'/* wwhd_src/{source} */', f'#define NSMBU_ADDR_{name} {matches[0][1]}']
     source = 'include/d/actor/d_a_itembase.h'
     text = read_source(source)
     for name in TABLES:
@@ -34,7 +34,7 @@ def declarations(read_source, revision):
         if not match:
             raise ValueError('public item table declaration changed: ' + name)
         lines += [f'/* wwhd_src/{source} */',
-                  f'#define WWHD_ADDR_dItem_data_{name} {match[1]}',
-                  f'#define WWHD_STRIDE_dItem_data_{name} {match[2]}',
-                  f'#define WWHD_DATA_dItem_data_{name}(index) ((u32)&WWHD_GAME_DATA(WWHD_ADDR_dItem_data_{name}, u8) + (u32)(index) * WWHD_STRIDE_dItem_data_{name})']
+                  f'#define NSMBU_ADDR_dItem_data_{name} {match[1]}',
+                  f'#define NSMBU_STRIDE_dItem_data_{name} {match[2]}',
+                  f'#define NSMBU_DATA_dItem_data_{name}(index) ((u32)&NSMBU_GAME_DATA(NSMBU_ADDR_dItem_data_{name}, u8) + (u32)(index) * NSMBU_STRIDE_dItem_data_{name})']
     return '\n'.join(lines) + '\n'

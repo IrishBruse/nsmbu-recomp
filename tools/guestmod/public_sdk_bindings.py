@@ -2,7 +2,7 @@
 import re
 
 SCALARS = {'void', 'u8', 's8', 'u16', 's16', 'u32', 's32', 'f32', 'f64',
-           'int', 'unsigned int', 'signed int', 'char', 'signed char', 'wwhd_gpr_pair', 'unsigned char', 'short', 'unsigned short', 'bool'}
+           'int', 'unsigned int', 'signed int', 'char', 'signed char', 'nsmbu_gpr_pair', 'unsigned char', 'short', 'unsigned short', 'bool'}
 
 
 def guest_type(kind, aliases=None):
@@ -24,11 +24,11 @@ def bindings(index):
              ' * Revision: ' + index['revision'],
              ' * Regenerate: python3 tools/guestmod/regenerate_sdk.py --public-clone build/public-wwhd',
              ' * Object pointers are opaque; use the curated views for member access. */',
-             '#pragma once', '#include "functions.h"', '#include "../wwhd_guest.h"',
+             '#pragma once', '#include "functions.h"', '#include "../nsmbu_guest.h"',
              '/* Explicit two-register results: high 32 bits are r3, low 32 bits are r4. */',
-             'typedef unsigned long long wwhd_gpr_pair;',
-             '#define WWHD_RESULT_R3(value) ((u32)((wwhd_gpr_pair)(value) >> 32))',
-             '#define WWHD_RESULT_R4(value) ((u32)(value))', '']
+             'typedef unsigned long long nsmbu_gpr_pair;',
+             '#define NSMBU_RESULT_R3(value) ((u32)((nsmbu_gpr_pair)(value) >> 32))',
+             '#define NSMBU_RESULT_R4(value) ((u32)(value))', '']
     skipped = []
     used = set()
     names = {}
@@ -67,11 +67,11 @@ def bindings(index):
         if name in used:
             continue
         used.add(name)
-        if ret == "wwhd_gpr_pair":
+        if ret == "nsmbu_gpr_pair":
             lines.append(f"/* Public {function['return']} ABI: explicit r3/r4 result, not a C struct return. */")
-        lines.append(f"WWHD_GAME_FUNC(0x{function['address']:08X}, {ret}, wwhd_{name}, ({', '.join(params) or 'void'}));")
+        lines.append(f"NSMBU_GAME_FUNC(0x{function['address']:08X}, {ret}, nsmbu_{name}, ({', '.join(params) or 'void'}));")
         if len(names[short_name]) == 1:
-            lines.append(f'#define wwhd_{short_name} wwhd_{name}')
+            lines.append(f'#define nsmbu_{short_name} nsmbu_{name}')
     return '\n'.join(lines) + '\n', skipped
 
 
@@ -84,14 +84,14 @@ def save_view(root, revision):
     return f'''/* Generated from public wwhd_src/d/d_save.cpp ({revision}); CC0-1.0.
  * Partial status prefix only; no full save-object size is claimed. */
 #pragma once
-#include "../wwhd_guest.h"
+#include "../nsmbu_guest.h"
 #include "data.h"
-#define WWHD_ADDR_save_info_pointer WWHD_ADDR_dComIfG_save_info_pointer
-#define WWHD_OFFSET_save_info {pointer[2]}
+#define NSMBU_ADDR_save_info_pointer NSMBU_ADDR_dComIfG_save_info_pointer
+#define NSMBU_OFFSET_save_info {pointer[2]}
 typedef struct dSv_player_status_a_view {{
     u16 max_life;
     u16 life;
     u16 rupees;
 }} dSv_player_status_a_view;
-#define dComIfGs_player_status_a (*(volatile dSv_player_status_a_view*)(WWHD_GAME_DATA(WWHD_ADDR_save_info_pointer, u32) + WWHD_OFFSET_save_info))
+#define dComIfGs_player_status_a (*(volatile dSv_player_status_a_view*)(NSMBU_GAME_DATA(NSMBU_ADDR_save_info_pointer, u32) + NSMBU_OFFSET_save_info))
 '''

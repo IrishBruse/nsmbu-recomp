@@ -18,7 +18,7 @@ int main() {
     assert(a.fps == 120 && a.logic == 60);
     a.sample(11, 0, 0, 1, 1, 120, 2); assert(a.fps == 0);
     a.reset(); assert(!a.started);
-    auto root = std::filesystem::temp_directory_path() / "wwhd-telemetry-test";
+    auto root = std::filesystem::temp_directory_path() / "nsmbu-telemetry-test";
     std::filesystem::create_directories(root / "class/kgsl/kgsl-3d0");
     std::ofstream(root / "class/kgsl/kgsl-3d0/gpubusy") << "25 100";
     overlay::AndroidTelemetry telemetry; telemetry.read(root); assert(telemetry.busy == 25);

@@ -50,20 +50,20 @@ def default_cc():
 
 
 def default_include():
-    # Installed packages carry the runtime ABI separately from the public wwhd/
+    # Installed packages carry the runtime ABI separately from the public nsmbu/
     # guest declarations; the translated module includes only this ABI directory.
     installed = os.path.join(REPO, "sdk", "include")
-    if os.path.isfile(os.path.join(installed, "wwhd_guest_abi.h")):
+    if os.path.isfile(os.path.join(installed, "nsmbu_guest_abi.h")):
         return installed
     return os.path.join(REPO, "runtime", "include")
 
 
 def abi_version(include):
-    with open(os.path.join(include, "wwhd_guest_abi.h"), encoding="utf-8") as f:
+    with open(os.path.join(include, "nsmbu_guest_abi.h"), encoding="utf-8") as f:
         for line in f:
-            if line.startswith("#define WWHD_GUEST_ABI_VERSION"):
+            if line.startswith("#define NSMBU_GUEST_ABI_VERSION"):
                 return line.split()[2]
-    raise guestmod.ModError("wwhd_guest_abi.h without an ABI version")
+    raise guestmod.ModError("nsmbu_guest_abi.h without an ABI version")
 
 
 def package_elf(pkg):
@@ -122,7 +122,7 @@ def cache_key(elf, mod_id, base, cc, include, game_build=None):
              json.dumps([cc, version.stdout, CFLAGS, module_ext()]).encode()]
     # Version strings alone miss edits between releases. Hash the actual translation/ABI inputs.
     inputs = [Path(__file__), Path(guestmod.__file__), Path(HERE).parent / "recomp" / "ppc2c.py",
-              Path(include) / "ppc.h", Path(include) / "wwhd_guest_abi.h",
+              Path(include) / "ppc.h", Path(include) / "nsmbu_guest_abi.h",
               Path(HERE).parent / "recomp" / "builds.py"]
     parts.extend(path.read_bytes() for path in inputs)
     for part in parts:
@@ -171,7 +171,7 @@ def main():
     compiler_args.add_argument("--cc-json", help="compiler argument vector as JSON (for setup/manager)")
     compiler_args.add_argument("--cc", help="compiler command (default: $CC, xcrun clang on macOS, clang)")
     ap.add_argument("--include", default=default_include(),
-                    help="runtime headers (ppc.h, wwhd_guest_abi.h); sdk/include in a release")
+                    help="runtime headers (ppc.h, nsmbu_guest_abi.h); sdk/include in a release")
     ap.add_argument("--zig-cache", help="setup-selected Zig global cache directory")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()

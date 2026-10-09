@@ -24,8 +24,8 @@ def main():
     parser.add_argument('--save', type=Path, required=True)
     parser.add_argument('--state-dir', type=Path, required=True)
     parser.add_argument('--renderer', choices=('metal', 'vulkan'), default='metal')
-    parser.add_argument('--ppc-clang', default=os.environ.get('WWHD_PPC_CLANG', 'clang'))
-    parser.add_argument('--ppc-lld', default=os.environ.get('WWHD_PPC_LLD', 'ld.lld'))
+    parser.add_argument('--ppc-clang', default=os.environ.get('NSMBU_PPC_CLANG', 'clang'))
+    parser.add_argument('--ppc-lld', default=os.environ.get('NSMBU_PPC_LLD', 'ld.lld'))
     parser.add_argument('--out', type=Path, default=REPO / 'build' / ('code-mods-e2e-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')))
     args = parser.parse_args()
     release, out = args.release.resolve(), args.out.resolve()
@@ -54,8 +54,8 @@ def main():
         return result, ready
 
     def run(name, mode, extra=None):
-        env = {'WWHD_CODE_MODS': str(mode), 'WWHD_MOD_MANAGER_DIR': str(manager),
-               'WWHD_TEST_TRUST_NATIVE_MODS': 'play-scene-ticker'}
+        env = {'NSMBU_CODE_MODS': str(mode), 'NSMBU_MOD_MANAGER_DIR': str(manager),
+               'NSMBU_TEST_TRUST_NATIVE_MODS': 'play-scene-ticker'}
         env.update(extra or {})
         with (out / (name + '-driver.log')).open('w') as log:
             subprocess.run([sys.executable, str(REPO / 'tools/bench/run_bench.py'), '--binary', str(binary),
@@ -69,8 +69,8 @@ def main():
 
     off, original = rebuild(0, 'prepare-off')
     on, _ = rebuild(1, 'prepare-on')  # warm both caches; fresh compilation is recorded separately
-    log = run('install', 0, {'WWHD_TEST_MOD_INSTALL': str(package), 'WWHD_TEST_MOD_ENABLE': 'play-scene-ticker',
-                           'WWHD_TEST_CODE_MOD_REBUILD': '1', 'WWHD_TEST_OVERLAY': 'open:mods@700'})
+    log = run('install', 0, {'NSMBU_TEST_MOD_INSTALL': str(package), 'NSMBU_TEST_MOD_ENABLE': 'play-scene-ticker',
+                           'NSMBU_TEST_CODE_MOD_REBUILD': '1', 'NSMBU_TEST_OVERLAY': 'open:mods@700'})
     assert '[code mods] rebuild offer: support on for play-scene-ticker' in log
     assert '[code mods] rebuild ready; restart required' in log
     profiles = json.loads((manager / 'profiles.json').read_text())

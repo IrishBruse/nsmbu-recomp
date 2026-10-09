@@ -22,8 +22,8 @@ def main():
     parser.add_argument("--game", type=Path, required=True)
     parser.add_argument("--save", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--ppc-clang", default=os.environ.get("WWHD_PPC_CLANG", "clang"))
-    parser.add_argument("--ppc-lld", default=os.environ.get("WWHD_PPC_LLD", "ld.lld"))
+    parser.add_argument("--ppc-clang", default=os.environ.get("NSMBU_PPC_CLANG", "clang"))
+    parser.add_argument("--ppc-lld", default=os.environ.get("NSMBU_PPC_LLD", "ld.lld"))
     args = parser.parse_args()
     if os.getloadavg()[0] > 30 or shutil.disk_usage(args.out.parent).free < 15e9:
         parser.error("wait for load1 <= 30 and at least 15 GB free")
@@ -48,15 +48,15 @@ def main():
     config.write_text(json.dumps({"format_version": 1, "python": [sys.executable],
         "compiler": ["clang"], "builder": str(ROOT / "tools/guestmod/build_guest_mod.py"),
         "include": str(ROOT / "runtime/include")}))
-    env = {k: v for k, v in os.environ.items() if not k.startswith("WWHD_")}
-    env.update({"WWHD_CODE_MODS": "1", "WWHD_NO_AUDIO": "1", "WWHD_NO_GAMEPAD": "1",
-        "WWHD_NO_HOST_INPUT": "1", "WWHD_HIDDEN_WINDOWS": "1", "WWHD_UNCAPPED": "1",
-        "WWHD_RENDERER_RUNTIME": "metal", "WWHD_MOD_MANAGER_DIR": str(manager),
-        "WWHD_TEST_TRUST_NATIVE_MODS": "play-scene-ticker", "WWHD_GUEST_BUILD_CONFIG": str(config),
-        "WWHD_SHADER_CACHE": str(out / "shaders.bin"), "WWHD_SETTINGS": str(out / "settings.ini"),
-        "WWHD_DISPLAY_SETTINGS": str(out / "display.plist"), "XDG_CONFIG_HOME": str(out / "config"),
-        "WWHD_STATE_DIR": str(out / "states"), "WWHD_TEST_ORIGIN": "3000", "WWHD_TEST_END": "12",
-        "WWHD_PRESS": ",".join(f"{frame}-{frame+8}:8000" for frame in range(120, 1800, 30))})
+    env = {k: v for k, v in os.environ.items() if not k.startswith("NSMBU_")}
+    env.update({"NSMBU_CODE_MODS": "1", "NSMBU_NO_AUDIO": "1", "NSMBU_NO_GAMEPAD": "1",
+        "NSMBU_NO_HOST_INPUT": "1", "NSMBU_HIDDEN_WINDOWS": "1", "NSMBU_UNCAPPED": "1",
+        "NSMBU_RENDERER_RUNTIME": "metal", "NSMBU_MOD_MANAGER_DIR": str(manager),
+        "NSMBU_TEST_TRUST_NATIVE_MODS": "play-scene-ticker", "NSMBU_GUEST_BUILD_CONFIG": str(config),
+        "NSMBU_SHADER_CACHE": str(out / "shaders.bin"), "NSMBU_SETTINGS": str(out / "settings.ini"),
+        "NSMBU_DISPLAY_SETTINGS": str(out / "display.plist"), "XDG_CONFIG_HOME": str(out / "config"),
+        "NSMBU_STATE_DIR": str(out / "states"), "NSMBU_TEST_ORIGIN": "3000", "NSMBU_TEST_END": "12",
+        "NSMBU_PRESS": ",".join(f"{frame}-{frame+8}:8000" for frame in range(120, 1800, 30))})
     with (out / "run.log").open("w") as log:
         proc = subprocess.Popen([str(args.binary.resolve()), "--game", str(args.game.resolve()),
                                  "--save", str(save)], cwd=out, env=env, stdout=log, stderr=subprocess.STDOUT)

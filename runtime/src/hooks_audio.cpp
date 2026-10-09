@@ -9,7 +9,7 @@
 // Only the volatile registers (r0, r3-r12, f0-f13, ctr, xer, cr0/cr1) end differently, which callers
 // do not rely on (PowerPC EABI).
 //
-// WWHD_HOOK_CHECK=1 runs the original on a snapshot first and compares every call (debugging).
+// NSMBU_HOOK_CHECK=1 runs the original on a snapshot first and compares every call (debugging).
 // Listed in tools/recomp/hooks_perf.txt.
 #include <cstdlib>
 #include <cstring>
@@ -79,7 +79,7 @@ void mix_ramp(Cpu* c) {
 }
 
 const bool g_check = [] {
-    const char* e = getenv("WWHD_HOOK_CHECK");
+    const char* e = getenv("NSMBU_HOOK_CHECK");
     return e && *e && strcmp(e, "0") != 0;
 }();
 

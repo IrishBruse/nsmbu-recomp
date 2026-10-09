@@ -1,7 +1,7 @@
 # Mod SDK v2: PowerPC guest mods (design study and prototype)
 
 Status: **prototype** on branch `sdk2-guest-mods`, off by default. The Native SDK v1
-(`runtime/include/wwhd_mod.h`, [mod-manager.md](mod-manager.md)) stays supported and unchanged.
+(`runtime/include/nsmbu_mod.h`, [mod-manager.md](mod-manager.md)) stays supported and unchanged.
 
 Code mods for this port are written in C (or C++) against mod headers and compiled for the
 console CPU: 32-bit big-endian PowerPC, the game's ABI. The package is the same on every
@@ -154,7 +154,7 @@ function runs, and mods hook the game's code below them.
 - **Compiler**: clang with the PowerPC target and ld.lld, free on all three platforms
   (LLVM releases; Homebrew `llvm` + `lld` on macOS; Apple's clang has no PowerPC target). Tested:
   Homebrew clang 20.1.8 and ld.lld 21. Only clang/lld is supported for mod authors.
-- **Flags** (see `runtime/guest/include/wwhd_guest.h`, `examples/guest-mods/Makefile`):
+- **Flags** (see `runtime/guest/include/nsmbu_guest.h`, `examples/guest-mods/Makefile`):
   `--target=powerpc-unknown-eabi -mcpu=750 -O2 -ffreestanding -fno-builtin -nostdlib
   -fno-jump-tables -ffunction-sections -fdata-sections`. `-mcpu=750` keeps to instructions
   of the game's CPU family (no AltiVec, no `isel`); clang does not use small-data (r2/r13)
@@ -192,8 +192,8 @@ function runs, and mods hook the game's code below them.
    targets) and translates every instruction with **the game's translator** (`ppc2c.py`);
    unsupported instructions are an install error that names them;
 3. writes one C file: the functions, the relocated initial memory image, the function table,
-   the hook table and the list of host services; it exports `wwhd_guest_module_v1`
-   (`runtime/include/wwhd_guest_abi.h`) and **imports nothing from the executable** (all
+   the hook table and the list of host services; it exports `nsmbu_guest_module_v1`
+   (`runtime/include/nsmbu_guest_abi.h`) and **imports nothing from the executable** (all
    runtime entry points come through a host table), so a module is a plain shared library on
    every platform and does not depend on how the game code was built;
 4. compiles it with the local compiler (`-O2 -ffp-contract=off -fno-strict-aliasing -fPIC
@@ -227,7 +227,7 @@ Setup writes `guest-sdk.json` in the game data directory with its Python command
 compiler argument vector, translator path and SDK headers. Keep the release tools
 and local compiler installed. If they are missing, the Mods tab asks you to run
 setup again. Development builds may select an equivalent JSON file with
-`WWHD_GUEST_BUILD_CONFIG`. The bridge runs argument vectors directly, without a
+`NSMBU_GUEST_BUILD_CONFIG`. The bridge runs argument vectors directly, without a
 shell; `--cc-json '["compiler", "arguments"]'` preserves paths containing spaces.
 The original `--cc` interface remains supported for catalogue integrations.
 
@@ -280,8 +280,8 @@ python3 tools/guestmod/regenerate_sdk.py --public-clone build/public-wwhd
 python3 tools/guestmod/regenerate_sdk.py --public-clone build/public-wwhd --check
 ```
 
-`wwhd/functions.h` gives every public verified function a named hook address.
-Ambiguous names retain an address suffix. `wwhd/bindings.h` declares callable
+`nsmbu/functions.h` gives every public verified function a named hook address.
+Ambiguous names retain an address suffix. `nsmbu/bindings.h` declares callable
 functions with supported signatures; object pointers are opaque `void*`, and
 names use a `wwhd_` prefix. Unsupported signatures are reported rather than guessed.
 The JSON inventory retains their original public declarations for further curation.
@@ -296,7 +296,7 @@ the PowerPC register order with each desktop host compiler.
 These addresses target USA version 0. Functions absent from the public decomp
 remain hookable by address when hook checks are compiled in.
 
-`wwhd/data.h` names the public save/resource pointer slots, matrix stack, zero
+`nsmbu/data.h` names the public save/resource pointer slots, matrix stack, zero
 vector and item table bases/strides. It contains no initialized game data.
 
 Curated `actor.h`, `link.h`, `camera.h`, `items.h` and `messages.h` provide partial
@@ -342,7 +342,7 @@ header and translator sources, so this happens automatically.
 | `memcpy`, `memmove`, `memset` | Compiler-generated struct copies and explicit guest-memory operations. |
 
 Option and enabled-set changes take effect on restart. `WWHD_GUEST_OPT_*` and the
-prototype's unchecked `WWHD_GUEST_MODS` direct-library loading are retired; install
+prototype's unchecked `NSMBU_GUEST_MODS` direct-library loading are retired; install
 packages through the mod manager and its code trust dialog.
 
 The HUD service is phase 2. Its proposed interface is renderer-independent submission
@@ -476,7 +476,7 @@ python3 tools/guestmod/build_guest_mod.py <ModManager>/Mods/<id> --out <ModManag
 - The last stdout line is JSON: `ok`, `module`, `cached`, `error`. The manager shows `error`
   in the package details and keeps the package unloaded.
 - On start, the runtime loads the modules of the enabled guest packages before any guest code
-  runs (the prototype takes `WWHD_GUEST_MODS=path,...`). Enabling, disabling and changing the
+  runs (the prototype takes `NSMBU_GUEST_MODS=path,...`). Enabling, disabling and changing the
   load order need a restart in the first version (hooks are installed before the game
   threads start).
 - Requires game code built with `--mod-hooks`; setup passes it by default once the decision is
@@ -506,7 +506,7 @@ PowerPC code mods. Existing enabled guest packages remain installed when support
 See [performance and limits](#performance-and-limits) for rebuild timings and the performance gate.
 The opt-in real-game driver is `tools/guestmod/test_code_mods_e2e.py --help`.
 
-For automated runs, `WWHD_CODE_MODS=0` or `1` overrides the preference. Setup accepts
+For automated runs, `NSMBU_CODE_MODS=0` or `1` overrides the preference. Setup accepts
 `--code-mods 0` or `1` (default off). The runtime override does not compile game code or
 invent hook support: launch a variant built with the matching option. Generated C contains
 no SDK hook checks or registration metadata with support off.
@@ -537,14 +537,14 @@ Modders do not need devkitPPC, and this SDK does not bundle a modder compiler.
 
 ### Write and build
 
-Include `wwhd_guest.h` and the generated `wwhd` headers. Hook targets use
+Include `nsmbu_guest.h` and the generated `wwhd` headers. Hook targets use
 `WWHD_ADDR_<public_name>`; callable declarations use `wwhd_<public_name>` where the
 name is unique. Ambiguous names have an address suffix. Entry hooks receive the game's
 arguments. Return hooks receive those arguments again and preserve the game result.
 Only one replacement may own a target; a conflict reports both package IDs.
 
 ```c
-#include "wwhd_guest.h"
+#include "nsmbu_guest.h"
 #include "wwhd/functions.h"
 
 WWHD_HOOK(WWHD_ADDR_daPy_Execute, on_link_step, (void* link)) {
@@ -624,11 +624,11 @@ or disable mods. Use the same mod versions that created a state when reproducing
 | --- | --- |
 | generator option `--mod-hooks` | `tools/recomp/recomp.py` |
 | check macro, `Cpu::mod_skip` | `runtime/include/ppc.h` |
-| module ABI | `runtime/include/wwhd_guest_abi.h` |
+| module ABI | `runtime/include/nsmbu_guest_abi.h` |
 | loader, hook chains, host services | `runtime/src/mods/guest_mods.cpp` |
 | translator, install-time build | `tools/guestmod/guestmod.py`, `tools/guestmod/build_guest_mod.py` |
-| SDK header | `runtime/guest/include/wwhd_guest.h` |
-| tests | `tools/guestmod/test_guestmod.py` (needs a PowerPC clang: `WWHD_PPC_CLANG`, `WWHD_PPC_LLD`) |
+| SDK header | `runtime/guest/include/nsmbu_guest.h` |
+| tests | `tools/guestmod/test_guestmod.py` (needs a PowerPC clang: `NSMBU_PPC_CLANG`, `NSMBU_PPC_LLD`) |
 | examples | `examples/guest-mods/play-scene-ticker` (entry + return hook on `dScnPly_Execute` with a configurable log interval), `examples/guest-mods/smooth-step-replace` (replaces `cLib_addCalc2` by an equivalent implementation; every other call goes to the game's original) |
 
 ```sh
@@ -640,7 +640,7 @@ python3 tools/guestmod/build_guest_mod.py examples/guest-mods/smooth-step-replac
 ```
 
 These commands describe the prototype build. Install the packages through the manager
-as described above; direct `WWHD_GUEST_MODS` loading has been retired.
+as described above; direct `NSMBU_GUEST_MODS` loading has been retired.
 
 Historically verified end to end on macOS arm64 (headless scripted run, copy of a save): both modules
 load, the heart display changes by quarter hearts during gameplay, the replacement handles

@@ -52,24 +52,24 @@ fs::path selected(){
     if(!fs::is_regular_file(install_dir/"code-mods-active.json"))return {};
     auto active=read(install_dir/"code-mods-active.json");
     if(active.get("state").string()!="ready")return {};
-    if(const char* override=std::getenv("WWHD_CODE_MODS"))
+    if(const char* override=std::getenv("NSMBU_CODE_MODS"))
         if((std::string(override)=="1")!=active.get("hooks").boolean)return {};
     auto exe=fs::path(active.get("exe").string());
     auto cache=install_dir/"code-builds"/active.get("fingerprint").string();
     if(!fs::is_regular_file(exe)||fs::weakly_canonical(exe.parent_path())!=fs::weakly_canonical(cache/"bin"))return {};
     auto record=read(cache/"ready.json");
     if(record.get("fingerprint")!=active.get("fingerprint")||record.get("hooks")!=active.get("hooks"))return {};
-    auto user=active.get("user_dir").string();if(!user.empty())environment("WWHD_USER_DIR",user);
+    auto user=active.get("user_dir").string();if(!user.empty())environment("NSMBU_USER_DIR",user);
     return exe;
 }
 }
 void startup(int argc,char** argv){
     launch_args.assign(argv,argv+argc);
-    if(const char* dir=std::getenv("WWHD_INSTALL_DIR"))install_dir=dir;
+    if(const char* dir=std::getenv("NSMBU_INSTALL_DIR"))install_dir=dir;
     else install_dir=fs::path(host::exe_dir()).parent_path();
-    environment("WWHD_INSTALL_DIR",install_dir.string());
+    environment("NSMBU_INSTALL_DIR",install_dir.string());
     auto config=install_dir/"guest-sdk.json";
-    if(!std::getenv("WWHD_GUEST_BUILD_CONFIG")&&fs::is_regular_file(config))environment("WWHD_GUEST_BUILD_CONFIG",config.string());
+    if(!std::getenv("NSMBU_GUEST_BUILD_CONFIG")&&fs::is_regular_file(config))environment("NSMBU_GUEST_BUILD_CONFIG",config.string());
     try {
         auto exe=selected();if(exe.empty())return;
         auto current=fs::path(host::exe_dir())/fs::path(argv[0]).filename();
@@ -84,7 +84,7 @@ bool restart(std::string& error){
 }
 
 bool enabled(){
-    if(const char* value=std::getenv("WWHD_CODE_MODS"))return std::string(value)=="1";
+    if(const char* value=std::getenv("NSMBU_CODE_MODS"))return std::string(value)=="1";
     std::string value;return hostui::get("code-mods",value)&&value=="1";
 }
 void request(bool on,const std::string& mod){std::lock_guard guard(mutex);if(state.building)return;state={};state.requested=true;state.target=on;pending_mod=mod;fprintf(stderr,"[code mods] rebuild offer: support %s%s%s\n",on?"on":"off",mod.empty()?"":" for ",mod.c_str());}
@@ -102,7 +102,7 @@ void begin(){
     std::lock_guard guard(mutex);if(state.building||!state.requested)return;
     if(worker.thread.joinable())worker.thread.join();
     try {
-        const char* override=std::getenv("WWHD_GUEST_BUILD_CONFIG");
+        const char* override=std::getenv("NSMBU_GUEST_BUILD_CONFIG");
         fs::path config=override?fs::path(override):fs::path("guest-sdk.json");
         auto cfg=read(config);auto base=fs::absolute(config).parent_path();
         auto resolve=[&](const std::string& name){fs::path p(cfg.get(name.c_str()).string());if(p.empty())throw std::runtime_error("Code-mod setup tools are missing; run setup again");return p.is_absolute()?p:base/p;};

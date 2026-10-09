@@ -7,7 +7,7 @@ usage: interp_menu_scenario.py BINARY GAME SAVE WORK [--renderer metal|vulkan|bo
 Uses copies of SAVE, private state/cache/screenshot paths and posted F10 events
 through the normal input handler. Portable save refusal while paused, followed by
 successful saves after each close, checks that #64 does not reopen the menu.
-WWHD_DISPLAY_HZ=0 and WWHD_INTERP_PACED=0 force every requested pass; this
+NSMBU_DISPLAY_HZ=0 and NSMBU_INTERP_PACED=0 force every requested pass; this
 checks behavior, not physical 240 Hz display delivery or performance.
 """
 import argparse
@@ -29,17 +29,17 @@ def run_case(args, renderer, fps):
     presses = [f"{t}-{t + .15}:8000" for t in (5, 8, 11, 14, 17, 20)]
     presses += [f"{t}-{t + .15}:0008" for t in (30, 38, 42, 46)]
     env = {
-        "WWHD_LANGUAGE": "3", "WWHD_RENDERER_RUNTIME": renderer,
-        "WWHD_INTERP": "0", "WWHD_INTERP_FPS": str(fps), "WWHD_DISPLAY_HZ": "0",
-        "WWHD_INTERP_PACED": "0", "WWHD_DRC_MODE": "pip",
-        "WWHD_CONTROLS": directory + "/controls.json",
-        "WWHD_TEST_ORIGIN": "600", "WWHD_TEST_MODE": "1@28", "WWHD_TEST_END": "50",
-        "WWHD_TEST_PRESS": ",".join(presses),
-        "WWHD_PORTABLE_SAVE_AT": ",".join(f"{frame(t)}:{s}" for t, s in ((34, 1), (40, 2), (44, 3), (48, 4))),
-        "WWHD_TEST_POST_KEYS": f"{frame(34)}:F10,{frame(48)}:F10",
-        "WWHD_SCREENSHOT_DIR": directory + "/shots", "WWHD_SCREENSHOT_GAMEPAD": "1",
-        "WWHD_DUMP_FRAMES": ",".join(str(frame(t)) for t in (34, 40, 44, 48)),
-        "WWHD_TEST_DEBUG": "1",
+        "NSMBU_LANGUAGE": "3", "NSMBU_RENDERER_RUNTIME": renderer,
+        "NSMBU_INTERP": "0", "NSMBU_INTERP_FPS": str(fps), "NSMBU_DISPLAY_HZ": "0",
+        "NSMBU_INTERP_PACED": "0", "NSMBU_DRC_MODE": "pip",
+        "NSMBU_CONTROLS": directory + "/controls.json",
+        "NSMBU_TEST_ORIGIN": "600", "NSMBU_TEST_MODE": "1@28", "NSMBU_TEST_END": "50",
+        "NSMBU_TEST_PRESS": ",".join(presses),
+        "NSMBU_PORTABLE_SAVE_AT": ",".join(f"{frame(t)}:{s}" for t, s in ((34, 1), (40, 2), (44, 3), (48, 4))),
+        "NSMBU_TEST_POST_KEYS": f"{frame(34)}:F10,{frame(48)}:F10",
+        "NSMBU_SCREENSHOT_DIR": directory + "/shots", "NSMBU_SCREENSHOT_GAMEPAD": "1",
+        "NSMBU_DUMP_FRAMES": ",".join(str(frame(t)) for t in (34, 40, 44, 48)),
+        "NSMBU_TEST_DEBUG": "1",
     }
     print("START", tag, flush=True)
     done = lambda log: os.path.exists(directory + "/test_done")
