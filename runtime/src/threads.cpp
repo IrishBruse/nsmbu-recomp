@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "recomp_table.h"
 #include "runtime.h"
 #include "savestate.h"
 #include "scheduler_tick.h"
@@ -111,6 +112,7 @@ struct HostThread {
     // loading a save state: park at this function entry (thread saved there, see try_entry_park)
     bool has_target = false;
     uint32_t tgt_fn = 0, tgt_r1 = 0, tgt_lr = 0;
+    void* host_fp = nullptr;
 };
 enum WaitState { kRunning = 0, kParked = 1, kRequester = 2 };
 enum WaitKind : uint8_t { W_NONE, W_MUTEX, W_EVENT, W_MSG_SEND, W_MSG_RECV, W_SLEEPQ, W_JOIN, W_RDV, W_SLEEP, W_SERVICE, W_ENTRY };
@@ -423,6 +425,7 @@ static bool park_wait(std::unique_lock<std::mutex>& lk, std::condition_variable&
         if (t) {
             t->wait_kind = kind;
             t->wait_obj = obj;
+            t->host_fp = __builtin_frame_address(0);
             t->wst.store(kParked);
         }
         lk.unlock();
@@ -434,6 +437,7 @@ static bool park_wait(std::unique_lock<std::mutex>& lk, std::condition_variable&
         } else cv.wait(lk, pred);
         lk.unlock();
         if (t) park_gate(t);
+        if (t) t->host_fp = nullptr;
         threads::block_end();
         lk.lock();
     }
@@ -519,10 +523,12 @@ __attribute__((noinline)) static void try_entry_park(HostThread* t, Cpu* c) {
     if (!fn || (mode == 2 && fn != t->tgt_fn)) return;
     t->wait_kind = W_ENTRY;
     t->wait_obj = fn;
+    t->host_fp = __builtin_frame_address(0);
     bool held = t->holds_core;
     if (held) core_release(t);
     t->wst.store(kParked);
     park_gate(t);
+    t->host_fp = nullptr;
     if (held) core_acquire(t);
 }
 
@@ -533,6 +539,7 @@ void park_sleep_until(std::chrono::steady_clock::time_point tp, bool precise,
     if (t) {
         t->wait_kind = W_SLEEP;
         t->wait_obj = 0;
+        t->host_fp = __builtin_frame_address(0);
         t->wst.store(kParked);
     }
     block_begin();
@@ -565,6 +572,7 @@ void park_sleep_until(std::chrono::steady_clock::time_point tp, bool precise,
         }
     }
     if (t) park_gate(t);
+    if (t) t->host_fp = nullptr;
     // The freeze gate marks the thread busy before host-only completion work.
     // Keep its guest core released until that work finishes; never call guest code.
     if (before_resume) before_resume();
@@ -1311,8 +1319,6 @@ struct ThreadRec {
     Cpu cpu;
 };
 
-// guest call chain of a parked thread: stack pointer, return address and the back chain of saved
-// return addresses must be identical, so its host call stack is the same as the saved one
 bool same_chain(const Cpu& cur, const Cpu& saved) {
     if (cur.r[1] != saved.r[1] || cur.lr != saved.lr) return false;
     uint32_t a = cur.r[1];
@@ -1321,6 +1327,120 @@ bool same_chain(const Cpu& cur, const Cpu& saved) {
         if (na != nb) return false;
         if (!na || na <= a || na - a > 0x100000) break;
         if (ld32(na + 4) != ss::snap_ld32(na + 4)) return false;
+        a = na;
+    }
+    return true;
+}
+
+uint32_t fn_start(uint32_t addr) {
+    const RecompEntry* b = g_recomp_funcs;
+    const RecompEntry* e = g_recomp_funcs + g_recomp_func_count;
+    const RecompEntry* it = std::lower_bound(b, e, addr, [](const RecompEntry& r, uint32_t a) { return r.addr < a; });
+    if (it != e && it->addr == addr) return addr;
+    if (it == b) return 0;
+    --it;
+    const RecompEntry* next = it + 1;
+    if (next != e && addr >= next->addr) return 0;
+    if (next == e && addr - it->addr > 0x20000) return 0;
+    return it->addr;
+}
+
+struct HostFrame { uint32_t fn; uintptr_t* slot; };
+struct HostCallPatches {
+    struct Item { uintptr_t* slot; uintptr_t old; };
+    std::vector<Item> items;
+    bool keep = false;
+    void write(uintptr_t* slot, uintptr_t ra) {
+        if (*slot == ra) return;
+        items.push_back({slot, *slot});
+        *slot = ra;
+    }
+    ~HostCallPatches() {
+        if (keep) return;
+        for (auto& it : items) *it.slot = it.old;
+    }
+};
+
+bool host_frames(HostThread* t, std::vector<HostFrame>& out) {
+#ifndef _WIN32
+    if (!t->host_fp || !t->pt) return false;
+    pthread_attr_t attr;
+    if (pthread_getattr_np(t->pt, &attr)) return false;
+    void* stack = nullptr;
+    size_t size = 0;
+    pthread_attr_getstack(&attr, &stack, &size);
+    pthread_attr_destroy(&attr);
+    uintptr_t lo = (uintptr_t)stack, hi = lo + size;
+    uintptr_t fp = (uintptr_t)t->host_fp;
+    for (int depth = 0; depth < 512 && fp >= lo && fp + sizeof(uintptr_t) * 2 <= hi; depth++) {
+        uintptr_t ra = ((uintptr_t*)fp)[1];
+        uintptr_t next = ((uintptr_t*)fp)[0];
+        uint32_t fn = classify_ra(ra);
+        if (fn > 1) out.push_back({fn, ((uintptr_t*)fp) + 1});
+        if (!ra || next <= fp) break;
+        fp = next;
+    }
+    return !out.empty();
+#else
+    (void)t;
+    (void)out;
+    return false;
+#endif
+}
+
+void collect_sites(HostThread* t, std::unordered_map<uint32_t, uintptr_t>& sites) {
+    if (t->wst.load() != kParked) return;
+    std::vector<HostFrame> host;
+    if (!host_frames(t, host)) return;
+    std::vector<char> used(host.size());
+    uint32_t a = t->cpu.r[1];
+    for (int i = 0; i < 512; i++) {
+        uint32_t na = ld32(a);
+        if (!na || na <= a || na - a > 0x100000) break;
+        uint32_t lr = ld32(na + 4);
+        uint32_t fn = fn_start(lr);
+        if (fn) {
+            for (size_t h = 0; h < host.size(); h++) {
+                if (used[h] || host[h].fn != fn) continue;
+                used[h] = 1;
+                auto it = sites.find(lr);
+                if (it == sites.end()) sites.emplace(lr, *host[h].slot);
+                else if (it->second != *host[h].slot) it->second = 0;
+                break;
+            }
+        }
+        a = na;
+    }
+}
+
+bool retarget_calls(HostThread* t, const Cpu& saved, const std::unordered_map<uint32_t, uintptr_t>& sites, HostCallPatches& patches) {
+    if (t->cpu.r[1] != saved.r[1] || t->cpu.lr != saved.lr) return false;
+    std::vector<HostFrame> host;
+    if (!host_frames(t, host)) return false;
+    std::vector<char> used(host.size());
+    uint32_t a = saved.r[1];
+    for (int i = 0; i < 512; i++) {
+        uint32_t na = ld32(a), nb = ss::snap_ld32(a);
+        if (na != nb) return false;
+        if (!na || na <= a || na - a > 0x100000) return true;
+        uint32_t live = ld32(na + 4), want = ss::snap_ld32(na + 4);
+        uint32_t fn = fn_start(want ? want : live);
+        int frame = -1;
+        if (fn) {
+            for (size_t h = 0; h < host.size(); h++) {
+                if (!used[h] && host[h].fn == fn) { frame = (int)h; break; }
+            }
+        }
+        if (live != want) {
+            if (!fn || fn_start(live) != fn) return false;
+            auto it = sites.find(want);
+            if (it == sites.end() || !it->second || frame < 0) return false;
+            used[frame] = 1;
+            patches.write(host[frame].slot, it->second);
+            LOG("[savestate] %s: host call in %08X moved to saved site %08X", threads::thread_name(t).c_str(), fn, want);
+        } else if (frame >= 0) {
+            used[frame] = 1;
+        }
         a = na;
     }
     return true;
@@ -1458,6 +1578,12 @@ bool threads_ss_check(ss::Reader r, std::string& why) {
     for (auto& t : recs) r.bytes(&t, sizeof t);
     if (!r.ok) { why = "corrupt thread section"; return false; }
     std::lock_guard<std::mutex> lk(g_threads_mutex);
+    HostCallPatches patches;
+    std::unordered_map<uint32_t, uintptr_t> sites;
+    for (auto& [g, t] : g_threads) {
+        (void)g;
+        if (!t->service && t->started && !t->exited) collect_sites(t, sites);
+    }
     std::unordered_map<uint32_t, const ThreadRec*> by;
     for (auto& t : recs) by[t.guest] = &t;
     char buf[200];
@@ -1493,7 +1619,7 @@ bool threads_ss_check(ss::Reader r, std::string& why) {
             why = buf;
             return false;
         }
-        if (!same_chain(t->cpu, s.cpu)) {
+        if (!same_chain(t->cpu, s.cpu) && !retarget_calls(t, s.cpu, sites, patches)) {
             snprintf(buf, sizeof buf, "thread %s is at a different place (lr %08X sp %08X, saved lr %08X sp %08X)",
                      threads::thread_name(t).c_str(), t->cpu.lr, t->cpu.r[1], s.cpu.lr, s.cpu.r[1]);
             why = buf;
@@ -1505,6 +1631,7 @@ bool threads_ss_check(ss::Reader r, std::string& why) {
         why = "thread " + threads::thread_name(t) + " was created after the save and is running";
         return false;
     }
+    patches.keep = true;
     return true;
 }
 
