@@ -18,9 +18,9 @@ def main():
     revision = subprocess.check_output(["git", "-C", str(args.public_clone), "rev-parse", "HEAD"], text=True).strip()
     if revision != REVISION:
         parser.error("public checkout must be at pinned revision " + REVISION)
-    target = ROOT / "runtime/guest/include/wwhd"
+    target = ROOT / "runtime/guest/include/nsmbu"
     with tempfile.TemporaryDirectory() as tmp:
-        output = Path(tmp) / "wwhd"
+        output = Path(tmp) / "nsmbu"
         output.mkdir()
         subprocess.run([sys.executable, str(ROOT / "tools/guestmod/public_sdk_index.py"),
                         str(args.public_clone), "--out", str(Path(tmp) / "index.json"),

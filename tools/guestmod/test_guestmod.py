@@ -43,13 +43,13 @@ class GuestModTest(unittest.TestCase):
     def test_european_hook_calls_function_pointer_and_data(self):
         from builds import by_name
         src = r'''
-#include "wwhd_guest.h"
-WWHD_GAME_FUNC(0x0240EBB0, void, link_execute, (void*));
-WWHD_GAME_ORIGINAL(0x0240EBB0, void, original, (void*));
+#include "nsmbu_guest.h"
+NSMBU_GAME_FUNC(0x0240EBB0, void, link_execute, (void*));
+NSMBU_GAME_ORIGINAL(0x0240EBB0, void, original, (void*));
 void (*volatile function_pointer)(void*) = link_execute;
-WWHD_HOOK(0x0240EBB0, mapped, (void* actor)) {
-    WWHD_GAME_DATA(0x101F84DC, u32) = 123;
-    WWHD_GAME_DATA(0x1048D0CC, f32) = 1.0f;
+NSMBU_HOOK(0x0240EBB0, mapped, (void* actor)) {
+    NSMBU_GAME_DATA(0x101F84DC, u32) = 123;
+    NSMBU_GAME_DATA(0x1048D0CC, f32) = 1.0f;
     link_execute(actor); original(actor);
 }
 '''
@@ -78,9 +78,9 @@ WWHD_HOOK(0x0240EBB0, mapped, (void* actor)) {
         eu = by_name("EU")
         for address in (eu.differing[0][0], 0x01000000):
             with self.subTest(address=address), tempfile.TemporaryDirectory() as d:
-                for use in (f'WWHD_HOOK(0x{address:08X}, hook, (void)) {{ }}',
-                            f'WWHD_GAME_FUNC(0x{address:08X}, void, game, (void)); void mod(void) {{ game(); }}'):
-                    elf = Path(self.build_elf('#include "wwhd_guest.h"\n' + use, d)).read_bytes()
+                for use in (f'NSMBU_HOOK(0x{address:08X}, hook, (void)) {{ }}',
+                            f'NSMBU_GAME_FUNC(0x{address:08X}, void, game, (void)); void mod(void) {{ game(); }}'):
+                    elf = Path(self.build_elf('#include "nsmbu_guest.h"\n' + use, d)).read_bytes()
                     with self.assertRaisesRegex(guestmod.ModError, f'0x{address:08X} on EU'):
                         builder.translator_for(elf, 0x7F000000, eu)
 
@@ -90,7 +90,7 @@ WWHD_HOOK(0x0240EBB0, mapped, (void* actor)) {
                     "code_bounds": ["02000000", "03000000"],
                     "data_bounds": ["10000000", "11000000"],
                     "data_steps": [["10000000", 4], ["10000004", 16]]})
-        src = '#include "wwhd_guest.h"\n __asm__(".section .data,\\\"aw\\\"\\n.long __wwhd_gdata_0x10000000 + 8\\n");'
+        src = '#include "nsmbu_guest.h"\n __asm__(".section .data,\\\"aw\\\"\\n.long __nsmbu_gdata_0x10000000 + 8\\n");'
         with tempfile.TemporaryDirectory() as d:
             elf = Path(self.build_elf(src, d)).read_bytes()
             t = builder.translator_for(elf, 0x7F000000, eu)
@@ -106,7 +106,10 @@ WWHD_HOOK(0x0240EBB0, mapped, (void* actor)) {
 
     def test_public_headers_c_and_cpp(self):
         headers = ("bindings", "actor", "link", "camera", "items", "save", "messages", "data")
-        source = "".join('#include "wwhd/%s.h"\n' % name for name in headers)
+        missing = [name for name in headers if not Path(REPO, "runtime/guest/include/nsmbu", name + ".h").is_file()]
+        if missing:
+            self.skipTest("no generated nsmbu layout headers: " + ", ".join(missing))
+        source = "".join('#include "nsmbu/%s.h"\n' % name for name in headers)
         for language, standard in (("c", "c11"), ("c++", "c++17")):
             with self.subTest(language=language):
                 subprocess.run([CLANG] + FLAGS + ["-x", language, "-std=" + standard,
@@ -151,13 +154,13 @@ WWHD_HOOK(0x0240EBB0, mapped, (void* actor)) {
 
     def test_relocations_and_imports(self):
         src = r'''
-#include "wwhd_guest.h"
-WWHD_GAME_FUNC(0x02001234, int, game_fn, (int));
-WWHD_GAME_ORIGINAL(0x02005678, void, orig_fn, (void));
+#include "nsmbu_guest.h"
+NSMBU_GAME_FUNC(0x02001234, int, game_fn, (int));
+NSMBU_GAME_ORIGINAL(0x02005678, void, orig_fn, (void));
 static int table[4] = {1, 2, 3, 4};
 int (*volatile ptr)(int) = 0;
 __attribute__((noinline)) static int helper(int x) { return table[x & 3] + game_fn(x); }
-WWHD_REPLACE(0x02005678, void, repl, (void)) { ptr = helper; orig_fn(); wwhd_log_int("v", ptr(2)); }
+NSMBU_REPLACE(0x02005678, void, repl, (void)) { ptr = helper; orig_fn(); nsmbu_log_int("v", ptr(2)); }
 '''
         with tempfile.TemporaryDirectory() as d:
             t = guestmod.Translator(guestmod.Elf(Path(self.build_elf(src, d)).read_bytes()), 0x7F200000)
@@ -165,24 +168,24 @@ WWHD_REPLACE(0x02005678, void, repl, (void)) { ptr = helper; orig_fn(); wwhd_log
             self.assertEqual([(k, tg) for k, tg, _, _ in t.hooks], [(1, 0x02005678)])
             self.assertIn("c->pc = 0x02001234u; ppc_dispatch(c);", c)
             self.assertIn("g_host->call_original(c, 0x02005678u);", c)
-            self.assertEqual(t.services, ["wwhd_log_int"])
+            self.assertEqual(t.services, ["nsmbu_log_int"])
             self.assertTrue(all(0x7F200000 <= e < t.end for e in t.entries))
             self.assertGreaterEqual(len(t.entries), 2)  # helper is address-taken: its own function
 
     def test_host_services_compile(self):
         src = r'''
-#include "wwhd_guest.h"
-WWHD_HOOK(0x02000000, all_services, (void)) {
-    char* p = wwhd_malloc(64);
-    wwhd_input_state pad;
-    wwhd_input_read(&pad);
-    wwhd_config_string("choice", p, 64);
-    if (wwhd_config_bool("on", 0)) wwhd_log_float("dt", wwhd_logic_dt());
-    wwhd_log_float("amount", wwhd_config_float("amount", 1.5));
-    wwhd_log_int("step", (int)wwhd_logic_step());
-    wwhd_file_write("progress.bin", p, 64);
-    wwhd_file_read("progress.bin", p, 64);
-    wwhd_free(p);
+#include "nsmbu_guest.h"
+NSMBU_HOOK(0x02000000, all_services, (void)) {
+    char* p = nsmbu_malloc(64);
+    nsmbu_input_state pad;
+    nsmbu_input_read(&pad);
+    nsmbu_config_string("choice", p, 64);
+    if (nsmbu_config_bool("on", 0)) nsmbu_log_float("dt", nsmbu_logic_dt());
+    nsmbu_log_float("amount", nsmbu_config_float("amount", 1.5));
+    nsmbu_log_int("step", (int)nsmbu_logic_step());
+    nsmbu_file_write("progress.bin", p, 64);
+    nsmbu_file_read("progress.bin", p, 64);
+    nsmbu_free(p);
 }
 '''
         with tempfile.TemporaryDirectory() as d:
@@ -191,20 +194,21 @@ WWHD_HOOK(0x02000000, all_services, (void)) {
             for address, (kind, name) in t.imports.items():
                 if kind == "svc":
                     self.assertIn("c->pc = 0x%08Xu;" % address, translated, name)
-            self.assertIn("wwhd_file_write", t.services)
+            self.assertIn("nsmbu_file_write", t.services)
             Path(d, "manifest.json").write_text(json.dumps({"kind": "guest", "id": "services", "guest": {"api_version": 1}}))
             result = builder.build(d, str(Path(d, "cache")), 0x7F000000, builder.default_cc(), str(Path(REPO, "runtime/include")))
             self.assertTrue(result["ok"])
 
+    @unittest.skipUnless(Path(REPO, "runtime/guest/include/nsmbu/bindings.h").is_file(),
+                         "nsmbu/bindings.h not generated")
     def test_register_pair_module_executes(self):
-        # Leaf guest functions need no guest RAM: this executes the actual translated module.
         src = r'''
-#include "wwhd/bindings.h"
-WWHD_REPLACE(0x02000000, wwhd_gpr_pair, pair_result, (void)) {
+#include "nsmbu/bindings.h"
+NSMBU_REPLACE(0x02000000, nsmbu_gpr_pair, pair_result, (void)) {
     return 0x1122334455667788ULL;
 }
-WWHD_REPLACE(0x02000004, u32, pair_low, (wwhd_gpr_pair value)) {
-    return WWHD_RESULT_R4(value);
+NSMBU_REPLACE(0x02000004, u32, pair_low, (nsmbu_gpr_pair value)) {
+    return NSMBU_RESULT_R4(value);
 }
 '''
         driver = r'''

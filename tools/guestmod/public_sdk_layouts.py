@@ -76,11 +76,11 @@ def generate(root, output, revision):
                  f' * Source: wwhd_src/{source}; CC0-1.0 (public-wwhd-LICENSE).',
                  ' * Partial views: named scalar fields only; unknown fields remain bytes.',
                  ' * Source offset qualifications still apply; see the public source. */',
-                 '#pragma once', '#include "../wwhd_guest.h"',
-                 '#ifndef WWHD_SDK_ASSERT', '#ifdef __cplusplus',
-                 '#define WWHD_SDK_ASSERT(x, message) static_assert(x, message)', '#else',
-                 '#define WWHD_SDK_ASSERT(x, message) _Static_assert(x, message)', '#endif', '#endif',
-                 'WWHD_SDK_ASSERT(sizeof(void*) == 4, "SDK layouts require a 32-bit guest target");', '']
+                 '#pragma once', '#include "../nsmbu_guest.h"',
+                 '#ifndef NSMBU_SDK_ASSERT', '#ifdef __cplusplus',
+                 '#define NSMBU_SDK_ASSERT(x, message) static_assert(x, message)', '#else',
+                 '#define NSMBU_SDK_ASSERT(x, message) _Static_assert(x, message)', '#endif', '#endif',
+                 'NSMBU_SDK_ASSERT(sizeof(void*) == 4, "SDK layouts require a 32-bit guest target");', '']
         for name in names:
             lines.append(layout(text, name))
         (output / (subsystem + '.h')).write_text('\n'.join(lines))

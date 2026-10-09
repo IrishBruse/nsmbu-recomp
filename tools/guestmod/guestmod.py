@@ -8,11 +8,11 @@ C holds final values), every function is translated with the game's own translat
 ppc2c.py), and the result is one C file exporting wwhd_guest_module_v1 (runtime/include/
 wwhd_guest_abi.h). Undefined symbols resolve as follows:
 
-  __wwhd_game_0x<ADDR>   a game function: called through the runtime's dispatch (mods' hooks apply);
+  __nsmbu_game_0x<ADDR>   a game function: called through the runtime's dispatch (mods' hooks apply);
                          as data (address taken) it is the function's guest address
-  __wwhd_orig_0x<ADDR>   the game's own code of a function, below every mod (call only)
-  __wwhd_gdata_0x<ADDR>  game data at a fixed address
-  anything else          a host service by name (wwhd_log, memcpy, ...), checked when the module loads
+  __nsmbu_orig_0x<ADDR>   the game's own code of a function, below every mod (call only)
+  __nsmbu_gdata_0x<ADDR>  game data at a fixed address
+  anything else          a host service by name (nsmbu_log, memcpy, ...), checked when the module loads
 
 Errors (unsupported relocations or instructions, unknown symbols) are reported in plain words and
 make the translation fail; nothing of the game is read or embedded.
@@ -89,7 +89,7 @@ class Translator:
         self.base = base
         self.build = build or canonical_build()
         if not self.build.canonical and not any(
-                s["name"] == ".wwhd_addresses" and s["size"] > 0 and s["size"] % 4 == 0 and
+                s["name"] == ".nsmbu_addresses" and s["size"] > 0 and s["size"] % 4 == 0 and
                 self.elf.bytes_of(s) == b"\0\0\0\1" * (s["size"] // 4)
                 for s in elf.sections):
             raise ModError("Mod uses an older SDK with unrelocatable USA data addresses; "
@@ -149,12 +149,12 @@ class Translator:
         except ValueError as exc:
             # Public declaration names are available in source checkouts and release SDKs.
             from pathlib import Path
-            header = Path(HERE).parents[1] / "runtime/guest/include/wwhd/functions.h"
+            header = Path(HERE).parents[1] / "runtime/guest/include/nsmbu/functions.h"
             if not header.is_file():
-                header = Path(HERE).parents[1] / "sdk/guest/include/wwhd/functions.h"
+                header = Path(HERE).parents[1] / "sdk/guest/include/nsmbu/functions.h"
             name = ""
             if header.is_file():
-                match = re.search(r"^#define WWHD_ADDR_(\w+) 0x%08X$" % address,
+                match = re.search(r"^#define NSMBU_ADDR_(\w+) 0x%08X$" % address,
                                   header.read_text(), re.M)
                 if match:
                     name = match[1] + " "
@@ -164,7 +164,7 @@ class Translator:
     def symbol_value(self, sym):
         """(kind, value): kind 'addr' for a guest address, else an import kind."""
         if sym["shndx"] == 0:  # undefined
-            m = re.match(r"__wwhd_(game|orig|gdata)_(?:0x)?([0-9A-Fa-f]{1,8})$", sym["name"])
+            m = re.match(r"__nsmbu_(game|orig|gdata)_(?:0x)?([0-9A-Fa-f]{1,8})$", sym["name"])
             if m:
                 return m.group(1), int(m.group(2), 16)
             if not re.match(r"[A-Za-z_][A-Za-z0-9_]*$", sym["name"]):
@@ -223,7 +223,7 @@ class Translator:
                 else:
                     raise ModError("%s: unsupported relocation type %d against %s (small data? build with "
                                    "the SDK's flags)" % (where, typ, sym["name"]))
-        hs = [s for s in self.elf.sections if s["name"] == ".wwhd_hooks"]
+        hs = [s for s in self.elf.sections if s["name"] == ".nsmbu_hooks"]
         self.hooks = []
         for s in hs:
             a = self.sec_addr.get(s["idx"])

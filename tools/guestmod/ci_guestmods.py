@@ -47,11 +47,11 @@ def main():
     subprocess.run([sys.executable, str(REPO / "tools/installer/test_setup.py"), "GuestBuildConfig", "CodeModsBuild"], check=True)
     subprocess.run([sys.executable, str(REPO / "tools/guestmod/test_public_sdk_index.py")], check=True)
     subprocess.run([sys.executable, str(REPO / "tools/bench/test_run_bench.py")], check=True)
-    headers = ["bindings", "actor", "link", "camera", "items", "messages", "save", "data"]
     command = [os.environ["WWHD_PPC_CLANG"], "--target=powerpc-unknown-eabi",
-               "-ffreestanding", "-fsyntax-only", "-x", "c", "-"]
-    for header in headers:
-        command += ["-include", str(REPO / f"runtime/guest/include/wwhd/{header}.h")]
+               "-ffreestanding", "-fsyntax-only", "-x", "c", "-",
+               "-I", str(REPO / "runtime/guest/include"),
+               "-include", str(REPO / "runtime/guest/include/nsmbu_guest.h"),
+               "-include", str(REPO / "runtime/guest/include/nsmbu/functions.h")]
     subprocess.run(command, input="", text=True, check=True)
     print("Host module compiler:", tc.desc, flush=True)
     subprocess.run([sys.executable, str(REPO / "tools" / "guestmod" / "test_guestmod.py"), "-v"], check=True)

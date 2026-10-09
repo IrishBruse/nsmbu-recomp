@@ -2,7 +2,7 @@
 
 Two small mods written in C and compiled for the game's CPU (32-bit big-endian PowerPC). See
 [docs/mod-sdk-v2.md](../../docs/mod-sdk-v2.md) for the design. They contain no game code or data:
-game functions are referenced by address only (see `runtime/guest/include/wwhd/functions.h` for
+game functions are referenced by address only (see `runtime/guest/include/nsmbu/functions.h` for
 `red-pro2.rpx`).
 
 | Mod | What it shows |

@@ -125,12 +125,12 @@ void svc_input(Cpu* c) {
 void svc_logic_dt(Cpu* c) {c->f[1].ps0=double(true60::dt())/30.0;}
 void svc_logic_step(Cpu* c) {uint64_t step=g_logic_step.load(std::memory_order_relaxed);c->r[3]=uint32_t(step>>32);c->r[4]=uint32_t(step);}
 const std::unordered_map<std::string, PpcFunc> kServices = {
-    {"wwhd_log", svc_log},       {"wwhd_log_int", svc_log_int}, {"wwhd_log_hex", svc_log_hex},
-    {"wwhd_log_float", svc_log_float}, {"wwhd_config_int", svc_config_int},
-    {"wwhd_config_bool",svc_config_bool},{"wwhd_config_float",svc_config_float},{"wwhd_config_string",svc_config_string},
-    {"wwhd_malloc",svc_malloc},{"wwhd_free",svc_free},{"wwhd_input_read",svc_input},
-    {"wwhd_file_read",svc_file_read},{"wwhd_file_write",svc_file_write},
-    {"wwhd_logic_dt",svc_logic_dt},{"wwhd_logic_step",svc_logic_step},
+    {"nsmbu_log", svc_log},       {"nsmbu_log_int", svc_log_int}, {"nsmbu_log_hex", svc_log_hex},
+    {"nsmbu_log_float", svc_log_float}, {"nsmbu_config_int", svc_config_int},
+    {"nsmbu_config_bool",svc_config_bool},{"nsmbu_config_float",svc_config_float},{"nsmbu_config_string",svc_config_string},
+    {"nsmbu_malloc",svc_malloc},{"nsmbu_free",svc_free},{"nsmbu_input_read",svc_input},
+    {"nsmbu_file_read",svc_file_read},{"nsmbu_file_write",svc_file_write},
+    {"nsmbu_logic_dt",svc_logic_dt},{"nsmbu_logic_step",svc_logic_step},
     {"memcpy", svc_memcpy},      {"memmove", svc_memcpy},       {"memset", svc_memset},
 };
 PpcFunc service(const char* name) {

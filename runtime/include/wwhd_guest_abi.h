@@ -6,7 +6,7 @@
  * (runtime/src/mods/guest_mods.cpp). The module imports nothing from the executable: every runtime
  * entry point reaches it through WWHDGuestHostV1, so modules stay valid across game rebuilds and
  * work the same on every platform. Mod authors never include this file; they use
- * runtime/guest/include/wwhd_guest.h.
+ * runtime/guest/include/nsmbu_guest.h.
  */
 #pragma once
 #include "ppc.h"
