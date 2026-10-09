@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+import os
+import shutil
+import subprocess
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import build
+
+ZERO = "0" * 40
+WORKTREE = os.path.join(ROOT, ".tmp", "pre-push-check")
+REQUIRED_TESTS = ("build_coverage", "screenshot", "release_sdk_package")
+
+
+def reject(message):
+    print("pre-push: " + message, file=sys.stderr)
+    sys.exit(1)
+
+
+def require_tools():
+    for name in ("git", "cmake", "ninja", "ctest"):
+        if shutil.which(name) is None:
+            reject(name + " is not on PATH")
+
+
+def pushed_commits():
+    found = []
+    seen = set()
+    for line in sys.stdin:
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        _local_ref, local_oid, remote_ref, _remote_oid = parts[:4]
+        if local_oid == ZERO:
+            continue
+        if not remote_ref.startswith(("refs/heads/", "refs/tags/")):
+            continue
+        peeled = subprocess.run(
+            ["git", "rev-parse", "--verify", local_oid + "^{commit}"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if peeled.returncode != 0:
+            reject("cannot resolve " + local_oid + " to a commit")
+        commit = peeled.stdout.strip()
+        if commit in seen:
+            continue
+        seen.add(commit)
+        found.append((remote_ref, commit))
+    return found
+
+
+def tree_is_clean_at(commit):
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if head != commit:
+        return False
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return status.stdout == ""
+
+
+def ensure_worktree(commit):
+    os.makedirs(os.path.dirname(WORKTREE), exist_ok=True)
+    if not os.path.exists(os.path.join(WORKTREE, ".git")):
+        if os.path.exists(WORKTREE):
+            reject(WORKTREE + " exists and is not a git worktree")
+        subprocess.run(
+            ["git", "worktree", "add", "--detach", WORKTREE, commit],
+            cwd=ROOT,
+            check=True,
+        )
+        return
+    subprocess.run(
+        ["git", "-C", WORKTREE, "checkout", "--detach", "--force", commit],
+        check=True,
+    )
+    subprocess.run(["git", "-C", WORKTREE, "clean", "-fd"], check=True)
+
+
+def configure_and_test(tree):
+    libdir = build.libstdcxx_libdir()
+    if not libdir:
+        reject("Clang needs a libstdc++ dev package")
+    cc, cxx = build.clang_pair(libdir)
+    if not cc:
+        reject("clang++ cannot link a program")
+    install = " ".join(build.gcc_install_flags(libdir))
+    compile_flags = build.debug_compile_flags(install, False)
+    link_flags = build.debug_link_flags(libdir, False)
+    gen = os.path.join(tree, "build", "gen-stub")
+    bld = os.path.join(tree, "build", "linux")
+    subprocess.run(
+        [sys.executable, os.path.join(tree, "tools", "recomp", "stubgen.py"), gen],
+        cwd=tree,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "cmake",
+            "-S",
+            tree,
+            "-B",
+            bld,
+            "-G",
+            "Ninja",
+            "-DCMAKE_C_COMPILER=" + cc,
+            "-DCMAKE_CXX_COMPILER=" + cxx,
+            "-DCMAKE_C_FLAGS=" + compile_flags,
+            "-DCMAKE_CXX_FLAGS=" + compile_flags,
+            "-DCMAKE_EXE_LINKER_FLAGS=" + link_flags,
+            "-DCMAKE_SHARED_LINKER_FLAGS=" + link_flags,
+            "-DCMAKE_MODULE_LINKER_FLAGS=" + link_flags,
+            "-DGEN_DIR=" + gen,
+            "-DNSMBU_BUNDLED_DEPS=ON",
+            "-DNSMBU_SETUP_GUI=ON",
+        ],
+        cwd=tree,
+        check=True,
+    )
+    subprocess.run(["cmake", "--build", bld], cwd=tree, check=True)
+    listed = subprocess.run(
+        ["ctest", "--test-dir", bld, "-N"],
+        cwd=tree,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    for name in REQUIRED_TESTS:
+        if name not in listed:
+            reject("ctest did not register " + name)
+    subprocess.run(
+        ["ctest", "--test-dir", bld, "--output-on-failure"],
+        cwd=tree,
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, os.path.join(tree, "tools", "installer", "test_setup.py")],
+        cwd=tree,
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, os.path.join(tree, "tools", "recomp", "test_builds.py")],
+        cwd=tree,
+        check=True,
+    )
+
+
+def check_commit(remote_ref, commit):
+    print("pre-push: " + remote_ref + " " + commit, file=sys.stderr)
+    if tree_is_clean_at(commit):
+        tree = ROOT
+    else:
+        print("pre-push: testing a clean worktree of " + commit, file=sys.stderr)
+        ensure_worktree(commit)
+        tree = WORKTREE
+    try:
+        configure_and_test(tree)
+    except subprocess.CalledProcessError as exc:
+        reject(commit + " failed with exit " + str(exc.returncode))
+
+
+def main():
+    require_tools()
+    commits = pushed_commits()
+    for remote_ref, commit in commits:
+        check_commit(remote_ref, commit)
+
+
+if __name__ == "__main__":
+    main()
