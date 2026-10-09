@@ -517,9 +517,9 @@ void tab_saves() {
     bool fs;
     if (check("Full save states (large, contain game data, don't share) - for debugging", full, &fs, !ss::full_states_forced()))
         ss::set_full_states(fs);
-    help(ss::full_states_forced() ? "Set by NSMBU_FULL_SAVE_STATES or a test variable for this start."
-                                  : "Saves the whole running game instead (about 300 MB per slot), exactly as it is. "
-                                    "These files contain game code and data: never attach them to a bug report.");
+    help("This game writes a full save state. "
+         "The small portable state is for Wind Waker and is not used. "
+         "These files contain game code and data: never attach them to a bug report.");
     heading("Screenshots");
     {
         // the Screenshot binding (Controls tab): its keys and controller input

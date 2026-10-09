@@ -1215,8 +1215,6 @@ void request_save_portable(int slot) {
     g_psave_req = slot;
 }
 
-// the kind full_states() selects (automatic states: always full); `done` once the file is written or
-// the save gave up (a portable state is also refused while Link is not under the player's control)
 void request_save(int slot, std::function<void(bool ok, const std::string& why)> done) {
     if ((slot < 1 || slot > kSlots) && !is_auto(slot)) {
         if (done) done(false, "no such slot");
@@ -1227,8 +1225,7 @@ void request_save(int slot, std::function<void(bool ok, const std::string& why)>
         g_done_slot = slot;
         g_done = std::move(done);
     }
-    if (is_auto(slot) || full_states()) g_save_req = slot;
-    else g_psave_req = slot;
+    g_save_req = slot;
 }
 
 void request_save(int slot) { request_save(slot, nullptr); }
@@ -1280,21 +1277,9 @@ void request_load(int slot) {
     }).detach();
 }
 
-bool full_states_forced() { return full_env() >= 0; }
+bool full_states_forced() { return true; }
 
-bool full_states() {
-    if (full_env() >= 0) return full_env() == 1;
-    std::lock_guard<std::mutex> lk(g_mu);
-    if (g_full_setting < 0) {
-        g_full_setting = 0;
-        if (FILE* f = fopen(full_cfg_path().c_str(), "r")) {
-            int v = 0;
-            if (fscanf(f, "%d", &v) == 1) g_full_setting = v ? 1 : 0;
-            fclose(f);
-        }
-    }
-    return g_full_setting == 1;
-}
+bool full_states() { return true; }
 
 void set_full_states(bool on) {
     {

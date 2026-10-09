@@ -825,6 +825,7 @@ HLE(gx2, GX2SwapScanBuffers) {
         prev = now;
         if (ms > slow_ms) LOG("[gx2] slow swap %llu: %.1f ms", (unsigned long long)g_swap_count, ms);
     }
+    ss::service(c);
     if (g_swap_count % 300 == 1) {
         static auto last = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
