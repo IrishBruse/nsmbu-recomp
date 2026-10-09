@@ -1,5 +1,9 @@
-
-
+// Formatting library for C++ - std::ostream support
+//
+// Copyright (c) 2012 - present, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
 #ifndef FMT_OSTREAM_H_
 #define FMT_OSTREAM_H_
 

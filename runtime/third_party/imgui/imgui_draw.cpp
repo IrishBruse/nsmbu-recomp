@@ -5648,6 +5648,8 @@ static unsigned int stb_decompress(unsigned char *output, const unsigned char *i
     }
 }
 
+// MIT License / Copyright (c) 2004, 2005 Tristan Grimmer
+
 #if !defined(IMGUI_DISABLE_DEFAULT_FONT) && !defined(IMGUI_DISABLE_DEFAULT_FONT_BITMAP)
 
 static const unsigned int proggy_clean_ttf_compressed_size = 9583;
@@ -5827,6 +5829,8 @@ const char* ImGui_GetDefaultCompressedFontDataProggyClean(int* out_size)
     return (const char*)proggy_clean_ttf_compressed_data;
 }
 #endif
+
+// MIT license / Copyright (c) 2026 Disco Hello, Copyright (c) 2019,2023 Tristan Grimmer
 
 #if !defined(IMGUI_DISABLE_DEFAULT_FONT) && !defined(IMGUI_DISABLE_DEFAULT_FONT_VECTOR)
 

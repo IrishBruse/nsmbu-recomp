@@ -1,5 +1,55 @@
-
-
+// Formatting library for C++ - optional OS-specific functionality
+//
+// Copyright (c) 2012 - 2016, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
+// Disable bogus MSVC warnings.
+#if !defined(_CRT_SECURE_NO_WARNINGS) && defined(_MSC_VER)
+#  define _CRT_SECURE_NO_WARNINGS
+#endif
+#include "fmt/os.h"
+#ifndef FMT_MODULE
+#  include <climits>
+#  if FMT_USE_FCNTL
+#    include <sys/stat.h>
+#    include <sys/types.h>
+#    ifdef _WRS_KERNEL    // VxWorks7 kernel
+#      include <ioLib.h>  // getpagesize
+#    endif
+#    ifndef _WIN32
+#      include <unistd.h>
+#    else
+#      ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#      endif
+#      include <io.h>
+#    endif  // _WIN32
+#  endif    // FMT_USE_FCNTL
+#  ifdef _WIN32
+#    include <windows.h>
+#  endif
+#endif
+#ifdef _WIN32
+#  ifndef S_IRUSR
+#    define S_IRUSR _S_IREAD
+#  endif
+#  ifndef S_IWUSR
+#    define S_IWUSR _S_IWRITE
+#  endif
+#  ifndef S_IRGRP
+#    define S_IRGRP 0
+#  endif
+#  ifndef S_IWGRP
+#    define S_IWGRP 0
+#  endif
+#  ifndef S_IROTH
+#    define S_IROTH 0
+#  endif
+#  ifndef S_IWOTH
+#    define S_IWOTH 0
+#  endif
+#endif
 #if !defined(_CRT_SECURE_NO_WARNINGS) && defined(_MSC_VER)
 #  define _CRT_SECURE_NO_WARNINGS
 #endif

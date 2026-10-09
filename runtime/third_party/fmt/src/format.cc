@@ -1,5 +1,10 @@
-
-
+// Formatting library for C++
+//
+// Copyright (c) 2012 - 2016, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
+#include "fmt/format-inl.h"
 #include "fmt/format-inl.h"
 
 FMT_BEGIN_NAMESPACE

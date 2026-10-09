@@ -1,5 +1,9 @@
-
-
+// Formatting library for C++ - optional OS-specific functionality
+//
+// Copyright (c) 2012 - present, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
 #ifndef FMT_OS_H_
 #define FMT_OS_H_
 

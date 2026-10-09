@@ -1,7 +1,7 @@
-# Native LLVM targets the MSVC ABI. Build missing dependencies with that same
-# compiler instead of requiring MSYS2 or a separately configured package manager.
-# Also used by release builds (NSMBU_BUNDLED_DEPS, any platform): there glslang, zlib and LZ4 are always
-# built from source, so no system copy compiled by a different toolchain ends up in the release.
+
+
+
+
 include(FetchContent)
 if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
@@ -17,11 +17,11 @@ if(NSMBU_HAS_VULKAN)
     set(ENABLE_OPT OFF CACHE BOOL "" FORCE)
     set(GLSLANG_TESTS OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(glslang
-      URL https:
+      URL https://github.com/KhronosGroup/glslang/archive/refs/tags/16.0.0.tar.gz
       URL_HASH SHA256=172385478520335147d3b03a1587424af0935398184095f24beab128a254ecc7)
     FetchContent_MakeAvailable(glslang)
-    # The runtime includes <glslang/SPIRV/GlslangToSpv.h> (the installed layout); in glslang's source
-    # tree the header is SPIRV/GlslangToSpv.h, so give the build tree the installed spelling too.
+
+
     set(GLSLANG_SHIM "${CMAKE_BINARY_DIR}/glslang-include")
     file(COPY "${glslang_SOURCE_DIR}/SPIRV/" DESTINATION "${GLSLANG_SHIM}/glslang/SPIRV"
          FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
@@ -35,7 +35,7 @@ if(NSMBU_SDL_HOST)
     set(SDL_TESTS OFF CACHE BOOL "" FORCE)
     set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
     set(SDL_SHARED ON CACHE BOOL "" FORCE)
-    # the graphical installer links SDL3 statically (one self-contained setup program)
+
     if(NSMBU_SETUP_GUI)
       set(SDL_STATIC ON CACHE BOOL "" FORCE)
     else()

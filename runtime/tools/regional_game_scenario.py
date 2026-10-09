@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# SPDX-License-Identifier: MPL-2.0
 """Native language, Outset gameplay, interpolation and true60 regression.
 
 Uses copied saves and private output paths. Run once per renderer/language with

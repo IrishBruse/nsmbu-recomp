@@ -1,5 +1,12 @@
-
-
+// Graphic pack shader hashes (base and auxiliary), as Cemu names replacement shaders.
+// Adapted from Cemu src/Cafe/HW/Latte/Core/LatteShader.cpp
+// Copyright (c) Cemu contributors. Licensed under the Mozilla Public License 2.0 (see LICENSE.txt).
+#pragma once
+#include "Cafe/HW/Latte/Core/LatteShader.h"
+#include "Cafe/HW/Latte/Core/FetchShader.h"
+#include "Cafe/HW/Latte/ISA/RegDefines.h"
+#include <bit>
+#include <cstring>
 #pragma once
 #include "Cafe/HW/Latte/Core/LatteShader.h"
 #include "Cafe/HW/Latte/Core/FetchShader.h"

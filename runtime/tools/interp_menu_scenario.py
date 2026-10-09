@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# SPDX-License-Identifier: MPL-2.0
 """Real-game pause-menu / screenshot regression at 120 and 240 interpolation passes.
 
 usage: interp_menu_scenario.py BINARY GAME SAVE WORK [--renderer metal|vulkan|both]

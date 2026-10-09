@@ -1,4 +1,4 @@
-# zstd (BSD-3-Clause, https:
+# zstd (BSD-3-Clause, https://github.com/facebook/zstd) for the extractor (nsmbu-extract), which
 # needs it to read Cemu's Wii U archives (.wua). Defines the target nsmbu_zstd.
 #
 # Developer builds use a system zstd when there is one (its CMake package, else pkg-config libzstd),
@@ -34,7 +34,7 @@ add_library(nsmbu_zstd INTERFACE)
 if(NSMBU_ZSTD_TARGET)
   message(STATUS "zstd: system (${NSMBU_ZSTD_TARGET})")
   target_link_libraries(nsmbu_zstd INTERFACE ${NSMBU_ZSTD_TARGET})
-  # tools/release/package.py refuses this build: the extractor would depend on the system's zstd
+
   file(WRITE ${CMAKE_BINARY_DIR}/nsmbu-zstd.txt "system\n")
 else()
   message(STATUS "zstd: pinned source 1.5.7, static")
@@ -45,9 +45,17 @@ else()
   FetchContent_Declare(zstd
     URL https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
     URL_HASH SHA256=eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
-    SOURCE_SUBDIR lib)  # no CMakeLists.txt there: only downloaded and unpacked, the library is defined below
+    SOURCE_SUBDIR lib)
   FetchContent_MakeAvailable(zstd)
-  # lib/common, lib/decompress and lib/compress (no CLI, no multithreading, no assembly); compression is
-  # used by the extractor's tests only (a synthetic archive), the linker leaves it out of nsmbu-extract
-  file(GLOB NSMBU_ZSTD_SOURCES ${zstd_SOURCE_DIR}/lib/common
 
+
+  file(GLOB NSMBU_ZSTD_SOURCES ${zstd_SOURCE_DIR}/lib/common/*.c ${zstd_SOURCE_DIR}/lib/decompress/*.c
+                              ${zstd_SOURCE_DIR}/lib/compress/*.c)
+  add_library(nsmbu_zstd_static STATIC ${NSMBU_ZSTD_SOURCES})
+  target_include_directories(nsmbu_zstd_static PUBLIC ${zstd_SOURCE_DIR}/lib)
+  target_compile_definitions(nsmbu_zstd_static PRIVATE ZSTD_DISABLE_ASM XXH_NAMESPACE=ZSTD_)
+  target_compile_options(nsmbu_zstd_static PRIVATE -w -O2)
+  target_link_libraries(nsmbu_zstd INTERFACE nsmbu_zstd_static)
+
+  file(WRITE ${CMAKE_BINARY_DIR}/nsmbu-zstd.txt "bundled ${zstd_SOURCE_DIR}/LICENSE\n")
+endif()

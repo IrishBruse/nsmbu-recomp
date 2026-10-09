@@ -1,5 +1,7 @@
-
-
+// SPDX-License-Identifier: MPL-2.0
+// Identify special rendering passes by their program, wherever the game loads it.
+#pragma once
+#include "area_sample.h"
 #pragma once
 #include "area_sample.h"
 

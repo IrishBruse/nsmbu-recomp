@@ -1,5 +1,9 @@
-
-
+// Formatting library for C++ - dynamic argument lists
+//
+// Copyright (c) 2012 - present, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
 #ifndef FMT_ARGS_H_
 #define FMT_ARGS_H_
 

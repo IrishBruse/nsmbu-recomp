@@ -12,6 +12,13 @@ Read `docs/nsmbu.md` for the dump layout, the build, and the upstream base.
 Read `game/README.md` for the files under `game/`.
 Read the justfile for dev commands.
 
+## Code comments
+
+Write code without comments.
+Remove non-license comments from code you change.
+Keep license comments: copyright lines, SPDX tags, and permission or license notices in any form (`//`, `/* */`, `#`, and the like).
+Do not strip or rewrite license text when cleaning comments.
+
 ## Reproduce
 
 Load a save state to reach 1-1.

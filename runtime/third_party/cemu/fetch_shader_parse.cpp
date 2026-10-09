@@ -1,5 +1,18 @@
-
-
+// Fetch shader microcode parser.
+// Adapted from Cemu src/Cafe/HW/Latte/Core/FetchShader.cpp (cache registration removed).
+// Copyright (c) Cemu contributors. Licensed under the Mozilla Public License 2.0 (see LICENSE.txt).
+#include "Cafe/HW/Latte/Core/LatteConst.h"
+#include "Cafe/HW/Latte/ISA/RegDefines.h"
+#include "Cafe/HW/Latte/Core/Latte.h"
+#include "Cafe/HW/Latte/LegacyShaderDecompiler/LatteDecompiler.h"
+#include "Cafe/HW/Latte/LegacyShaderDecompiler/LatteDecompilerInstructions.h"
+#include "Cafe/HW/Latte/Core/FetchShader.h"
+#include "Cafe/HW/Latte/ISA/LatteInstructions.h"
+#ifdef ENABLE_METAL
+#include "Cafe/HW/Latte/Renderer/Metal/LatteToMtl.h"
+#else
+#include "Cafe/HW/Latte/Renderer/Renderer.h"
+#endif
 #include "Cafe/HW/Latte/Core/LatteConst.h"
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
 #include "Cafe/HW/Latte/Core/Latte.h"

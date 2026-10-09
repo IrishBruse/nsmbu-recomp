@@ -1,5 +1,9 @@
-
-
+// Formatting library for C++ - optional wchar_t and exotic character support
+//
+// Copyright (c) 2012 - present, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
 #ifndef FMT_XCHAR_H_
 #define FMT_XCHAR_H_
 

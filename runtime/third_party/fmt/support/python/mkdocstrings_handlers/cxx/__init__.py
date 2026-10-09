@@ -1,5 +1,6 @@
-
-
+# A basic mkdocstrings handler for {fmt}.
+# Copyright (c) 2012 - present, Victor Zverovich
+# https://github.com/fmtlib/fmt/blob/master/LICENSE
 import os
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path

@@ -1,4 +1,4 @@
-
+# SPDX-License-Identifier: MPL-2.0
 """Guard the shipped EUR map and region-aware runtime address uses.
 
 This is a source audit, not a C++ parser or proof of matching field layouts.

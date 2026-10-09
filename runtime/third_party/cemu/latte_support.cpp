@@ -1,5 +1,15 @@
-
-
+// Adapted from Cemu src/Cafe/HW/Latte/Core/LatteRenderTarget.cpp and Renderer/Metal/LatteToMtl.cpp
+// Copyright (c) Cemu contributors. Licensed under the Mozilla Public License 2.0 (see LICENSE.txt).
+#include "Cafe/HW/Latte/Core/LatteCachedFBO.h"
+#include "Cafe/HW/Latte/Core/LatteShader.h"
+#include "Cafe/HW/Latte/ISA/RegDefines.h"
+#ifdef ENABLE_METAL
+#include "Cafe/HW/Latte/Renderer/Metal/LatteToMtl.h"
+#else
+#include "Cafe/HW/Latte/Renderer/Renderer.h"
+#endif
+#include "Cafe/HW/Latte/LegacyShaderDecompiler/LatteDecompiler.h"
+#include "Cafe/HW/Latte/Core/FetchShader.h"
 #include "Cafe/HW/Latte/Core/LatteCachedFBO.h"
 #include "Cafe/HW/Latte/Core/LatteShader.h"
 #include "Cafe/HW/Latte/ISA/RegDefines.h"

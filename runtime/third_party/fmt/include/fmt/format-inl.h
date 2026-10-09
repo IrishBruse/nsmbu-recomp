@@ -1,5 +1,9 @@
-
-
+// Formatting library for C++ - implementation
+//
+// Copyright (c) 2012 - 2016, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
 #ifndef FMT_FORMAT_INL_H_
 #define FMT_FORMAT_INL_H_
 

@@ -1,5 +1,9 @@
-
-
+// Formatting library for C++ - chrono support
+//
+// Copyright (c) 2012 - present, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
 #ifndef FMT_CHRONO_H_
 #define FMT_CHRONO_H_
 
@@ -24,6 +28,7 @@ FMT_BEGIN_NAMESPACE
 #endif
 #if FMT_SAFE_DURATION_CAST
 
+// Copyright Paul Dreik 2019
 namespace safe_duration_cast {
 
 template <typename To, typename From,

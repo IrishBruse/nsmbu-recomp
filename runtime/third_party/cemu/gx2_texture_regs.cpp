@@ -1,5 +1,7 @@
-
-
+// GX2 texture and sampler register initialization.
+// Adapted from Cemu src/Cafe/OS/libs/gx2/GX2_Texture.cpp
+// Copyright (c) Cemu contributors. Licensed under the Mozilla Public License 2.0 (see LICENSE.txt).
+#include "gx2_texture_regs.h"
 #include "gx2_texture_regs.h"
 
 using namespace Latte;

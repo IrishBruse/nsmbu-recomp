@@ -1,5 +1,9 @@
-
-
+// Formatting library for C++ - formatters for standard library types
+//
+// Copyright (c) 2012 - present, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
 #ifndef FMT_STD_H_
 #define FMT_STD_H_
 

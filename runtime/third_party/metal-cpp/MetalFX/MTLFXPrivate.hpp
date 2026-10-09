@@ -1,5 +1,49 @@
-
-
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+//
+// MetalFX/MTLFXPrivate.hpp
+//
+// Copyright 2020-2024 Apple Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+#pragma once
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+#include "MTLFXDefines.hpp"
+#include <objc/runtime.h>
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+#define _MTLFX_PRIVATE_CLS( symbol )                    ( MTLFX::Private::Class::s_k##symbol )
+#define _MTLFX_PRIVATE_SEL( accessor )                  ( MTLFX::Private::Selector::s_k##accessor )
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+#if defined( MTLFX_PRIVATE_IMPLEMENTATION )
+#if defined( METALCPP_SYMBOL_VISIBILITY_HIDDEN )
+#define _MTLFX_PRIVATE_VISIBILITY                       __attribute__( ( visibility("hidden" ) ) )
+#else
+#define _MTLFX_PRIVATE_VISIBILITY                       __attribute__( ( visibility("default" ) ) )
+#endif // METALCPP_SYMBOL_VISIBILITY_HIDDEN
+#define _MTLFX_PRIVATE_IMPORT                           __attribute__( ( weak_import ) )
+#ifdef __OBJC__
+#define _MTLFX_PRIVATE_OBJC_LOOKUP_CLASS( symbol )      ( ( __bridge void* ) objc_lookUpClass( #symbol ) )
+#define _MTLFX_PRIVATE_OBJC_GET_PROTOCOL( symbol )      ( ( __bridge void* ) objc_getProtocol( #symbol ) )
+#else
+#define _MTLFX_PRIVATE_OBJC_LOOKUP_CLASS( symbol )      objc_lookUpClass(#symbol)
+#define _MTLFX_PRIVATE_OBJC_GET_PROTOCOL( symbol )      objc_getProtocol(#symbol)
+#endif // __OBJC__
+#define _MTLFX_PRIVATE_DEF_CLS( symbol )                void* s_k##symbol _MTLFX_PRIVATE_VISIBILITY = _MTLFX_PRIVATE_OBJC_LOOKUP_CLASS( symbol )
+#define _MTLFX_PRIVATE_DEF_PRO( symbol )                void* s_k##symbol _MTLFX_PRIVATE_VISIBILITY = _MTLFX_PRIVATE_OBJC_GET_PROTOCOL( symbol )
+#define _MTLFX_PRIVATE_DEF_SEL( accessor, symbol )       SEL s_k##accessor _MTLFX_PRIVATE_VISIBILITY = sel_registerName( symbol )
+#include <dlfcn.h>
+#define MTLFX_DEF_FUNC( name, signature )               using Fn##name = signature; \
 #pragma once
 
 #include "MTLFXDefines.hpp"

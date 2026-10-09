@@ -1,5 +1,9 @@
-
-
+// Formatting library for C++ - experimental format string compilation
+//
+// Copyright (c) 2012 - present, Victor Zverovich and fmt contributors
+// All rights reserved.
+//
+// For the license information refer to format.h.
 #ifndef FMT_COMPILE_H_
 #define FMT_COMPILE_H_
 

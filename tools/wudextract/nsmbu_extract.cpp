@@ -1,5 +1,63 @@
-
-
+// nsmbu-extract: reads the game from a Wii U disc image (.wud/.wux) or a Cemu Wii U archive (.wua)
+// and extracts it; used by the installer.
+//
+// Disc images: native port of tools/wudextract.py (itself a port of Cemu's
+// src/Cafe/Filesystem/WUD/wud.cpp and FST/FST.cpp, Copyright (c) Cemu contributors, Mozilla Public
+// License 2.0, see runtime/third_party/cemu/LICENSE.txt), without Python or pycryptodome.
+// Cemu archives: ZArchive files (zarchive.h), already decrypted, so no keys; one folder per title
+// (<title id>_v<version>, e.g. 0005000010143500_v0 for the game, 0005000e10143500_v.. for an update).
+//
+// usage:
+//   nsmbu-extract [KEYS] [--progress] info    IMAGE          check the keys, print the title
+//   nsmbu-extract [KEYS]              list    IMAGE          list the game partition's files
+//   nsmbu-extract [KEYS] [--progress] extract IMAGE OUTDIR   extract the game partition
+//   nsmbu-extract [--title T]         info    ARCHIVE.wua    list the titles (and the selected one)
+//   nsmbu-extract                     list    ARCHIVE.wua    list all files
+//   nsmbu-extract [--title T] [--progress] extract ARCHIVE.wua OUTDIR
+//                                   check the archive's SHA-256, then extract one title's folder
+//                                   (code, content, meta) into OUTDIR
+//
+// KEYS (no keys are included in this project; they come from your own console):
+//   --disc-key FILE     the disc key (default: IMAGE with the extension replaced by .key)
+//   --common-key FILE   the Wii U common key (default: WIIU_COMMON_KEY environment variable,
+//                       then common.key next to IMAGE or in the current directory)
+//   --keys-stdin        read "disc <32 hex digits>" / "common <32 hex digits>" lines from stdin
+// A key file holds 16 raw bytes or 32 hex digits (whitespace ignored). Keys are never printed.
+// --title T: a title id (16 hex digits; the highest version of it is used) or a folder name
+// (0005000010143500_v0). Without it an archive with a single title uses that one.
+// --only GLOB (repeatable): extract only the files whose path in the title (code/..., content/...,
+// meta/...) matches one of the patterns, without case; '*' matches any run of characters ('/' too),
+// '?' one character. The setup uses it to take only the language files of a second disc
+// (content/Common/Pack/permanent_2d_*.pack, meta/meta.xml).
+//
+// info on an archive prints "format wua", one "title ID VERSION FOLDER FILES BYTES" line per title
+// folder, and for the selected title "selected FOLDER", "title_id", "version", "files", "bytes".
+// extract --progress prints "phase verify" / "phase extract", each followed by "progress DONE TOTAL".
+//
+// Exit codes: 0 ok, 2 usage, 3 disc key missing/malformed, 4 disc key does not match the image,
+// 5 common key missing/malformed, 6 common key wrong, 7 not a Wii U disc image or archive / unreadable,
+// 8 corrupt image or archive (hash mismatch), 9 cannot write output (disk full, permissions),
+// 10 the archive does not contain the requested title (or several titles and no --title).
+#include "crypto.h"
+#include "zarchive.h"
+#include <algorithm>
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#include <fcntl.h>
+#include <io.h>
+#endif
 #include "crypto.h"
 #include "zarchive.h"
 
