@@ -32,9 +32,7 @@ namespace gfxvk { bool buffer_cache_enabled(); }  // gfx/vulkan/buffer_cache.h
 #endif
 #include "../input.h"
 #include "../input_map.h"
-#include "../mods/climb.h"
 #include "../mods/mods.h"
-#include "../mods/manager.h"
 #include "../mods/packages.h"
 #include "../motion/motion.h"
 #include "../platform/keycodes.h"
@@ -556,7 +554,11 @@ void tab_graphics() {
         ImGui::SameLine();
         char label[16];
         snprintf(label, sizeof label, "%d fps", r);
-        if (radio(label, m == 1 && f == r)) post_changed([r] { interp::set_fps(r); interp::set_mode(1); });
+        const bool on = r == 60 ? m != 1 : m == 1 && f == r;
+        if (radio(label, on)) post_changed([r] {
+            if (r == 60) interp::set_mode(0);
+            else { interp::set_fps(r); interp::set_mode(1); }
+        });
     }
     help("60, 120 and 240 fps: frame interpolation. The game logic keeps its 30 steps a second, and the\n"
          "frames in between are drawn blended (1 in-between frame per step at 60 fps, 3 at 120 fps,\n"
@@ -588,8 +590,8 @@ void tab_graphics() {
     if (check("Uncapped (debug: the game runs too fast)", gx2::uncapped(), &unc)) hostui::post([unc] { gx2::set_uncapped(unc); });
     help("Debug only, to see how many frames a second this computer can draw: no frame limit and no\n"
          "vsync. The game counts frames, so it runs faster than normal. The frame rate is in the window\n"
-         "title and the performance overlay. Not saved. (With frame interpolation and Keep game speed\n"
-         "on, the game logic still keeps 30 steps a second.)");
+         "title and the performance overlay. Not saved. (With a higher frame rate and Keep game speed\n"
+         "on, the game logic still keeps 60 steps a second.)");
 
     heading("Internal resolution");
     static const float scales[] = {1.0f, 1.5f, 2.0f, 3.0f};
@@ -670,7 +672,7 @@ void tab_graphics() {
         h.gpu = render::device();
         h.renderer = render::vulkan() ? "Vulkan" : "Metal";
         h.host = hostui::name();
-        h.fps = interp::mode() == 2 ? "true 60 fps" : interp::mode() == 1 ? "60 fps interpolation" : "30 fps";
+        h.fps = interp::mode_name();
         h.scale = hostui::res_scale();
 #ifdef NSMBU_HAS_VULKAN
         if (render::vulkan()) {
@@ -917,86 +919,9 @@ void package_controls() {
 }
 
 void tab_mods() {
-    bool v;
     heading("Mod manager");
-    note("Built-in mods are part of this recomp build. Your choices are saved; all start off by default.");
-    static ImGuiTextFilter search;
-    search.Draw("Search mods", 260);
-    static bool only_enabled = false;
-    ImGui::SameLine();
-    ImGui::Checkbox("Enabled only", &only_enabled);
-    unsigned enabled = 0;
-    for (const auto& entry : mods::manager::entries()) if (entry.enabled()) ++enabled;
-    ImGui::Text("%u of %zu enabled", enabled, mods::manager::entries().size());
-    ImGui::SameLine();
-    if (ImGui::Button("Disable all mods")) hostui::post([] { mods::packages::disable_all(); });
-    static std::string selected = "direct-camera";
-    if (ImGui::BeginTable("mod_catalogue", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV)) {
-        ImGui::TableSetupColumn("Mods", ImGuiTableColumnFlags_WidthStretch, 1);
-        ImGui::TableSetupColumn("Details", ImGuiTableColumnFlags_WidthStretch, 1.2f);
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn();
-        unsigned shown = 0;
-        for (const auto& entry : mods::manager::entries()) {
-            bool on = entry.enabled();
-            if (only_enabled && !on) continue;
-            std::string searchable = std::string(entry.name)+" "+entry.category+" "+entry.description;
-            if (!search.PassFilter(searchable.c_str())) continue;
-            ++shown;
-            ImGui::PushID(entry.id);
-            if (ImGui::Checkbox("##enabled", &on)) {
-                std::string id = entry.id;
-                hostui::post([id, on] { mods::manager::set_enabled(id, on); });
-            }
-            ImGui::SameLine();
-            if (ImGui::Selectable(entry.name, selected == entry.id)) selected = entry.id;
-            ImGui::PopID();
-        }
-        if (!shown) note("No mods match your filter.");
-        ImGui::TableNextColumn();
-        if (const auto* entry = mods::manager::find(selected)) {
-            ImGui::TextUnformatted(entry->name);
-            note("%s · Built in · %s", entry->category, entry->enabled() ? "Enabled" : "Disabled");
-            ImGui::TextWrapped("%s", entry->description);
-            if (const char* override = std::getenv(entry->startup_env))
-                note("%s=%s overrides the saved choice at startup.", entry->startup_env, override);
-            if (entry->restart_required) note("Restart the game after changing this mod.");
-            if (selected == "direct-camera") {
-                float speed = mods::camera_speed();
-                if (ImGui::SliderFloat("Camera speed", &speed, .5f, 2.f, "%.2fx"))
-                    hostui::post([speed] { mods::set_camera_speed(speed); hostui::set("mod.direct-camera.speed", std::to_string(speed)); mods::packages::remember_option("direct-camera.speed", speed); });
-            } else if (selected == "mouse-camera") {
-                float sensitivity = mods::mouse_sensitivity();
-                if (ImGui::SliderFloat("Sensitivity", &sensitivity, .08f, .3f, "%.3f"))
-                    hostui::post([sensitivity] { mods::set_mouse_sensitivity(sensitivity); hostui::set("mod.mouse-camera.sensitivity", std::to_string(sensitivity)); mods::packages::remember_option("mouse-camera.sensitivity", sensitivity); });
-            }
-        }
-        ImGui::EndTable();
-    }
-    ImGui::Separator();
+    note("Installed packages start off. Enable a package to load it.");
     package_controls();
-    ImGui::Separator();
-    heading("Cheats (save in game to keep them)");
-    if (ImGui::Button("Give all items")) mods::request_cheat(mods::kCheatItems);
-    ImGui::SameLine();
-    if (ImGui::Button("Master Sword + Mirror Shield")) mods::request_cheat(mods::kCheatSword);
-    ImGui::SameLine();
-    if (ImGui::Button("20 hearts, double magic, 5000 rupees")) mods::request_cheat(mods::kCheatStats);
-    static const std::pair<const char*, int> inf[] = {{"Infinite health", mods::kInfHealth}, {"Infinite magic", mods::kInfMagic},
-                                                      {"Infinite arrows and bombs", mods::kInfAmmo}};
-    for (int i = 0; i < 3; i++) {
-        if (i) ImGui::SameLine(0, 24);
-        int bit = inf[i].second;
-        if (check(inf[i].first, mods::infinite(bit), &v)) hostui::post([bit, v] { mods::set_infinite(bit, v); });
-    }
-    heading("Story cheats (can break story events; use a spare save file)");
-    if (ImGui::Button("All songs")) mods::request_cheat(mods::kCheatSongs);
-    ImGui::SameLine();
-    if (ImGui::Button("All Triforce shards")) mods::request_cheat(mods::kCheatTriforce);
-    ImGui::SameLine();
-    if (ImGui::Button("Map, compass, boss key")) mods::request_cheat(mods::kCheatDungeon);
-    ImGui::SameLine();
-    if (ImGui::Button("Small key")) mods::request_cheat(mods::kCheatKey);
 }
 
 void start_capture(int a, int col) {
@@ -1174,8 +1099,7 @@ void gyro_window(bool& open) {
         ImGui::SliderFloat("Mouse: degrees per point", &g.mouse_degrees, 0.01f, 1.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
         help("How far one point of mouse movement turns the GamePad (before the sensitivity above). With Steam "
              "Input's gyro to mouse, tune this and Steam's own sensitivity together.");
-        note("While the game aims, the pointer is captured and the mouse turns the GamePad (the mouse camera mod "
-             "leaves it alone then).");
+        note("While the game aims, the pointer is captured and the mouse turns the GamePad.");
     }
     if (g.source == motion::kCemuhook) {
         static char host[256] = "";

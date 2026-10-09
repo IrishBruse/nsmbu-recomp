@@ -84,8 +84,6 @@ Otherwise it runs `stubgen.py` so the tree links without your RPX.
 
 `just build-sanitizer` adds AddressSanitizer and UBSan.
 
-`just build --mods` passes `-DNSMBU_MODS_ENABLED=ON`.
-
 Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
 `tools/build.py` adds the matching `-L` path when it finds `libstdc++.so` under `/usr/lib/gcc/`.
 
@@ -100,8 +98,6 @@ Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
 `just run` runs `just build` then `just launch`.
 
 `just recomp` runs `recomp.py` only.
-
-The package manager is off in this port (`mods::mods_enabled()` is false unless you build with `-DNSMBU_MODS_ENABLED`).
 
 Put an extracted game you own in `game/`.
 

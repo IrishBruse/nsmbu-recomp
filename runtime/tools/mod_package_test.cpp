@@ -1,18 +1,10 @@
-// Standalone host-side tests; no game files, player settings or guest code needed.
-#include "mods/manager.h"
-#include "mods/mods.h"
-#include "mods/climb.h"
-#include "overlay/hostui.h"
+#include "mods/packages.h"
+#include "mods/content.h"
 #include <cassert>
 #include <cstdlib>
-#include <map>
 #include <string>
 
 namespace {
-bool state[6]{};
-float speed = 1, sensitivity = .15f;
-std::map<std::string,std::string> preferences;
-int reads = 0, writes = 0;
 void env(const char* key, const char* value) {
 #ifdef _WIN32
     _putenv_s(key, value ? value : "");
@@ -21,28 +13,6 @@ void env(const char* key, const char* value) {
 #endif
 }
 }
-namespace mods {
-bool direct_camera() { return state[0]; } void set_direct_camera(bool b) { state[0]=b; }
-bool mouse_camera() { return state[1]; } void set_mouse_camera(bool b) { state[1]=b; }
-bool first_person_wheel() { return state[2]; } void set_first_person_wheel(bool b) { state[2]=b; }
-bool climb_enabled() { return state[3]; } void set_climb_enabled(bool b) { state[3]=b; }
-bool quick_doors() { return state[4]; } void set_quick_doors(bool b) { state[4]=b; }
-bool fast_scenes() { return state[5]; } void set_fast_scenes(bool b) { state[5]=b; }
-float camera_speed() { return speed; }
-void set_camera_speed(float f) { speed=f; }
-float mouse_sensitivity() { return sensitivity; }
-void set_mouse_sensitivity(float f) { sensitivity=f; }
-}
-namespace hostui {
-bool get(const char* k, std::string& value) {
-    ++reads; auto it=preferences.find(k);
-    if(it==preferences.end()) return false;
-    value=it->second;return true;
-}
-void set(const char* k, const std::string& value) { ++writes;preferences[k]=value; }
-}
-#include "mods/packages.h"
-#include "mods/content.h"
 #include "mods/cemu_pack.h"
 #include <filesystem>
 #include <fstream>
@@ -134,38 +104,58 @@ int main(int argc, char** argv) {
     auto root=fs::path(argv[1])/std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     assert(!fs::exists(root));
     fs::create_directories(root);
-    env("WWHD_NO_HOST_INPUT","1");
-    env("WWHD_MOD_MANAGER_DIR",(root/"storage").string().c_str());
+    env("NSMBU_NO_HOST_INPUT","1");
+    env("NSMBU_MOD_MANAGER_DIR",(root/"storage").string().c_str());
+    env("NSMBU_TEST_TRUST_NATIVE_MODS","climb-preset,cycle-a,cycle-b,conflicting,typed,needs-native");
+    fs::create_directories(root/"storage");
+    std::ofstream(root/"storage"/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{},"builtins":{"direct-camera":true},"builtin_options":{"direct-camera.speed":1.5}}}})";
     initialize();
     std::string error;
-    auto package=[&](const char* id, const char* extra, const char* setting="wall-climb") {
+    auto package=[&](const char* id, const char* extra) {
         auto path=root/id;fs::create_directories(path);
+        fs::copy_file(argv[2],path/"fixture.dylib",fs::copy_options::overwrite_existing);
         std::ofstream(path/"manifest.json") << "{\"format_version\":1,\"id\":\"" << id
-          << "\",\"name\":\"" << id << "\",\"version\":\"1.0.0\",\"game_id\":\"wwhd-usa\","
-          << "\"kind\":\"settings\",\"settings\":{\"" << setting << "\":true}" << extra << "}";
+          << "\",\"name\":\"" << id << "\",\"version\":\"1.0.0\",\"game_id\":\"nsmbu-usa\","
+          << "\"kind\":\"native\",\"abi_version\":1,\"binaries\":{\"" << platform_key() << "\":\"fixture.dylib\"}" << extra << "}";
         return path.string();
     };
+    auto rejected=root/"rejected";fs::create_directories(rejected);
+    fs::copy_file(argv[2],rejected/"fixture.dylib");
+    std::ofstream(rejected/"manifest.json")<<R"({"format_version":1,"id":"rejected","name":"Rejected","version":"1.0.0","game_id":"nsmbu-usa","kind":"native","abi_version":1,"binaries":{")"
+      <<platform_key()<<R"(":"fixture.dylib"},"dependencies":[{"id":"builtin:direct-camera"}]})";
+    assert(!install(rejected.string(),error));
+    assert(error.find("Unknown built-in mod: builtin:direct-camera")!=std::string::npos);
+    auto settings=root/"settings-preset";fs::create_directories(settings);
+    std::ofstream(settings/"manifest.json")<<R"({"format_version":1,"id":"settings-preset","name":"Settings","version":"1.0.0","game_id":"nsmbu-usa","kind":"settings","settings":{"wall-climb":true}})";
+    assert(!install(settings.string(),error));
+    assert(error.find("wall-climb")!=std::string::npos);
     assert(install(package("climb-preset",""),error));
     assert(list().size()==1 && list()[0].id=="climb-preset");
-    assert(list()[0].native_confirmed && unconfirmed_native("climb-preset").empty()); // settings presets never ask
-    assert(enable("climb-preset",true,error));frame(1);assert(state[3] && list()[0].active);
+    assert(list()[0].native_confirmed && unconfirmed_native("climb-preset").empty());
+    assert(enable("climb-preset",true,error));frame(1);assert(view("climb-preset").active);
+    {
+        std::ifstream saved(root/"storage"/"profiles.json");
+        std::string text{std::istreambuf_iterator<char>(saved),{}};
+        assert(text.find("builtins")==std::string::npos);
+        assert(text.find("builtin_options")==std::string::npos);
+    }
     assert(!remove("climb-preset",error));
-    assert(enable("climb-preset",false,error));frame(2);assert(!state[3]);
+    assert(enable("climb-preset",false,error));frame(2);assert(!view("climb-preset").active);
     assert(create_profile("Adventure",error));
-    assert(enable("climb-preset",true,error));frame(20);assert(state[3]);
-    assert(select_profile("Adventure",error));frame(21);assert(!state[3]);
+    assert(enable("climb-preset",true,error));frame(20);assert(view("climb-preset").active);
+    assert(select_profile("Adventure",error));frame(21);assert(!view("climb-preset").active);
     assert(current_profile()=="Adventure");assert(!delete_profile("Adventure",error));
     assert(select_profile("Default",error));assert(delete_profile("Adventure",error));
     assert(install(package("missing-dep",",\"dependencies\":[{\"id\":\"absent\"}]"),error));
     assert(!enable("missing-dep",true,error));
     assert(remove("missing-dep",error));
     assert(install(package("cycle-a",",\"dependencies\":[{\"id\":\"cycle-b\"}]"),error));
-    assert(install(package("cycle-b",",\"dependencies\":[{\"id\":\"cycle-a\"}]","quick-doors"),error));
+    assert(install(package("cycle-b",",\"dependencies\":[{\"id\":\"cycle-a\"}]"),error));
     assert(!enable("cycle-a",true,error));assert(error.find("cycle")!=std::string::npos);
     assert(remove("cycle-a",error));assert(remove("cycle-b",error));
-    assert(install(package("conflicting",",\"conflicts\":[\"climb-preset\"]","quick-doors"),error));
+    assert(install(package("conflicting",",\"conflicts\":[\"climb-preset\"]"),error));
     assert(!enable("conflicting",true,error));assert(remove("conflicting",error));
-    assert(install(package("typed",R"(,"options":[{"id":"toggle","name":"Toggle","type":"bool","default":false},{"id":"rate","name":"Rate","type":"number","min":1,"max":10,"default":2},{"id":"mode","name":"Mode","type":"enum","choices":["a","b"],"default":"a"}])","quick-doors"),error));
+    assert(install(package("typed",R"(,"options":[{"id":"toggle","name":"Toggle","type":"bool","default":false},{"id":"rate","name":"Rate","type":"number","min":1,"max":10,"default":2},{"id":"mode","name":"Mode","type":"enum","choices":["a","b"],"default":"a"}])"),error));
     assert(configure("typed","toggle",true,error));assert(!configure("typed","toggle",1,error));
     assert(configure("typed","rate",5,error));assert(!configure("typed","rate",11,error));
     assert(configure("typed","mode","b",error));assert(!configure("typed","mode","c",error));
@@ -186,7 +176,7 @@ int main(int argc, char** argv) {
     assert(!enable("fixture",true,error));assert(error.find("native code")!=std::string::npos);
     frame(3);assert(!find().active && !find().enabled);
     // A settings preset that requires the native package names it in the confirmation.
-    assert(install(package("needs-native",",\"dependencies\":[{\"id\":\"fixture\"}]","fast-scenes"),error));
+    assert(install(package("needs-native",",\"dependencies\":[{\"id\":\"fixture\"}]"),error));
     pending=unconfirmed_native("needs-native");assert(pending.size()==1 && pending[0].first=="fixture");
     assert(!enable("needs-native",true,error));assert(remove("needs-native",error));
     // Test aid: pre-confirmed only in isolated test runs, and never written to profiles.json.
@@ -194,7 +184,13 @@ int main(int argc, char** argv) {
     env("NSMBU_TEST_TRUST_NATIVE_MODS",nullptr);assert(!find().native_confirmed && trusted().empty());
     assert(confirm_native("fixture",error));assert(trusted().size()==64);
     assert(find().native_confirmed && unconfirmed_native("fixture").empty());
-    assert(!confirm_native("climb-preset",error));
+    assert(enable("climb-preset",false,error));frame(30);assert(remove("climb-preset",error));
+    auto plain=root/"plain";fs::create_directories(plain/"content"/"Common");
+    std::ofstream(plain/"content"/"Common"/"a.bin")<<"x";
+    std::ofstream(plain/"manifest.json")<<R"({"format_version":1,"id":"plain","name":"Plain","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
+    assert(install(plain.string(),error));
+    assert(!confirm_native("plain",error));
+    assert(remove("plain",error));
     assert(enable("fixture",true,error));frame(6);
     assert(find().active && find().status=="initial");
     assert(configure("fixture","label","changed",error));frame(4);assert(find().status=="changed");
@@ -225,7 +221,7 @@ int main(int argc, char** argv) {
     // Removing forgets the confirmation; reinstalling asks again.
     assert(remove("fixture",error));assert(trusted().empty());
     assert(install(native.string(),error));assert(!find().native_confirmed);
-    assert(remove("fixture",error));assert(enable("climb-preset",false,error));frame(30);assert(remove("climb-preset",error));
+    assert(remove("fixture",error));
     assert(list().empty());
     if(argc == 4) {
         assert(install(argv[3],error));

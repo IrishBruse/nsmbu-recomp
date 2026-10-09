@@ -304,34 +304,6 @@ static WWStateMenu* g_state_menu;
 
 static WWGraphicsMenu* g_target;
 
-// Menu items backed by two blocks: `get` gives the check mark, `set` is called with !get() on a click.
-// Used by the Gameplay menu: one line per option (see install_menu).
-@interface WWBlockItem : NSObject <NSMenuItemValidation>
-@property(copy) BOOL (^get)(void);
-@property(copy) void (^set)(BOOL);
-@end
-@implementation WWBlockItem
-- (void)act:(NSMenuItem*)item { self.set(!self.get()); update_title(); }
-- (BOOL)validateMenuItem:(NSMenuItem*)item {
-    item.state = self.get() ? NSControlStateValueOn : NSControlStateValueOff;
-    return YES;
-}
-@end
-static NSMutableArray<WWBlockItem*>* g_block_items;  // menu items hold their targets weakly
-
-// add a checkable item: toggle(menu, @"Title", ^{ return state(); }, ^(BOOL on) { set_state(on); })
-static NSMenuItem* toggle(NSMenu* m, NSString* title, BOOL (^get)(void), void (^set)(BOOL), NSString* tip = @"") {
-    WWBlockItem* t = [WWBlockItem new];
-    t.get = get;
-    t.set = set;
-    if (!g_block_items) g_block_items = [NSMutableArray new];
-    [g_block_items addObject:t];
-    NSMenuItem* it = [m addItemWithTitle:title action:@selector(act:) keyEquivalent:@""];
-    it.target = t;
-    if (tip.length) it.toolTip = tip;
-    return it;
-}
-
 static NSMenuItem* add(NSMenu* m, NSString* title, SEL action, NSString* key, NSInteger tag = 0) {
     NSMenuItem* it = [m addItemWithTitle:title action:action keyEquivalent:@""];
     it.target = g_target;
@@ -340,8 +312,6 @@ static NSMenuItem* add(NSMenu* m, NSString* title, SEL action, NSString* key, NS
     if (key.length) it.toolTip = [NSString stringWithFormat:@"Shortcut in game: %@", key];
     return it;
 }
-
-namespace mods { bool climb_enabled(); void set_climb_enabled(bool on); }  // mods/climb.cpp
 
 namespace gfx {
 
@@ -417,49 +387,6 @@ void install_menu(NSWindow* tv) {
     inItem.submenu = in;
     install_display_menu(bar);  // Display: full screen, scaling, GamePad screen mode (display.mm)
 
-    // Gameplay: optional mods, all off by default (runtime/src/mods/). One line per option.
-    NSMenuItem* gpItem = [bar addItemWithTitle:@"Gameplay" action:nil keyEquivalent:@""];
-    NSMenu* gp = [[NSMenu alloc] initWithTitle:@"Gameplay"];
-    [gp addItemWithTitle:@"Camera" action:nil keyEquivalent:@""].enabled = NO;
-    toggle(gp, @"    Direct right-stick camera (no easing)", ^BOOL { return mods::direct_camera(); }, ^(BOOL on) { mods::set_direct_camera(on); },
-           @"The right stick turns the camera at a constant rate as soon as it is pushed");
-    for (float sp : {0.5f, 1.0f, 1.5f, 2.0f})
-        toggle(gp, [NSString stringWithFormat:@"        Speed %gx", sp], ^BOOL { return mods::camera_speed() == sp; }, ^(BOOL) { mods::set_camera_speed(sp); });
-    toggle(gp, @"    Mouse camera (click the picture to capture, Esc releases)", ^BOOL { return mods::mouse_camera(); },
-           ^(BOOL on) { mods::set_mouse_camera(on); }, @"Mouse turns the camera; middle click or Esc releases the pointer; left click fires an aimed item");
-    for (float se : {0.08f, 0.15f, 0.3f})
-        toggle(gp, [NSString stringWithFormat:@"        Sensitivity %s", se < 0.1f ? "low" : se < 0.2f ? "medium" : "high"],
-               ^BOOL { return mods::mouse_sensitivity() == se; }, ^(BOOL) { mods::set_mouse_sensitivity(se); });
-    toggle(gp, @"    First person on R3 / mouse wheel", ^BOOL { return mods::first_person_wheel(); }, ^(BOOL on) { mods::set_first_person_wheel(on); },
-           @"Right-stick click (keyboard V) or wheel forward enters the first-person view, wheel back leaves it");
-    [gp addItem:[NSMenuItem separatorItem]];
-    toggle(gp, @"Climb any wall", ^BOOL { return mods::climb_enabled(); }, ^(BOOL on) { mods::set_climb_enabled(on); },
-           @"Grab and climb any wall (stamina wheel; B or A lets go)");
-    toggle(gp, @"Quick doors", ^BOOL { return mods::quick_doors(); }, ^(BOOL on) { mods::set_quick_doors(on); },
-           @"Door events (walk-in, opening, closing) run at 4x speed");
-    toggle(gp, @"Fast scene changes", ^BOOL { return mods::fast_scenes(); }, ^(BOOL on) { mods::set_fast_scenes(on); },
-           @"Fades and loading between areas run at 4x speed; the scenes themselves are not sped up");
-    [gp addItem:[NSMenuItem separatorItem]];
-    [gp addItemWithTitle:@"Cheats (save in game to keep them)" action:nil keyEquivalent:@""].enabled = NO;
-    toggle(gp, @"    Give all items", ^BOOL { return NO; }, ^(BOOL) { mods::request_cheat(mods::kCheatItems); },
-           @"Every inventory item, light arrows, deluxe picto box, power bracelets, 4 bottles, 99 arrows and bombs");
-    toggle(gp, @"    Master Sword (full power) and Mirror Shield", ^BOOL { return NO; }, ^(BOOL) { mods::request_cheat(mods::kCheatSword); });
-    toggle(gp, @"    20 hearts, double magic, 5000 rupees", ^BOOL { return NO; }, ^(BOOL) { mods::request_cheat(mods::kCheatStats); },
-           @"Also refills hearts and magic");
-    for (auto [title, which] : {std::pair{@"    Infinite health", mods::kInfHealth}, {@"    Infinite magic", mods::kInfMagic},
-                                {@"    Infinite arrows and bombs", mods::kInfAmmo}}) {
-        int bit = which;  // (blocks cannot capture structured bindings)
-        toggle(gp, title, ^BOOL { return mods::infinite(bit); }, ^(BOOL on) { mods::set_infinite(bit, on); });
-    }
-    [gp addItem:[NSMenuItem separatorItem]];
-    NSString* story = @"Can change or break story events: the game may skip or repeat scenes that teach or check this. "
-                      @"Save to a different file first.";
-    [gp addItemWithTitle:@"⚠️ Story cheats (can break story events; use a spare save file)" action:nil keyEquivalent:@""].enabled = NO;
-    toggle(gp, @"    All songs", ^BOOL { return NO; }, ^(BOOL) { mods::request_cheat(mods::kCheatSongs); }, story);
-    toggle(gp, @"    All Triforce shards", ^BOOL { return NO; }, ^(BOOL) { mods::request_cheat(mods::kCheatTriforce); }, story);
-    toggle(gp, @"    Map, compass and boss key (this dungeon)", ^BOOL { return NO; }, ^(BOOL) { mods::request_cheat(mods::kCheatDungeon); }, story);
-    toggle(gp, @"    Add a small key (this dungeon)", ^BOOL { return NO; }, ^(BOOL) { mods::request_cheat(mods::kCheatKey); }, story);
-    gpItem.submenu = gp;
     mods::mouse_init((__bridge void*)tv);
 
     // Save States: 5 slots (savestate.cpp); Shift+F1..F5 save, F1..F5 load

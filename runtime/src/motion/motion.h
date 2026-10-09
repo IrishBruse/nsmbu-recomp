@@ -81,7 +81,6 @@ void mouse_motion(float dx, float dy);
 // the mouse source is active and the game aims now: mouse movement belongs to the gyro (the mouse
 // camera mod leaves it alone) and the hosts capture the pointer while this holds
 bool mouse_drives_gyro();
-// mods/camera.cpp: the game's aiming / first-person state, once per logic step
 void set_aiming(bool aiming);
 bool aiming();
 

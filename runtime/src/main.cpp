@@ -329,7 +329,7 @@ int main(int argc, char** argv) {
         return result;
     }
 #endif
-    mods::manager::load_saved();  // player choices, before the game starts
+    mods::manager::load_saved();
     mods::cemu::set_vulkan(render::requested()==render::Api::Vulkan);
     mods::content::set_game_root(config::game_dir);  // loose imports (fan translations) find their game path
     mods::packages::initialize();

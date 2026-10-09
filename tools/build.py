@@ -35,12 +35,6 @@ def link_compile_commands(build_dir):
         os.symlink(os.path.relpath(src, ROOT), dst)
 
 
-def extra_cmake_debug(mods=False):
-    if mods:
-        return ["-DNSMBU_MODS_ENABLED=ON"]
-    return []
-
-
 def libstdcxx_libdir():
     for ver in range(20, 10, -1):
         hits = glob.glob(f"/usr/lib/gcc/*-linux-gnu/{ver}/libstdc++.so")
@@ -122,7 +116,6 @@ def main():
     parser.add_argument("--release", action="store_true")
     parser.add_argument("--no-debug", action="store_true")
     parser.add_argument("--sanitizer", action="store_true")
-    parser.add_argument("--mods", action="store_true")
     parser.add_argument("cmake_args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     debug_build = not args.release and not args.no_debug
@@ -161,7 +154,6 @@ def main():
     extra = list(args.cmake_args)
     if not any(a.startswith("-DNSMBU_BUNDLED_DEPS") for a in extra):
         cmake.append("-DNSMBU_BUNDLED_DEPS=ON")
-    cmake.extend(extra_cmake_debug(args.mods))
     cmake.extend(extra)
     subprocess.run(cmake, check=True, cwd=ROOT)
     subprocess.run(

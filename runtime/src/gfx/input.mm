@@ -26,7 +26,7 @@
 #include <vector>
 
 namespace gfx { void request_capture(); bool menu_hotkey(uint16_t keyCode); bool controls_window_is_key(); bool text_input_key(void* event); }
-namespace mods { void filter_pad(input::PadState& s); bool host_key_down(uint16_t code); void update_gyro_mouse(); }  // mods/
+namespace mods { void update_gyro_mouse(); }
 
 namespace input {
 
@@ -269,7 +269,6 @@ void init() {
             if (posted) return nil;  // test keys only reach the overlay
         }
         std::lock_guard<std::mutex> lk(g_mu);
-        if (e.type == NSEventTypeKeyDown && !e.isARepeat && mods::host_key_down(code)) return nil;  // e.g. Esc releases the mouse
         if (e.type == NSEventTypeKeyDown && !e.isARepeat && gfx::menu_hotkey(code)) return nil;
         // a repeat never presses a key: one held down while the overlay or the text prompt had the keyboard
         // (Enter that confirmed a name) stays out of the game until pressed again
@@ -551,7 +550,6 @@ PadState read() {
         LOG("[input] frame %llu buttons %04X", (unsigned long long)render::frame_count(), s.buttons);
         last_buttons = s.buttons;
     }
-    mods::filter_pad(s);  // gameplay mods: mouse camera, wheel -> R3
     if (overlay::blocks_input()) s = PadState{};  // the settings overlay has the input
     return s;
 }
