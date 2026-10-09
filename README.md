@@ -66,3 +66,5 @@ Use commit `853d7b18c8c6703c5fc50c40cb923c1fb9503ecd` as the rebase base.
 Port notes, build steps, and rebase commands are in [docs/nsmbu.md](docs/nsmbu.md).
 
 The upstream readme is in [docs/upstream-nsmbu-readme.md](docs/upstream-nsmbu-readme.md).
+
+Changes are in [CHANGELOG.md](CHANGELOG.md).

@@ -84,4 +84,6 @@ def main(out):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(root, "runtime", "src", "nsmbu_guest_stubs.c"))
+    if len(sys.argv) != 2:
+        sys.exit("usage: guest_stubs.py OUT.c")
+    main(sys.argv[1])

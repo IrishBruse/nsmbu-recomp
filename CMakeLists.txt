@@ -130,6 +130,7 @@ endif()
 # strong HLE definitions replace the generated weak import stubs.
 file(GLOB RUNTIME_SOURCES CONFIGURE_DEPENDS runtime/src/*.cpp runtime/src/*.c runtime/src/hle/*.cpp runtime/src/mods/*.cpp runtime/src/motion/*.cpp
                                             runtime/src/overlay/*.cpp)
+list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "nsmbu_guest_stubs\\.c$")
 list(APPEND RUNTIME_SOURCES runtime/src/platform/perf_hint.cpp)  # Android performance hints (no-op elsewhere)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(NSMBU_GUEST_STUBS ${CMAKE_BINARY_DIR}/generated/nsmbu_guest_stubs.c)

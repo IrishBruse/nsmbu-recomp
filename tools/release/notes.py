@@ -1,29 +1,28 @@
 #!/usr/bin/env python3
-"""Release notes from README.md: install instructions + the "What's new" section + checksums.
+"""Release notes: install instructions, one CHANGELOG.md version, and checksums.
 
 usage: notes.py README.md VERSION SHA256SUMS.txt > notes.md
 
-"What's new" has one "### vX.Y.Z" block per release; the notes take the block for VERSION (or the
-whole section when there is none).
+VERSION is the tag (v0.1) or the changelog heading (0.1).
+The notes take the matching "## 0.1" block from CHANGELOG.md next to the README.
 """
+import os
 import re
 import sys
 
 
-def section(text, title_prefix):
-    m = re.search(r"^## %s.*?$\n(.*?)(?=^## )" % re.escape(title_prefix), text, re.S | re.M)
+def changelog_version(readme, version):
+    path = os.path.join(os.path.dirname(os.path.abspath(readme)), "CHANGELOG.md")
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    ver = version[1:] if version.startswith("v") else version
+    m = re.search(r"^## %s\s*$\n(.*?)(?=^## |\Z)" % re.escape(ver), text, re.S | re.M)
     return m.group(1).strip() if m else ""
 
 
 def main():
     readme, version, sums = sys.argv[1:4]
-    with open(readme, encoding="utf-8") as f:
-        text = f.read()
-    new = section(text, "What's new")
-    # only this release's own changes: the "### vX.Y.Z" block of "What's new"
-    m = re.search(r"^### %s\s*$\n(.*?)(?=^### |\Z)" % re.escape(version), new, re.S | re.M)
-    if m:
-        new = m.group(1).strip()
+    new = changelog_version(readme, version)
     with open(sums) as f:
         checksums = f.read().strip()
     print("""**New Super Mario Bros. U, native PC port, %s**
@@ -53,7 +52,7 @@ See "Install (releases)" in the README for details.
 ```
 %s
 ```
-""" % (version, new or "See the README.", checksums))
+""" % (version, new or "See CHANGELOG.md.", checksums))
 
 
 if __name__ == "__main__":
