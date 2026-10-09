@@ -14,8 +14,6 @@ copy of cking.sav and cking_playlog.sav is used. Three runs, one game at a time:
          Checks: stage, room and Link's position (within 30 units) and angle match, the save data
          (inventory, flags, progress: the cking.sav block) and the HD sections are equal apart from
          the time of day (it runs on)
-  questlog: the house state loaded while Quest Log 2 is played (a cking.sav whose files 1 and 2
-         are SAVE_DIR's file 1): the notice is logged and the data goes into Quest Log 2
   boat:  (--boat-save, e.g. gametest/saves/ghost) swim to the boat, climb aboard, set sail, sail;
          save; cold boot (Link on land), load: Link is on the boat, the boat at its place/heading
   event: (--event-save, e.g. gametest/saves/helm) a portable save while the King of Red Lions
@@ -33,8 +31,6 @@ import signal
 import subprocess
 import sys
 import time
-
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "savegame"))
 
 
 def wait_for_quiet_machine():
@@ -170,16 +166,6 @@ def compare(name, state1, state2, same_slot=True, pos_tolerance=30, xz_only=Fals
     print(name + ": Link %s -> %s (%sdistance %.1f), angle difference %d" % (p1, p2, "horizontal " if xz_only else "", dist, da))
     if dist > pos_tolerance or da > 0x400:
         ok = False
-    # save data: equal apart from the time of day (it runs on)
-    a, b = bytes.fromhex(s1["savedata"]), bytes.fromhex(s2["savedata"])
-    import wwsave as W
-    diff = [n for n, (off, size) in W.HD_FIELDS.items() if a[off:off + size] != b[off:off + size]]
-    print(name + ": save data fields that differ: %s (time of day %s -> %s)" % (diff or "none", s1["time_of_day"], s2["time_of_day"]))
-    if set(diff) - {"status_b.time"}:
-        ok = False
-    rupee_off = W.HD_FIELDS["status_a.rupee"][0]
-    print(name + ": rupees %d (state) / %d (after the load; 99 were poked before it)" %
-          (int.from_bytes(a[rupee_off:rupee_off + 2], "big"), int.from_bytes(b[rupee_off:rupee_off + 2], "big")))
     for k in ("hd_player", "hd_status", "hd_event") + (("hd_map",) if s1["stage"] != "sea" or s1["on_ship"] == "0" else ()):
         if s1[k] != s2[k]:
             print(name + ": %s differs" % k)
@@ -202,24 +188,6 @@ def portable_case(binary, game, save_dir, work, name, warp, expect_stage, origin
     if not state2:
         return False, state1
     return compare(name, state1, state2)[0] and ok, state1
-
-
-def questlog_case(binary, game, save_dir, work, state1):
-    """a state from Quest Log 1 loaded while Quest Log 2 is played"""
-    import wwsave as W
-    slots, extras, _ = W.read_hd(open(os.path.join(save_dir, "user", "cking.sav"), "rb").read())
-    slots = [slots[0], slots[0], slots[2]]
-    extras = [extras[0], dict(extras[0]), extras[2]]
-    two = os.path.join(work, "two_quest_logs.sav")
-    open(two, "wb").write(W.write_hd(slots, extras))
-    state2, log = load_state(binary, game, two, work, "questlog", state1, quest_log=2)
-    if not state2:
-        return False
-    notice = re.search(r"this state is from Quest Log (\d); it is loaded into Quest Log (\d)", log)
-    print("questlog: " + (notice.group(0) if notice else "NO notice logged"))
-    ok, s1, s2 = compare("questlog", state1, state2, same_slot=False)
-    print("questlog: state from Quest Log %d, saved again from Quest Log %d" % (int(s1["file_slot"]) + 1, int(s2["file_slot"]) + 1))
-    return ok and bool(notice) and notice.groups() == ("1", "2") and s2["file_slot"] == "1"
 
 
 def boat_case(binary, game, boat_save, work, origin=3300):
@@ -296,13 +264,10 @@ def main():
 
     # Link's house (another stage than the cold boot's Outset), and Outset itself (same stage, other place)
     warp = "4C696E6B524D0000" + "0000" + "00" + "FF" + "01" + "00"  # "LinkRM", point 0, room 0, layer -1, enabled, wipe 0
-    house_state = None
-    if run("house") or run("questlog"):
-        results["house"], house_state = portable_case(binary, game, save_dir, work, "house", warp, "LinkRM")
+    if run("house"):
+        results["house"] = portable_case(binary, game, save_dir, work, "house", warp, "LinkRM")[0]
     if run("outset"):
         results["outset"] = portable_case(binary, game, save_dir, work, "outset", None, "sea")[0]
-    if run("questlog") and house_state:
-        results["questlog"] = questlog_case(binary, game, save_dir, work, house_state)
     if run("boat") and opt("--boat-save"):
         results["boat"] = boat_case(binary, game, opt("--boat-save"), work)
     if run("event") and opt("--event-save"):

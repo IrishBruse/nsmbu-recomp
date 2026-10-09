@@ -1,9 +1,8 @@
 # NSMBU ↔ GameCube decompilation: findings
 
-Function names for NSMBU (`red-pro2.rpx`) come from
-`python3 tools/decomp/match.py game/code/red-pro2.rpx tww build/names.tsv` (about 1 minute). Needs
-`tww/` (zeldaret/tww) built from your own GameCube disc image (`tww/build/GZLE01`). Outputs (all
-in git-ignored `build/`):
+These notes record a match of this executable against the Wind Waker GameCube decompilation.
+The matcher scripts are not in this tree.
+Outputs of that match (all in git-ignored `build/`) were:
 
 - `names.tsv`: address, name, source file, evidence, score (match probability for `graph`/`tu`).
 - `nsmbu_to_gc.tsv`: NSMBU address → GameCube mangled symbol, source file, module, GameCube
@@ -11,15 +10,13 @@ in git-ignored `build/`):
 - `coverage.tsv`: per translation unit, GameCube functions vs. matched.
 - `regions.tsv`: long unmatched stretches (HD-only code).
 
-Helper tools: `layout.py` (structure offsets, below), `timers.py` (frame timers, below),
-`datamap.py` (NSMBU addresses of GameCube globals), `heldout.py` (precision test), `train.py`
-(refits the pair-scoring model).
+The sections below keep the layout, timer, and data-map findings from that match.
 
 ### Evidence and measured precision
 
 | Evidence | Meaning | Count | Held-out precision |
 |---|---|---|---|
-| `manual` | hand-verified (`tools/decomp/manual_names.tsv`) | 11 | — |
+| `manual` | hand-verified names | 11 | — |
 | `assert` | assert text (file + condition) | 191 | near-certain |
 | `profile` | actor profile method tables (process-name IDs) | 1,477 | near-certain |
 | `strings` | rare string/float literals + file neighbourhood | 353 | high (used as test truth) |
@@ -347,8 +344,7 @@ Debug aids: `NSMBU_LINK_TRACE`, `NSMBU_CAM_TRACE`, `NSMBU_ACTOR_DUMP=path:FN|lin
 
 ### Per-step logic in the other actors (survey for the next conversions)
 
-`tools/true60/actor_survey.py [d_a_]` scans the generated code of every named actor function and
-writes `build/true60_survey.tsv`, one line per GameCube source file. It reports:
+A survey of the generated actor code, one line per GameCube source file, reported:
 - calls to the primitives that true60 already scales;
 - inline step counters: a 16/32-bit field loaded, ±1, stored back. The offset is from the base
   register, usually `this`; Link's code often uses `this+0x448`. Example: Link's `-0x652A`
@@ -673,7 +669,7 @@ Key daPy_lk_c fields (GameCube → NSMBU): `mCurProc` 0x31D8→0x65F0, `mStickDi
 
 ## Frame-count timers (catalogue)
 
-`tools/decomp/timers.py` lists fields that are decremented by one (load, `addi -1`, store back)
+Fields decremented by one (load, `addi -1`, store back)
 or passed to `cLib_calcTimer`. It covers code reachable from an actor's Execute (method table,
 `execute` methods, PTMF procedure tables of the same file) in the GameCube build. Each entry gets
 its NSMBU offset when the matched NSMBU function has the same number of decrement sites.
@@ -698,7 +694,7 @@ Free functions on `xxx_class*` count as that class.
 
 ## Structure layouts (GameCube → NSMBU)
 
-`tools/decomp/layout.py` aligns the loads/stores through `this` (or the first argument) of every
+Loads and stores through `this` (or the first argument) of every
 matched pair. Each aligned pair votes GameCube offset → NSMBU offset. Field names come from the
 `/* 0x... */` comments in the decompilation headers.
 

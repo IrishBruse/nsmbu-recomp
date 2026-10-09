@@ -52,9 +52,6 @@ Each function comment in those headers has a guest address.
 
 These parts still need NSMBU-specific work.
 
-- `tools/recomp/nsmbu_hooks/` holds upstream guest addresses.
-  The recompiler does not load that directory.
-  A hook address from the upstream game is a different function in NSMBU.
 - Language packs and many mods still follow upstream Cemu pack folder names.
 - `runtime/src/nsmbu_guest_stubs.c` holds weak stubs for symbols the runtime still names from upstream.
   Regenerate with `python3 tools/recomp/guest_stubs.py`.

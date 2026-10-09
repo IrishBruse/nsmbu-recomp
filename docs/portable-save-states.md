@@ -55,9 +55,7 @@ Loading is not affected.
 The Saves tab's **Copy save for bug report** copies the paths of the newest portable state and of
 `cking.sav`. The issue template asks for both. A developer loads a received state by copying it
 into the states folder as `slotN.wwstate` and loading slot N, or with
-`NSMBU_PORTABLE_LOAD=<file>` (applied as soon as a Quest Log is being played). `tools/savegame/wwstate.py info <file>`
-shows what a state holds (place, hearts, items, songs, ...) and `wwstate.py to-sav <file> -o <dir>`
-turns it into a `cking.sav`.
+`NSMBU_PORTABLE_LOAD=<file>` (applied as soon as a Quest Log is being played).
 
 ## What a portable state holds
 
@@ -130,7 +128,7 @@ there; `file_slot` only drives the notice above).
 [--event-save <dir>]` (headless, copies of the saves only): from a copy of a save, warps into
 Link's house (and, second case, stays on Outset), walks, saves a portable state; cold boot, changes
 the rupees, loads the state, saves again once Link has arrived, and compares stage, room, position,
-angle, the save data field by field (`tools/savegame/wwsave.py`) and the HD sections. Further cases:
+angle and the HD sections. Further cases:
 the house state loaded while Quest Log 2 is played (notice, data in Quest Log 2); with a save that
 has the boat (gametest `ghost`): swim to the boat, climb aboard, set sail, save at sea, cold boot,
 load, Link is on the boat and the boat at its place and heading; with gametest `helm`: a portable
