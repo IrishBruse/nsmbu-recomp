@@ -6,6 +6,7 @@
 namespace interp {
 void record_executed_step();
 uint64_t executed_steps();
+uint64_t logic_steps();
 int mode();
 void set_mode(int m);
 int fps();
