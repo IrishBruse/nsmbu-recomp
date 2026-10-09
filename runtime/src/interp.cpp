@@ -1034,9 +1034,7 @@ static bool g_in_execute = false;  // inside fpcEx_Handler (actor Execute): logi
 extern "C" void hook_025DE788(Cpu* c) {
     if (skip(1) && !true60::enabled()) return;  // true 60: the per-process gate decides (true60.cpp)
     g_in_execute = true;
-    uint32_t execute_fn = c->r[3];
     f_025DE788_orig(c);
-    mods::after_execute(c, execute_fn);  // quick doors / fast scene changes: extra steps (full passes only)
     if (!interp::g_hold_frame) mods::packages::frame(interp::g_logic_steps);
     g_in_execute = false;
 }
