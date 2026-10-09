@@ -18,6 +18,8 @@ Local `main` points at that commit.
 
 The remote name in this clone is `upstream`.
 
+The archived Wind Waker HD readme is [upstream-wwhd-readme.md](upstream-wwhd-readme.md).
+
 This clone is shallow.
 
 It stores that commit only.

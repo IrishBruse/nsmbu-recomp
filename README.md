@@ -1,43 +1,107 @@
 # New Super Mario Bros. U — native port
 
-This tree starts from [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) commit `853d7b18c8c6703c5fc50c40cb923c1fb9503ecd`.
+This is a native port of the Wii U game.
+The port supports the USA version only.
+The installer translates the PowerPC code to C on your computer.
+Cafe OS and GX2 run as native code.
+Linux and Windows use Vulkan.
+macOS uses Metal.
 
-NSMBU is a Wii U game on Cafe OS and GX2.
+You supply your own copy of the game.
+A release contains the runtime, the tools, and the installer.
+You supply the disc image, the keys, and the game files.
 
-The recompiler and native runtime stay.
+## Status
 
-This repository does not contain a disc image, a title key, or recompiled game code.
+Currently 1-1 is playing up to a point before a crash.
 
-Game files stay on your machine.
+## Install
 
-## Game dump
+Download the zip for your system from the [Releases](https://github.com/IrishBruse/nsmbu-recomp/releases) page.
+Unzip it into a folder that you can write to.
+Start **NSMBU**.
 
-Keep everything in `game/`:
+| System | File to start |
+|--------|----------------|
+| macOS, Apple Silicon, macOS 14 or newer | `NSMBU.app` |
+| Windows, x86-64, Windows 10 or 11, Vulkan | `NSMBU.exe` |
+| Linux, x86-64, glibc 2.35 or newer, Vulkan | `nsmbu-launcher` in the `linux-x86_64` zip |
+| Linux, arm64, glibc 2.35 or newer, Vulkan | `nsmbu-launcher` in the `linux-aarch64` zip |
 
-| File | Purpose |
-|------|---------|
-| `game/game.wux` | Your `.wux` disc image |
-| `game/game.key` | Title key for that image (16 bytes or 32 hex digits) |
-| `game/common.key` | Wii U common key from your console (or set `WIIU_COMMON_KEY`) |
-| `game/code/`, `game/content/`, `game/meta/` | Filled by `just extract` |
+The first start opens the installer.
+Each later start launches the game.
 
-`.gitignore` ignores `game/` except [game/README.md](game/README.md), which describes this layout.
+The installer asks which copy of the game you have.
+Choose one option.
 
-Run `just extract`.
+1. A disc image (`.wux` or `.wud`) and its keys.
+2. A Cemu archive (`.wua`).
+   This file needs no keys.
+3. An extracted game folder.
+   The folder contains `code`, `content`, and `meta`.
 
-That command reads `game/game.wux` and writes the `code/`, `content/`, and `meta/` folders under `game/`.
+The installer then opens a file window and asks you to choose that file or folder.
+macOS uses the system file chooser.
+Windows uses the system file chooser.
+Linux uses Zenity or KDialog when one of those programs is installed.
+
+When no file window opens, the installer asks you to type the path.
+You can drag the file into the window and press Enter.
+
+A disc image also needs a disc key and the Wii U common key.
+The installer uses a `.key` file that has the same name as the image when that file is next to the image.
+The installer uses `common.key` when that file is next to the image.
+When a key is missing, the installer asks you to choose a key file or to paste 32 hex digits.
+The paste field hides the text.
+The keys stay in memory until extraction starts.
+The setup log contains no keys.
+
+The installer accepts the USA game, title `00050000-10143500`, version 0.
+It checks `code/red-pro2.rpx` before it translates the code.
+
+The installer then prepares the game.
+For a disc image or a Cemu archive, it extracts the files into the release folder.
+An extracted folder stays in its original location.
+The installer translates the code to C, compiles it, and links it with the runtime.
+
+The first start takes a few minutes.
+Start **NSMBU** again to play.
+
+To repair, update, or choose a different game file, open the installer again.
+On macOS or Windows, hold Shift while you start **NSMBU**.
+On Linux, start `nsmbu-launcher --setup`, or use the Setup action of `NSMBU.desktop`.
+
+The release folder is portable.
+The built game, the game files, the saves, and the settings stay in `data/` inside that folder.
+
+On macOS the app is unsigned.
+On macOS 14, right-click `NSMBU.app`, choose **Open**, then choose **Open**.
+On macOS 15 and newer, open **System Settings**, then **Privacy & Security**, then **Open Anyway**.
+Keep `NSMBU.app` inside the unzipped folder.
+Move the whole folder when you want the game in another place.
+
+On Windows, SmartScreen can block an unsigned program.
+Choose **More info**, then **Run anyway**.
+
+The terminal installer is the fallback when the window cannot run.
+On macOS, run `tools/Setup in Terminal.command`.
+On Windows, run `tools/Setup in a console window.bat`.
+On Linux, run `tools/setup-in-terminal.sh`.
+The terminal installer asks the same questions and opens the same file window when the system provides one.
 
 ## Controls
 
-Press **F1** for the settings overlay.
+Press **F1** to open the settings overlay.
+Open **Controls** to change keys and controller buttons.
 
-Open **Controls** to remap keys and controller buttons.
-
-The mapping is saved to `controls.json` under the port config directory (`~/.config/nsmbu` on Linux, `%APPDATA%\NSMBU` on Windows, `~/Library/Application Support/NSMBU` on macOS).
-
+A release stores the mapping in `data/user/controls.json`.
+A build from source stores it in the port config directory.
+That directory is `~/.config/nsmbu` on Linux, `%APPDATA%\NSMBU` on Windows, and `~/Library/Application Support/NSMBU` on macOS.
 Set `NSMBU_CONTROLS` to use another file.
 
-Host gamepads use positional mapping: the bottom face button (Xbox **A**) is Wii U **B**, the right face button (Xbox **B**) is Wii U **A**, and the other buttons follow the same layout.
+Host gamepads use the same layout as the Wii U GamePad.
+The bottom face button (Xbox **A**) is Wii U **B**.
+The right face button (Xbox **B**) is Wii U **A**.
 
 Default keyboard layout:
 
@@ -57,14 +121,42 @@ Default keyboard layout:
 | 1 2 3 4 | D-pad up / down / left / right |
 | X / V | left / right stick click |
 
-Gyro aiming and other motion options are in **Controls → Gyro…** ([docs/gyro.md](docs/gyro.md)).
+Gyro aiming and other motion options are in **Controls → Gyro…**.
+See [docs/gyro.md](docs/gyro.md).
 
-## Documentation
+## Developers
 
-Use commit `853d7b18c8c6703c5fc50c40cb923c1fb9503ecd` as the rebase base.
+The tree starts from [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) commit `853d7b18c8c6703c5fc50c40cb923c1fb9503ecd`.
 
-Port notes, build steps, and rebase commands are in [docs/nsmbu.md](docs/nsmbu.md).
+These commands are for a source checkout.
+Players use a [release](#install).
 
-The upstream readme is in [docs/upstream-nsmbu-readme.md](docs/upstream-nsmbu-readme.md).
+Install `just`, CMake 3.20 or newer, Python 3, and Clang.
 
+Put your dump in `game/`.
+The file layout is in [game/README.md](game/README.md).
+
+| Command | Result |
+|---------|--------|
+| `just` | List the commands |
+| `just extract` | Read `game/game.wux` and write `game/code/`, `game/content/`, and `game/meta/` |
+| `just build` | Configure `build/` in Debug and build `nsmbu` |
+| `just build-release` | Build in Release |
+| `just build-sanitizer` | Build with AddressSanitizer and UBSan |
+| `just launch` | Start `build/nsmbu` with `--game` set to `game/` |
+| `just launch-release` | Start without the debug environment defaults |
+| `just launch-trace` | Start with `--trace` for HLE logging |
+| `just run` | Run `just build`, then `just launch` |
+| `just recomp` | Translate `game/code/red-pro2.rpx` into `build/gen` |
+| `just gdb` | Start the game under gdb |
+| `just lldb` | Start the game under lldb |
+
+`just build` links `compile_commands.json` at the repository root.
+When `game/code/red-pro2.rpx` is newer than the generated code, `just build` runs the recompiler.
+When that file is absent, the build uses stubs so the tree can link.
+
+`just launch` sets `NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, and `NSMBU_CRASH_RECOVERY` when those variables are unset.
+
+Build notes and the rebase base are in [docs/nsmbu.md](docs/nsmbu.md).
+The archived Wind Waker HD readme is in [docs/upstream-wwhd-readme.md](docs/upstream-wwhd-readme.md).
 Changes are in [CHANGELOG.md](CHANGELOG.md).

@@ -41,7 +41,7 @@ Everything stays in that folder.
 - Linux (glibc 2.35+, Vulkan): `nsmbu-launcher`; `linux-x86_64` for x86-64, `linux-aarch64` for arm64
   (Raspberry Pi 5, Asahi Linux, ARM laptops)
 
-See "Install (releases)" in the README for details.
+See "Install" in the README for details.
 
 ## What's new
 
