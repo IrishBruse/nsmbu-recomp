@@ -947,9 +947,14 @@ void trace_read(const char* who) {
 }
 bool hold_pass() { return g_hold; }
 
-uint64_t logic_steps() { return g_logic_steps; }
+static uint64_t guest_logic_ticks() { return ld32(GD(0x101FF558)); }
+
+uint64_t logic_steps() { return g_logic_steps ? g_logic_steps : guest_logic_ticks(); }
 void record_executed_step() { g_executed_steps.fetch_add(1, std::memory_order_relaxed); }
-uint64_t executed_steps() { return g_executed_steps.load(std::memory_order_relaxed); }
+uint64_t executed_steps() {
+    const uint64_t hooked = g_executed_steps.load(std::memory_order_relaxed);
+    return hooked ? hooked : guest_logic_ticks();
+}
 
 bool logic_pass() { return g_logic_pass; }
 

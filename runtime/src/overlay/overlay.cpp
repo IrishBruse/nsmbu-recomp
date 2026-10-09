@@ -1517,8 +1517,8 @@ void perf_window(bool menu_open) {
         {
 
             static double t0 = 0; static uint64_t s0 = 0; static double rate = 30;
-            if (t0 == 0 || t - t0 < 0) { t0 = t; s0 = interp::executed_steps(); }
-            else if (t - t0 >= 2.0) { rate = (double)(interp::executed_steps() - s0) / (t - t0); t0 = t; s0 = interp::executed_steps(); }
+            if (t0 == 0 || t - t0 < 0) { t0 = t; s0 = interp::logic_steps(); }
+            else if (t - t0 >= 2.0) { rate = (double)(interp::logic_steps() - s0) / (t - t0); t0 = t; s0 = interp::logic_steps(); }
             if (interp::mode() == 1 && !interp::paced_interpolation() && rate > 1 && rate < 26)
                 ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "Slow motion: %.0f of 30 logic steps/s. Turn on Keep game speed", rate);
         }
@@ -1710,7 +1710,7 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
     }
     U.last_present = t;
     g_last_frame = t;
-    g_average.sample(t, gx2::flips_presented(), interp::executed_steps(), int(render::active()),
+    g_average.sample(t, gx2::flips_presented(), interp::logic_steps(), int(render::active()),
                      interp::mode(), interp::fps(), hostui::res_scale());
     read_controller();
 
