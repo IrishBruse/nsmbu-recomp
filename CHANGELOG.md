@@ -26,6 +26,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
     SDK v1/v2 archives stay in `docs/deprecated/`.
 -   **Remove**: `kind: settings` packages and the built-in settings manager stub are gone.
 -   **Fix**: The overworld path seam is fixed.
+-   **Fix**: `hooks.txt` keeps only the USA 1.3.0 DistantViewMgr flicker site (`@022A79C4`).
+    Wind Waker HD leftover entry points are removed so `just recomp` accepts `red-pro2.rpx`.
+
 
 ## 0.2.0
 
