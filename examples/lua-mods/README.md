@@ -4,6 +4,9 @@ These packages follow [docs/modding/api.md](../../docs/modding/api.md).
 The loader does not run them yet.
 They contain no game files.
 
+`sdk/nsmbu.d.lua` is the EmmyLua type file for the proposed global `nsmbu` API.
+`.luarc.json` in this folder points the Lua language server at that file.
+
 | Mod | What it shows |
 | --- | --- |
 | `play-scene-ticker` | Entry and return hooks, a number option, and a data file written on unload. |
