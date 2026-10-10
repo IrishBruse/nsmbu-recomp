@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Docs**: The README records the last ZeldaWWHDRecomp merge commit.
+    The upstream-merge skill updates that note.
 -   **Remove**: Guest Mod SDK v2 and Native SDK v1 are gone (`examples/guest-mods/`, `tools/guestmod/`, the runtime guest loader, `code_mods`, `--mod-hooks` emission, the `guestmods` CI workflow, and the Native SDK v1 C ABI path).
     The mod manager rejects guest and native packages.
 -   **Docs**: Live modding docs live under `docs/modding/` (manager, content, cemu, Lua proposal).

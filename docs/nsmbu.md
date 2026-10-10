@@ -2,7 +2,7 @@
 
 ## Upstream base
 
-Use this commit as the last Wind Waker HD recomp commit in this tree.
+Use this commit as the last Wind Waker HD recomp commit merged into this tree.
 
 Repository: https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp
 

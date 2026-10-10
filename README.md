@@ -125,7 +125,7 @@ See [docs/gyro.md](docs/gyro.md).
 
 ## Developers
 
-The tree starts from [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) commit `defb89f21607345e2e97b2c145a071a3f362640c`.
+The last merge from [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) is commit `defb89f21607345e2e97b2c145a071a3f362640c`.
 
 These commands are for a source checkout.
 Players use a [release](#install).
@@ -157,6 +157,6 @@ When that file is absent, the build uses stubs so the tree can link.
 
 `just launch` sets `NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, and `NSMBU_CRASH_RECOVERY` when those variables are unset.
 
-Build notes and the rebase base are in [docs/nsmbu.md](docs/nsmbu.md).
+Build notes and the upstream base are in [docs/nsmbu.md](docs/nsmbu.md).
 The archived Wind Waker HD readme is in [docs/upstream-wwhd-readme.md](docs/upstream-wwhd-readme.md).
 Changes are in [CHANGELOG.md](CHANGELOG.md).

@@ -26,7 +26,8 @@ A squash is one pass this time and a full pass on every later update, because it
    `git grep -n '<<<<<<<' -- ':!runtime/third_party' ':!references'` prints nothing.
 6. Replace `docs/upstream-wwhd-readme.md` with `git show upstream/main:README.md`.
    Leave Wind Waker names in that file.
-7. Set the recorded base in `docs/nsmbu.md` and the start commit in `README.md` to `git rev-parse upstream/main`, plus that commit's subject and author date.
+7. Set the recorded base in `docs/nsmbu.md` and the last-merge note in `README.md` to `git rev-parse upstream/main`, plus that commit's subject and author date.
+   In `README.md`, keep the sentence form `The last merge from [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) is commit \`<hash>\`.`
 8. When `build/Makefile` exists, run `make -C build -j"$(nproc)" nsmbu`.
 9. Finish the merge with those doc files included.
    Do not push.
