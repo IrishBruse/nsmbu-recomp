@@ -58,12 +58,11 @@ class Hooks(unittest.TestCase):
         entries, skipped = builds.read_hooks(builds.hook_files(), builds.canonical_build())
         self.assertEqual(skipped, [])
         self.assertEqual(
-            [addr for _, _, addr, _ in entries],
-            [0x022A79C4],
+            [(site, addr) for site, _, addr, _ in entries],
+            [(False, 0x02ACD218), (False, 0x024D752C), (True, 0x022A79C4)],
         )
         for site, canon, addr, where in entries:
             self.assertEqual(canon, addr, where)
-            self.assertTrue(site, where)
 
     def test_build_directive_skips_a_file(self):
         with tempfile.TemporaryDirectory() as directory:

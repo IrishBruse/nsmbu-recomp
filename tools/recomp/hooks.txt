@@ -2,4 +2,6 @@
 # recomp.py ignores the text after '#'.
 # Prefix @ for an instruction site inside a function.
 
+02ACD218  # frame allocator: wait for the ring at this+0x4A8 on nested grow
+024D752C  # draw queues: drop items whose model pointer at node+0x28 is null
 @022A79C4  # DistantViewMgr::calcView_: scale the flicker before it is added to the projection

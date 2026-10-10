@@ -28,8 +28,10 @@ At release, move those notes to a version heading and leave Unreleased empty.
     SDK v1/v2 archives stay in `docs/deprecated/`.
 -   **Remove**: `kind: settings` packages and the built-in settings manager stub are gone.
 -   **Fix**: The overworld path seam is fixed.
--   **Fix**: `hooks.txt` keeps only the USA 1.3.0 DistantViewMgr flicker site (`@022A79C4`).
+-   **Fix**: `hooks.txt` uses USA 1.3.0 entries: frame-allocator wait (`02ACD218`), null-model draw-queue filter (`024D752C`), and DistantViewMgr flicker (`@022A79C4`).
     Wind Waker HD leftover entry points are removed so `just recomp` accepts `red-pro2.rpx`.
+-   **Fix**: Boot no longer dies on `bctr` to `0x10` when the frame allocator grows before its ring at `this+0x4A8` exists.
+-   **Fix**: Draw queues skip items with a null model at `node+0x28` so a failed Mii/model setup does not SIGSEGV at guest `0x18`.
 
 
 ## 0.2.0
