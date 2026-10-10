@@ -171,7 +171,10 @@ void graphics_changed() {
     put("fps60Paced", {"NSMBU_INTERP_PACED"}, interp::paced_interpolation_at(60) ? "1" : "0");
     put("fpsHighPaced", {"NSMBU_INTERP_PACED"}, interp::paced_interpolation_at(120) ? "1" : "0");
     put("scaleFilter", {"NSMBU_SCALE_FILTER"}, std::to_string(gfxvk::scale_filter()));
-    put("vkPresentMode", {"NSMBU_VK_PRESENT_MODE"}, std::to_string(gfxvk::present_mode()));
+    if (!env_set({"NSMBU_VK_PRESENT_MODE"}) && gfxvk::present_mode_user_set()) {
+        g_values["vkPresentMode"] = std::to_string(gfxvk::present_mode());
+        g_values["vkPresentChosen"] = "1";
+    }
     save_locked();
 }
 
@@ -195,7 +198,11 @@ void load_saved_options() {
     if (saved("fps60Paced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(60, num("fps60Paced") != 0);
     if (saved("fpsHighPaced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(120, num("fpsHighPaced") != 0);
     if (saved("scaleFilter", {"NSMBU_SCALE_FILTER"})) gfxvk::set_scale_filter((int)num("scaleFilter"));
-    if (saved("vkPresentMode", {"NSMBU_VK_PRESENT_MODE"})) gfxvk::set_present_mode((int)num("vkPresentMode"));
+    if (saved("vkPresentMode", {"NSMBU_VK_PRESENT_MODE"})) {
+        const int mode = (int)num("vkPresentMode");
+        const bool chosen = v.count("vkPresentChosen") && v["vkPresentChosen"] == "1";
+        if (chosen || mode != gfxvk::kPresentFifo) gfxvk::set_present_mode(mode);
+    }
 
     using namespace gfx;
     if (v.count("drcMode")) {

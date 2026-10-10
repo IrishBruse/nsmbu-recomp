@@ -1512,6 +1512,23 @@ bool threads_ss_save(ss::Writer& w, std::string& why) {
     return true;
 }
 
+bool threads_ss_present(ss::Reader r, std::string& why) {
+    uint32_t n = r.u32();
+    std::vector<ThreadRec> recs(n);
+    for (auto& t : recs) r.bytes(&t, sizeof t);
+    if (!r.ok) { why = "corrupt thread section"; return false; }
+    std::lock_guard<std::mutex> lk(g_threads_mutex);
+    char buf[200];
+    for (auto& s : recs) {
+        if (!(s.started && !s.exited)) continue;
+        if (g_threads.count(s.guest)) continue;
+        snprintf(buf, sizeof buf, "thread %08X (running in the save) does not exist yet", s.guest);
+        why = buf;
+        return false;
+    }
+    return true;
+}
+
 bool threads_ss_check(ss::Reader r, std::string& why) {
     uint32_t n = r.u32();
     std::vector<ThreadRec> recs(n);

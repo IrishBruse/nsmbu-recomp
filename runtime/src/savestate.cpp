@@ -43,6 +43,7 @@
 #include "rumble.h"
 
 bool threads_ss_save(ss::Writer& w, std::string& why);
+bool threads_ss_present(ss::Reader r, std::string& why);
 bool threads_ss_check(ss::Reader r, std::string& why);
 void threads_ss_load(ss::Reader& r);
 void threads_ss_targets(ss::Reader r);
@@ -518,6 +519,18 @@ bool do_save(int slot) {
 bool do_load(const std::shared_ptr<Snapshot>& s) {
     std::string busy, why;
     auto t0 = std::chrono::steady_clock::now();
+    static const int wait_for_threads = [] {
+        const char* timed = getenv("NSMBU_STATE_LOAD_AT");
+        return timed && *timed ? 2400 : 30;
+    }();
+    if (!threads_ss_present(s->section(kSecThreads), why)) {
+        if (++g_attempts < wait_for_threads) {
+            if (g_attempts == 1) LOG("[savestate] slot %d: waiting for the game threads (%s)", s->slot, why.c_str());
+            return false;
+        }
+        message("%s: cannot load here (%s)", slot_label(s->slot).c_str(), why.c_str());
+        return true;
+    }
     threads_ss_targets(s->section(kSecThreads));
     if (!threads::quiesce(250, busy, 2, 0)) {
         threads::thaw();
@@ -525,25 +538,27 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
         message("%s: not loaded (game busy:%s)", slot_label(s->slot).c_str(), busy.c_str());
         return true;
     }
-    gx2_ss_drain();
     g_check = s.get();
     bool ok = check_allocs(s->section(kSecAllocs), why) && check_dispatch(s->section(kSecDispatch), why) &&
-              mem_ss_check(s->section(kSecHeaps), why) && ax_ss_check(s->section(kSecAudio), why) &&
-              gx2_ss_check(s->section(kSecGx2), why);
+              mem_ss_check(s->section(kSecHeaps), why) && ax_ss_check(s->section(kSecAudio), why);
     bool layout_ok = ok;
     ok = ok && threads_ss_check(s->section(kSecThreads), why);
     g_check = nullptr;
     if (!ok) {
         threads::thaw();
-
-        static const int wait_for_threads = [] {
-            const char* timed = getenv("NSMBU_STATE_LOAD_AT");
-            return timed && *timed ? 2400 : 30;
-        }();
         if (layout_ok && ++g_attempts < wait_for_threads) {
             if (g_attempts == 1) LOG("[savestate] slot %d: waiting for the game threads (%s)", s->slot, why.c_str());
             return false;
         }
+        message("%s: cannot load here (%s)", slot_label(s->slot).c_str(), why.c_str());
+        return true;
+    }
+    gx2_ss_drain();
+    g_check = s.get();
+    ok = gx2_ss_check(s->section(kSecGx2), why);
+    g_check = nullptr;
+    if (!ok) {
+        threads::thaw();
         message("%s: cannot load here (%s)", slot_label(s->slot).c_str(), why.c_str());
         return true;
     }

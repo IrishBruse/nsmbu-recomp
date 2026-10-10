@@ -1006,7 +1006,7 @@ static void make_swapchain(Screen &s) {
   s.presentWanted = setting;
   s.presentShared = share;
 
-  if (&s == &R.tv) interp::set_present_vsync(chosen == kPresentFifo);
+  if (&s == &R.tv) interp::set_present_vsync(chosen != kPresentImmediate);
   ci.clipped = VK_TRUE;
   ci.oldSwapchain = s.swapchain;
   VkSwapchainKHR sc;

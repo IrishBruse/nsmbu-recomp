@@ -684,7 +684,7 @@ void tab_graphics() {
     {
         const bool vk = render::vulkan(), env = gfxvk::present_mode_from_env();
         static const char* const names[] = {"Vsync (smooth)", "Low latency", "Off (may tear)"};
-        static const char* const tips[] = {"FIFO: every frame waits for the display's refresh; no tearing (default)",
+        static const char* const tips[] = {"FIFO: every frame waits for the display's refresh; no tearing",
                                            "MAILBOX: the newest finished frame is shown at the next refresh; no tearing, less delay",
                                            "IMMEDIATE: frames are shown at once; lowest delay, may tear"};
 

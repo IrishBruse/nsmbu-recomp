@@ -28,14 +28,26 @@ int env_present_mode() {
     if (!e || !*e) return -1;
     return !std::strcmp(e, "mailbox") ? kPresentMailbox : !std::strcmp(e, "immediate") ? kPresentImmediate : kPresentFifo;
 }
-std::atomic<int> g_present{env_present_mode() >= 0 ? env_present_mode() : kPresentFifo};
+std::atomic<int> g_present{env_present_mode()};
+std::atomic<bool> g_present_user{env_present_mode() >= 0};
 std::atomic<unsigned> g_offered{1u << kPresentFifo};
+int automatic_present_mode() {
+    const unsigned offered = g_offered.load(std::memory_order_relaxed);
+    if (offered & (1u << kPresentMailbox)) return kPresentMailbox;
+    if (offered & (1u << kPresentImmediate)) return kPresentImmediate;
+    return kPresentFifo;
 }
-int present_mode() { return g_present.load(std::memory_order_relaxed); }
+}
+int present_mode() {
+    const int m = g_present.load(std::memory_order_relaxed);
+    return m >= 0 ? m : automatic_present_mode();
+}
 void set_present_mode(int m) {
     if (m < 0 || m >= kPresentModes) m = kPresentFifo;
+    g_present_user.store(true, std::memory_order_relaxed);
     if (g_present.exchange(m) != m) LOG("[vulkan] present mode %s requested", present_mode_name(m));
 }
+bool present_mode_user_set() { return g_present_user.load(std::memory_order_relaxed); }
 bool present_mode_from_env() { return env_present_mode() >= 0; }
 bool present_mode_offered(int m) { return m >= 0 && m < kPresentModes && (g_offered.load() >> m & 1); }
 void set_present_modes_offered(unsigned mask) { g_offered = mask | 1u << kPresentFifo; }

@@ -35,5 +35,9 @@ run *args:
 run-sound *args:
     just build {{args}} && just launch {{args}}
 
+# Fixed-scene profile (slot 1 @ TV 700, exit 1100, log .tmp/repro/nsmbu.log). Use a Release build.
+profile *args:
+    python3 tools/profile.py {{args}}
+
 recomp:
     python3 tools/recomp/recomp.py game/code/red-pro2.rpx build/gen

@@ -90,12 +90,12 @@ Frame 700 is after the boot threads exist.
 The log line `Loaded slot 1` means the load worked.
 
 ```sh
-mkdir -p .tmp/repro
-NSMBU_NO_AUDIO=1 NSMBU_PROFILE=1 NSMBU_VK_STATS=1 \
-NSMBU_LOG_FILE=.tmp/repro/nsmbu.log \
-NSMBU_STATE_LOAD_AT=700:1 NSMBU_EXIT_AT_FRAME=1100 \
-./build/nsmbu --game game
+just build-release
+just profile
 ```
+
+`just profile` writes `.tmp/repro/nsmbu.log`.
+Pass a slot (`just profile 1`), or `--exit-at`, `--load-at`, or `--log`.
 
 Read `[prof]`, `[vulkan perf]`, and `[gx2] frame` in `.tmp/repro/nsmbu.log`.
 A missing live thread logs `does not exist yet`.

@@ -838,8 +838,7 @@ HLE(gx2, GX2WaitForVsync) {
 
         if (!render::vulkan()) return false;
         const char* value = getenv("NSMBU_VSYNC_PRECISE");
-#ifdef __APPLE__
-
+#if defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__))
         return !value || atoi(value) != 0;
 #else
         return value && atoi(value) != 0;

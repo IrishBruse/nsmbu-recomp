@@ -21,6 +21,7 @@ void set_graphics_feature_available(GraphicsFeature feature, bool available = tr
 enum PresentMode { kPresentFifo, kPresentMailbox, kPresentImmediate, kPresentModes };
 int present_mode();
 void set_present_mode(int mode);
+bool present_mode_user_set();
 bool present_mode_from_env();
 bool present_mode_offered(int mode);
 void set_present_modes_offered(unsigned mask);
