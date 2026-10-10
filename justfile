@@ -32,5 +32,8 @@ lldb *args:
 run *args:
     just build {{args}} && NSMBU_NO_AUDIO=1 just launch {{args}}
 
+run-sound *args:
+    just build {{args}} && just launch {{args}}
+
 recomp:
     python3 tools/recomp/recomp.py game/code/red-pro2.rpx build/gen
