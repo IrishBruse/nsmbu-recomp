@@ -75,6 +75,8 @@ int main(int argc, char** argv) {
         assert(install(lua_pack("lua.sandbox",
             "assert(io==nil)\n"
             "assert(os==nil)\n"
+            "assert(type(coroutine)==\"table\")\n"
+            "assert(type(utf8)==\"table\")\n"
             "assert(rawget(_G,\"nsmbu\")==nil)\n"
             "local nsmbu=require(\"nsmbu\")\n"
             "local guest=require(\"nsmbu.guest\")\n"
@@ -251,7 +253,7 @@ int main(int argc, char** argv) {
             auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(2);
             fs::last_write_time(script,stamp);
         }
-        frame(52);frame(53);
+        frame(70);frame(90);
         {auto v=view("lua.reload");assert(v.active&&v.enabled&&v.status=="after");}
         {
             auto script=storage/"Mods"/"lua.reload"/"main.lua";
@@ -259,7 +261,7 @@ int main(int argc, char** argv) {
             auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(4);
             fs::last_write_time(script,stamp);
         }
-        frame(54);frame(55);
+        frame(110);frame(130);
         {auto v=view("lua.reload");assert(!v.active&&!v.enabled&&!v.reason.empty());}
         assert(remove("lua.reload",error));
         assert(set_hot_reload(false,error));assert(!hot_reload());

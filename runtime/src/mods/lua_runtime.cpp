@@ -2,15 +2,16 @@
 #include "lua_game.h"
 #include "lua_guest.h"
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <stdexcept>
 
-extern "C" {
 #include "lua.h"
-#include "lauxlib.h"
+#include "luacode.h"
 #include "lualib.h"
-}
 
 namespace mods::lua_mod {
 namespace {
@@ -39,7 +40,7 @@ void nil_global(lua_State* L, const char* name) {
 }
 
 void open_lib(lua_State* L, lua_CFunction fn, const char* name) {
-    lua_pushcfunction(L, fn);
+    lua_pushcfunction(L, fn, name);
     lua_pushstring(L, name);
     lua_call(L, 1, 0);
 }
@@ -80,6 +81,30 @@ std::string module_to_rel(std::string name) {
         if (c == '.') c = '/';
     if (name.size() < 4 || name.compare(name.size() - 4, 4, ".lua") != 0) name += ".lua";
     return name;
+}
+
+bool load_file(lua_State* L, const std::string& path, std::string& err) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        err = "cannot open " + path;
+        return false;
+    }
+    std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    size_t bytecode_size = 0;
+    char* bytecode = luau_compile(source.data(), source.size(), nullptr, &bytecode_size);
+    if (!bytecode) {
+        err = "compile failed";
+        return false;
+    }
+    std::string chunk = "@" + path;
+    int status = luau_load(L, chunk.c_str(), bytecode, bytecode_size, 0);
+    std::free(bytecode);
+    if (status != 0) {
+        err = lua_tostring(L, -1) ? lua_tostring(L, -1) : "load failed";
+        lua_pop(L, 1);
+        return false;
+    }
+    return true;
 }
 
 bool push_loaded(lua_State* L, const char* name) {
@@ -224,9 +249,9 @@ int l_require(lua_State* L) {
     Instance* inst = self(L);
     const char* modname = luaL_checkstring(L, 1);
     lua_getglobal(L, "package");
-    if (!lua_istable(L, -1)) return luaL_error(L, "package table missing");
+    if (!lua_istable(L, -1)) luaL_error(L, "package table missing");
     lua_getfield(L, -1, "loaded");
-    if (!lua_istable(L, -1)) return luaL_error(L, "package.loaded missing");
+    if (!lua_istable(L, -1)) luaL_error(L, "package.loaded missing");
     lua_getfield(L, -1, modname);
     if (!lua_isnil(L, -1)) {
         lua_remove(L, -2);
@@ -240,7 +265,7 @@ int l_require(lua_State* L) {
         lua_getfield(L, -1, modname);
         if (lua_isfunction(L, -1)) {
             lua_pushvalue(L, 1);
-            if (lua_pcall(L, 1, 1, 0) != 0) return lua_error(L);
+            if (lua_pcall(L, 1, 1, 0) != 0) lua_error(L);
             if (lua_isnil(L, -1)) {
                 lua_pop(L, 1);
                 lua_pushboolean(L, 1);
@@ -256,16 +281,16 @@ int l_require(lua_State* L) {
     }
     lua_pop(L, 1);
 
-    if (host_module_name(modname)) return luaL_error(L, "module not found: %s", modname);
+    if (host_module_name(modname)) luaL_error(L, "module not found: %s", modname);
 
     std::string err;
     fs::path file;
     if (!resolve_under(fs::path(inst->path), module_to_rel(modname), file, err))
-        return luaL_error(L, "%s", err.c_str());
-    if (!fs::is_regular_file(file)) return luaL_error(L, "module not found: %s", modname);
-    if (luaL_loadfile(L, file.string().c_str()) != 0) return lua_error(L);
+        luaL_error(L, "%s", err.c_str());
+    if (!fs::is_regular_file(file)) luaL_error(L, "module not found: %s", modname);
+    if (!load_file(L, file.string(), err)) luaL_error(L, "%s", err.c_str());
     lua_pushvalue(L, 1);
-    if (lua_pcall(L, 1, 1, 0) != 0) return lua_error(L);
+    if (lua_pcall(L, 1, 1, 0) != 0) lua_error(L);
     if (lua_isnil(L, -1)) {
         lua_pop(L, 1);
         lua_pushboolean(L, 1);
@@ -284,8 +309,7 @@ int l_listen(lua_State* L) {
         std::strcmp(event, "unload"))
         return fail(L, "unknown event");
     if (!lua_isfunction(L, 2)) return fail(L, "callback must be a function");
-    lua_pushvalue(L, 2);
-    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    int ref = lua_ref(L, 2);
     int id = inst->next_listener++;
     inst->listeners.push_back({id, ref, event});
     lua_pushinteger(L, id);
@@ -297,7 +321,7 @@ int l_unlisten(lua_State* L) {
     int id = (int)luaL_checkinteger(L, 1);
     for (auto it = inst->listeners.begin(); it != inst->listeners.end(); ++it) {
         if (it->id != id) continue;
-        luaL_unref(L, LUA_REGISTRYINDEX, it->ref);
+        lua_unref(L, it->ref);
         inst->listeners.erase(it);
         lua_pushboolean(L, 1);
         return 1;
@@ -539,12 +563,12 @@ int guest_write(lua_State* L) {
 
 void bind(lua_State* L, Instance* inst, const char* name, lua_CFunction fn) {
     lua_pushlightuserdata(L, inst);
-    lua_pushcclosure(L, fn, 1);
+    lua_pushcclosure(L, fn, name, 1);
     lua_setfield(L, -2, name);
 }
 
 void bind_guest(lua_State* L, const char* name, lua_CFunction fn) {
-    lua_pushcfunction(L, fn);
+    lua_pushcfunction(L, fn, name);
     lua_setfield(L, -2, name);
 }
 
@@ -618,13 +642,16 @@ void install_host_modules(lua_State* L, Instance* inst) {
 
 void sandbox(lua_State* L, Instance* inst) {
     open_lib(L, luaopen_base, "");
+    open_lib(L, luaopen_coroutine, LUA_COLIBNAME);
     open_lib(L, luaopen_string, LUA_STRLIBNAME);
     open_lib(L, luaopen_table, LUA_TABLIBNAME);
     open_lib(L, luaopen_math, LUA_MATHLIBNAME);
-    open_lib(L, luaopen_bit, LUA_BITLIBNAME);
+    open_lib(L, luaopen_bit32, LUA_BITLIBNAME);
+    open_lib(L, luaopen_utf8, LUA_UTF8LIBNAME);
 
     nil_global(L, "dofile");
     nil_global(L, "loadfile");
+    nil_global(L, "loadstring");
     nil_global(L, "io");
     nil_global(L, "os");
     nil_global(L, "debug");
@@ -645,14 +672,14 @@ void sandbox(lua_State* L, Instance* inst) {
     lua_setglobal(L, "package");
 
     lua_pushlightuserdata(L, inst);
-    lua_pushcclosure(L, l_require, 1);
+    lua_pushcclosure(L, l_require, "require", 1);
     lua_setglobal(L, "require");
 }
 
 void close_state(Instance& inst) {
     if (!inst.state) return;
     lua_State* L = static_cast<lua_State*>(inst.state);
-    for (auto& l : inst.listeners) luaL_unref(L, LUA_REGISTRYINDEX, l.ref);
+    for (auto& l : inst.listeners) lua_unref(L, l.ref);
     inst.listeners.clear();
     lua_close(L);
     inst.state = nullptr;
@@ -712,10 +739,7 @@ std::unique_ptr<Instance> load(const LoadInfo& info) {
         throw std::runtime_error(err);
     if (!fs::is_regular_file(entry_path))
         throw std::runtime_error("entry script not found: " + info.entry);
-    if (luaL_loadfile(L, entry_path.string().c_str()) != 0) {
-        std::string msg = lua_tostring(L, -1) ? lua_tostring(L, -1) : "load failed";
-        throw std::runtime_error(msg);
-    }
+    if (!load_file(L, entry_path.string(), err)) throw std::runtime_error(err);
     if (lua_pcall(L, 0, 0, 0) != 0) {
         std::string msg = lua_tostring(L, -1) ? lua_tostring(L, -1) : "entry failed";
         throw std::runtime_error(msg);

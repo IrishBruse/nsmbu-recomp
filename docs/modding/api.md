@@ -1,7 +1,7 @@
 # Lua API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle (`on_logic_step`, `on_config_changed`, `on_unload`, `listen` / `unlisten`), package metadata, log and status, time, config, guest memory, and high-level `nsmbu.level` / `nsmbu.player` helpers are implemented with embedded LuaJIT.
+Lifecycle (`on_logic_step`, `on_config_changed`, `on_unload`, `listen` / `unlisten`), package metadata, log and status, time, config, guest memory, and high-level `nsmbu.level` / `nsmbu.player` helpers are implemented with embedded Luau.
 Hooks (`nsmbu.hooks`), `call` / `call_result`, input, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
 Package plan: [lua-mods.md](lua-mods.md).
 Cemu packs do not use this API.
@@ -550,7 +550,7 @@ There is no `nsmbu.content` module in API v1.
 
 | Available | Absent |
 | --- | --- |
-| `string`, `table`, `math`, `coroutine` | `io`, `os`, `debug`, `package.loadlib`, FFI, `utf8` (deferred; LuaJIT is 5.1-based) |
+| `string`, `table`, `math`, `coroutine`, `bit32`, `utf8` | `io`, `os`, `debug`, `package.loadlib`, FFI |
 | `require` of host `nsmbu` / `nsmbu.*` modules | `require` of an unknown `nsmbu.*` name |
 | `require` of another `.lua` file in this package | `require` of a path with `..` or an absolute path |
 | Host modules as described here | A native library, a PowerPC ELF, a Cemu `rules.txt` |
@@ -624,7 +624,6 @@ end
 - Loading a `.so`, `.dll`, or `.dylib`.
 - Shader or resolution overrides. Those stay in Cemu packages.
 - Named C parameters generated from header signatures. Hooks use registers.
-- The `utf8` standard library (deferred on LuaJIT).
 - Filled enemy, boss, blocks, and env helpers (modules exist as empty stubs).
 
 ## Errors

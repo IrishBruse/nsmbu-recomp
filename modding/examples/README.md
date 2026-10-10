@@ -1,7 +1,7 @@
 # Example Lua mods
 
 These packages follow [docs/modding/api.md](../../docs/modding/api.md).
-Phase 2 loads `kind: lua` with logic-step, config, log, status, and guest memory (embedded LuaJIT).
+Phase 2 loads `kind: lua` with logic-step, config, log, status, and guest memory (embedded Luau).
 There is no `nsmbu` global; scripts `require("nsmbu")` and related modules.
 Hooks, `nsmbu.fn`, input, and data files are still proposal.
 They contain no game files.

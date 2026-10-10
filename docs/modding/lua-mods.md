@@ -1,7 +1,7 @@
 # Lua mods: replace native, guest, and content packages
 
 Status: **Phase 3 implemented** (`content_dir` on Lua packages; `kind: content` is a one-release read-only alias and migrates to `lua` on scan).
-The runtime embeds LuaJIT and loads `kind: lua` packages.
+The runtime embeds Luau and loads `kind: lua` packages.
 Logic-step callbacks, config, log, status, and guest memory work now.
 Optional `content_dir` on a Lua package drives the same file-replacement map as the old content kind.
 See [api.md](api.md) for the live surface and for APIs that are still proposal.
@@ -292,8 +292,8 @@ Reject `code/`, `meta/`, and DLC trees inside `content/`, as the content importe
 
 ## Runtime shape
 
-The `nsmbu` executable embeds LuaJIT (MIT license).
-LuaJIT is 5.1-based.
+The `nsmbu` executable embeds Luau (MIT license), vendored under `runtime/third_party/luau/`.
+Luau is Lua 5.1-based and adds gradual typing.
 Do not load a Lua shared library from the mod folder.
 
 Each enabled Lua package gets its own state.
@@ -404,10 +404,8 @@ Everything else is absent, including `io`, `os`, `package.loadlib`, `debug`, and
 | --- | --- |
 | `nsmbu.*` | The API in this document. |
 | `string`, `table`, `math` | Language basics. |
+| `coroutine`, `bit32`, `utf8` | Coroutines and byte/UTF-8 helpers. |
 | `require` | Other `.lua` files in the same package. |
-
-`utf8` is deferred.
-LuaJIT does not ship the Lua 5.3+ `utf8` library.
 
 Guest writes can still change the game.
 That is the point of a gameplay mod.
@@ -529,7 +527,7 @@ One scripted play run (see `AGENTS.md`) should enable a tiny Lua status mod from
    Accept this document.
    Stop new guest-mod features and new native ABI fields.
 2. **Interpreter and `kind: lua`.** Done.
-   Embedded LuaJIT.
+   Embedded Luau.
    Logic-step, config, log, status, and guest memory.
    Keep content kinds working until phase 3.
 3. **Content moves.** Done.
@@ -563,8 +561,8 @@ Do not ship Lua hooks without a hook test.
 
 ## Open decisions
 
-- Interpreter: **LuaJIT** (not Luau or Lua 5.4).
-  Settled for phase 2.
+- Interpreter: **Luau**.
+  LuaJIT is retired.
 - Whether `format_version` 2 is required, or `kind: lua` is enough on version 1.
 - Whether content-only packages show as "Lua" or as "Files" in the Mods list while the manifest kind stays `lua`.
 - Whether `nsmbu.guest.alloc` is in the first hook release or a later one.
@@ -573,7 +571,6 @@ Do not ship Lua hooks without a hook test.
   API v1 uses registers only.
   See [api.md](api.md).
 - How long v1 manifests remain installable as errors versus a hard parser break.
-- When to expose `utf8` (deferred while the host is LuaJIT 5.1-based).
 
 ## Prior art
 
@@ -585,7 +582,7 @@ Do not copy their code without a license review.
 | [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and N64Recomp | Hook versus replace, one replacement, many hooks, port hooks stay outside, config schema, dependency order. Drop the MIPS/PPC ELF and the JIT. |
 | Zelda64Recomp mod manager | Install, enable, and options in a menu. Already the model for [mod-manager.md](mod-manager.md). |
 | SM64coopDX / other Lua game mods | A small `hook` table and per-mod script files. Their APIs are game-specific. |
-| Luau | A locked standard library for untrusted scripts (not chosen; host is LuaJIT). |
+| Luau | A locked standard library for untrusted scripts (chosen; the host embeds Luau). |
 
 ## Current code this plan talks about
 
@@ -593,7 +590,7 @@ Do not copy their code without a license review.
 | --- | --- |
 | Native ABI | Removed (`runtime/include/nsmbu_mod.h`) |
 | Load, kinds, trust, frame tick | `runtime/src/mods/packages.cpp` |
-| LuaJIT embed and `kind: lua` (phase 2) | Runtime Lua package path (embedded LuaJIT under `runtime/third_party/luajit/`) |
+| Luau embed and `kind: lua` (phase 2) | Runtime Lua package path (embedded Luau under `runtime/third_party/luau/`) |
 | File replacement via Lua `content_dir` (phase 3) | `runtime/src/mods/content.cpp` |
 | Cemu (keep) | `runtime/src/mods/cemu_pack.cpp` |
 | Guest hooks | Removed (`runtime/src/mods/guest_mods.cpp`) |

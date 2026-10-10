@@ -3,10 +3,8 @@
 #include <cstdint>
 #include <string>
 
-extern "C" {
 #include "lua.h"
-#include "lauxlib.h"
-}
+#include "lualib.h"
 
 namespace mods::lua_game {
 namespace {
@@ -111,7 +109,7 @@ bool player_entered(int index, bool& out, std::string& err) {
 int player_index(lua_State* L) {
     luaL_checktype(L, 1, LUA_TTABLE);
     lua_getfield(L, 1, "index");
-    if (!lua_isnumber(L, -1)) return luaL_error(L, "player index missing");
+    if (!lua_isnumber(L, -1)) luaL_error(L, "player index missing");
     int index = (int)lua_tointeger(L, -1);
     lua_pop(L, 1);
     return index;
@@ -308,7 +306,7 @@ int l_players_next(lua_State* L) {
 
 int l_players(lua_State* L) {
     lua_pushinteger(L, -1);
-    lua_pushcclosure(L, l_players_next, 1);
+    lua_pushcclosure(L, l_players_next, "players_next", 1);
     return 1;
 }
 
@@ -511,7 +509,7 @@ int l_player_actor(lua_State* L) {
 }
 
 void bind(lua_State* L, const char* name, lua_CFunction fn) {
-    lua_pushcfunction(L, fn);
+    lua_pushcfunction(L, fn, name);
     lua_setfield(L, -2, name);
 }
 
@@ -571,7 +569,7 @@ void install(lua_State* L) {
     bind(L, "get", l_player);
     bind(L, "players", l_players);
     lua_newtable(L);
-    lua_pushcfunction(L, l_player_call);
+    lua_pushcfunction(L, l_player_call, "__call");
     lua_setfield(L, -2, "__call");
     lua_setmetatable(L, -2);
     set_loaded(L, "nsmbu.player");

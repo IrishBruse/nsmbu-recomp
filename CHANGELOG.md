@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: Lua mods run on Luau instead of LuaJIT (embedded under `runtime/third_party/luau/`).
+    Scripts keep the Lua 5.1 syntax and gain `utf8`; LuaJIT's `bit` library becomes `bit32`.
 -   **Add**: Mods tab checkbox **Hot reload Lua scripts**.
     When on, enabled script-only Lua packs unload and reload when `.lua` files change (debounced).
     Preference is stored as `hot_reload` in ModManager `profiles.json`.
@@ -50,7 +52,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Add**: `just extract` and the installer require the USA 1.3.0 update (title version 64).
     Source builds use `game/update/`.
     The installer looks for `update/` next to the disc image (or `--update-dir` / the Keys screen), checks it, applies it after extract, and verifies the merged dump against the known USA SHA-256.
--   **Add**: Lua mod packages (`kind: lua`) with embedded LuaJIT, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
+-   **Add**: Lua mod packages (`kind: lua`) with embedded Luau, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
     The mod manager accepts format 1 or 2, scans for forbidden binaries/shaders, and loads script-only Lua packages live each logic step.
     Package tests cover load, options, fault isolation, sandbox require, guest memory, and hot reload (`mod_package_test --lua`).
 -   **Add**: Lua phase 3 content moves: optional `content_dir` on `kind: lua` packages (content-only packages are valid; restart when `content_dir` is set).
