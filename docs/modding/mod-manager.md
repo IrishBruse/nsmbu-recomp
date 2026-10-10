@@ -25,7 +25,7 @@ See [lua-mods.md](lua-mods.md) for the scripting and file-replacement plan.
 
 ## Player workflow
 
-Open the in-game settings overlay (F1, Fn+F1 on many Macs, Cmd+, or Settings in the menu) and select **Mods**.
+Open the in-game settings overlay (`` ` `` or F12, Cmd+, or Settings in the menu) and select **Mods**.
 The tab manages installed packages.
 There is no built-in gameplay catalogue and no cheat list.
 

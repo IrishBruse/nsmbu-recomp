@@ -39,7 +39,7 @@ static constexpr float scales[]={1,1.5f,2,3};
             action:@selector(load:) keyEquivalent:@""];
         item.target=self;item.tag=slot;
         item.enabled=slots[slot].used&&slots[slot].compatible;
-        item.toolTip=slot==1?@"In game: F1 opens the settings overlay (Saves)":[NSString stringWithFormat:@"Shortcut in game: F%d",slot];
+        item.toolTip=[NSString stringWithFormat:@"Shortcut in game: F%d",slot];
     }
     [menu addItem:NSMenuItem.separatorItem];
     NSMenuItem* fs=[menu addItemWithTitle:@"Full Save States (large, contain game data, don't share)"

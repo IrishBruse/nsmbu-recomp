@@ -1,112 +1,197 @@
-local scores = {
-  0x1A86DD4C,
-  0x1C54A0D8,
-  0x1D04A718,
-  0x1D04A748,
-  0x1E9F1108,
-}
+local COURSE_TIMER = 0x101D15F4
+local FIELD_GAME = 0x101D1604
+local PLAYER_MGR = 0x101E6994
 
-local snap = nil
-local dumped = false
+local TIMER_TIME = 0x14
+local PLAYER_DATA0 = 0x24
+local PLAYER_DATA_SIZE = 0x48
+local LIFE_OFF = 0x4
+local MODE_OFF = 0x8
+local PLAYER_OBJECTS = 0x20
+local SPEED_Y = 0x7C
+local ACTOR_MODE = 0x500
+
+local TIME_CAP = 999 * 4096
+local LIFE_CAP = 99
+
+local held_mode = {}
+local prev_speed_y = {}
+local scaled_jump = {}
+local last_parts = ""
 
 local function guest_u32(addr)
   return nsmbu.guest.read_u32(addr)
 end
 
-local function guest_s32(addr)
-  return nsmbu.guest.read_s32(addr)
+local function instance(addr)
+  local p = guest_u32(addr)
+  if not p or p == 0 or p < 0x10000000 or p >= 0x50000000 then
+    return nil
+  end
+  return p
 end
 
-local function dump_scores()
-  for i = 1, #scores do
-    local sa = scores[i]
-    local parts = {}
-    for off = -0x180, 0x40, 4 do
-      local w = guest_u32(sa + off)
-      if w and w <= 200 then
-        parts[#parts + 1] = string.format("%+d=%d", off, w)
-      end
-    end
-    nsmbu.log(string.format("score %08X=%u small=%s", sa, guest_u32(sa) or 0, table.concat(parts, " ")))
-    for off = 0, 0x200, 4 do
-      local a = sa - off
-      if guest_u32(a) == 9 then
-        local b0 = nsmbu.guest.read_u8(a - 4)
-        local b1 = nsmbu.guest.read_u8(a - 3)
-        local b2 = nsmbu.guest.read_u8(a - 2)
-        local b3 = nsmbu.guest.read_u8(a - 1)
-        local mode = guest_s32(a + 4)
-        local coins30 = guest_s32(a + 0x30)
-        local coins34 = guest_s32(a + 0x34)
-        nsmbu.log(string.format(
-          "  nine@-%03X bytes=%02X%02X%02X%02X mode=%s c30=%s c34=%s",
-          off,
-          b0 or 0,
-          b1 or 0,
-          b2 or 0,
-          b3 or 0,
-          tostring(mode),
-          tostring(coins30),
-          tostring(coins34)
-        ))
+local function freeze_timer()
+  local timer = instance(COURSE_TIMER)
+  if not timer then
+    return false
+  end
+  local now = guest_u32(timer + TIMER_TIME)
+  if not now then
+    return false
+  end
+  if now < TIME_CAP then
+    return nsmbu.guest.write_u32(timer + TIMER_TIME, TIME_CAP) == true
+  end
+  return true
+end
+
+local function player_slot(index)
+  local field = instance(FIELD_GAME)
+  if not field then
+    return nil
+  end
+  return field + PLAYER_DATA0 + index * PLAYER_DATA_SIZE
+end
+
+local function keep_lives()
+  local ok = false
+  for i = 0, 3 do
+    local slot = player_slot(i)
+    if slot then
+      local entry = nsmbu.guest.read_u8(slot)
+      if entry and entry ~= 0 then
+        local life = nsmbu.guest.read_s32(slot + LIFE_OFF)
+        if life and life > 0 and life < LIFE_CAP then
+          nsmbu.guest.write_s32(slot + LIFE_OFF, LIFE_CAP)
+        end
+        if life and life > 0 then
+          ok = true
+        end
       end
     end
   end
+  return ok
 end
 
-local function take_snap()
-  local out = {}
-  for addr = 0x10000000, 0x11000000 - 4, 4 do
-    local w = guest_u32(addr)
-    if w then
-      local sec = math.floor(w / 4096)
-      if sec >= 400 and sec <= 520 and (w % 4096) < 256 then
-        out[addr] = w
-      elseif w >= 400 and w <= 520 then
-        out[addr] = w
+local function player_actor(index)
+  local mgr = instance(PLAYER_MGR)
+  if not mgr then
+    return nil
+  end
+  local actor = guest_u32(mgr + PLAYER_OBJECTS + index * 4)
+  if not actor or actor < 0x10000000 or actor >= 0x50000000 then
+    return nil
+  end
+  return actor
+end
+
+local function keep_powerup()
+  local ok = false
+  for i = 0, 3 do
+    local slot = player_slot(i)
+    if slot then
+      local entry = nsmbu.guest.read_u8(slot)
+      if not entry or entry == 0 then
+        held_mode[i] = nil
+      else
+        local mode = nsmbu.guest.read_s32(slot + MODE_OFF)
+        local actor = player_actor(i)
+        if actor then
+          local actor_mode = nsmbu.guest.read_s32(actor + ACTOR_MODE)
+          if actor_mode and actor_mode >= 0 and actor_mode <= 8 then
+            mode = actor_mode
+          end
+        end
+        if mode and mode >= 0 and mode <= 8 then
+          local held = held_mode[i]
+          if held == nil or mode > held then
+            held_mode[i] = mode
+            held = mode
+          end
+          if held and mode < held and held > 0 then
+            nsmbu.guest.write_s32(slot + MODE_OFF, held)
+            if actor then
+              nsmbu.guest.write_s32(actor + ACTOR_MODE, held)
+            end
+          end
+          ok = true
+        end
       end
     end
   end
-  return out
+  return ok
+end
+
+local function scale_jumps()
+  local scale = nsmbu.config.number("jump_scale", 1)
+  if not scale or scale == 1 then
+    return false
+  end
+  local ok = false
+  for i = 0, 3 do
+    local actor = player_actor(i)
+    if not actor then
+      prev_speed_y[i] = nil
+      scaled_jump[i] = false
+    else
+      local speed = nsmbu.guest.read_f32(actor + SPEED_Y)
+      if speed then
+        local prev = prev_speed_y[i] or 0
+        if speed > 1.5 and prev <= 1.5 then
+          scaled_jump[i] = false
+        end
+        if speed <= 0 then
+          scaled_jump[i] = false
+        elseif not scaled_jump[i] and speed > 1.5 then
+          nsmbu.guest.write_f32(actor + SPEED_Y, speed * scale)
+          scaled_jump[i] = true
+        end
+        prev_speed_y[i] = speed
+        ok = true
+      end
+    end
+  end
+  return ok
 end
 
 function nsmbu.on_logic_step(step)
-  if step == 6800 and not dumped then
-    dumped = true
-    dump_scores()
-    snap = take_snap()
-    local n = 0
-    for _ in pairs(snap) do
-      n = n + 1
-    end
-    nsmbu.log("snap6800 n=" .. tostring(n))
+  local parts = {}
+  if nsmbu.config.bool("infinite_time", false) and freeze_timer() then
+    parts[#parts + 1] = "time"
   end
-  if step == 7200 and snap then
-    local dec = {}
-    for addr, pw in pairs(snap) do
-      local w = guest_u32(addr)
-      if w and w < pw then
-        local ps = pw
-        local cs = w
-        if pw > 700 then
-          ps = math.floor(pw / 4096)
-          cs = math.floor(w / 4096)
-        end
-        if cs < ps and (ps - cs) <= 20 then
-          dec[#dec + 1] = string.format("%08X:%d->%d", addr, ps, cs)
-        end
-      end
-    end
-    table.sort(dec)
-    nsmbu.log("dec count=" .. tostring(#dec))
-    local i = 1
-    while i <= #dec do
-      local chunk = {}
-      for j = i, math.min(i + 11, #dec) do
-        chunk[#chunk + 1] = dec[j]
-      end
-      nsmbu.log("dec " .. table.concat(chunk, " "))
-      i = i + 12
+  if nsmbu.config.bool("infinite_lives", false) and keep_lives() then
+    parts[#parts + 1] = "lives"
+  end
+  if nsmbu.config.bool("keep_powerup", false) and keep_powerup() then
+    parts[#parts + 1] = "power-up"
+  end
+  local scale = nsmbu.config.number("jump_scale", 1)
+  if scale and scale ~= 1 and scale_jumps() then
+    parts[#parts + 1] = "jump x" .. tostring(scale)
+  end
+  local line = table.concat(parts, ", ")
+  if line ~= last_parts then
+    last_parts = line
+    if #parts == 0 then
+      nsmbu.log("assists idle")
+    else
+      nsmbu.log("assists active: " .. line)
     end
   end
+  if step % 60 ~= 0 then
+    return
+  end
+  if #parts == 0 then
+    nsmbu.status("Course assists off")
+    return
+  end
+  nsmbu.status(line)
+end
+
+function nsmbu.on_config_changed()
+  held_mode = {}
+  prev_speed_y = {}
+  scaled_jump = {}
+  last_parts = ""
 end

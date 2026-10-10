@@ -198,7 +198,7 @@ static void choose_renderer(render::Api a) {
         it.target = self;
         it.tag = i;
         it.enabled = info[i].used && info[i].compatible;
-        it.toolTip = i == 1 ? @"In game: F1 (or \u2318,) opens the settings overlay (Saves)" : [NSString stringWithFormat:@"Shortcut in game: F%d", i];
+        it.toolTip = [NSString stringWithFormat:@"Shortcut in game: F%d", i];
     }
 
     [m addItem:[NSMenuItem separatorItem]];
@@ -344,7 +344,7 @@ void install_menu(NSWindow* tv) {
 
     NSMenuItem* settings = [app addItemWithTitle:@"Settings\u2026" action:@selector(openSettings:) keyEquivalent:@","];
     settings.target = g_target;
-    settings.toolTip = @"In-game settings overlay over the picture (F1, or \u2318, in the game window)";
+    settings.toolTip = @"In-game settings overlay over the picture (` or F12, or \u2318, in the game window)";
     [app addItem:[NSMenuItem separatorItem]];
     [app addItemWithTitle:@"Quit New Super Mario Bros. U" action:@selector(terminate:) keyEquivalent:@"q"];
     appItem.submenu = app;
@@ -477,11 +477,11 @@ bool menu_hotkey(uint16_t code) {
     case kVK_ANSI_7: interp::set_mode(interp::mode() == 2 ? 0 : 2); break;
     case kVK_ANSI_8: if (render::feature_available(render::kFeatureFXAA)) render::set_fxaa(!render::fxaa()); break;
     case kVK_ANSI_R: cycle_res(); break;
-    case kVK_ANSI_P: case kVK_F12: render::request_capture(); return true;
+    case kVK_ANSI_P: render::request_capture(); return true;
     case kVK_F1: case kVK_F2: case kVK_F3: case kVK_F4: case kVK_F5: {
         int slot = code == kVK_F1 ? 1 : code == kVK_F2 ? 2 : code == kVK_F3 ? 3 : code == kVK_F4 ? 4 : 5;
         if ([NSEvent modifierFlags] & NSEventModifierFlagShift) ss::request_save(slot);
-        else if (slot != 1) ss::request_load(slot);
+        else ss::request_load(slot);
         return true;
     }
     case kVK_ANSI_9: {

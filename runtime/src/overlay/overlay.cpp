@@ -437,10 +437,10 @@ void tab_saves() {
     const bool full = ss::full_states();
     if (full)
         note("Full save states: the whole running game (large, contain game data: never share them). Shift+F1..F5 save in "
-             "game, F2..F5 load (F1 opens this menu).");
+             "game, F1..F5 load (` or F12 opens this menu).");
     else
         note("A save state keeps your progress and where Link stands (a few KB, no game data). Loading enters that place "
-             "with that progress; enemies and cutscenes start fresh. Shift+F1..F5 save in game, F2..F5 load (F1 opens this menu).");
+             "with that progress; enemies and cutscenes start fresh. Shift+F1..F5 save in game, F1..F5 load (` or F12 opens this menu).");
     if (ImGui::BeginTable("slots", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("Slot", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("Saved");
@@ -1443,10 +1443,10 @@ void tab_about() {
     ImGui::Text("%s - native port (%s host, %s renderer)", app_title::kName, hostui::name(),
                 render::api_name(render::active()));
 #ifdef __APPLE__
-    note("Settings overlay: F1 (Fn+F1 on most Mac keyboards), Cmd+, or Settings... in the app menu, or hold Select / "
-         "press Home on a controller. Esc, F1 or B closes. "
+    note("Settings overlay: ` or F12, Cmd+, or Settings... in the app menu, or hold Select / "
+         "press Home on a controller. Esc, ` / F12 or B closes. "
 #else
-    note("Settings overlay: F1, or hold Select / press Home on a controller. Esc, F1 or B closes. "
+    note("Settings overlay: ` or F12, or hold Select / press Home on a controller. Esc, ` / F12 or B closes. "
 #endif
          "L / R switch tabs on a controller. The game keeps running and sees no input while this menu is open.");
     note("When the game asks for text (your name), a text window appears over the game: type on the keyboard "
@@ -1584,7 +1584,7 @@ bool key(int code, bool down, bool repeat, int mods) {
     }
 #endif
 
-    if (code == kVK_F1 && !(mods & (kShift | kCtrl | kAlt | kSuper))) {
+    if ((code == kVK_ANSI_Grave || code == kVK_F12) && !(mods & (kShift | kCtrl | kAlt | kSuper))) {
         if (down && !repeat && !g_capturing_keys.load()) set_open(!is_open());
         if (!g_capturing_keys.load()) return true;
     }

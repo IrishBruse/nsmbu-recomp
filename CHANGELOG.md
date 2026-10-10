@@ -5,6 +5,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: Settings overlay opens with `` ` `` or F12 (not F1).
+    F1–F5 load save-state slots; Shift+F1–F5 still save.
+    Frame capture stays on P.
 -   **Change**: Recompiler codegen passes from [ZeldaWWHDRecomp#83](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/83) by depende3000 (SwitchWakerHD): CR liveness, guest registers in C locals, single-precision `round25` elision, cheaper float compares / mfcr / paired-single paths.
     Off switches use `NSMBU_RECOMP_*` (`NSMBU_RECOMP_PLAIN=1` restores the plain form).
 -   **Fix**: Save-state build identity on Linux reads `/proc/self/exe` (the running image) so a rebuild that replaces `build/nsmbu` no longer drops state compatibility.
@@ -31,6 +34,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
     The importer emits `kind: lua`.
     `kind: content` remains a one-release read-only alias and migrates to `lua` on scan.
 -   **Add**: Example `course-assists` Lua package uses guest memory for unlimited time/lives, keep power-up, and jump scale (USA v1.3.0).
+    Field offsets match CourseTimer/FieldGame/PlayerMgr/Actor/PlayerBase in `red-pro2.rpx`.
 -   **Fix**: Lua mod logic steps run from the GX2 swap path so script packages load without a recomp hook rebuild.
 -   **Docs**: The README records the last ZeldaWWHDRecomp merge commit.
     The upstream-merge skill updates that note.

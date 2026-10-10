@@ -16,7 +16,7 @@ In Pro Controller mode the game's own **Options → Gyroscope** switch stays in 
 changed as usual (checked in a game run); its help text still says it "will have no effect when using the
 Wii U Pro Controller", which is the Wii U's behaviour: in the port it does apply while a gyro source is on.
 
-Settings overlay (F1) → **Controls** → **Gyro…**:
+Settings overlay (` or F12) → **Controls** → **Gyro…**:
 
 - **Source** (above). `NSMBU_GYRO=off|controller|cemuhook|mouse` overrides it at start.
 - **Turn left/right by** (controller and Cemuhook sources), the usual gyro aiming conventions (as in

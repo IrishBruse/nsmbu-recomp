@@ -56,4 +56,4 @@ Dump the still frames in that gap.
 
 The script sets `NSMBU_NO_AUDIO=1` so no output device is opened.
 The mix still runs.
-Interactive mute is in the settings overlay (F1) > Audio.
+Interactive mute is in the settings overlay (` or F12) > Audio.

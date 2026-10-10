@@ -92,7 +92,8 @@ The terminal installer asks the same questions and opens the same file window wh
 
 ## Controls
 
-Press **F1** to open the settings overlay.
+Press `` ` `` or **F12** to open the settings overlay.
+**F1**–**F5** load save states; **Shift+F1**–**F5** save.
 Open **Audio** for mute, volume, and TV / GamePad output.
 Open **Controls** to change keys and controller buttons.
 
