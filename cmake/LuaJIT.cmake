@@ -24,18 +24,21 @@ if(APPLE)
   endif()
 endif()
 
-include(ExternalProject)
-ExternalProject_Add(nsmbu_luajit_ep
-  SOURCE_DIR "${NSMBU_LUAJIT_ROOT}"
-  CONFIGURE_COMMAND ""
-  BUILD_IN_SOURCE TRUE
-  BUILD_COMMAND "${NSMBU_LUAJIT_MAKE}" -C "${NSMBU_LUAJIT_SRC}" ${NSMBU_LUAJIT_MAKE_ARGS}
-  INSTALL_COMMAND ""
-  BUILD_BYPRODUCTS "${NSMBU_LUAJIT_LIB}"
-  EXCLUDE_FROM_ALL FALSE)
+add_custom_command(
+  OUTPUT "${NSMBU_LUAJIT_LIB}"
+  COMMAND "${NSMBU_LUAJIT_MAKE}" -C "${NSMBU_LUAJIT_SRC}" ${NSMBU_LUAJIT_MAKE_ARGS}
+  DEPENDS
+    "${NSMBU_LUAJIT_SRC}/Makefile"
+    "${NSMBU_LUAJIT_SRC}/lua.h"
+    "${NSMBU_LUAJIT_SRC}/luajit.c"
+    "${NSMBU_LUAJIT_SRC}/ljamalg.c"
+  COMMENT "Building vendored LuaJIT"
+  VERBATIM)
+
+add_custom_target(nsmbu_luajit_build DEPENDS "${NSMBU_LUAJIT_LIB}")
 
 add_library(nsmbu_luajit STATIC IMPORTED GLOBAL)
-add_dependencies(nsmbu_luajit nsmbu_luajit_ep)
+add_dependencies(nsmbu_luajit nsmbu_luajit_build)
 set_target_properties(nsmbu_luajit PROPERTIES
   IMPORTED_LOCATION "${NSMBU_LUAJIT_LIB}"
   INTERFACE_INCLUDE_DIRECTORIES "${NSMBU_LUAJIT_SRC}")
