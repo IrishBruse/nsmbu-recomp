@@ -296,6 +296,20 @@ extern "C" void ppc_dispatch(Cpu* c) {
     MUSTTAIL return f(c);
 }
 
+extern "C" void ppc_cr_poisoned(Cpu* c, int bit, uint32_t addr) {
+    fatal("CR liveness: bit %d read at %08X without a live store (lr=%08X)", bit, addr, c->lr);
+}
+
+extern "C" void ppc_single_failed(uint32_t at, double v) {
+    static std::mutex m;
+    static std::unordered_map<uint32_t, uint64_t> seen;
+    std::lock_guard<std::mutex> lk(m);
+    if (seen[at]++ == 0 && seen.size() <= 100)
+        LOG("[single check] %08X: multiplier %.17g (%016llX) is not single precision", at, v,
+            (unsigned long long)f64_as_u64(v));
+}
+
+
 uint32_t guest_call(Cpu* c, uint32_t fn, std::initializer_list<uint32_t> args) {
     uint32_t save_lr = c->lr, save_ctr = c->ctr, save_sp = c->r[1];
 

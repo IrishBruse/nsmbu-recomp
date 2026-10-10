@@ -30,7 +30,7 @@ OUT = os.path.join(GEN, "code_tap.c")
 
 def recomp():
     subprocess.run([sys.executable, "tools/recomp/recomp.py", "game/code/red-pro2.rpx", "build/gen"], cwd=ROOT, check=True,
-                   stdout=subprocess.DEVNULL)
+                   stdout=subprocess.DEVNULL, env=dict(os.environ, NSMBU_RECOMP_PLAIN="1"))
 
 def tap_body(text, addr, imports):
     lines = text.split("\n")

@@ -42,6 +42,9 @@ TOOL_FILES = [
     "tools/recomp/recomp.py",
     "tools/recomp/analyze.py",
     "tools/recomp/ppc2c.py",
+    "tools/recomp/crlive.py",
+    "tools/recomp/leaflocal.py",
+    "tools/recomp/singleflow.py",
     "tools/recomp/builds.py",
 ]
 INSTALLER_FILES = [

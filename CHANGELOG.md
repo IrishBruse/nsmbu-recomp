@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: Recompiler codegen passes from [ZeldaWWHDRecomp#83](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/83) by depende3000 (SwitchWakerHD): CR liveness, guest registers in C locals, single-precision `round25` elision, cheaper float compares / mfcr / paired-single paths.
+    Off switches use `NSMBU_RECOMP_*` (`NSMBU_RECOMP_PLAIN=1` restores the plain form).
 -   **Fix**: Save-state build identity on Linux reads `/proc/self/exe` (the running image) so a rebuild that replaces `build/nsmbu` no longer drops state compatibility.
 -   **Add**: Settings overlay (F1) Audio tab: mute, volume, and TV / GamePad / Auto output.
     Choices are saved in `settings.ini`.
