@@ -92,7 +92,7 @@ void import_legacy(const fs::path& stage,const std::string& source_name){
 
     auto name=fs::path(source_name).stem().string();require(!name.empty(),"Missing mod name");if(name.size()>128)name.resize(128);
     auto id=lower(name);for(char& c:id)if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'||c=='_'))c='-';if(id.size()>55)id.resize(55);id="content."+id;
-    json::Value m;m["format_version"]=1;m["id"]=id;m["name"]=name;m["version"]="1.0.0";m["game_id"]="nsmbu-usa";m["kind"]="content";m["minimum_manager_version"]="1.1.0";
+    json::Value m;m["format_version"]=2;m["id"]=id;m["name"]=name;m["version"]="1.0.0";m["game_id"]="nsmbu-usa";m["kind"]="lua";m["minimum_manager_version"]="1.0.0";
     m["content_dir"]=candidates.front().lexically_relative(stage).generic_string();
     std::string description="Imported local content replacement. Requires restart. Model and archive compatibility must be checked in game.";
     if(!mapped.empty())description+=" Loose files placed at: "+mapped+".";

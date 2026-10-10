@@ -5,19 +5,23 @@ No game content is part of the repository or of published packages.
 Mods that need game data read it from the player's own game files.
 
 This page describes the manager shell as it works today.
+Manager version **1.0.0**.
 
 ## Package kinds
 
 | Kind | Status | Doc |
 | --- | --- | --- |
-| `content` | Live | [content.md](content.md) |
+| `lua` | Live | [lua-mods.md](lua-mods.md), [api.md](api.md), [content.md](content.md) for `content_dir` |
 | `cemu` | Live | [cemu.md](cemu.md) |
+| `content` | Alias this release (migrates to `lua` on scan) | [content.md](content.md) |
 | `native` | Rejected | [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md) (archive) |
 | `guest` | Rejected | [../deprecated/mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) (archive) |
 | `settings` | Rejected | — |
 
-A proposal to move scripting and file replacement behind Lua is in [lua-mods.md](lua-mods.md).
-Cemu graphics packs stay under that proposal.
+Live kinds are `lua` and `cemu`.
+`kind: content` is accepted as a read-only alias this release and rewritten to `lua` on scan.
+Cemu graphics packs stay separate.
+See [lua-mods.md](lua-mods.md) for the scripting and file-replacement plan.
 
 ## Player workflow
 
@@ -34,7 +38,8 @@ Missing versions, cycles, and declared conflicts produce an error.
 The details show metadata, status, and bool/number/string/enum options.
 String edits commit with Enter.
 Disable a package and wait for its next game update before updating or removing it.
-Content and Cemu packs also need a restart after enable, disable, or preset changes.
+Lua packages with `content_dir`, and Cemu packs, need a restart after enable, disable, or preset changes.
+Script-only Lua packages (no `content_dir`) load live on enable.
 Reinstall the same ID while disabled to update; configuration is preserved by ID.
 Refresh discovers manual folder changes when all packages are disabled.
 
@@ -50,7 +55,7 @@ Explicit startup environment values, including zero, override saved choices at s
 Storage is `<host config directory>/ModManager`: `Mods/<id>/manifest.json` plus package files, and `profiles.json`.
 `NSMBU_MOD_MANAGER_DIR` selects isolated storage.
 `NSMBU_NO_HOST_INPUT` skips user preferences and package storage unless an explicit manager directory is supplied for a test.
-Content mods are copied locally into manager storage; the original game files are preserved.
+Content files are copied locally into manager storage; the original game files are preserved.
 Game assets and saves are never committed, uploaded, or redistributed.
 
 Test aids (only with `NSMBU_NO_HOST_INPUT`): `NSMBU_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when the Mods tab is drawn (with `NSMBU_TEST_OVERLAY=open:mods`).
@@ -60,12 +65,12 @@ It needs an explicit `NSMBU_MOD_MANAGER_DIR`, so it never applies to a player's 
 
 | Field | Meaning |
 | --- | --- |
-| `format_version` | `1` |
+| `format_version` | `1` or `2` |
 | `id`, `name`, `version` | Stable lowercase ASCII identifier, display name, three-part version |
 | `game_id` | `nsmbu-usa` (the runtime also verifies its exact RPX entry) |
 | `author`, `description` | Optional display metadata |
 | `minimum_manager_version` | Optional three-part minimum |
-| `kind` | `content` or `cemu`. `native`, `guest`, and `settings` are rejected |
+| `kind` | `lua` or `cemu`. `content` is accepted as an alias this release. `native`, `guest`, and `settings` are rejected |
 | `dependencies` | Objects with `id` and optional `minimum_version`. `builtin:<id>` is rejected |
 | `conflicts` | Package IDs. `builtin:<id>` is rejected |
 | `options` | Typed defaults and names; numeric min/max/step or enum choices |
@@ -74,9 +79,11 @@ Kind-specific fields:
 
 | Field | Kind | Doc |
 | --- | --- | --- |
-| `content_dir` | `content` | [content.md](content.md) |
+| `lua` (`api_version`, `entry`) | `lua` | [lua-mods.md](lua-mods.md). `entry` optional when `content_dir` is set |
+| `content_dir` | `lua` (also on legacy `content` alias) | [content.md](content.md) |
 | `cemu_dir` | `cemu` | [cemu.md](cemu.md) |
 
+A Lua package requires at least one of `lua.entry` or `content_dir`.
 The desktop folder and file install workflow is the supported UI.
 Online downloads and catalogues are outside this manager.
 
@@ -84,14 +91,14 @@ Online downloads and catalogues are outside this manager.
 
 A package is a folder, or a ZIP archive of that folder's contents renamed to `.nsmbumod`, with `manifest.json` at its root.
 Packages you publish must not contain game files; content and Cemu packs are imported locally by the player.
-See [content.md](content.md) and [cemu.md](cemu.md).
+See [lua-mods.md](lua-mods.md), [content.md](content.md), and [cemu.md](cemu.md).
 
 ## Validation
 
 `mod_packages` exercises install, profiles, missing dependencies, configuration, disable, and removal.
 A package that names `builtin:` fails to install.
 The next profile save drops leftover `builtins` keys.
-The same test installs synthetic Cemu and content packs: legacy imports, loose `.pack` files, preset validation, replacement conflicts, rejection of code/shader/rule/region mismatches, and the restart-only lifecycle.
+The same test installs synthetic Cemu and Lua content packs: legacy imports, loose `.pack` files, preset validation, replacement conflicts, rejection of code/shader/rule/region mismatches, and the restart-only lifecycle.
 Install of `kind: native`, `kind: guest`, and `kind: settings` is asserted to fail.
 
 `mod_content_startup`, `mod_cemu_startup`, and `mod_cemu_backend` start the manager on prepared storage and check startup activation.

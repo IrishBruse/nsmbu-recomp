@@ -1,18 +1,20 @@
 # Lua mods: replace native, guest, and content packages
 
-Status: **Phase 2 implemented**.
+Status: **Phase 3 implemented** (`content_dir` on Lua packages; `kind: content` is a one-release read-only alias and migrates to `lua` on scan).
 The runtime embeds LuaJIT and loads `kind: lua` packages.
 Logic-step callbacks, config, log, status, and guest memory work now.
+Optional `content_dir` on a Lua package drives the same file-replacement map as the old content kind.
 See [api.md](api.md) for the live surface and for APIs that are still proposal.
 
-Later phases stay proposal: `content_dir` on Lua packages, hooks and `nsmbu.call`, and removal of `kind: content`.
+Later phases stay proposal: hooks and `nsmbu.call`, and hard rejection of `kind: content` after the alias window.
 Cemu graphics packs stay.
 This plan retires [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and [native-sdk-v1.md](../deprecated/native-sdk-v1.md).
-It also retires `kind: content` as its own package kind (not done yet).
+It also retires `kind: content` as its own package kind (alias and migration land in phase 3; hard reject follows).
 
 The player-facing manager stays.
-The file-replacement behaviour that content packages use today stays inside the engine.
-Lua packages become the only way to turn that behaviour on, apart from Cemu packs, after phase 3.
+The file-replacement behaviour that content packages used stays inside the engine.
+Lua packages are the way to turn that behaviour on, apart from Cemu packs.
+`kind: content` is accepted as a read-only alias this release and rewritten to `lua` on scan.
 
 The script surface is [api.md](api.md).
 
@@ -25,7 +27,7 @@ Delete the other package kinds except `cemu`.
 | --- | --- |
 | `native` (SDK v1, `dlopen` of a host library) | Removed. Lua covers the same jobs (phase 2 logic-step path). |
 | `guest` (SDK v2, PowerPC ELF, install-time translation) | Removed. Lua covers hooks and calls (phase 4). |
-| `content` (SDCafiine-style file replacement) | Removed as a kind (phase 3). A Lua package can still ship a `content/` tree. |
+| `content` (SDCafiine-style file replacement) | Alias this release, then removed as a kind. A Lua package can ship a `content/` tree. |
 | `settings` | Removed. Stays rejected. |
 | `cemu` | Unchanged. |
 
@@ -129,8 +131,8 @@ The runtime drops the library-unload problem because there is no host library.
 
 ### From content packages
 
-Phase 3 proposal.
-`kind: content` stays live until then.
+Phase 3 implemented.
+`kind: content` remains a one-release read-only alias and migrates to `kind: lua` on scan.
 
 | Content package | Lua package |
 | --- | --- |
@@ -146,7 +148,7 @@ A content-only Lua package has a manifest and a `content/` tree.
 It has no script.
 The loader only registers files.
 Language-pack behaviour in [content.md](content.md) stays.
-The package kind name in the UI changes from content to Lua.
+The package kind name in the UI is Lua.
 
 `docs/language-packs.md` is a different feature.
 It copies packs from a second disc the player owns.
@@ -215,15 +217,15 @@ That limit is the same as in SDK v2.
 }
 ```
 
-Phase 2 accepts `kind: lua` with a script entry.
-`content_dir` on a Lua package is phase 3.
-Until then, file replacement stays on `kind: content`.
+Phase 3 accepts `kind: lua` with an optional `content_dir`.
+`lua.entry` is optional when `content_dir` is set.
+`content_dir` is optional when `lua.entry` is set.
+At least one of them is required.
+A content-only package (manifest plus `content/`, no script) is valid.
+`kind: content` is accepted as a read-only alias this release and migrates to `lua` on scan.
 `format_version` becomes 2 when `kind: lua` is the only non-Cemu kind.
 A version 1 manifest with `native` or `guest` fails install with a message that names this document.
-After phase 3, `content` fails the same way.
-`lua.entry` is optional when `content_dir` is set (phase 3).
-`content_dir` is optional when `lua.entry` is set.
-At least one of them is required once phase 3 lands.
+After the alias window, `content` fails the same way.
 `abi_version` and `binaries` are not valid on a Lua package.
 `guest` is not valid.
 
@@ -273,7 +275,7 @@ The port's own hooks in `hooks*.txt` stay outside this call.
 | Path | Role |
 | --- | --- |
 | `manifest.json` | Required. |
-| `main.lua` and other `.lua` files | Script. `require` searches only inside the package. |
+| `main.lua` and other `.lua` files | Script. `require` searches only inside the package. Optional when `content_dir` is set. |
 | `content/...` | Optional file replacements. Same layout rules as today. |
 | `ModManager/Data/<id>/` | Created by the runtime for `nsmbu.data`. Not shipped in the zip. |
 
@@ -296,6 +298,9 @@ Run every Lua callback on the game thread.
 A callback error is a package fault.
 Log the Lua message, unload that package, and leave the others running.
 Do not abort the process.
+
+A package with `content_dir` needs a restart so the file map and any script start together.
+A script-only package (no `content_dir`) still loads live on enable.
 
 ### Hooks without a PowerPC toolchain
 
@@ -349,15 +354,15 @@ Pure Lua data stays in the Lua heap and is not part of the guest save image.
 
 `content.cpp` stays.
 `content::activate` and `content::replacement` stay.
-The package scanner stops creating `kind: content` records.
+The package scanner migrates installed `kind: content` records to `kind: lua` on scan.
 On startup it collects `content_dir` from enabled Lua packages and builds the same immutable map.
 Script code cannot add or remove replacements after startup.
 A script that needs a different file set edits the package and restarts, which is the rule today.
 
-The legacy importer stays.
+The importer stays.
 It accepts a `content/` tree, an SDCafiine layout, a loose language pack, and a known loose file.
 It writes `kind: lua`, a generated `id`, and `content_dir`.
-It does not write a fake `main.lua` unless we later want a marker script.
+It does not write a fake `main.lua`.
 A content-only package is valid.
 
 ### Data files and input
@@ -433,7 +438,7 @@ This document is the reason to stop extending either path.
 | --- | --- |
 | `docs/deprecated/mod-sdk-v2.md` | Kept as a historical archive only. Do not use it as the modder guide. |
 | `docs/deprecated/native-sdk-v1.md` | Kept as a historical archive only. Do not use it as the modder guide. |
-| `docs/modding/mod-manager.md` | Keep. Live kinds are split into [content.md](content.md) and [cemu.md](cemu.md). |
+| `docs/modding/mod-manager.md` | Keep. Live kinds are `lua` and `cemu`; file replacement is documented in [content.md](content.md). |
 | `examples/guest-mods/` | Removed. Packages are in `examples/lua-mods/`. |
 | `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Mark the Mod SDK v2 and Native SDK v1 bullets as historical. Do not treat them as the NSMBU mod plan. |
 
@@ -465,7 +470,7 @@ This document is the reason to stop extending either path.
 
 | Item | Action |
 | --- | --- |
-| `kind: content` in the manifest parser | Reject. |
+| `kind: content` in the manifest parser | Alias this release; migrate to `lua` on scan; reject after the alias window. |
 | `runtime/src/mods/content.cpp` | Keep. Call it from the Lua startup path. |
 | Content tests (`mod_content_*`) | Retarget them at Lua packages with `content_dir`. |
 | Importer for SDCafiine, loose packs, and single files | Keep. Emit `kind: lua`. |
@@ -474,7 +479,7 @@ This document is the reason to stop extending either path.
 
 | Item | Action |
 | --- | --- |
-| `packages.cpp` kinds | Allow `lua` and `cemu` only. |
+| `packages.cpp` kinds | Allow `lua` and `cemu` (plus `content` alias this release). |
 | `guest_regions` in `profiles.json` | Ignore, then drop on the next save. |
 | `native_trust` | Ignore, then drop on the next save. |
 | Restart rules | Content files and Cemu still need a restart. Script hooks and options apply on enable when the package has no `content_dir`. A package with both restarts, so the file map and the script start together. |
@@ -483,7 +488,7 @@ This document is the reason to stop extending either path.
 
 Installed `native` and `guest` packages do not convert.
 On the first run after the change, disable them and show "This package uses a removed mod format. Install a Lua package instead."
-Installed `content` packages can be rewritten in place to `kind: lua` with the same `content_dir` and the same id.
+Installed `content` packages are rewritten in place to `kind: lua` with the same `content_dir` and the same id.
 Keep their options empty.
 Keep their enabled bit.
 Cemu packages load as they do now.
@@ -499,7 +504,7 @@ Cemu packages load as they do now.
 - Two packages cannot replace one content path.
 - A content-only Lua package changes a synthetic file open and does not create a Lua state.
 - A Cemu package still enables without loading Lua.
-- A v1 `native`, `guest`, or `content` manifest fails install.
+- A v1 `native`, `guest`, or (after the alias window) `content` manifest fails install.
 - A portable state records Lua ids and warns on a mismatch.
 - The hook flag stays clear when no package hooks that function.
 
@@ -516,7 +521,7 @@ One scripted play run (see `AGENTS.md`) should enable a tiny Lua status mod from
    Embedded LuaJIT.
    Logic-step, config, log, status, and guest memory.
    Keep content kinds working until phase 3.
-3. **Content moves.** Proposal.
+3. **Content moves.** Done.
    Allow `content_dir` on Lua packages.
    Point the importer at `kind: lua`.
    Keep `kind: content` as a read-only alias for one release, then reject it.
@@ -528,7 +533,7 @@ One scripted play run (see `AGENTS.md`) should enable a tiny Lua status mod from
    Bump the manager so v1 code packages fail closed.
 
 Native SDK v1 and Guest SDK v2 code are already removed.
-Phase 3 is enough to replace content packages.
+Phase 3 replaces content packages with Lua `content_dir` (alias residual this release).
 Phase 4 replaces the guest v2 hook jobs in Lua.
 Do not ship Lua hooks without a hook test.
 
@@ -578,7 +583,7 @@ Do not copy their code without a license review.
 | Native ABI | Removed (`runtime/include/nsmbu_mod.h`) |
 | Load, kinds, trust, frame tick | `runtime/src/mods/packages.cpp` |
 | LuaJIT embed and `kind: lua` (phase 2) | Runtime Lua package path (embedded LuaJIT under `runtime/third_party/luajit/`) |
-| File replacement | `runtime/src/mods/content.cpp` |
+| File replacement via Lua `content_dir` (phase 3) | `runtime/src/mods/content.cpp` |
 | Cemu (keep) | `runtime/src/mods/cemu_pack.cpp` |
 | Guest hooks | Removed (`runtime/src/mods/guest_mods.cpp`) |
 | Code-mod rebuild | Removed (`runtime/src/mods/code_mods.cpp`) |

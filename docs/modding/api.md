@@ -151,7 +151,7 @@ A wrong `fallback` type returns `nil` and a message.
 
 Option edits are visible on the next `config.*` call.
 They also run `on_config_changed`.
-A package with `content_dir` still restarts before new files apply (phase 3).
+A package with `content_dir` still restarts before new files apply.
 The script options themselves do not wait for that restart.
 
 ## Guest memory
@@ -427,12 +427,13 @@ nsmbu.data.remove("counter.txt")
 
 ## Content files
 
-Proposal (phase 3).
+Live (phase 3).
 
 Scripts do not register file replacements.
 Put files under `content_dir` in the manifest.
 The map is fixed until the next process start.
-See [lua-mods.md](lua-mods.md).
+A package with `content_dir` needs a restart; a script-only package does not.
+See [lua-mods.md](lua-mods.md) and [content.md](content.md).
 
 There is no `nsmbu.content` table in API v1.
 

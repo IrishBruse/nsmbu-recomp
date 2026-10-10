@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
             "end\n",
             ",\"options\":[{\"id\":\"label\",\"name\":\"Label\",\"type\":\"string\",\"default\":\"Hi\"}]"),error));
         assert(enable("lua.status",true,error));frame(1);
-        {auto v=view("lua.status");assert(v.active&&v.enabled&&v.status.find("Hi")!=std::string::npos);}
+        {auto v=view("lua.status");assert(v.active&&v.enabled&&!v.restart_required&&v.status.find("Hi")!=std::string::npos);}
         assert(configure("lua.status","label",mods::json::Value("Yo"),error));frame(2);
         {auto v=view("lua.status");assert(v.active&&v.status.find("Yo")!=std::string::npos&&v.status.find("Hi")==std::string::npos);}
         assert(enable("lua.status",false,error));frame(3);assert(remove("lua.status",error));
@@ -112,8 +112,32 @@ int main(int argc, char** argv) {
         assert(enable("lua.guest",false,error));frame(31);assert(remove("lua.guest",error));
         mods::lua_guest::set_base(nullptr);
 
+        auto content_only=root/"lua.files";fs::create_directories(content_only/"content"/"Common");
+        std::ofstream(content_only/"content"/"Common"/"a.bin")<<"a";
+        std::ofstream(content_only/"manifest.json")<<R"({"format_version":2,"id":"lua.files","name":"Files","version":"1.0.0","game_id":"nsmbu-usa","kind":"lua","content_dir":"content"})";
+        assert(install(content_only.string(),error));
+        {auto v=view("lua.files");assert(v.kind=="lua"&&v.restart_required&&!v.active);}
+        assert(enable("lua.files",true,error));frame(40);
+        {auto v=view("lua.files");assert(v.enabled&&!v.active&&v.pending_restart&&v.restart_required);}
+
+        auto content_b=root/"lua.files2";fs::create_directories(content_b/"content"/"Common");
+        std::ofstream(content_b/"content"/"Common"/"a.bin")<<"b";
+        std::ofstream(content_b/"manifest.json")<<R"({"format_version":2,"id":"lua.files2","name":"Files2","version":"1.0.0","game_id":"nsmbu-usa","kind":"lua","content_dir":"content"})";
+        assert(install(content_b.string(),error));
+        assert(!enable("lua.files2",true,error));assert(error.find("Content file conflict")!=std::string::npos);
+        assert(enable("lua.files",false,error));frame(41);assert(remove("lua.files",error));assert(remove("lua.files2",error));
+
+        auto both=root/"lua.both";fs::create_directories(both/"content"/"Common");
+        std::ofstream(both/"content"/"Common"/"b.bin")<<"x";
+        std::ofstream(both/"main.lua")<<"function nsmbu.on_logic_step(step) nsmbu.status(\"both\") end\n";
+        std::ofstream(both/"manifest.json")<<R"({"format_version":2,"id":"lua.both","name":"Both","version":"1.0.0","game_id":"nsmbu-usa","kind":"lua","lua":{"api_version":1,"entry":"main.lua"},"content_dir":"content"})";
+        assert(install(both.string(),error));
+        assert(enable("lua.both",true,error));frame(42);
+        {auto v=view("lua.both");assert(v.enabled&&!v.active&&v.pending_restart&&v.restart_required);}
+        assert(enable("lua.both",false,error));frame(43);assert(remove("lua.both",error));
+
         fs::remove_all(root);
-        std::cout<<"Lua load, options, fault isolation, sandbox, and guest memory passed\n";
+        std::cout<<"Lua load, options, fault isolation, sandbox, guest memory, and content_dir passed\n";
         return 0;
     }
     if(argc==2&&(std::string(argv[1])=="--cemu-startup"||std::string(argv[1])=="--cemu-backend")){
@@ -127,7 +151,7 @@ int main(int argc, char** argv) {
             std::ofstream(pack/"0000000000000001_0000000000000002_ps.txt")<<"#version 420\nvoid main(){}\n";
             auto content=storage/"Mods"/"content.test";fs::create_directories(content/"content"/"Common");
             std::ofstream(content/"content"/"Common"/"test.bin")<<"synthetic content";
-            std::ofstream(content/"manifest.json")<<R"({"format_version":1,"id":"content.test","name":"Content","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
+            std::ofstream(content/"manifest.json")<<R"({"format_version":2,"id":"content.test","name":"Content","version":"1.0.0","game_id":"nsmbu-usa","kind":"lua","content_dir":"content"})";
             std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true,"content.test":true}}}})";
         }
         env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());initialize();
@@ -152,7 +176,7 @@ int main(int argc, char** argv) {
         fs::create_directories(pack/"content"/"Common");
         std::ofstream(pack/"content"/"Common"/"fixture.bin")<<"synthetic replacement";
         fs::create_directories(pack/"content"/"Common"/"Pack");std::ofstream(pack/"content"/"Common"/"Pack"/"permanent_2d_EuEnglish.pack")<<"SARCsynthetic translation";
-        std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"content.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
+        std::ofstream(pack/"manifest.json")<<R"({"format_version":2,"id":"content.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"lua","content_dir":"content"})";
         std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"content.test":true}}}})";
         env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());
         assert(mods::content::replacement("/vol/content/Common/fixture.bin").empty());initialize();
@@ -171,7 +195,7 @@ int main(int argc, char** argv) {
         assert(mods::content::replacement("/vol/content/Cafe/JP/Pack/permanent_2d_EuGerman.pack").empty());
         assert(mods::content::replacement("/vol/content/Cafe/JP/Packs/permanent_2d_EuEnglish.pack").empty());
         assert(mods::content::replacement("/vol/content/Common/Pack/permanent_2d_UsEnglish.pack","wb").empty());
-        std::string error;assert(list().at(0).active&&list().at(0).restart_required);assert(enable("content.test",false,error));frame(100);
+        std::string error;assert(list().at(0).kind=="lua");assert(list().at(0).active&&list().at(0).restart_required);assert(enable("content.test",false,error));frame(100);
         assert(list().at(0).active&&!list().at(0).enabled);assert(mods::content::replacement("Common/fixture.bin")==file);
         assert(!remove("content.test",error));assert(!install(pack.string(),error));
         assert(create_profile("Other",error));assert(select_profile("Other",error));frame(101);assert(mods::content::replacement("Common/fixture.bin")==file);
@@ -185,14 +209,21 @@ int main(int argc, char** argv) {
     env("NSMBU_MOD_MANAGER_DIR",(root/"storage").string().c_str());
     fs::create_directories(root/"storage");
     std::ofstream(root/"storage"/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{},"builtins":{"direct-camera":true},"builtin_options":{"direct-camera.speed":1.5}}}})";
+    auto migrate=root/"storage"/"Mods"/"content.migrate";fs::create_directories(migrate/"content"/"Common");
+    std::ofstream(migrate/"content"/"Common"/"m.bin")<<"m";
+    std::ofstream(migrate/"manifest.json")<<R"({"format_version":1,"id":"content.migrate","name":"Migrate","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
     initialize();
     std::string error;
+    {auto v=view("content.migrate");assert(v.kind=="lua"&&!v.enabled&&!v.active&&v.restart_required);
+        std::ifstream mf(migrate/"manifest.json");std::string text{std::istreambuf_iterator<char>(mf),{}};
+        assert(text.find("\"kind\":\"lua\"")!=std::string::npos);assert(text.find("\"kind\":\"content\"")==std::string::npos);}
+    assert(remove("content.migrate",error));
     auto content_package=[&](const char* id) {
         auto path=root/id;fs::create_directories(path/"content"/"Common");
         std::ofstream(path/"content"/"Common"/(std::string(id)+".bin"))<<"x";
-        std::ofstream(path/"manifest.json") << "{\"format_version\":1,\"id\":\"" << id
+        std::ofstream(path/"manifest.json") << "{\"format_version\":2,\"id\":\"" << id
           << "\",\"name\":\"" << id << "\",\"version\":\"1.0.0\",\"game_id\":\"nsmbu-usa\","
-          << "\"kind\":\"content\",\"content_dir\":\"content\"}";
+          << "\"kind\":\"lua\",\"content_dir\":\"content\"}";
         return path.string();
     };
     auto cemu_package=[&](const char* id, const char* extra) {
@@ -219,7 +250,7 @@ int main(int argc, char** argv) {
     }
     assert(install(content_package("climb-preset"),error));
     assert(list().size()==1 && list()[0].id=="climb-preset");
-    assert(list()[0].kind=="content" && list()[0].restart_required);
+    assert(list()[0].kind=="lua" && list()[0].restart_required);
     assert(enable("climb-preset",true,error));frame(1);
     assert(view("climb-preset").enabled && !view("climb-preset").active && view("climb-preset").pending_restart);
     {
@@ -251,8 +282,9 @@ int main(int argc, char** argv) {
     assert(enable("climb-preset",false,error));frame(30);assert(remove("climb-preset",error));
     auto plain=root/"plain";fs::create_directories(plain/"content"/"Common");
     std::ofstream(plain/"content"/"Common"/"a.bin")<<"x";
-    std::ofstream(plain/"manifest.json")<<R"({"format_version":1,"id":"plain","name":"Plain","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
+    std::ofstream(plain/"manifest.json")<<R"({"format_version":2,"id":"plain","name":"Plain","version":"1.0.0","game_id":"nsmbu-usa","kind":"lua","content_dir":"content"})";
     assert(install(plain.string(),error));
+    assert(view("plain").kind=="lua");
     assert(remove("plain",error));
     assert(list().empty());
     auto graphics=root/"CemuResolution";fs::create_directories(graphics);
@@ -269,7 +301,7 @@ int main(int argc, char** argv) {
     assert(!enable(list().at(0).id,true,error));assert(remove(list().at(0).id,error));
     auto legacy=root/"LegacyModel";fs::create_directories(legacy/"content"/"Object");
     std::ofstream(legacy/"content"/"Object"/"test.arc")<<"synthetic model archive";
-    assert(install(legacy.string(),error));auto imported=list().at(0);assert(imported.id=="content.legacymodel"&&imported.restart_required&&!imported.active);
+    assert(install(legacy.string(),error));auto imported=list().at(0);assert(imported.id=="content.legacymodel"&&imported.kind=="lua"&&imported.restart_required&&!imported.active);
     assert(enable(imported.id,true,error));frame(50);assert(!list().at(0).active);
     auto second=root/"OtherModel";fs::create_directories(second/"content"/"Object");std::ofstream(second/"content"/"Object"/"test.arc")<<"synthetic conflicting archive";
     assert(install(second.string(),error));assert(!enable("content.othermodel",true,error));assert(error.find("Content file conflict")!=std::string::npos);

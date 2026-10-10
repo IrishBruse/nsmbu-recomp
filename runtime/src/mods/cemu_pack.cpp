@@ -182,7 +182,7 @@ void import_legacy(const fs::path& stage,const std::string& source_name){
     std::vector<fs::path> rules;for(const auto& e:fs::recursive_directory_iterator(stage))if(e.is_regular_file()&&lower(e.path().filename().string())=="rules.txt")rules.push_back(e.path());
     require(rules.size()==1,"Select a single Cemu pack with one rules.txt");auto pack=parse(rules.front().parent_path());
     auto id=lower(fs::path(source_name).stem().string());for(char& c:id)if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'||c=='_'))c='-';if(id.size()>58)id.resize(58);require(!id.empty(),"Missing Cemu pack name");
-    json::Value m;m["format_version"]=1;m["id"]="cemu."+id;m["name"]=pack.name;m["version"]="1.0.0";m["game_id"]="nsmbu-usa";m["minimum_manager_version"]="1.2.0";m["kind"]="cemu";auto relative=rules.front().parent_path().lexically_relative(stage).generic_string();m["cemu_dir"]=relative=="."?"":relative;m["description"]=pack.description;m["options"]=options(pack);
+    json::Value m;m["format_version"]=1;m["id"]="cemu."+id;m["name"]=pack.name;m["version"]="1.0.0";m["game_id"]="nsmbu-usa";m["minimum_manager_version"]="1.0.0";m["kind"]="cemu";auto relative=rules.front().parent_path().lexically_relative(stage).generic_string();m["cemu_dir"]=relative=="."?"":relative;m["description"]=pack.description;m["options"]=options(pack);
     std::ofstream out(stage/"manifest.json");out<<json::dump(m)<<'\n';out.close();require(bool(out),"Cannot write imported Cemu manifest");
 }
 void validate(const std::vector<Selection>& selections){prepare(selections);}

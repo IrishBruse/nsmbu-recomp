@@ -15,3 +15,8 @@ Write code without comments.
 Remove non-license comments from code you change.
 
 Update the CHANGELOG.md with the current feature dont add every single change add it to unreleased section always.
+
+## Versions
+
+Do not change version numbers unless the user approves it.
+This includes the mod manager version, package `minimum_manager_version`, release tags, and similar version fields.

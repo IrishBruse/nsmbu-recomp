@@ -7,19 +7,22 @@ This folder is the modding documentation for NSMBU recomp.
 | Doc | What it covers |
 | --- | --- |
 | [mod-manager.md](mod-manager.md) | In-game Mods tab, install, profiles, storage, shared manifest fields |
-| [content.md](content.md) | `kind: content` file replacements (models, textures, UI, fan translations) |
+| [lua-mods.md](lua-mods.md) | Lua packages (phase 2 scripting; phase 3 `content_dir`) |
+| [api.md](api.md) | Lua host API (phase 2 live; later phases still proposal) |
+| [content.md](content.md) | File replacements via Lua `content_dir` (`kind: content` is a legacy alias this release) |
 | [cemu.md](cemu.md) | `kind: cemu` graphics and shader packs |
 
 Rejected on install: `kind: native`, `kind: guest`, and `kind: settings`.
+`kind: content` is accepted as a read-only alias this release and migrates to `lua` on scan.
 
 ## Proposal (not implemented)
 
 | Doc | What it covers |
 | --- | --- |
-| [lua-mods.md](lua-mods.md) | Plan to replace content/native/guest with Lua packages |
-| [api.md](api.md) | Proposed Lua host API |
+| [lua-mods.md](lua-mods.md) phases 4–5 | Hooks, `nsmbu.call`, and hard rejection of the content alias |
+| [api.md](api.md) (hooks, calls, input, data, guest heap) | Host APIs still marked proposal in that doc |
 
-Example packages (also not loaded by the runtime): [../../examples/lua-mods/](../../examples/lua-mods/).
+Example packages: [../../examples/lua-mods/](../../examples/lua-mods/).
 
 ## Historical archives
 

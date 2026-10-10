@@ -67,6 +67,25 @@ void reject_lua_files(const fs::path& root){
         require(!bad,"Lua package may not contain "+name);
     }
 }
+void index_content_dir(Manifest& m,const fs::path& path,const std::string& folder){
+    require(archive::relative_path(folder),"Invalid content directory");
+    auto checked=path;for(const auto& part:fs::path(folder)){checked/=part;require(!fs::is_symlink(checked),"Content paths may not use symlinks");}
+    m.files=content::index(path/folder);
+}
+bool has_content_files(const Manifest& m){return !m.files.empty();}
+bool startup_only(const Manifest& m){return m.kind=="cemu"||m.kind=="content"||(m.kind=="lua"&&has_content_files(m));}
+bool content_lifecycle(const Manifest& m){return m.kind=="cemu"||m.kind=="content"||has_content_files(m);}
+void migrate_content_alias(const fs::path& path){
+    auto v=json::parse(read_text(path/"manifest.json"));
+    if(v.get("kind").type!=Value::String||v.get("kind").text!="content")return;
+    v["kind"]="lua";
+    v["format_version"]=2;
+    auto tmp=path/"manifest.json.tmp";
+    std::ofstream f(tmp,std::ios::binary|std::ios::trunc);
+    f<<json::dump(v)<<'\n';
+    f.close();
+    require(bool(f)&&host::replace_file(tmp.string(),(path/"manifest.json").string()),"Cannot migrate content package");
+}
 Manifest manifest(const fs::path& path){
     auto v=json::parse(read_text(path/"manifest.json"));require(v.type==Value::Object,"Manifest must be an object");
     Manifest m;m.id=string_field(v,"id",false,64);require(id_ok(m.id),"Invalid mod ID");
@@ -93,18 +112,26 @@ Manifest manifest(const fs::path& path){
         require(v.get("abi_version").type==Value::Null,"Lua packages do not use abi_version");
         require(v.get("binaries").type==Value::Null,"Lua packages do not use binaries");
         require(v.get("guest").type==Value::Null,"Lua packages do not use guest");
-        const auto& lua=v.get("lua");require(lua.type==Value::Object,"Lua package requires a lua object");
-        require(lua.get("api_version").type==Value::Number&&lua.get("api_version").number==1,"Unsupported Lua API version");
-        m.entry=string_field(lua,"entry",true,512);if(m.entry.empty())m.entry="main.lua";
-        require(archive::relative_path(m.entry),"Invalid Lua entry path");
-        auto entry_path=path;for(const auto& part:fs::path(m.entry)){entry_path/=part;require(!fs::is_symlink(entry_path),"Lua entry may not use symlinks");}
-        require(fs::is_regular_file(entry_path)&&!fs::is_symlink(entry_path),"Lua entry is missing: "+m.entry);
+        auto folder=string_field(v,"content_dir",true,512);
+        if(!folder.empty())index_content_dir(m,path,folder);
+        const auto& lua=v.get("lua");
+        if(lua.type==Value::Null){
+            require(has_content_files(m),"Lua package requires a script entry or content_dir");
+        }else{
+            require(lua.type==Value::Object,"Invalid lua object");
+            require(lua.get("api_version").type==Value::Number&&lua.get("api_version").number==1,"Unsupported Lua API version");
+            m.entry=string_field(lua,"entry",true,512);
+            if(!m.entry.empty()){
+                require(archive::relative_path(m.entry),"Invalid Lua entry path");
+                auto entry_path=path;for(const auto& part:fs::path(m.entry)){entry_path/=part;require(!fs::is_symlink(entry_path),"Lua entry may not use symlinks");}
+                require(fs::is_regular_file(entry_path)&&!fs::is_symlink(entry_path),"Lua entry is missing: "+m.entry);
+            }
+            require(!m.entry.empty()||has_content_files(m),"Lua package requires a script entry or content_dir");
+        }
         reject_lua_files(path);
     } else {
         auto folder=string_field(v,"content_dir",false,512);
-        require(archive::relative_path(folder),"Invalid content directory");
-        auto checked=path;for(const auto& part:fs::path(folder)){checked/=part;require(!fs::is_symlink(checked),"Content paths may not use symlinks");}
-        m.files=content::index(path/folder);
+        index_content_dir(m,path,folder);
     }
     const auto& deps=v.get("dependencies");require(deps.type==Value::Null||deps.type==Value::Array,"Dependencies must be an array");
     for(const auto& dep:deps.array){Requirement r;r.id=string_field(dep,"id",false,80);r.version=string_field(dep,"minimum_version",true,64);if(r.version.empty())r.version="0.0.0";version(r.version);require(!r.id.starts_with("builtin:"),"Unknown built-in mod: "+r.id);require(id_ok(r.id),"Invalid dependency ID");m.dependencies.push_back(r);}
@@ -127,7 +154,7 @@ Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto&
 void strip_builtins(){for(auto& entry:database["profiles"].object){entry.second.object.erase("builtins");entry.second.object.erase("builtin_options");}}
 void save(){if(!ready)return;strip_builtins();fs::create_directories(root);auto tmp=root/"profiles.json.tmp";std::ofstream f(tmp,std::ios::binary|std::ios::trunc);f<<json::dump(database)<<'\n';f.close();require(bool(f)&&host::replace_file(tmp.string(),(root/"profiles.json").string()),"Cannot save mod profiles");}
 void defaults(){database=Value{};database["format_version"]=1;database["active"]="Default";profile()["enabled"].type=Value::Object;}
-void scan(){records.clear();if(!ready)return;fs::create_directories(root/"Mods");for(const auto& e:fs::directory_iterator(root/"Mods")){if(!e.is_directory()||e.is_symlink()||!id_ok(e.path().filename().string()))continue;Record r;r.path=e.path();try{r.manifest=manifest(e.path());require(r.manifest.id==e.path().filename(),"Folder and manifest IDs differ");}catch(const std::exception& ex){r.manifest.id=e.path().filename().string();r.manifest.name=r.manifest.id;r.manifest.problem=ex.what();}auto id=r.manifest.id;records.emplace(id,std::move(r));}}
+void scan(){records.clear();if(!ready)return;fs::create_directories(root/"Mods");for(const auto& e:fs::directory_iterator(root/"Mods")){if(!e.is_directory()||e.is_symlink()||!id_ok(e.path().filename().string()))continue;Record r;r.path=e.path();try{migrate_content_alias(e.path());r.manifest=manifest(e.path());require(r.manifest.id==e.path().filename(),"Folder and manifest IDs differ");}catch(const std::exception& ex){r.manifest.id=e.path().filename().string();r.manifest.name=r.manifest.id;r.manifest.problem=ex.what();}auto id=r.manifest.id;records.emplace(id,std::move(r));}}
 std::vector<std::string> order(const std::set<std::string>& enabled){
     std::map<std::string,int> mark;std::vector<std::string> result;
     std::function<void(const std::string&)> visit=[&](const std::string& id){require(mark[id]!=1,"Dependency cycle at "+id);if(mark[id]==2)return;mark[id]=1;auto it=records.find(id);require(it!=records.end(),"Missing dependency: "+id);const auto& m=it->second.manifest;require(m.problem.empty(),m.name+": "+m.problem);for(const auto& dep:m.dependencies){auto d=records.find(dep.id);require(d!=records.end(),"Missing dependency: "+dep.id);require(version(d->second.manifest.version)>=version(dep.version),"Dependency "+dep.id+" needs version "+dep.version);require(enabled.contains(dep.id),"Dependency is disabled: "+dep.id);visit(dep.id);}mark[id]=2;result.push_back(id);};
@@ -154,7 +181,7 @@ void initialize(){
     try{fs::create_directories(root);if(fs::exists(root/"profiles.json")){auto saved=json::parse(read_text(root/"profiles.json"));require(saved.get("format_version").type==Value::Number&&saved.get("format_version").number==1,"Unsupported profile format");require(saved.get("profiles").type==Value::Object&&!saved.get("profiles").object.empty(),"Invalid profiles");require(saved.get("active").type==Value::String&&saved.get("profiles").object.contains(saved.get("active").text),"Invalid active profile");database=std::move(saved);}scan();
         try { auto enabled=enabled_set();auto sequence=order(enabled);validate_conflicts(enabled);
             content::Files files;
-            for(const auto& id:sequence){auto& record=records.at(id);if(record.manifest.kind=="content"){
+            for(const auto& id:sequence){auto& record=records.at(id);if(record.manifest.kind=="content"||(record.manifest.kind=="lua"&&has_content_files(record.manifest))){
                 files.insert(record.manifest.files.begin(),record.manifest.files.end());record.active=true;
                 record.status=std::to_string(record.manifest.files.size())+" replacement files";
             }}
@@ -165,12 +192,20 @@ void initialize(){
             }}
             cemu::activate(graphics);
             content::activate(std::move(files));
+            for(const auto& id:sequence){auto& record=records.at(id);if(record.manifest.kind!="lua"||!has_content_files(record.manifest)||record.manifest.entry.empty())continue;
+                Live item;item.kind=record.manifest.kind;try{
+                    auto cfg=config(record.manifest);
+                    mods::lua_mod::LoadInfo info;info.id=record.manifest.id;info.version=record.manifest.version;info.path=record.path.string();info.entry=record.manifest.entry;info.config=cfg;
+                    item.lua=mods::lua_mod::load(info);item.last_config=std::move(cfg);live.emplace(id,std::move(item));live_order.push_back(id);
+                    fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());
+                }catch(const std::exception& e){if(item.lua)mods::lua_mod::unload(*item.lua);record.error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}}}
+            running=!live.empty();
         } catch(const std::exception& e) {last_problem=e.what();}
         dirty=true;
     }catch(const std::exception& e){last_problem=e.what();ready=false;records.clear();fprintf(stderr,"[mod-manager] %s\n",e.what());}
 }
 std::string directory(){std::lock_guard guard(mutex);return ready?(root/"Mods").string():"";}
-std::vector<View> list(){std::lock_guard guard(mutex);std::vector<View> out;for(const auto& [id,r]:records){const auto& m=r.manifest;View v;v.id=id;v.name=m.name;v.version=m.version;v.author=m.author;v.description=m.description;v.kind=m.kind;v.restart_required=m.kind=="content"||m.kind=="cemu";v.enabled=wanted(id);v.active=r.active;v.compatible=m.problem.empty();v.reason=m.problem.empty()?r.error:m.problem;v.status=r.status;if(m.graphics){auto diagnostics=cemu::runtime_status(id);if(!diagnostics.empty())v.status+=". "+diagnostics;}v.options=m.options;auto cfg=config(m);v.pending_restart=v.restart_required&&(v.enabled!=v.active||(m.graphics&&v.active&&!(r.startup_config==cfg)));if(m.graphics&&!m.graphics->shaders.empty()&&!cemu::vulkan()){v.active=false;v.compatible=false;v.reason="GLSL shader packs require Vulkan; choose it in Graphics and restart";}for(auto& o:v.options)o.value=cfg.get(o.id);for(const auto& dep:m.dependencies)v.dependencies.push_back(dep.id+">="+dep.version);v.conflicts=m.conflicts;out.push_back(std::move(v));}return out;}
+std::vector<View> list(){std::lock_guard guard(mutex);std::vector<View> out;for(const auto& [id,r]:records){const auto& m=r.manifest;View v;v.id=id;v.name=m.name;v.version=m.version;v.author=m.author;v.description=m.description;v.kind=m.kind;v.restart_required=content_lifecycle(m);v.enabled=wanted(id);v.active=r.active;v.compatible=m.problem.empty();v.reason=m.problem.empty()?r.error:m.problem;v.status=r.status;if(m.graphics){auto diagnostics=cemu::runtime_status(id);if(!diagnostics.empty())v.status+=". "+diagnostics;}v.options=m.options;auto cfg=config(m);v.pending_restart=v.restart_required&&(v.enabled!=v.active||(m.graphics&&v.active&&!(r.startup_config==cfg)));if(m.graphics&&!m.graphics->shaders.empty()&&!cemu::vulkan()){v.active=false;v.compatible=false;v.reason="GLSL shader packs require Vulkan; choose it in Graphics and restart";}for(auto& o:v.options)o.value=cfg.get(o.id);for(const auto& dep:m.dependencies)v.dependencies.push_back(dep.id+">="+dep.version);v.conflicts=m.conflicts;out.push_back(std::move(v));}return out;}
 static bool content_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n=="content";}
 bool install(const std::string& source,std::string& error,std::string* installed_id_out){return operation(error,[&]{
     auto nonce=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());auto stage=root/(".stage-"+nonce),backup=root/(".backup-"+nonce);fs::path target;bool backed=false,moved=false;
@@ -187,10 +222,10 @@ bool install(const std::string& source,std::string& error,std::string* installed
         auto named=fs::path(source).lexically_normal();if(named.filename().empty())named=named.parent_path();
         if(content_name(named.filename().string())&&!named.parent_path().filename().empty())named=named.parent_path();
         if(graphics)cemu::import_legacy(stage,named.filename().string());else content::import_legacy(stage,named.filename().string());
-    }auto m=manifest(stage);require(m.problem.empty()||m.problem.starts_with("GLSL shader packs require Vulkan"),m.problem);target=root/"Mods"/m.id;auto it=records.find(m.id);require(it==records.end()||(!wanted(m.id)&&!it->second.active&&!it->second.loading),it!=records.end()&&(it->second.manifest.kind=="content"||it->second.manifest.kind=="cemu")?"Disable this content mod and restart before updating":"Disable this mod and wait for it to unload before updating");fs::create_directories(target.parent_path());if(fs::exists(target)){fs::rename(target,backup);backed=true;}fs::rename(stage,target);moved=true;m=manifest(target);Record r;r.path=target;r.manifest=std::move(m);auto installed_id=r.manifest.id;records[installed_id]=std::move(r);if(installed_id_out)*installed_id_out=installed_id;if(backed){std::error_code cleanup;fs::remove_all(backup,cleanup);}dirty=true;
+    }auto m=manifest(stage);require(m.problem.empty()||m.problem.starts_with("GLSL shader packs require Vulkan"),m.problem);target=root/"Mods"/m.id;auto it=records.find(m.id);require(it==records.end()||(!wanted(m.id)&&!it->second.active&&!it->second.loading),it!=records.end()&&content_lifecycle(it->second.manifest)?"Disable this content mod and restart before updating":"Disable this mod and wait for it to unload before updating");fs::create_directories(target.parent_path());if(fs::exists(target)){fs::rename(target,backup);backed=true;}fs::rename(stage,target);moved=true;m=manifest(target);Record r;r.path=target;r.manifest=std::move(m);auto installed_id=r.manifest.id;records[installed_id]=std::move(r);if(installed_id_out)*installed_id_out=installed_id;if(backed){std::error_code cleanup;fs::remove_all(backup,cleanup);}dirty=true;
     }catch(...){if(moved)fs::remove_all(target);if(backed)fs::rename(backup,target);if(fs::exists(stage))fs::remove_all(stage);throw;}
 });}
-bool remove(const std::string& id,std::string& error){return operation(error,[&]{auto it=records.find(id);require(it!=records.end(),"Mod not found");require(!wanted(id)&&!it->second.active&&!it->second.loading,(it->second.manifest.kind=="content"||it->second.manifest.kind=="cemu")?"Disable this content mod and restart before removing":"Disable this mod and wait for it to unload before removing");for(const auto& [other,r]:records)if(wanted(other))for(const auto& d:r.manifest.dependencies)require(d.id!=id,r.manifest.name+" depends on this mod");auto previous=database;for(auto& [name,p]:database["profiles"].object){p["enabled"].object.erase(id);p["config"].object.erase(id);}try{save();}catch(...){database=previous;throw;}fs::remove_all(it->second.path);records.erase(it);dirty=true;});}
+bool remove(const std::string& id,std::string& error){return operation(error,[&]{auto it=records.find(id);require(it!=records.end(),"Mod not found");require(!wanted(id)&&!it->second.active&&!it->second.loading,content_lifecycle(it->second.manifest)?"Disable this content mod and restart before removing":"Disable this mod and wait for it to unload before removing");for(const auto& [other,r]:records)if(wanted(other))for(const auto& d:r.manifest.dependencies)require(d.id!=id,r.manifest.name+" depends on this mod");auto previous=database;for(auto& [name,p]:database["profiles"].object){p["enabled"].object.erase(id);p["config"].object.erase(id);}try{save();}catch(...){database=previous;throw;}fs::remove_all(it->second.path);records.erase(it);dirty=true;});}
 bool enable(const std::string& id,bool on,std::string& error){return operation(error,[&]{require(records.contains(id),"Mod not found");auto enabled=enabled_set();if(on){
     std::set<std::string> visiting;
     std::function<void(const std::string&)> add=[&](const std::string& current){require(!visiting.contains(current),"Dependency cycle at "+current);require(records.contains(current),"Missing dependency: "+current);const auto& graphics=records.at(current).manifest.graphics;if(graphics&&!graphics->shaders.empty())require(cemu::vulkan(),"GLSL shader packs require Vulkan; choose it in Graphics and restart");if(enabled.contains(current))return;visiting.insert(current);for(const auto& d:records.at(current).manifest.dependencies)add(d.id);visiting.erase(current);enabled.insert(current);};add(id);
@@ -202,15 +237,20 @@ std::string current_profile(){std::lock_guard guard(mutex);return ready?database
 bool create_profile(const std::string& name,std::string& error){return operation(error,[&]{require(!name.empty()&&name.size()<=64&&name.find('\0')==std::string::npos,"Invalid profile name");require(database.get("profiles").object.size()<64,"Profile limit reached");require(!database.get("profiles").object.contains(name),"Profile already exists");auto previous=database;Value copy=profile();database["profiles"][name]=std::move(copy);try{save();}catch(...){database=previous;throw;}});}
 bool select_profile(const std::string& name,std::string& error){return operation(error,[&]{require(database.get("profiles").object.contains(name),"Profile not found");auto previous=database;database["active"]=name;try{order(enabled_set());validate_conflicts(enabled_set());save();}catch(...){database=previous;throw;}profile_changed=true;dirty=true;});}
 bool delete_profile(const std::string& name,std::string& error){return operation(error,[&]{require(name!=database.get("active").string(),"Switch profiles before deleting the active one");require(database.get("profiles").object.contains(name),"Profile not found");auto previous=database;database["profiles"].object.erase(name);try{save();}catch(...){database=previous;throw;}});}
-bool refresh(std::string& error){return operation(error,[&]{for(const auto& [id,r]:records)require(!r.active&&!r.loading&&!wanted(id),(r.manifest.kind=="content"||r.manifest.kind=="cemu")?"Disable content mods and restart before rescanning":"Disable installed mods before rescanning");scan();dirty=true;});}
+bool refresh(std::string& error){return operation(error,[&]{for(const auto& [id,r]:records)require(!r.active&&!r.loading&&!wanted(id),content_lifecycle(r.manifest)?"Disable content mods and restart before rescanning":"Disable installed mods before rescanning");scan();dirty=true;});}
 void frame(uint64_t step){
     if(!dirty.load(std::memory_order_relaxed)&&!running.load(std::memory_order_relaxed))return;
     static uint64_t previous=~uint64_t(0);if(step==previous)return;previous=step;
     if(dirty.exchange(false)){
         std::map<std::string,std::pair<Record,Value>> desired;std::vector<std::string> sequence;bool switching=false;
-        {std::lock_guard guard(mutex);switching=profile_changed.exchange(false);try{auto enabled=enabled_set();sequence=order(enabled);validate_conflicts(enabled);std::erase_if(sequence,[](const auto& id){return records.at(id).manifest.kind=="content"||records.at(id).manifest.kind=="cemu";});for(const auto& id:sequence){desired[id]={records.at(id),config(records.at(id).manifest)};records.at(id).loading=true;}}catch(const std::exception& e){last_problem=e.what();for(auto& [id,r]:records)if(wanted(id))r.error=e.what();sequence.clear();desired.clear();}}
-        for(auto it=live_order.rbegin();it!=live_order.rend();++it)if(!desired.contains(*it)||switching){auto found=live.find(*it);if(found!=live.end()){if(found->second.lua)mods::lua_mod::unload(*found->second.lua);live.erase(found);}std::lock_guard guard(mutex);if(records.contains(*it)){records.at(*it).active=false;records.at(*it).status.clear();}}
-        live_order.clear();
+        {std::lock_guard guard(mutex);switching=profile_changed.exchange(false);try{auto enabled=enabled_set();sequence=order(enabled);validate_conflicts(enabled);std::erase_if(sequence,[](const auto& id){return startup_only(records.at(id).manifest);});for(const auto& id:sequence){desired[id]={records.at(id),config(records.at(id).manifest)};records.at(id).loading=true;}}catch(const std::exception& e){last_problem=e.what();for(auto& [id,r]:records)if(wanted(id))r.error=e.what();sequence.clear();desired.clear();}}
+        std::vector<std::string> preserved;
+        for(auto it=live_order.rbegin();it!=live_order.rend();++it){
+            bool file_backed=false;{std::lock_guard guard(mutex);if(records.contains(*it))file_backed=has_content_files(records.at(*it).manifest);}
+            if(file_backed){if(live.contains(*it))preserved.push_back(*it);continue;}
+            if(!desired.contains(*it)||switching){auto found=live.find(*it);if(found!=live.end()){if(found->second.lua)mods::lua_mod::unload(*found->second.lua);live.erase(found);}std::lock_guard guard(mutex);if(records.contains(*it)){records.at(*it).active=false;records.at(*it).status.clear();}}
+        }
+        live_order.assign(preserved.rbegin(),preserved.rend());
         for(const auto& id:sequence){const auto& [record,cfg]=desired.at(id);bool deps_ok=true;for(const auto& dep:record.manifest.dependencies)if(!live.contains(dep.id)){std::lock_guard guard(mutex);if(!records.contains(dep.id)||!records.at(dep.id).active)deps_ok=false;}
             if(!deps_ok){std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error="A dependency is unavailable (content dependencies may require restart)";continue;}
             auto it=live.find(id);
