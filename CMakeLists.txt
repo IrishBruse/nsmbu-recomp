@@ -242,10 +242,10 @@ if(NSMBU_SETUP_GUI)
   include(cmake/SetupGui.cmake)
 endif()
 
-add_executable(mod_package_test runtime/tools/mod_package_test.cpp runtime/src/mods/packages.cpp runtime/src/mods/mod_archive.cpp runtime/src/mods/content.cpp runtime/src/mods/cemu_pack.cpp runtime/src/guest_addr_identity.c)
+add_executable(mod_package_test runtime/tools/mod_package_test.cpp runtime/src/mods/packages.cpp runtime/src/mods/mod_archive.cpp runtime/src/mods/content.cpp runtime/src/mods/cemu_pack.cpp runtime/src/mods/lua_runtime.cpp runtime/src/mods/lua_guest.cpp runtime/src/guest_addr_identity.c)
 target_include_directories(mod_package_test PRIVATE runtime/src runtime/include)
 target_compile_options(mod_package_test PRIVATE -UNDEBUG)
-target_link_libraries(mod_package_test PRIVATE ZLIB::ZLIB Threads::Threads)
+target_link_libraries(mod_package_test PRIVATE nsmbu_luajit ZLIB::ZLIB Threads::Threads)
 
 add_executable(mod_content_fs_test runtime/tools/mod_content_fs_test.cpp runtime/src/hle/fs.cpp runtime/src/mods/content.cpp runtime/src/mods/mod_archive.cpp runtime/src/game_languages.cpp runtime/src/guest_addr_identity.c)
 target_include_directories(mod_content_fs_test PRIVATE runtime/src runtime/include)
