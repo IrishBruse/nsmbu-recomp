@@ -187,24 +187,45 @@ std::string slot_path(int slot, const char* ext = "bin") {
 }
 
 void build_uuid(uint8_t out[16]) {
-    memset(out, 0, 16);
+    static uint8_t id[16]{};
+    static bool ready = false;
+    if (!ready) {
+        ready = true;
 #ifdef __APPLE__
-    const auto* h = (const mach_header_64*)&_mh_execute_header;
-    const uint8_t* p = (const uint8_t*)(h + 1);
-    for (uint32_t i = 0; i < h->ncmds; i++) {
-        const auto* lc = (const load_command*)p;
-        if (lc->cmd == LC_UUID) { memcpy(out, ((const uuid_command*)lc)->uuid, 16); return; }
-        p += lc->cmdsize;
-    }
+        const auto* h = (const mach_header_64*)&_mh_execute_header;
+        const uint8_t* p = (const uint8_t*)(h + 1);
+        for (uint32_t i = 0; i < h->ncmds; i++) {
+            const auto* lc = (const load_command*)p;
+            if (lc->cmd == LC_UUID) {
+                memcpy(id, ((const uuid_command*)lc)->uuid, 16);
+                break;
+            }
+            p += lc->cmdsize;
+        }
 #else
-
-    uint64_t first=0xcbf29ce484222325ull,second=0x84222325cbf29ce4ull;
-    FILE* f=fopen(host::executable_path().c_str(),"rb");
-    if(!f) { LOG("[savestate] cannot identify executable; state compatibility is unavailable"); return; }
-    unsigned char buf[65536];size_t n;
-    while((n=fread(buf,1,sizeof buf,f)))for(size_t i=0;i<n;i++){first=(first^buf[i])*0x100000001b3ull;second=(second+buf[i])*0x100000001b3ull;}
-    fclose(f);memcpy(out,&first,8);memcpy(out+8,&second,8);
+        uint64_t first = 0xcbf29ce484222325ull, second = 0x84222325cbf29ce4ull;
+        FILE* f = nullptr;
+#if !defined(_WIN32)
+        f = fopen("/proc/self/exe", "rb");
 #endif
+        if (!f) f = fopen(host::executable_path().c_str(), "rb");
+        if (!f) {
+            LOG("[savestate] cannot identify executable; state compatibility is unavailable");
+        } else {
+            unsigned char buf[65536];
+            size_t n;
+            while ((n = fread(buf, 1, sizeof buf, f)))
+                for (size_t i = 0; i < n; i++) {
+                    first = (first ^ buf[i]) * 0x100000001b3ull;
+                    second = (second + buf[i]) * 0x100000001b3ull;
+                }
+            fclose(f);
+            memcpy(id, &first, 8);
+            memcpy(id + 8, &second, 8);
+        }
+#endif
+    }
+    memcpy(out, id, 16);
 }
 
 uint64_t game_id() {

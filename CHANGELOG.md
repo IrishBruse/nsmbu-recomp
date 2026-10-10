@@ -5,6 +5,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Fix**: Save-state build identity on Linux reads `/proc/self/exe` (the running image) so a rebuild that replaces `build/nsmbu` no longer drops state compatibility.
 -   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
 -   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
     Wind Waker HD title ids and hashes are removed.
