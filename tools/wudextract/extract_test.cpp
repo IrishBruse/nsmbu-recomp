@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
     uint8_t disc_key[16], common_key[16], title_key[16];
     for (int i = 0; i < 16; i++) disc_key[i] = (uint8_t)(0x11 * i + 3), common_key[i] = (uint8_t)(0xA5 ^ (i * 7)),
                                  title_key[i] = (uint8_t)(i * 13 + 1);
-    const uint8_t title_id[8] = {0x00, 0x05, 0x00, 0x00, 0x10, 0x14, 0x35, 0x00};
+    const uint8_t title_id[8] = {0x00, 0x05, 0x00, 0x00, 0x10, 0x10, 0x1d, 0x00};
 
     PartitionBuilder gm;
     gm.hash_modes = {0, 2};

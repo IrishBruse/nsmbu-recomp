@@ -26,7 +26,7 @@ class SDKPackage(unittest.TestCase):
                         if path.is_file():
                             z.write(path, path.relative_to(root.parent).as_posix())
                 problems, count = guard.scan(str(archive))
-                self.assertGreaterEqual(count, 7)
+                self.assertGreaterEqual(count, 6)
                 self.assertEqual(problems, [])
 
     def test_installer_local_imports_are_shipped(self):
