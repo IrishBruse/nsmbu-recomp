@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Fix**: The overworld path seam is fixed.
+
 ## 0.2.0
 
 -   **Fix**: The crash in World 1-1 is fixed.

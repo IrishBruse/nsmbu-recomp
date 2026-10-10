@@ -653,9 +653,7 @@ PipelineKey pipeline_key(const uint32_t* r, const vk::Shader* vs, const vk::Shad
   }
   const uint32_t mode = r[REGADDR::PA_SU_SC_MODE_CNTL];
   key.raster = mode & 0x807;
-  if (mode & 0x800)
-    key.depthBias = {r[REGADDR::PA_SU_POLY_OFFSET_FRONT_SCALE], r[REGADDR::PA_SU_POLY_OFFSET_FRONT_OFFSET],
-                     r[REGADDR::PA_SU_POLY_OFFSET_CLAMP]};
+  key.depthBias = {};
   key.clip = r[REGADDR::PA_CL_CLIP_CNTL] & (1u << 27);
   if (fs->bufferGroups.size() > kMaxPipelineStrides)
     throw std::runtime_error("fetch shader has more vertex buffers than a pipeline key holds");
@@ -1015,13 +1013,21 @@ Pipeline &pipeline(const uint32_t *r, vk::Shader *vs, vk::Shader *ps,
        ds.front.writeMask != ds.back.writeMask ||
        ds.front.reference != ds.back.reference))
     throw std::runtime_error("separate stencil state unsupported by device");
-  VkDynamicState dyn[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR,
-                          VK_DYNAMIC_STATE_BLEND_CONSTANTS,
-                          VK_DYNAMIC_STATE_STENCIL_REFERENCE};
+  std::array<VkDynamicState, 5> dyn{
+      VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR,
+      VK_DYNAMIC_STATE_BLEND_CONSTANTS,
+      VK_DYNAMIC_STATE_STENCIL_REFERENCE};
+  uint32_t dynCount = 4;
+  if (rs.depthBiasEnable) {
+    dyn[dynCount++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
+    rs.depthBiasConstantFactor = 0;
+    rs.depthBiasSlopeFactor = 0;
+    rs.depthBiasClamp = 0;
+  }
   VkPipelineDynamicStateCreateInfo dy{
       VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
-  dy.dynamicStateCount = std::size(dyn);
-  dy.pDynamicStates = dyn;
+  dy.dynamicStateCount = dynCount;
+  dy.pDynamicStates = dyn.data();
   VkPipelineRenderingCreateInfo rc{
       VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
   rc.colorAttachmentCount = ncolor;
@@ -2255,6 +2261,14 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
     vkCmdSetViewport(cmd, 0, 1, &vp);
     state.viewport = vp;
     state.viewportValid = true;
+  }
+  LATTE_PA_SU_SC_MODE_CNTL poly;
+  std::memcpy(&poly, r + REGADDR::PA_SU_SC_MODE_CNTL, 4);
+  if (poly.get_OFFSET_FRONT_ENABLED()) {
+    const float targetScale = std::max(sx, sy);
+    vkCmdSetDepthBias(cmd, f32(r[REGADDR::PA_SU_POLY_OFFSET_FRONT_OFFSET]),
+                      f32(r[REGADDR::PA_SU_POLY_OFFSET_CLAMP]),
+                      f32(r[REGADDR::PA_SU_POLY_OFFSET_FRONT_SCALE]) / 16 * targetScale);
   }
   uint32_t tl = r[REGADDR::PA_SC_GENERIC_SCISSOR_TL],
            br = r[REGADDR::PA_SC_GENERIC_SCISSOR_BR];
