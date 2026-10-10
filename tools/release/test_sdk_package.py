@@ -15,7 +15,7 @@ class SDKPackage(unittest.TestCase):
     def test_platform_sdk_archives_pass_guard(self):
         for platform in ("macos-arm64", "linux-x86_64", "linux-aarch64", "windows-x86_64"):
             with self.subTest(platform=platform), tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp) / ("WindWakerHD-test-" + platform)
+                root = Path(tmp) / ("NSMBU-test-" + platform)
                 package.copy_sdk_headers(str(root))
                 headers = root / "sdk/guest/include/nsmbu"
                 include = root / "sdk/guest/include"

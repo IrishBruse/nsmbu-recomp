@@ -54,6 +54,7 @@ Windows now enables the existing bounded 2,048-draw asynchronous batching by
 default, with a maximum of two mid-frame submissions. Explicit values of
 `NSMBU_VK_DRAW_BATCH` and `NSMBU_VK_DRAW_BATCH_CAP` retain their existing behavior.
 
+This saved Outset scene is a record from the Wind Waker port.
 An isolated saved Outset scene at 3x resolution, AO mode 2, high-resolution AO
 and anisotropy compared the same native Release executable with batching enabled
 and disabled. VulkanProfiler and validation were disabled, implicit Vulkan
@@ -106,8 +107,8 @@ The "Sort by top of stack" section shows where the CPU time goes.
 
 ### Fixed-scene benchmark
 
-The commands in this section are the old Wind Waker measurement record.
-Use the command above to reach 1-1.
+Outset and Windfall figures are the old Wind Waker measurement record.
+Use the 1-1 command in How to profile for the current repro.
 
 `tools/bench/run_bench.py` runs the game headless (or with `--visible` windows, which presentation
 and vsync pacing need) from a save state with scripted input, one game at a time, with a fresh copy

@@ -64,7 +64,7 @@ imports, conflict rules, typed config, events, function registration for pointer
 ## The port today
 
 - **Translation** (`tools/recomp/recomp.py`, `ppc2c.py`): each guest function becomes a C
-  function `void f_XXXXXXXX(Cpu* c)`; the 39,713 functions of `cking.rpx` go into 78
+  function `void f_XXXXXXXX(Cpu* c)`; the 39,713 functions of `red-pro2.rpx` go into 78
   `code_NNN.c` files (about 170 MB of C).
 - **Calls**: direct `bl` → a direct C call `f_X(c)`; branches to other functions → `MUSTTAIL`
   tail calls; computed calls (`bctrl`, `blrl`, vtables, process method tables) and unknown
@@ -101,7 +101,7 @@ were too high (it is not, see [Measurements](#measurements)); (a) and (c) can al
 
 ### Mechanism (prototype)
 
-`recomp.py --mod-hooks` (or `WWHD_RECOMP_MOD_HOOKS=1`) emits at the start of every function body:
+`recomp.py --mod-hooks` (or `NSMBU_RECOMP_MOD_HOOKS=1`) emits at the start of every function body:
 
 ```c
 void f_0200EDC8(Cpu* __restrict c) {
@@ -144,7 +144,7 @@ function runs, and mods hook the game's code below them.
 - With true 60, the port scales the arguments of the `cLib_addCalc*` family by the step
   length before the game code runs; a mod replacing such a function receives the scaled
   arguments, so its replacement stays 60 Hz correct. Mods that count steps should use a
-  host service for the step length (planned: `wwhd_logic_dt`).
+  host service for the step length (planned: `nsmbu_logic_dt`).
 - A mod replacement of a function the port hooks itself (all `hooks*.txt` entries) is
   allowed but should be marked in the mod (like N64Recomp's force patch) so the manager can
   warn. Not enforced in the prototype.
@@ -162,12 +162,12 @@ function runs, and mods hook the game's code below them.
 - **Output**: one relocatable ELF per mod (`ld.lld -m elf32ppc -r *.o -o mod.elf`), not linked to an
   address. Relocations and undefined symbols are resolved on install.
 - **References to the game** by address, so no symbol database is needed:
-  `WWHD_GAME_FUNC(0x0200ED84, void, cLib_addCalc2, (f32*, f32, f32, f32))` declares a game
-  function (`__wwhd_game_0x0200ED84` as the symbol), `WWHD_GAME_ORIGINAL(...)` the game's own
-  code below all mods, `WWHD_GAME_DATA(addr, type)` a variable. A later SDK can add
+  `NSMBU_GAME_FUNC(0x0200ED84, void, cLib_addCalc2, (f32*, f32, f32, f32))` declares a game
+  function (`__nsmbu_game_0x0200ED84` as the symbol), `NSMBU_GAME_ORIGINAL(...)` the game's own
+  code below all mods, `NSMBU_GAME_DATA(addr, type)` a variable. A later SDK can add
   name-based symbols on top (a generated `game_symbols.txt`; see the legal section).
-- **Hooks** are descriptors in section `.wwhd_hooks` (`WWHD_REPLACE`, `WWHD_HOOK`,
-  `WWHD_HOOK_RETURN`), read by the translator.
+- **Hooks** are descriptors in section `.nsmbu_hooks` (`NSMBU_REPLACE`, `NSMBU_HOOK`,
+  `NSMBU_HOOK_RETURN`), read by the translator.
 - **Memory**: the mod's code, data and bss live in guest memory at a base the mod manager
   assigns, in a region the game and the runtime do not use (`0x7F000000`–`0x80000000`,
   16 MiB). Game code can therefore use pointers into mod data, and mod functions are
@@ -186,8 +186,8 @@ function runs, and mods hook the game's code below them.
 1. reads the manifest and the ELF (`tools/guestmod/guestmod.py`): lays the allocatable
    sections out at the base (code, read-only data, data, bss), applies all relocations
    (`ADDR32`, `ADDR16_LO/HI/HA`, `REL24`, `REL14`, `REL32`; anything else, e.g. small-data
-   relocations, is an error), resolves undefined symbols (`__wwhd_game_*`, `__wwhd_orig_*`,
-   `__wwhd_gdata_*`, otherwise a host service by name);
+   relocations, is an error), resolves undefined symbols (`__nsmbu_game_*`, `__nsmbu_orig_*`,
+   `__nsmbu_gdata_*`, otherwise a host service by name);
 2. finds the functions (symbols, call targets, address-taken code, cross-function branch
    targets) and translates every instruction with **the game's translator** (`ppc2c.py`);
    unsupported instructions are an install error that names them;
@@ -283,11 +283,11 @@ python3 tools/guestmod/regenerate_sdk.py --public-clone build/public-wwhd --chec
 `nsmbu/functions.h` gives every public verified function a named hook address.
 Ambiguous names retain an address suffix. `nsmbu/bindings.h` declares callable
 functions with supported signatures; object pointers are opaque `void*`, and
-names use a `wwhd_` prefix. Unsupported signatures are reported rather than guessed.
+names use an `nsmbu_` prefix. Unsupported signatures are reported rather than guessed.
 The JSON inventory retains their original public declarations for further curation.
 The current public revision resolves every verified declaration (22,853 unique callable
 bindings). Public `Pair32` and six-byte vector returns explicitly use two integer registers;
-the SDK exposes them as `wwhd_gpr_pair`, with `WWHD_RESULT_R3` and `WWHD_RESULT_R4` accessors,
+the SDK exposes them as `nsmbu_gpr_pair`, with `NSMBU_RESULT_R3` and `NSMBU_RESULT_R4` accessors,
 rather than declaring a C struct return with a hidden result pointer. For `SxyzResult`,
 r3 contains x/y and the upper 16 bits of r4 contain z; its lower 16 bits are not part of
 the value. The generator validates these public ABI adapters and curated enum definitions
@@ -310,12 +310,12 @@ a 32-bit guest target, and compile as C or C++ with clang.
 
 Modders target USA addresses in a single PowerPC ELF package. At inspection and build,
 the port translates hook targets, game calls, original calls, function pointers and
-`WWHD_GAME_DATA` relocations through the installed game's `tools/recomp/builds` map.
+`NSMBU_GAME_DATA` relocations through the installed game's `tools/recomp/builds` map.
 The running executable selects the build; USA and EU modules use separate cache keys,
 which also fingerprint the address map. Changed or unmapped functions are refused with
 an error naming their public SDK function when available and its USA address.
 
-Use `WWHD_GAME_DATA(address, type)` for constant game data addresses and the generated
+Use `NSMBU_GAME_DATA(address, type)` for constant game data addresses and the generated
 table accessors for indexed data. Raw integer-to-pointer casts embed USA addresses and
 are unsupported for portable mods. EU refuses packages built with the older SDK, whose
 data addresses had no relocations; their authors must rebuild against this SDK.
@@ -333,17 +333,18 @@ header and translator sources, so this happens automatically.
 
 | Service | Phase 1 behavior |
 | --- | --- |
-| `wwhd_log`, `_int`, `_hex`, `_float` | Log lines tagged with the calling mod ID. |
-| `wwhd_config_int`, `_bool`, `_float`, `_string` | Typed values from the manager's startup snapshot; numeric/bool calls use their fallback on missing or wrong-type values. `_float` returns a double. Strings include enum options and copy into a caller-owned guest buffer. |
-| `wwhd_malloc`, `wwhd_free` | Per-mod 16-byte-aligned guest heap. `guest.heap_size` chooses bytes (default 256 KiB, maximum 8 MiB); null on exhaustion. Metadata stays in guest memory, so restoring it restores allocation state. |
-| `wwhd_input_read` | Read-only VPAD-style buttons, sticks and touch in `wwhd_input_state`. |
-| `wwhd_file_read`, `wwhd_file_write` | Flat filenames in `ModManager/Data/<id>`, at most 1 MiB per call. No directory components, symlinks, hardlinks or Windows device names. Write replaces the file. Both return bytes transferred, or -1 on failure. |
-| `wwhd_logic_dt`, `wwhd_logic_step` | Seconds in the current logic step (true-60 scaling included), and the full logic-step counter. |
+| `nsmbu_log`, `_int`, `_hex`, `_float` | Log lines tagged with the calling mod ID. |
+| `nsmbu_config_int`, `_bool`, `_float`, `_string` | Typed values from the manager's startup snapshot; numeric/bool calls use their fallback on missing or wrong-type values. `_float` returns a double. Strings include enum options and copy into a caller-owned guest buffer. |
+| `nsmbu_malloc`, `nsmbu_free` | Per-mod 16-byte-aligned guest heap. `guest.heap_size` chooses bytes (default 256 KiB, maximum 8 MiB); null on exhaustion. Metadata stays in guest memory, so restoring it restores allocation state. |
+| `nsmbu_input_read` | Read-only VPAD-style buttons, sticks and touch in `nsmbu_input_state`. |
+| `nsmbu_file_read`, `nsmbu_file_write` | Flat filenames in `ModManager/Data/<id>`, at most 1 MiB per call. No directory components, symlinks, hardlinks or Windows device names. Write replaces the file. Both return bytes transferred, or -1 on failure. |
+| `nsmbu_logic_dt`, `nsmbu_logic_step` | Seconds in the current logic step (true-60 scaling included), and the full logic-step counter. |
 | `memcpy`, `memmove`, `memset` | Compiler-generated struct copies and explicit guest-memory operations. |
 
-Option and enabled-set changes take effect on restart. `WWHD_GUEST_OPT_*` and the
-prototype's unchecked `NSMBU_GUEST_MODS` direct-library loading are retired; install
-packages through the mod manager and its code trust dialog.
+Option and enabled-set changes take effect on restart.
+`WWHD_GUEST_OPT_*` is not in `nsmbu_guest.h`.
+The prototype's unchecked `NSMBU_GUEST_MODS` direct-library loading is retired.
+Install packages through the mod manager and its code trust dialog.
 
 The HUD service is phase 2. Its proposed interface is renderer-independent submission
 of text, rectangles and mod-owned RGBA images, with opaque per-mod resource handles,
@@ -432,12 +433,12 @@ For **dragon**, rewrite `Cpu*`/host-memory wrappers as typed PowerPC hooks and r
 Use public names for Link execute, camera follow, Valoo lifecycle, resources, song handling
 and save-slot operations. Preserve the port's outer climb/true-60 hooks. Entry/return hooks
 cannot change argument registers or the result, so operations that redirect arguments or
-suppress the original need a replacement plus `WWHD_GAME_ORIGINAL`, scoped to the mod's own
+suppress the original need a replacement plus `NSMBU_GAME_ORIGINAL`, scoped to the mod's own
 actors. Replacement conflicts must remain explicit. Generic public audio trampolines need
 signature curation before using them as semantic song APIs.
 
 Move ride/quest state and tagged actor bookkeeping into guest globals or the mod heap;
-use `wwhd_logic_dt()` rather than assuming 30 steps/s. Use the input service and typed
+use `nsmbu_logic_dt()` rather than assuming 30 steps/s. Use the input service and typed
 options. Store per-slot quest progress with flat per-mod filenames, retaining explicit
 new-game/reset behavior. Full states restore guest quest/heap state, but external progress
 files are not rewound: do not immediately overwrite restored state by rereading a newer
@@ -537,19 +538,19 @@ Modders do not need devkitPPC, and this SDK does not bundle a modder compiler.
 
 ### Write and build
 
-Include `nsmbu_guest.h` and the generated `wwhd` headers. Hook targets use
-`WWHD_ADDR_<public_name>`; callable declarations use `wwhd_<public_name>` where the
+Include `nsmbu_guest.h` and the generated `nsmbu` headers. Hook targets use
+`NSMBU_ADDR_<public_name>`; callable declarations use `nsmbu_<public_name>` where the
 name is unique. Ambiguous names have an address suffix. Entry hooks receive the game's
 arguments. Return hooks receive those arguments again and preserve the game result.
 Only one replacement may own a target; a conflict reports both package IDs.
 
 ```c
 #include "nsmbu_guest.h"
-#include "wwhd/functions.h"
+#include "nsmbu/functions.h"
 
-WWHD_HOOK(WWHD_ADDR_daPy_Execute, on_link_step, (void* link)) {
+NSMBU_HOOK(NSMBU_ADDR_daPy_Execute, on_link_step, (void* link)) {
     static u32 steps;
-    if (++steps == 1) wwhd_log("Link's first logic step");
+    if (++steps == 1) nsmbu_log("Link's first logic step");
 }
 ```
 
@@ -566,9 +567,9 @@ A release SDK ships modder headers in `sdk/guest/include`; use that directory in
 of `runtime/guest/include` when compiling outside a source checkout.
 
 The relocatable ELF is identical across desktop platforms. Do not link it to a fixed
-address. Use `WWHD_GAME_ORIGINAL` with the generated target address to call below all
+address. Use `NSMBU_GAME_ORIGINAL` with the generated target address to call below all
 mod hooks. The port's own interpolation and true-60 hooks remain outside mod hooks.
-Use `wwhd_logic_dt()` for time-based behavior, and avoid interpreting rendered frames
+Use `nsmbu_logic_dt()` for time-based behavior, and avoid interpreting rendered frames
 as logic steps. The examples demonstrate entry/return hooks and original calls.
 
 ### Package and install
@@ -578,7 +579,7 @@ Place this manifest beside `mod.elf` (replace the metadata for your mod):
 ```json
 {
   "format_version": 1,
-  "game_id": "wwhd-usa",
+  "game_id": "nsmbu-usa",
   "id": "hello-link",
   "name": "Hello Link",
   "version": "1.0.0",
@@ -589,7 +590,7 @@ Place this manifest beside `mod.elf` (replace the metadata for your mod):
 
 Choose the folder in **Mods → Installed packages → Choose folder → Install package**.
 Alternatively, from inside the package folder run
-`python3 -m zipfile -c hello-link.wwhdmod manifest.json mod.elf` and choose that package.
+`python3 -m zipfile -c hello-link.nsmbumod manifest.json mod.elf` and choose that package.
 Distribute only the manifest, your ELF and your own permitted resources.
 
 Enable the installed package, accept the same trust confirmation used for native mods,
@@ -597,7 +598,7 @@ and restart. Confirmation is tied to the ELF hash; changing the ELF asks again.
 The manager assigns memory, translates the ELF and builds a cached native module at
 startup. Build/load failures appear in the Mods tab and leave that package unloaded.
 Changing enabled mods or options takes effect on the next restart. Typed options use
-the normal manager manifest schema; read them with `wwhd_config_*` rather than environment
+the normal manager manifest schema; read them with `nsmbu_config_*` rather than environment
 variables. Files are restricted to flat names in the package's own data directory.
 
 For updates, disable the package, restart, then reinstall the same ID. Configurations
@@ -632,7 +633,7 @@ or disable mods. Use the same mod versions that created a state when reproducing
 | examples | `examples/guest-mods/play-scene-ticker` (entry + return hook on `dScnPly_Execute` with a configurable log interval), `examples/guest-mods/smooth-step-replace` (replaces `cLib_addCalc2` by an equivalent implementation; every other call goes to the game's original) |
 
 ```sh
-python3 tools/recomp/recomp.py game/code/cking.rpx build/gen --mod-hooks
+python3 tools/recomp/recomp.py game/code/red-pro2.rpx build/gen --mod-hooks
 cmake --build build/cmake                                   # as usual
 make -C examples/guest-mods CLANG=/opt/homebrew/opt/llvm/bin/clang LLD=/opt/homebrew/opt/lld/bin/ld.lld
 python3 tools/guestmod/build_guest_mod.py examples/guest-mods/play-scene-ticker --out build/guestcache --base 0x7F000000

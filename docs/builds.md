@@ -1,21 +1,23 @@
-# Building the port from another regional build of the game
+# Build maps
 
-The port is written against the **USA** build of the game: every game address in this repository
-(`tools/recomp/hooks*.txt`, `runtime/src`, the notes in `docs/`) is an address of that executable.
+This port is USA only.
+The title is `00050000-10143500`.
+The executable is `code/red-pro2.rpx`.
+Every game address in this repository (`tools/recomp/hooks*.txt`, `runtime/src`, the notes in `docs/`) is an address of that executable.
 Those addresses are the *canonical ids* of the game's functions and globals.
 
-Another regional build of The Wind Waker HD is the same program, compiled with that region's
-language branches: the same functions in the same order, a few hundred bytes apart. A **build map**
-(`tools/recomp/builds/*.json`) turns a canonical address into that build's address, so the one set
-of hooks and the one runtime serve every build.
+This repository contains the USA title only.
+`tools/recomp/builds/eu.json` is an upstream leftover from the Wind Waker HD port.
+Its title id is `0005000010143600`.
+Its `derived_from` hash is the Wind Waker USA `cking.rpx` hash `c4f0ab30…f16153`.
+The file maps those Wind Waker addresses onto the Europe executable hash `f9f46173…6bbf0b`.
+It is a Wind Waker Europe map.
+This repository has no NSMBU Europe addresses.
 
-| Build | Title | `code/cking.rpx` SHA-256 | Map |
-|---|---|---|---|
-| USA (canonical) | `00050000-10143500` | `c4f0ab30…f16153` | the identity |
-| Europe | `00050000-10143600` | `f9f46173…6bbf0b` | `tools/recomp/builds/eu.json` |
-
-Only version 0 of each (the disc or eShop release, without the update). Japan
-(`00050000-10143400`) has no map yet; see [Adding a build](#adding-a-build).
+A **build map** (`tools/recomp/builds/*.json`) is still the generic tool.
+It turns a canonical address into another executable's address when both executables are the same program.
+The Europe counts below describe `eu.json`.
+They are the leftover Wind Waker map.
 
 ## What the map is
 
@@ -34,7 +36,8 @@ other function is the same code at a shifted address, with shifted references to
 
 ## How it is derived and checked
 
-`tools/recomp/mkbuildmap.py` takes the two executables and writes the map:
+`tools/recomp/mkbuildmap.py` takes the two executables and writes the map.
+These commands made the leftover Wind Waker map from `cking.rpx`.
 
 ```sh
 python3 tools/recomp/mkbuildmap.py usa/code/cking.rpx eur/code/cking.rpx \
@@ -55,7 +58,7 @@ It refuses to write a map unless the two executables really are the same program
   ambiguous).
 
 The map itself holds numbers only — address runs and shifts — and never any of the game's code.
-A build's `cking.rpx` is identified by its SHA-256, like the USA one always was.
+A build map names an executable by its SHA-256.
 
 The map also records the canonical text and static-data bounds. Python and runtime
 mapping reject addresses outside those bounds and interior addresses in changed
@@ -92,8 +95,10 @@ address where a regional build happens to allocate them.
 
 ## Languages
 
+This section describes the Wind Waker Europe leftover.
+
 The European build has English, French, German, Italian and Spanish itself and chooses between them
-by the console language, which the port's settings decide (`F1` → Language, or `WWHD_LANGUAGE`).
+by the console language, which the port's settings decide (`F1` → Language, or `NSMBU_LANGUAGE`).
 Its five `permanent_2d_Eu*.pack` files are part of that game, so a **language source**
 ([language-packs.md](language-packs.md)) is neither needed nor accepted on that build: it exists to
 lend a European or Japanese game's text to the USA code.
@@ -108,10 +113,12 @@ lend a European or Japanese game's text to the USA code.
    true 60 fps (`tools/recomp/hooks.txt`, `tools/true60/`), the save states
    (`runtime/src/savestate.cpp`), the mods, and the Cemu aspect-ratio pack
    (`runtime/src/mods/cemu_pack.cpp` picks the section for the build).
-4. The Japanese build also needs its own text handling: the port's region patch is written for the
-   USA code, and the Japanese font and message layouts are untested here.
+4. Check text handling when you add a map.
+   This repository contains the USA title only.
 
 ## Regression checks
+
+These checks exercise the leftover Wind Waker map.
 
 `python3 -m unittest discover -s tools/recomp -p 'test*.py'` checks every active EUR
 hook, including the pause-menu site `02715310` and stars site `02574144`, and audits
@@ -142,6 +149,8 @@ checkouts. High interpolation rates check behavior, not physical 240 Hz display
 delivery or a performance guarantee.
 
 ## Combined PR #77 validation (2026-10-08)
+
+This record is the Wind Waker Europe leftover.
 
 ElFDA's two commits were rebased onto GitHub devel `54761fd3`, preserving their
 authorship. The desktop prototype's hardening uses PR #77's GC/GD tables throughout;

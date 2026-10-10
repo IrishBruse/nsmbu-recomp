@@ -184,6 +184,10 @@ mapping, uniform offsets, descriptor ranks) share one shader and its pipelines.
 once per distinct wider key, translates again under the current registers and compares
 the result with the shader the narrow key returned; any difference is logged as
 `[vulkan shader key] VIOLATION` and counted in the stats (`=N` checks one wider key in N).
+Outset and Windfall figures are the old Wind Waker measurement record.
+The current repro is the 1-1 command in [docs/performance.md](performance.md).
+That command sets `NSMBU_STATE_LOAD_AT=700:1`.
+
 Sharing shaders whose translation is identical is the idea of PR #46 by rhemfur, who found that
 5,072 translations in Outset (Galaxy S25) had only 686 distinct GLSL texts and that the resulting
 pipelines (7,500 in two minutes, about 0.12 MB each) eventually exhausted memory.

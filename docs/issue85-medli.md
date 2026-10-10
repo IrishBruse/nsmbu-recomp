@@ -1,5 +1,7 @@
 # Medli progression repair for issue 85
 
+This note is from the Wind Waker port and does not describe NSMBU.
+
 The save attached to [issue 85](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/issues/85)
 already owns every Master Sword upgrade before the first Dragon Roost visit. The old sword cheat
 writes those ownership bits. The game treats them as story milestones and deliberately removes

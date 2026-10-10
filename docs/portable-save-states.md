@@ -1,5 +1,9 @@
 # Portable save states
 
+The small portable state is unused.
+The overlay help in `runtime/src/overlay/overlay.cpp` says the game writes a full save state.
+That help says the small portable state is unused.
+
 Save states come in two kinds that share the five slots:
 
 | | Portable (default) | Full (debugging) |

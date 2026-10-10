@@ -504,7 +504,7 @@ void tab_saves() {
     if (check("Full save states (large, contain game data, don't share) - for debugging", full, &fs, !ss::full_states_forced()))
         ss::set_full_states(fs);
     help("This game writes a full save state. "
-         "The small portable state is for Wind Waker and is not used. "
+         "The small portable state is unused. "
          "These files contain game code and data: never attach them to a bug report.");
     heading("Screenshots");
     {

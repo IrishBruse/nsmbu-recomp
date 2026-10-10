@@ -28,6 +28,7 @@ Only PROC_MOVE (6) and PROC_SWIM_MOVE (0x37) qualify. At the existing 023FD39C s
 movement deltas are multiplied together with true60's dt. Stored velocity, vertical movement and
 collision pushes are unchanged. Off uses the original path. The vector argument identifies Link
 without depending on true60 being enabled. Site ownership remains in true60_link.cpp.
+The Link path and the Windfall-dock runs in this section are records from the Wind Waker port.
 
 Validation: movement math across 30/60/120/240 presentations and 30/60 logic rates, both procedures,
 factors 1.25/1.5/2/4, off/hold/rebind and other procedures PASS; manager preferences/disable-all PASS.
@@ -38,7 +39,7 @@ Actual headless scripted Windfall-dock runs (hold L3, forward stick, factor 2) P
 | 30 fps | 510.052 / 1019.963 | 446.144 / 892.323 |
 | true60 | 510.031 / 1019.995 | 446.144 / 892.322 |
 
-`tools/bench/check_move_speed.py` reproduces the checks from local WWHD_LINK_TRACE files. Rates
+`tools/bench/check_move_speed.py` reproduces the checks from local NSMBU_LINK_TRACE files. Rates
 use full-pass position deltas and the fixed 30-Hz logic clock; true60 previews are checked
 separately. Running uses settled speed steps. Swimming uses the first three complete stroke cycles
 after settling, since comparing unequal stroke phases or later collisions gives misleading rates.
@@ -52,7 +53,7 @@ factors and held/rebound buttons. Physical Android input remains untested.
 ## Crash context and Android sharing
 
 Normal game-thread code refreshes a bounded snapshot once per second: renderer, resolution,
-frame mode/target, controller, built-in switches, enabled/active packages and WWHD environment.
+frame mode/target, controller, built-in switches, enabled/active packages and NSMBU environment.
 Startup context is available for a crash before game initialization. Secret/key/token/password
 variables are suppressed. Atomic bytes and revision checks keep handler reads free of locks and
 allocations; interrupted snapshots are explicitly reported. Home paths and user names are redacted
@@ -78,6 +79,7 @@ Inspected both Vulkan surfaces.cpp and Metal metal_main.mm. Both walk the surfac
 Vulkan already skips dirty surfaces and caches mip ranges, while Metal checks known level ranges.
 Existing render-thread profiler `invalidate` timings include the entire operation (and Vulkan's
 buffer-cache invalidation), so they bound the possible saving from replacing only the linear walk.
+The Windfall scenes and Link checks in this section are records from the Wind Waker port.
 
 | MoltenVK 30 fps scene | Steady sampled frames | Invalidation ms/frame | Calls/frame | Render CPU ms/frame |
 | --- | --- | --- | --- | --- |

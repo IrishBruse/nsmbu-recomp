@@ -11,19 +11,19 @@ Its full renderer smoke fails `volume render wrote outside its slice` in both mo
 baseline limitation separate and do not report the full emulator smoke as passing.
 
 1. In a private test APK, use SDL's manifest environment metadata under `<application>`:
-   `<meta-data android:name="SDL_ENV.WWHD_VK_NARROW_BARRIERS" android:value="0" />` for the old
+   `<meta-data android:name="SDL_ENV.NSMBU_VK_NARROW_BARRIERS" android:value="0" />` for the old
    path, `1` for precise barriers (also the default). Reinstall/restart between variants; keep the native library identical.
-   Also set `SDL_ENV.WWHD_PROFILE=1`, `SDL_ENV.WWHD_NO_AUDIO=1` and the existing `WWHD_TEST_*`
+   Also set `SDL_ENV.NSMBU_PROFILE=1`, `SDL_ENV.NSMBU_NO_AUDIO=1` and the existing `NSMBU_TEST_*`
    scripted input/state-load switches. Use private shader caches, copied saves and a verified state
    load. Do not distribute an APK containing game code.
-2. First enable Khronos synchronization validation (`WWHD_VK_VALIDATION=1`, with the Android
+2. First enable Khronos synchronization validation (`NSMBU_VK_VALIDATION=1`, with the Android
    validation layer packaged/enabled) and capture the six desktop scenes at 30 and interpolated
-   60 fps. Set `WWHD_TEST_ORIGIN_LOAD=n` for inputs relative to the completed load. For 60 fps,
-   start with `WWHD_INTERP=0` and use `WWHD_TEST_MODE=1@0` so interpolation switches at that same
+   60 fps. Set `NSMBU_TEST_ORIGIN_LOAD=n` for inputs relative to the completed load. For 60 fps,
+   start with `NSMBU_INTERP=0` and use `NSMBU_TEST_MODE=1@0` so interpolation switches at that same
    origin; avoid an absolute startup-step mode switch. Use
-   `WWHD_TEST_CAPTURE_LOAD_COUNTER=n` for a queued full-pass TV/GamePad/present capture at the
+   `NSMBU_TEST_CAPTURE_LOAD_COUNTER=n` for a queued full-pass TV/GamePad/present capture at the
    restored game counter plus n. Paused menus freeze that counter: use
-   `WWHD_TEST_CAPTURE_LOAD_STEP=n` there. Keep offsets identical between modes. Require zero sync
+   `NSMBU_TEST_CAPTURE_LOAD_STEP=n` there. Keep offsets identical between modes. Require zero sync
    hazards/errors and byte-identical decoded frames for stable baseline scenes. Where the old path
    varies, use five captures per path: same pixels, no larger value ranges or difference counts.
    Keep validation and frame dumping disabled during performance captures.
@@ -63,7 +63,7 @@ baseline limitation separate and do not report the full emulator smoke as passin
    FrameTimeline does not expose the SDL surface.
    GPU render stages require driver support: report unavailable GPU time as unavailable. If AGI
    exposes GPU duration/counters, export those with the trace; do not substitute CPU GPU-wait time
-   or emulator timing. Vulkan timestamp intervals (`WWHD_VK_GPU_TIMESTAMPS=1`) are submission
+   or emulator timing. Vulkan timestamp intervals (`NSMBU_VK_GPU_TIMESTAMPS=1`) are submission
    intervals, not exclusive GPU busy time; calibrate their overhead before using them in a comparison.
 
 References: [FrameTimeline](https://perfetto.dev/docs/data-sources/frametimeline),

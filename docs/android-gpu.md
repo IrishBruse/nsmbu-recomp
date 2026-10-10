@@ -22,10 +22,10 @@ of these same rules. Native hardware interpolation may differ by a quantization 
 
 Debug switches:
 
-- `WWHD_VK_FORCE_BC_DECODE=1`: force fallback even on BC-capable desktop GPUs.
-- `WWHD_VK_BC_VERIFY=1`: drain each decoded upload and compare every output byte with the CPU
+- `NSMBU_VK_FORCE_BC_DECODE=1`: force fallback even on BC-capable desktop GPUs.
+- `NSMBU_VK_BC_VERIFY=1`: drain each decoded upload and compare every output byte with the CPU
   reference, logging the first mismatch and failing the upload. Deliberately expensive.
-- `WWHD_VK_BC_TIMING=1`: log CPU recording/upload duration; when verification is enabled this
+- `NSMBU_VK_BC_TIMING=1`: log CPU recording/upload duration; when verification is enabled this
   includes GPU completion and CPU comparison. These are not GPU timestamp measurements.
 
 | Check | Result |
@@ -38,6 +38,7 @@ Debug switches:
 | Upload-cost measurements | PASS: CPU recording and verification costs measured below |
 | Mali/PowerVR device execution | Untested: no physical device available |
 
+The Windfall frames in this section are records from the Wind Waker port.
 Scripted MoltenVK comparison uses the same restored Windfall state, 30 fps, no inputs, private
 caches, copied saves, headless/no audio. Preselected tolerance: RGB mean absolute error ≤1/255,
 and ≥99% of pixels with maximum RGB channel error ≤3/255. Endpoint rounding can differ from
