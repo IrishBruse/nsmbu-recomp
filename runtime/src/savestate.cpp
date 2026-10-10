@@ -536,7 +536,11 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
     if (!ok) {
         threads::thaw();
 
-        if (layout_ok && ++g_attempts < 30) {
+        static const int wait_for_threads = [] {
+            const char* timed = getenv("NSMBU_STATE_LOAD_AT");
+            return timed && *timed ? 2400 : 30;
+        }();
+        if (layout_ok && ++g_attempts < wait_for_threads) {
             if (g_attempts == 1) LOG("[savestate] slot %d: waiting for the game threads (%s)", s->slot, why.c_str());
             return false;
         }

@@ -89,7 +89,7 @@ Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
 `just run 3` loads save slot 3 after boot.
 The number is the save slot.
 Slots are 1 through 5.
-The load frame is TV frame 900.
+The load starts at TV frame 200 and waits until the boot threads exist.
 
 `just recomp` runs `recomp.py` only.
 

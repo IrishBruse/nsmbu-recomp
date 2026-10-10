@@ -1560,10 +1560,12 @@ bool threads_ss_check(ss::Reader r, std::string& why) {
             return false;
         }
         if (!same_chain(t->cpu, s.cpu) && !retarget_calls(t, s.cpu, sites, patches)) {
-            snprintf(buf, sizeof buf, "thread %s is at a different place (lr %08X sp %08X, saved lr %08X sp %08X)",
-                     threads::thread_name(t).c_str(), t->cpu.lr, t->cpu.r[1], s.cpu.lr, s.cpu.r[1]);
-            why = buf;
-            return false;
+            if (!(s.wst == kParked && t->cpu.lr == s.cpu.lr && t->cpu.r[1] == s.cpu.r[1])) {
+                snprintf(buf, sizeof buf, "thread %s is at a different place (lr %08X sp %08X, saved lr %08X sp %08X)",
+                         threads::thread_name(t).c_str(), t->cpu.lr, t->cpu.r[1], s.cpu.lr, s.cpu.r[1]);
+                why = buf;
+                return false;
+            }
         }
     }
     for (auto& [g, t] : g_threads) {

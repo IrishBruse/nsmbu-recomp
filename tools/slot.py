@@ -4,7 +4,7 @@ import sys
 
 _SLOT = re.compile(r"^([1-5])$")
 _WORLD = re.compile(r"^\d+-\d+$")
-LOAD_FRAME = 900
+LOAD_FRAME = 200
 
 
 def take_slot(args):
