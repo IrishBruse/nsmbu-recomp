@@ -2,3 +2,5 @@
 !/game/**
 !references/
 !references/**
+!captures/
+!captures/**
