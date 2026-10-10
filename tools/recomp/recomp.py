@@ -8,7 +8,7 @@ The rpx is identified by its SHA-256 (tools/recomp/builds.py). Functions are nam
 it was translated from; the dispatch table maps this build's real addresses to them.
 
 --mod-hooks (or NSMBU_RECOMP_MOD_HOOKS=1): every function body starts with a check of its byte in
-g_mod_hook_flags (runtime/src/mods/guest_mods.cpp), so guest mods (docs/mod-sdk-v2.md) can hook or
+g_mod_hook_flags (runtime/src/mods/guest_mods.cpp), so guest mods (docs/deprecated/mod-sdk-v2.md) can hook or
 replace any game function at runtime without rebuilding the game code.
 
 Output:

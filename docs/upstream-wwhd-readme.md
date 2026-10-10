@@ -76,7 +76,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
 - **Code mods (Mod SDK v2, off by default):** mods written in C for the console's CPU, translated and
   built on your machine when you install them, for the USA and the European game. Turn them on in
   Settings → Mods → *Enable code mods* (this rebuilds the game code once; with it off nothing changes).
-  For modders: [docs/mod-sdk-v2.md](docs/mod-sdk-v2.md).
+  For modders: [docs/deprecated/mod-sdk-v2.md](docs/deprecated/mod-sdk-v2.md).
 
 - **Smaller fixes:** `WWHD_SHADOW_FIX` is gone, use `WWHD_SHADOW_SCALE=1` for console-sized shadow maps
   (issue #67: since v0.2.9 both sizes look practically the same); the buffer cache's verify mode no
@@ -162,7 +162,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
   use its text, fonts and menus: German, Italian, British English, European French and Spanish, or
   Japanese. See [docs/language-packs.md](docs/language-packs.md).
 - **Fan translations as content mods**, including **Arabic and Hebrew** drawn right to left (issue #60),
-  see [docs/mod-manager.md](docs/mod-manager.md) and [docs/rtl-text.md](docs/rtl-text.md).
+  see [docs/modding/mod-manager.md](docs/modding/mod-manager.md) and [docs/rtl-text.md](docs/rtl-text.md).
 - **macOS: closing the TV window quits the game** (issue #65), as on Windows and Linux. During a game
   it asks first: **Quit**, **Cancel** or **Save State and Quit**. `WWHD_QUIT_PROMPT=0` turns the
   question off.
@@ -309,7 +309,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
   - **Native mods** (packages with their own compiled code) ask for a one-time confirmation before
     they are enabled, because they run with the game's full permissions; only enable mods from
     sources you trust.
-  See `docs/mod-manager.md` for the package format and the mod SDK.
+  See `docs/modding/mod-manager.md` for the package format and `docs/deprecated/native-sdk-v1.md` for the native mod SDK.
 
 ### v0.2.2
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install-time build of a guest mod (Mod SDK v2 prototype, docs/mod-sdk-v2.md).
+"""Install-time build of a guest mod (Mod SDK v2 prototype, docs/deprecated/mod-sdk-v2.md).
 
 usage: build_guest_mod.py PACKAGE_DIR --out CACHE_DIR [--base 0x7F000000] [--cc "xcrun clang"] [--json]
 

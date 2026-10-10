@@ -1,7 +1,10 @@
 # Example guest mods (Mod SDK v2 prototype)
 
+[docs/modding/lua-mods.md](../../docs/modding/lua-mods.md) proposes removing this prototype.
+These examples stay until that work lands.
+
 Two small mods written in C and compiled for the game's CPU (32-bit big-endian PowerPC). See
-[docs/mod-sdk-v2.md](../../docs/mod-sdk-v2.md) for the design. They contain no game code or data:
+[docs/deprecated/mod-sdk-v2.md](../../docs/deprecated/mod-sdk-v2.md) for the design. They contain no game code or data:
 game functions are referenced by address only (see `runtime/guest/include/nsmbu/functions.h` for
 `red-pro2.rpx`).
 

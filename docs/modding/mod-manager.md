@@ -4,6 +4,12 @@ The mod manager installs, enables and configures mods from inside the game. No g
 content is part of the repository or of mod packages; mods that need game data read it
 from the player's own game files.
 
+A proposal to replace native, guest, and content packages with Lua is in
+[lua-mods.md](lua-mods.md).
+Cemu graphics packs stay.
+This page describes the manager as it works today.
+The native library ABI is in [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+
 ## Public project references (checked 2026-10-06)
 
 - [Zelda64Recomp](https://github.com/Zelda64Recomp/Zelda64Recomp): its built-in
@@ -96,29 +102,12 @@ storage. `NSMBU_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when th
 Mods tab is drawn (with `NSMBU_TEST_OVERLAY=open:mods`), which shows the
 confirmation for an unconfirmed native package.
 
-## Native mod SDK v1
+## Package manifest
 
-`runtime/include/nsmbu_mod.h` defines a plain C ABI. Export
-`nsmbu_mod_init_v1`, validate host size/ABI, and return initialized `NSMBUModV1`.
-Initialization, configuration callbacks, game-update callbacks and unloading run
-on the game thread. The frame callback runs once per original logic step after
-actor execution; interpolated draws do not invoke it. Host/context pointers and
-configuration strings remain valid until configuration changes or unload. Copy
-strings if retaining them across either boundary. Callbacks must not throw or
-start asynchronous guest-memory work; stop any owned workers before unloading.
-
-Host services provide typed option access, a status line, logging and bounded
-reads/writes of guest data RAM (MEM2, MEM1 and foreground bucket, maximum 1 MiB
-per request). Bytes use guest big-endian order. Native packages execute trusted
-host code with the same permissions as the game; the player confirms each
-native library once before it loads (see Native code confirmation). Unload callbacks run when a
-mod is disabled/profile-switched, before its library closes; process termination
-is not a guaranteed cleanup callback.
-
-This ABI supports frame-driven native mods. (Function hooks and replacements are the subject
-of the PowerPC guest mod prototype, [mod-sdk-v2.md](mod-sdk-v2.md).) It does **not** provide arbitrary
-translated-function interception, PPC instruction patch execution, texture
-providers, or compatibility with Zelda64Recomp/BlueWake packages.
+Native SDK v1, the C ABI in `runtime/include/nsmbu_mod.h`, is documented in
+[../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+Function hooks are the guest prototype in
+[../deprecated/mod-sdk-v2.md](../deprecated/mod-sdk-v2.md).
 
 Package manifest fields:
 
@@ -130,24 +119,23 @@ Package manifest fields:
 | `author`, `description` | Optional display metadata |
 | `minimum_manager_version` | Optional three-part minimum |
 | `kind` | `native`, `content` or `cemu`. `settings` is rejected: there are no built-in mods |
-| `abi_version`, `binaries` | Native ABI `1`; platform-to-relative-library map |
+| `abi_version`, `binaries` | Native SDK v1 only. See [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md). |
 | `content_dir` | Content package: relative folder holding game-relative replacement files |
 | `cemu_dir` | Cemu package: relative folder holding `rules.txt` and shader files (empty for the package root) |
 | `dependencies` | Objects with `id` and optional `minimum_version`. `builtin:<id>` is rejected |
 | `conflicts` | Package IDs. `builtin:<id>` is rejected |
 | `options` | Typed defaults and names; numeric min/max/step or enum choices |
 
-Platform keys include `macos-arm64`, `macos-x86_64`, `windows-x86_64`,
-`windows-arm64`, `linux-x86_64`, `linux-arm64` and `android-arm64`.
-Unsupported platform binaries remain visible as incompatible. The desktop
-folder/file install workflow is the current supported UI; Android document URIs
-need a separate import bridge. Online downloads/catalogues are outside v1.
+The desktop folder and file install workflow is the supported UI.
+Online downloads and catalogues are outside this manager.
 
 ## Packaging a mod
 
 A package is a folder, or a ZIP archive of that folder's contents renamed to
 `.nsmbumod`, with `manifest.json` at its root and, for a native mod, the library
-named in `binaries`. Packages you publish must not contain game files; content and Cemu packs are
+named in `binaries`.
+The native library format is [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+Packages you publish must not contain game files; content and Cemu packs are
 imported locally by the player (see below). Native packages run
 with the same permissions as the game: install only mods you trust.
 

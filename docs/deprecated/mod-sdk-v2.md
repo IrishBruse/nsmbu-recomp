@@ -1,7 +1,12 @@
 # Mod SDK v2: PowerPC guest mods (design study and prototype)
 
-Status: **prototype** on branch `sdk2-guest-mods`, off by default. The Native SDK v1
-(`runtime/include/nsmbu_mod.h`, [mod-manager.md](mod-manager.md)) stays supported and unchanged.
+Status: **prototype, proposed for removal**.
+[../modding/lua-mods.md](../modding/lua-mods.md) is the replacement plan.
+It retires this SDK, Native SDK v1, and `kind: content`.
+Cemu graphics packs stay.
+Until that plan is implemented, this prototype stays on branch `sdk2-guest-mods`, off by default.
+Native SDK v1 (`runtime/include/nsmbu_mod.h`, [native-sdk-v1.md](native-sdk-v1.md)) stays in the tree and unchanged.
+The mod manager is [../modding/mod-manager.md](../modding/mod-manager.md).
 
 Code mods for this port are written in C (or C++) against mod headers and compiled for the
 console CPU: 32-bit big-endian PowerPC, the game's ABI. The package is the same on every
