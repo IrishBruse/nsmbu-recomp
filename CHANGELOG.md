@@ -5,6 +5,15 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Add**: Mods tab checkbox **Hot reload Lua scripts**.
+    When on, enabled script-only Lua packs unload and reload when `.lua` files change (debounced).
+    Preference is stored as `hot_reload` in ModManager `profiles.json`.
+    Packs with `content_dir` stay restart-required.
+-   **Change**: Lua API has no `nsmbu` global.
+    Mods use `require("nsmbu")` and `require("nsmbu.*")` (guest, level, player, and stub modules for fn/hook/input/data/enemy/boss/blocks/env).
+-   **Add**: Lua high-level game helpers `nsmbu.level` and `nsmbu.player` (timer, course coins/score, lives, mode, coins, pos, speed, grounded, speed_y).
+    Example `course-assists` uses them instead of raw guest offsets.
+    Example `instant-retry` uses `pos` / `grounded` / `mode` instead of placeholder actor offsets.
 -   **Fix**: `release_sdk_package` and the release packager tolerate a missing `tools/recomp/builds` maps directory (USA-only; empty dirs are not in git).
 -   **Change**: Settings overlay opens with `` ` `` or F12 (not F1).
     F1–F5 load save-state slots; Shift+F1–F5 still save.
@@ -33,12 +42,11 @@ At release, move those notes to a version heading and leave Unreleased empty.
     The installer looks for `update/` next to the disc image (or `--update-dir` / the Keys screen), checks it, applies it after extract, and verifies the merged dump against the known USA SHA-256.
 -   **Add**: Lua mod packages (`kind: lua`) with embedded LuaJIT, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
     The mod manager accepts format 1 or 2, scans for forbidden binaries/shaders, and loads script-only Lua packages live each logic step.
-    Package tests cover load, options, fault isolation, sandbox require, and guest memory (`mod_package_test --lua`).
+    Package tests cover load, options, fault isolation, sandbox require, guest memory, and hot reload (`mod_package_test --lua`).
 -   **Add**: Lua phase 3 content moves: optional `content_dir` on `kind: lua` packages (content-only packages are valid; restart when `content_dir` is set).
     The importer emits `kind: lua`.
     `kind: content` remains a one-release read-only alias and migrates to `lua` on scan.
--   **Add**: Example `course-assists` Lua package uses guest memory for unlimited time/lives, keep power-up, and jump scale (USA v1.3.0).
-    Field offsets match CourseTimer/FieldGame/PlayerMgr/Actor/PlayerBase in `red-pro2.rpx`.
+-   **Add**: Example `course-assists` Lua package for unlimited time/lives, keep power-up, and jump scale.
 -   **Fix**: Lua mod logic steps run from the GX2 swap path so script packages load without a recomp hook rebuild.
 -   **Docs**: The README records the last ZeldaWWHDRecomp merge commit.
     The upstream-merge skill updates that note.

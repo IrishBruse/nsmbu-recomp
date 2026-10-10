@@ -1,4 +1,5 @@
 #include "lua_runtime.h"
+#include "lua_game.h"
 #include "lua_guest.h"
 #include <cstdio>
 #include <cstring>
@@ -81,11 +82,46 @@ std::string module_to_rel(std::string name) {
     return name;
 }
 
+bool push_loaded(lua_State* L, const char* name) {
+    lua_getglobal(L, "package");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        return false;
+    }
+    lua_getfield(L, -1, "loaded");
+    lua_remove(L, -2);
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        return false;
+    }
+    lua_getfield(L, -1, name);
+    lua_remove(L, -2);
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        return false;
+    }
+    return true;
+}
+
+void set_loaded(lua_State* L, const char* name) {
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "loaded");
+    lua_pushvalue(L, -3);
+    lua_setfield(L, -2, name);
+    lua_pop(L, 3);
+}
+
+bool host_module_name(const char* name) {
+    return std::strcmp(name, "nsmbu") == 0 || std::strncmp(name, "nsmbu.", 6) == 0;
+}
+
 void refresh_package(Instance& inst) {
     lua_State* L = static_cast<lua_State*>(inst.state);
     if (!L) return;
-    lua_getglobal(L, "nsmbu");
-    if (!lua_istable(L, -1)) {
+    if (!push_loaded(L, "nsmbu")) {
         lua_pop(L, 1);
         return;
     }
@@ -120,8 +156,7 @@ bool call_field(Instance& inst, const char* field, int nargs_after_fn) {
     refresh_package(inst);
     lua_State* L = static_cast<lua_State*>(inst.state);
     int top = lua_gettop(L) - nargs_after_fn;
-    lua_getglobal(L, "nsmbu");
-    if (!lua_istable(L, -1)) {
+    if (!push_loaded(L, "nsmbu")) {
         lua_settop(L, top);
         return true;
     }
@@ -191,14 +226,37 @@ int l_require(lua_State* L) {
     lua_getglobal(L, "package");
     if (!lua_istable(L, -1)) return luaL_error(L, "package table missing");
     lua_getfield(L, -1, "loaded");
-    lua_remove(L, -2);
     if (!lua_istable(L, -1)) return luaL_error(L, "package.loaded missing");
     lua_getfield(L, -1, modname);
     if (!lua_isnil(L, -1)) {
         lua_remove(L, -2);
+        lua_remove(L, -2);
         return 1;
     }
     lua_pop(L, 1);
+
+    lua_getfield(L, -2, "preload");
+    if (lua_istable(L, -1)) {
+        lua_getfield(L, -1, modname);
+        if (lua_isfunction(L, -1)) {
+            lua_pushvalue(L, 1);
+            if (lua_pcall(L, 1, 1, 0) != 0) return lua_error(L);
+            if (lua_isnil(L, -1)) {
+                lua_pop(L, 1);
+                lua_pushboolean(L, 1);
+            }
+            lua_pushvalue(L, -1);
+            lua_setfield(L, -4, modname);
+            lua_remove(L, -2);
+            lua_remove(L, -2);
+            lua_remove(L, -2);
+            return 1;
+        }
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+
+    if (host_module_name(modname)) return luaL_error(L, "module not found: %s", modname);
 
     std::string err;
     fs::path file;
@@ -214,6 +272,7 @@ int l_require(lua_State* L) {
     }
     lua_pushvalue(L, -1);
     lua_setfield(L, -3, modname);
+    lua_remove(L, -2);
     lua_remove(L, -2);
     return 1;
 }
@@ -489,7 +548,12 @@ void bind_guest(lua_State* L, const char* name, lua_CFunction fn) {
     lua_setfield(L, -2, name);
 }
 
-void install_nsmbu(lua_State* L, Instance* inst) {
+void set_empty_module(lua_State* L, const char* name) {
+    lua_newtable(L);
+    set_loaded(L, name);
+}
+
+void install_host_modules(lua_State* L, Instance* inst) {
     lua_newtable(L);
 
     bind(L, inst, "listen", l_listen);
@@ -517,6 +581,8 @@ void install_nsmbu(lua_State* L, Instance* inst) {
     bind(L, inst, "bool", l_config_bool);
     lua_setfield(L, -2, "config");
 
+    set_loaded(L, "nsmbu");
+
     lua_newtable(L);
     bind_guest(L, "read_u8", guest_read_u8);
     bind_guest(L, "read_s8", guest_read_s8);
@@ -536,12 +602,18 @@ void install_nsmbu(lua_State* L, Instance* inst) {
     bind_guest(L, "write_f32", guest_write_f32);
     bind_guest(L, "write_f64", guest_write_f64);
     bind_guest(L, "write", guest_write);
-    lua_setfield(L, -2, "guest");
+    set_loaded(L, "nsmbu.guest");
 
-    lua_newtable(L);
-    lua_setfield(L, -2, "fn");
+    set_empty_module(L, "nsmbu.fn");
+    set_empty_module(L, "nsmbu.hook");
+    set_empty_module(L, "nsmbu.input");
+    set_empty_module(L, "nsmbu.data");
+    set_empty_module(L, "nsmbu.enemy");
+    set_empty_module(L, "nsmbu.boss");
+    set_empty_module(L, "nsmbu.blocks");
+    set_empty_module(L, "nsmbu.env");
 
-    lua_setglobal(L, "nsmbu");
+    lua_game::install(L);
 }
 
 void sandbox(lua_State* L, Instance* inst) {
@@ -632,7 +704,7 @@ std::unique_ptr<Instance> load(const LoadInfo& info) {
     inst->state = L;
 
     sandbox(L, inst.get());
-    install_nsmbu(L, inst.get());
+    install_host_modules(L, inst.get());
 
     std::string err;
     fs::path entry_path;

@@ -27,8 +27,12 @@ The work is split across files.
 | --- | --- |
 | `main.lua` | Hooks course enter and checkpoint touch, records safe spots each logic step. |
 | `death.lua` | Death entry hook, restore path, hold-to-quit. |
-| `player.lua` | Actor lookup, pose read and write, damage clear call. |
+| `player.lua` | High-level `require("nsmbu.player")` pose helpers, plus `player_clear_damage` when bound. |
 | `state.lua` | Mode machine, status line, data file. |
+
+Pose reads use `pos()`, `speed_y()`, `grounded()`, and `mode()`.
+Restore uses `set_pos`, `set_speed_y`, and `set_mode`.
+No raw actor field offsets live in this package.
 
 ## Symbols that are not bound yet
 
@@ -37,7 +41,6 @@ The script names the helpers a finished API would need:
 
 | Name | Use |
 | --- | --- |
-| `player_actor_ptr` | Returns the active player actor in `r3`. |
 | `player_begin_death` | Entry hook. Set `ctx.skip` to take over. |
 | `player_clear_damage` | Clears death and hit state after a restore. |
 | `player_lose_life` | Optional life cost. |
@@ -45,9 +48,8 @@ The script names the helpers a finished API would need:
 | `checkpoint_touched` | Marks the soft spot from a real checkpoint. |
 | `course_quit_to_map` | Leaves the course when the quit hold finishes. |
 
-Field offsets in `player.lua` are placeholders for USA v1.3.0.
-They must be replaced from the public headers before this can run.
-Until then the script logs missing symbols and leaves the game alone.
+Actor lookup uses `p:actor()` from the high-level player API.
+Until the death and map helpers exist in `nsmbu.fn`, the script logs missing symbols and leaves the game alone.
 
 ## Why this is not a simple patch
 

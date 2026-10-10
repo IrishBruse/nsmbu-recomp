@@ -36,4 +36,6 @@ bool delete_profile(const std::string& name,std::string& error);
 
 void frame(uint64_t step);
 bool refresh(std::string& error);
+bool hot_reload();
+bool set_hot_reload(bool on,std::string& error);
 }

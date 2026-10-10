@@ -1,3 +1,6 @@
+local nsmbu = require("nsmbu")
+local data = require("nsmbu.data")
+
 local state = {
   mode = "idle",
   safe = nil,
@@ -24,7 +27,7 @@ end
 
 function state.save_file()
   if not state.safe then
-    nsmbu.data.remove("softspot.txt")
+    data.remove("softspot.txt")
     return
   end
   local text = string.format(
@@ -36,14 +39,14 @@ function state.save_file()
     state.safe.powerup,
     state.retries
   )
-  local wrote, err = nsmbu.data.write("softspot.txt", text)
+  local wrote, err = data.write("softspot.txt", text)
   if not wrote then
     nsmbu.log(err)
   end
 end
 
 function state.load_file()
-  local text = nsmbu.data.read("softspot.txt")
+  local text = data.read("softspot.txt")
   if not text then
     return
   end

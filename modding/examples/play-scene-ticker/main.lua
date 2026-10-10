@@ -1,3 +1,8 @@
+local nsmbu = require("nsmbu")
+local fn = require("nsmbu.fn")
+local hook = require("nsmbu.hook")
+local data = require("nsmbu.data")
+
 local steps = 0
 local returns = 0
 
@@ -9,7 +14,7 @@ local function every_n()
   return every
 end
 
-local entry_id, entry_err = nsmbu.hook(nsmbu.fn.dScnPly_Execute, "entry", function(ctx)
+local entry_id, entry_err = hook.hook(fn.dScnPly_Execute, "entry", function(ctx)
   steps = steps + 1
   if steps % every_n() ~= 0 then
     return
@@ -21,7 +26,7 @@ if not entry_id then
   nsmbu.log(entry_err)
 end
 
-local return_id, return_err = nsmbu.hook(nsmbu.fn.dScnPly_Execute, "return", function(ctx)
+local return_id, return_err = hook.hook(fn.dScnPly_Execute, "return", function(ctx)
   returns = returns + 1
   if returns ~= 1 then
     return
@@ -34,7 +39,7 @@ if not return_id then
 end
 
 function nsmbu.on_unload()
-  local written, err = nsmbu.data.write("steps.txt", tostring(steps))
+  local written, err = data.write("steps.txt", tostring(steps))
   if not written then
     nsmbu.log(err)
   end

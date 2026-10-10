@@ -44,6 +44,8 @@ int main(int argc, char** argv) {
             return path.string();
         };
         assert(install(lua_pack("lua.status",
+            "local nsmbu=require(\"nsmbu\")\n"
+            "assert(rawget(_G,\"nsmbu\")==nil)\n"
             "function nsmbu.on_logic_step(step)\n"
             "  nsmbu.status(nsmbu.config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
             "end\n",
@@ -55,10 +57,12 @@ int main(int argc, char** argv) {
         assert(enable("lua.status",false,error));frame(3);assert(remove("lua.status",error));
 
         assert(install(lua_pack("lua.boom",
+            "local nsmbu=require(\"nsmbu\")\n"
             "function nsmbu.on_logic_step(step)\n"
             "  error(\"boom\")\n"
             "end\n",""),error));
         assert(install(lua_pack("lua.ok",
+            "local nsmbu=require(\"nsmbu\")\n"
             "function nsmbu.on_logic_step(step)\n"
             "  nsmbu.status(\"ok\")\n"
             "end\n",""),error));
@@ -70,6 +74,10 @@ int main(int argc, char** argv) {
         assert(install(lua_pack("lua.sandbox",
             "assert(io==nil)\n"
             "assert(os==nil)\n"
+            "assert(rawget(_G,\"nsmbu\")==nil)\n"
+            "local nsmbu=require(\"nsmbu\")\n"
+            "local guest=require(\"nsmbu.guest\")\n"
+            "assert(type(guest.read_u32)==\"function\")\n"
             "local sib=require(\"sib\")\n"
             "function nsmbu.on_logic_step(step)\n"
             "  nsmbu.status(sib.tag)\n"
@@ -91,15 +99,23 @@ int main(int argc, char** argv) {
         {auto v=view("lua.dots");assert(!v.active&&!v.enabled);}
         assert(remove("lua.dots",error));
 
+        assert(install(lua_pack("lua.hostmiss",
+            "require(\"nsmbu.missing\")\n",""),error));
+        assert(enable("lua.hostmiss",true,error));frame(24);
+        {auto v=view("lua.hostmiss");assert(!v.active&&!v.enabled);}
+        assert(remove("lua.hostmiss",error));
+
         std::vector<uint8_t> slab(65536,0);
         mods::lua_guest::set_base(reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(slab.data())-0x10000000u));
         assert(install(lua_pack("lua.guest",
+            "local nsmbu=require(\"nsmbu\")\n"
+            "local guest=require(\"nsmbu.guest\")\n"
             "function nsmbu.on_logic_step(step)\n"
             "  local addr=0x10000000\n"
-            "  local ok=nsmbu.guest.write_u32(addr,0x11223344)\n"
-            "  local v=nsmbu.guest.read_u32(addr)\n"
-            "  local bad=nsmbu.guest.read_u32(0x50)\n"
-            "  local big=nsmbu.guest.read(addr,0x200000)\n"
+            "  local ok=guest.write_u32(addr,0x11223344)\n"
+            "  local v=guest.read_u32(addr)\n"
+            "  local bad=guest.read_u32(0x50)\n"
+            "  local big=guest.read(addr,0x200000)\n"
             "  if ok and v==0x11223344 and bad==nil and big==nil then\n"
             "    nsmbu.status(\"mem-ok\")\n"
             "  else\n"
@@ -110,6 +126,84 @@ int main(int argc, char** argv) {
         {auto v=view("lua.guest");assert(v.active&&v.status=="mem-ok");}
         assert(slab[0]==0x11&&slab[1]==0x22&&slab[2]==0x33&&slab[3]==0x44);
         assert(enable("lua.guest",false,error));frame(31);assert(remove("lua.guest",error));
+        mods::lua_guest::set_base(nullptr);
+
+        std::vector<uint8_t> game_slab(0x200000,0);
+        mods::lua_guest::set_base(reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(game_slab.data())-0x10000000u));
+        {
+            std::string err;
+            const uint32_t timer=0x10001000u,field=0x10002000u,mgr=0x10003000u,actor=0x10004000u;
+            assert(mods::lua_guest::write_u32(0x101D15F4u,timer,err));
+            assert(mods::lua_guest::write_u32(0x101D1604u,field,err));
+            assert(mods::lua_guest::write_u32(0x101E6994u,mgr,err));
+            assert(mods::lua_guest::write_u32(timer+0x14u,100u<<12,err));
+            assert(mods::lua_guest::write_u8(field+0x24u,1,err));
+            assert(mods::lua_guest::write_s32(field+0x24u+0x4u,5,err));
+            assert(mods::lua_guest::write_s32(field+0x24u+0x8u,2,err));
+            assert(mods::lua_guest::write_s32(field+0x24u+0x34u,7,err));
+            assert(mods::lua_guest::write_u32(mgr+0x20u,actor,err));
+            assert(mods::lua_guest::write_s32(actor+0x500u,2,err));
+            assert(mods::lua_guest::write_f32(actor+0x6Cu,1.0f,err));
+            assert(mods::lua_guest::write_f32(actor+0x70u,2.0f,err));
+            assert(mods::lua_guest::write_f32(actor+0x74u,3.0f,err));
+            assert(mods::lua_guest::write_f32(actor+0x78u,0.5f,err));
+            assert(mods::lua_guest::write_f32(actor+0x7Cu,3.0f,err));
+            assert(mods::lua_guest::write_f32(actor+0x80u,-0.25f,err));
+            assert(mods::lua_guest::write_u32(actor+0x1AC8u,1u,err));
+            assert(mods::lua_guest::write_s32(field+0x144u,40,err));
+            assert(mods::lua_guest::write_u32(field+0x148u,1000u,err));
+        }
+        assert(install(lua_pack("lua.game",
+            "local nsmbu=require(\"nsmbu\")\n"
+            "local level=require(\"nsmbu.level\")\n"
+            "local player=require(\"nsmbu.player\")\n"
+            "function nsmbu.on_logic_step(step)\n"
+            "  if not level.active() then nsmbu.status('no-course') return end\n"
+            "  level.set_time(999)\n"
+            "  level.set_coins(88)\n"
+            "  level.set_score(12345)\n"
+            "  local p=player(0)\n"
+            "  if not p or not p:entered() then nsmbu.status('no-player') return end\n"
+            "  p:set_lives(99)\n"
+            "  p:set_mode(3)\n"
+            "  p:set_coins(12)\n"
+            "  p:set_speed_y(6.5)\n"
+            "  p:set_pos(10,20,30)\n"
+            "  p:set_speed({x=1.5,y=6.5,z=-2})\n"
+            "  local pos=p:pos()\n"
+            "  local spd=p:speed()\n"
+            "  local n=0\n"
+            "  for q in player.players() do n=n+1 end\n"
+            "  if level.time()==999 and level.coins()==88 and level.score()==12345\n"
+            "      and p:lives()==99 and p:mode()==3 and p:coins()==12 and p:speed_y()==6.5 and n==1\n"
+            "      and pos and pos.x==10 and pos.y==20 and pos.z==30\n"
+            "      and spd and spd.x==1.5 and spd.y==6.5 and spd.z==-2 and p:grounded() then\n"
+            "    nsmbu.status('game-ok')\n"
+            "  else\n"
+            "    nsmbu.status('game-fail')\n"
+            "  end\n"
+            "end\n",""),error));
+        assert(enable("lua.game",true,error));frame(32);
+        {auto v=view("lua.game");assert(v.active&&v.status=="game-ok");}
+        {
+            std::string err;
+            uint32_t units=0;assert(mods::lua_guest::read_u32(0x10001000u+0x14u,units,err));assert(units==(999u<<12));
+            int32_t lives=0;assert(mods::lua_guest::read_s32(0x10002000u+0x24u+0x4u,lives,err));assert(lives==99);
+            int32_t mode=0;assert(mods::lua_guest::read_s32(0x10002000u+0x24u+0x8u,mode,err));assert(mode==3);
+            int32_t actor_mode=0;assert(mods::lua_guest::read_s32(0x10004000u+0x500u,actor_mode,err));assert(actor_mode==3);
+            int32_t coins=0;assert(mods::lua_guest::read_s32(0x10002000u+0x24u+0x34u,coins,err));assert(coins==12);
+            float speed=0;assert(mods::lua_guest::read_f32(0x10004000u+0x7Cu,speed,err));assert(speed==6.5f);
+            float px=0,py=0,pz=0;
+            assert(mods::lua_guest::read_f32(0x10004000u+0x6Cu,px,err));assert(px==10.0f);
+            assert(mods::lua_guest::read_f32(0x10004000u+0x70u,py,err));assert(py==20.0f);
+            assert(mods::lua_guest::read_f32(0x10004000u+0x74u,pz,err));assert(pz==30.0f);
+            float sx=0,sz=0;
+            assert(mods::lua_guest::read_f32(0x10004000u+0x78u,sx,err));assert(sx==1.5f);
+            assert(mods::lua_guest::read_f32(0x10004000u+0x80u,sz,err));assert(sz==-2.0f);
+            int32_t course_coins=0;assert(mods::lua_guest::read_s32(0x10002000u+0x144u,course_coins,err));assert(course_coins==88);
+            uint32_t score=0;assert(mods::lua_guest::read_u32(0x10002000u+0x148u,score,err));assert(score==12345u);
+        }
+        assert(enable("lua.game",false,error));frame(33);assert(remove("lua.game",error));
         mods::lua_guest::set_base(nullptr);
 
         auto content_only=root/"lua.files";fs::create_directories(content_only/"content"/"Common");
@@ -136,8 +230,61 @@ int main(int argc, char** argv) {
         {auto v=view("lua.both");assert(v.enabled&&!v.active&&v.pending_restart&&v.restart_required);}
         assert(enable("lua.both",false,error));frame(43);assert(remove("lua.both",error));
 
+        assert(!hot_reload());
+        assert(install(lua_pack("lua.reload",
+            "local nsmbu=require(\"nsmbu\")\n"
+            "function nsmbu.on_logic_step(step)\n"
+            "  nsmbu.status(\"before\")\n"
+            "end\n",""),error));
+        assert(enable("lua.reload",true,error));frame(50);
+        {auto v=view("lua.reload");assert(v.active&&v.status=="before");}
+        assert(set_hot_reload(true,error));assert(hot_reload());
+        frame(51);
+        {
+            auto script=storage/"Mods"/"lua.reload"/"main.lua";
+            std::ofstream(script)
+                <<"local nsmbu=require(\"nsmbu\")\n"
+                <<"function nsmbu.on_logic_step(step)\n"
+                <<"  nsmbu.status(\"after\")\n"
+                <<"end\n";
+            auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(2);
+            fs::last_write_time(script,stamp);
+        }
+        frame(52);frame(53);
+        {auto v=view("lua.reload");assert(v.active&&v.enabled&&v.status=="after");}
+        {
+            auto script=storage/"Mods"/"lua.reload"/"main.lua";
+            std::ofstream(script)<<"this is not valid lua {{\n";
+            auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(4);
+            fs::last_write_time(script,stamp);
+        }
+        frame(54);frame(55);
+        {auto v=view("lua.reload");assert(!v.active&&!v.enabled&&!v.reason.empty());}
+        assert(remove("lua.reload",error));
+        assert(set_hot_reload(false,error));assert(!hot_reload());
+
+        assert(install(both.string(),error));
+        assert(enable("lua.both",true,error));
+        assert(set_hot_reload(true,error));
+        frame(60);
+        {
+            auto script=storage/"Mods"/"lua.both"/"main.lua";
+            std::ofstream(script)
+                <<"local nsmbu=require(\"nsmbu\")\n"
+                <<"function nsmbu.on_logic_step(step)\n"
+                <<"  nsmbu.status(\"hot-both\")\n"
+                <<"end\n";
+            auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(2);
+            fs::last_write_time(script,stamp);
+        }
+        frame(61);frame(62);
+        {auto v=view("lua.both");assert(v.enabled&&!v.active&&v.pending_restart&&v.restart_required);}
+        assert(enable("lua.both",false,error));frame(63);
+        assert(set_hot_reload(false,error));
+        assert(remove("lua.both",error));
+
         fs::remove_all(root);
-        std::cout<<"Lua load, options, fault isolation, sandbox, guest memory, and content_dir passed\n";
+        std::cout<<"Lua load, options, fault isolation, sandbox, guest memory, level/player API, content_dir, and hot reload passed\n";
         return 0;
     }
     if(argc==2&&(std::string(argv[1])=="--cemu-startup"||std::string(argv[1])=="--cemu-backend")){

@@ -1,3 +1,6 @@
+local nsmbu = require("nsmbu")
+local input = require("nsmbu.input")
+
 local last = ""
 
 local function every_n()
@@ -12,8 +15,8 @@ function nsmbu.on_logic_step(step)
   if step % every_n() ~= 0 then
     return
   end
-  local pad = nsmbu.input()
-  local held = nsmbu.button.held("A")
+  local pad = input()
+  local held = input.button.held("A")
   if held == nil then
     held = false
   end

@@ -153,7 +153,40 @@ bool wanted(const std::string& id){const auto& v=profile().get("enabled").get(id
 Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=profile().get("config").get(m.id).get(o.id);out[o.id]=valid_option(o,saved)?saved:o.default_value;}return out;}
 void strip_builtins(){for(auto& entry:database["profiles"].object){entry.second.object.erase("builtins");entry.second.object.erase("builtin_options");}}
 void save(){if(!ready)return;strip_builtins();fs::create_directories(root);auto tmp=root/"profiles.json.tmp";std::ofstream f(tmp,std::ios::binary|std::ios::trunc);f<<json::dump(database)<<'\n';f.close();require(bool(f)&&host::replace_file(tmp.string(),(root/"profiles.json").string()),"Cannot save mod profiles");}
-void defaults(){database=Value{};database["format_version"]=1;database["active"]="Default";profile()["enabled"].type=Value::Object;}
+void defaults(){database=Value{};database["format_version"]=1;database["active"]="Default";database["hot_reload"]=false;profile()["enabled"].type=Value::Object;}
+bool hot_reload_flag(){const auto& v=database.get("hot_reload");return v.type==Value::Bool&&v.boolean;}
+bool content_folder_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n=="content";}
+bool lua_file_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n.size()>=4&&n.compare(n.size()-4,4,".lua")==0;}
+std::map<std::string,std::int64_t> scan_lua_mtimes(const fs::path& package){
+    std::map<std::string,std::int64_t> out;
+    std::error_code ec;
+    if(!fs::is_directory(package,ec))return out;
+    for(auto it=fs::recursive_directory_iterator(package,fs::directory_options::skip_permission_denied,ec);it!=fs::recursive_directory_iterator();it.increment(ec)){
+        if(ec){ec.clear();continue;}
+        const auto& entry=*it;
+        auto rel=fs::relative(entry.path(),package,ec);
+        if(ec||rel.empty()){ec.clear();continue;}
+        if(content_folder_name(rel.begin()->string())){
+            if(entry.is_directory())it.disable_recursion_pending();
+            continue;
+        }
+        if(!entry.is_regular_file())continue;
+        if(!lua_file_name(entry.path().filename().string()))continue;
+        auto t=fs::last_write_time(entry.path(),ec);
+        if(ec){ec.clear();continue;}
+        out[rel.generic_string()]=static_cast<std::int64_t>(t.time_since_epoch().count());
+    }
+    return out;
+}
+mods::lua_mod::LoadInfo load_info_for(const Record& record,const Value& cfg){
+    mods::lua_mod::LoadInfo info;
+    info.id=record.manifest.id;
+    info.version=record.manifest.version;
+    info.path=record.path.string();
+    info.entry=record.manifest.entry;
+    info.config=cfg;
+    return info;
+}
 void scan(){records.clear();if(!ready)return;fs::create_directories(root/"Mods");for(const auto& e:fs::directory_iterator(root/"Mods")){if(!e.is_directory()||e.is_symlink()||!id_ok(e.path().filename().string()))continue;Record r;r.path=e.path();try{migrate_content_alias(e.path());r.manifest=manifest(e.path());require(r.manifest.id==e.path().filename(),"Folder and manifest IDs differ");}catch(const std::exception& ex){r.manifest.id=e.path().filename().string();r.manifest.name=r.manifest.id;r.manifest.problem=ex.what();}auto id=r.manifest.id;records.emplace(id,std::move(r));}}
 std::vector<std::string> order(const std::set<std::string>& enabled){
     std::map<std::string,int> mark;std::vector<std::string> result;
@@ -169,16 +202,53 @@ void validate_conflicts(const std::set<std::string>& enabled){
     for(const auto& id:enabled){const auto& m=records.at(id).manifest;for(const auto& [file,path]:m.files){auto [it,inserted]=file_owners.emplace(file,id);require(inserted,"Content file conflict: "+file+" between "+id+" and "+it->second);}for(const auto& conflict:m.conflicts){require(!enabled.contains(conflict),m.name+" conflicts with "+conflict);}}
 }
 template<class Fn> bool operation(std::string& error,Fn fn){try{std::lock_guard guard(mutex);require(ready,"Mod manager storage is unavailable");fn();error.clear();return true;}catch(const std::exception& e){error=e.what();return false;}}
-struct Live {std::unique_ptr<mods::lua_mod::Instance> lua;std::string kind;Value last_config;};
+struct Live {
+    std::unique_ptr<mods::lua_mod::Instance> lua;
+    std::string kind;
+    Value last_config;
+    std::map<std::string,std::int64_t> script_mtimes;
+    std::map<std::string,std::int64_t> pending_mtimes;
+    bool pending_change=false;
+};
 std::map<std::string,Live> live;
 std::vector<std::string> live_order;
+bool reload_live(const std::string& id,const Record& record,const Value& cfg){
+    auto it=live.find(id);
+    if(it==live.end())return false;
+    if(it->second.lua)mods::lua_mod::unload(*it->second.lua);
+    Live item;item.kind=record.manifest.kind;item.last_config=cfg;
+    try{
+        item.lua=mods::lua_mod::load(load_info_for(record,cfg));
+        item.script_mtimes=scan_lua_mtimes(record.path);
+        item.pending_change=false;
+        item.pending_mtimes.clear();
+        live[id]=std::move(item);
+        fprintf(stderr,"[mod-manager] reloaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());
+        return true;
+    }catch(const std::exception& e){
+        if(item.lua)mods::lua_mod::unload(*item.lua);
+        live.erase(id);
+        std::erase(live_order,id);
+        std::lock_guard guard(mutex);
+        if(records.contains(id)){
+            records.at(id).active=false;
+            records.at(id).loading=false;
+            records.at(id).status.clear();
+            records.at(id).error=e.what();
+            profile()["enabled"][id]=false;
+            try{save();}catch(...){}
+        }
+        running=!live.empty();
+        return false;
+    }
+}
 }
 
 
 void initialize(){
     std::lock_guard guard(mutex);if(ready)return;const char* override=std::getenv("NSMBU_MOD_MANAGER_DIR");if(std::getenv("NSMBU_NO_HOST_INPUT")&&!override)return;
     root=override?fs::path(override):fs::path(host::config_dir())/"ModManager";ready=true;defaults();
-    try{fs::create_directories(root);if(fs::exists(root/"profiles.json")){auto saved=json::parse(read_text(root/"profiles.json"));require(saved.get("format_version").type==Value::Number&&saved.get("format_version").number==1,"Unsupported profile format");require(saved.get("profiles").type==Value::Object&&!saved.get("profiles").object.empty(),"Invalid profiles");require(saved.get("active").type==Value::String&&saved.get("profiles").object.contains(saved.get("active").text),"Invalid active profile");database=std::move(saved);}scan();
+    try{fs::create_directories(root);if(fs::exists(root/"profiles.json")){auto saved=json::parse(read_text(root/"profiles.json"));require(saved.get("format_version").type==Value::Number&&saved.get("format_version").number==1,"Unsupported profile format");require(saved.get("profiles").type==Value::Object&&!saved.get("profiles").object.empty(),"Invalid profiles");require(saved.get("active").type==Value::String&&saved.get("profiles").object.contains(saved.get("active").text),"Invalid active profile");database=std::move(saved);if(database.get("hot_reload").type!=Value::Bool)database["hot_reload"]=false;}scan();
         try { auto enabled=enabled_set();auto sequence=order(enabled);validate_conflicts(enabled);
             content::Files files;
             for(const auto& id:sequence){auto& record=records.at(id);if(record.manifest.kind=="content"||(record.manifest.kind=="lua"&&has_content_files(record.manifest))){
@@ -195,8 +265,9 @@ void initialize(){
             for(const auto& id:sequence){auto& record=records.at(id);if(record.manifest.kind!="lua"||!has_content_files(record.manifest)||record.manifest.entry.empty())continue;
                 Live item;item.kind=record.manifest.kind;try{
                     auto cfg=config(record.manifest);
-                    mods::lua_mod::LoadInfo info;info.id=record.manifest.id;info.version=record.manifest.version;info.path=record.path.string();info.entry=record.manifest.entry;info.config=cfg;
-                    item.lua=mods::lua_mod::load(info);item.last_config=std::move(cfg);live.emplace(id,std::move(item));live_order.push_back(id);
+                    item.lua=mods::lua_mod::load(load_info_for(record,cfg));item.last_config=std::move(cfg);
+                    item.script_mtimes=scan_lua_mtimes(record.path);
+                    live.emplace(id,std::move(item));live_order.push_back(id);
                     fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());
                 }catch(const std::exception& e){if(item.lua)mods::lua_mod::unload(*item.lua);record.error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}}}
             running=!live.empty();
@@ -206,7 +277,9 @@ void initialize(){
 }
 std::string directory(){std::lock_guard guard(mutex);return ready?(root/"Mods").string():"";}
 std::vector<View> list(){std::lock_guard guard(mutex);std::vector<View> out;for(const auto& [id,r]:records){const auto& m=r.manifest;View v;v.id=id;v.name=m.name;v.version=m.version;v.author=m.author;v.description=m.description;v.kind=m.kind;v.restart_required=content_lifecycle(m);v.enabled=wanted(id);v.active=r.active;v.compatible=m.problem.empty();v.reason=m.problem.empty()?r.error:m.problem;v.status=r.status;if(m.graphics){auto diagnostics=cemu::runtime_status(id);if(!diagnostics.empty())v.status+=". "+diagnostics;}v.options=m.options;auto cfg=config(m);v.pending_restart=v.restart_required&&(v.enabled!=v.active||(m.graphics&&v.active&&!(r.startup_config==cfg)));if(m.graphics&&!m.graphics->shaders.empty()&&!cemu::vulkan()){v.active=false;v.compatible=false;v.reason="GLSL shader packs require Vulkan; choose it in Graphics and restart";}for(auto& o:v.options)o.value=cfg.get(o.id);for(const auto& dep:m.dependencies)v.dependencies.push_back(dep.id+">="+dep.version);v.conflicts=m.conflicts;out.push_back(std::move(v));}return out;}
-static bool content_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n=="content";}
+static bool content_name(std::string n){return content_folder_name(std::move(n));}
+bool hot_reload(){std::lock_guard guard(mutex);return ready&&hot_reload_flag();}
+bool set_hot_reload(bool on,std::string& error){return operation(error,[&]{auto previous=database;database["hot_reload"]=on;try{save();}catch(...){database=previous;throw;}});}
 bool install(const std::string& source,std::string& error,std::string* installed_id_out){return operation(error,[&]{
     auto nonce=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());auto stage=root/(".stage-"+nonce),backup=root/(".backup-"+nonce);fs::path target;bool backed=false,moved=false;
     try{if(fs::is_regular_file(source)&&content::known_pack(fs::path(source).filename().string())){
@@ -254,10 +327,38 @@ void frame(uint64_t step){
         for(const auto& id:sequence){const auto& [record,cfg]=desired.at(id);bool deps_ok=true;for(const auto& dep:record.manifest.dependencies)if(!live.contains(dep.id)){std::lock_guard guard(mutex);if(!records.contains(dep.id)||!records.at(dep.id).active)deps_ok=false;}
             if(!deps_ok){std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error="A dependency is unavailable (content dependencies may require restart)";continue;}
             auto it=live.find(id);
-            if(it==live.end()){Live item;item.kind=record.manifest.kind;try{mods::lua_mod::LoadInfo info;info.id=record.manifest.id;info.version=record.manifest.version;info.path=record.path.string();info.entry=record.manifest.entry;info.config=cfg;item.lua=mods::lua_mod::load(info);item.last_config=cfg;live.emplace(id,std::move(item));fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());}catch(const std::exception& e){if(item.lua)mods::lua_mod::unload(*item.lua);std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}continue;}}
+            if(it==live.end()){Live item;item.kind=record.manifest.kind;try{item.lua=mods::lua_mod::load(load_info_for(record,cfg));item.last_config=cfg;item.script_mtimes=scan_lua_mtimes(record.path);live.emplace(id,std::move(item));fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());}catch(const std::exception& e){if(item.lua)mods::lua_mod::unload(*item.lua);std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}continue;}}
             live_order.push_back(id);std::lock_guard guard(mutex);records.at(id).active=true;records.at(id).loading=false;records.at(id).error.clear();
         }
         running=!live.empty();
+    }
+    bool watch=false;{std::lock_guard guard(mutex);watch=ready&&hot_reload_flag();}
+    if(watch){
+        std::vector<std::string> reload_ids;
+        for(const auto& id:live_order){
+            fs::path path;bool skip=false;
+            {std::lock_guard guard(mutex);
+                if(!records.contains(id)||!wanted(id)||has_content_files(records.at(id).manifest)||records.at(id).manifest.entry.empty())skip=true;
+                else path=records.at(id).path;}
+            if(skip)continue;
+            auto& item=live.at(id);
+            auto now=scan_lua_mtimes(path);
+            if(item.script_mtimes.empty()){item.script_mtimes=std::move(now);item.pending_change=false;item.pending_mtimes.clear();continue;}
+            if(now==item.script_mtimes){item.pending_change=false;item.pending_mtimes.clear();continue;}
+            if(item.pending_change&&item.pending_mtimes==now)reload_ids.push_back(id);
+            else{item.pending_change=true;item.pending_mtimes=std::move(now);}
+        }
+        for(const auto& id:reload_ids){
+            Record record;Value cfg;
+            {std::lock_guard guard(mutex);
+                if(!records.contains(id)||!wanted(id))continue;
+                record=records.at(id);cfg=config(record.manifest);}
+            if(has_content_files(record.manifest)||record.manifest.entry.empty())continue;
+            if(reload_live(id,record,cfg)){
+                std::lock_guard guard(mutex);
+                if(records.contains(id)){records.at(id).active=true;records.at(id).loading=false;records.at(id).error.clear();}
+            }
+        }
     }
     for(size_t i=0;i<live_order.size();){
         auto id=live_order[i];auto& item=live.at(id);

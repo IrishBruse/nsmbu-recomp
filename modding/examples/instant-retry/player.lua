@@ -1,89 +1,102 @@
+local fn = require("nsmbu.fn")
+local hook = require("nsmbu.hook")
+local api = require("nsmbu.player")
+
 local player = {}
 
-local OFF = {
-  x = 0x314,
-  y = 0x318,
-  z = 0x31C,
-  speed_y = 0x340,
-  grounded = 0x3A0,
-  powerup = 0x440,
-}
-
 local function need(name)
-  local addr = nsmbu.fn[name]
+  local addr = fn[name]
   if not addr then
     return nil, name .. " is not in nsmbu.fn"
   end
   return addr
 end
 
-function player.actor()
-  local getter = need("player_actor_ptr")
-  if not getter then
-    return nil, "player_actor_ptr is not in nsmbu.fn"
+function player.handle()
+  local p, err = api(0)
+  if not p then
+    return nil, err or "no player"
   end
-  local result, err = nsmbu.call_result(getter, {})
-  if not result then
-    return nil, err
-  end
-  if result.r3 == 0 then
-    return nil, "no player actor"
-  end
-  return result.r3
+  return p
 end
 
-function player.read_pose(actor)
-  local x, err = nsmbu.guest.read_f32(actor + OFF.x)
-  if not x then
+function player.actor()
+  local p, err = player.handle()
+  if not p then
     return nil, err
   end
-  local y = nsmbu.guest.read_f32(actor + OFF.y)
-  local z = nsmbu.guest.read_f32(actor + OFF.z)
-  local speed_y = nsmbu.guest.read_f32(actor + OFF.speed_y)
-  local grounded = nsmbu.guest.read_u8(actor + OFF.grounded)
-  local powerup = nsmbu.guest.read_u8(actor + OFF.powerup)
-  if not y or not z or not speed_y or not grounded or not powerup then
-    return nil, "player pose read failed"
+  return p:actor()
+end
+
+function player.read_pose()
+  local p, err = player.handle()
+  if not p then
+    return nil, err
+  end
+  local pos, pos_err = p:pos()
+  if not pos then
+    return nil, pos_err
+  end
+  local speed_y, speed_err = p:speed_y()
+  if speed_y == nil then
+    return nil, speed_err
+  end
+  local grounded, ground_err = p:grounded()
+  if grounded == nil then
+    return nil, ground_err
+  end
+  local mode, mode_err = p:mode()
+  if mode == nil then
+    return nil, mode_err
   end
   return {
-    x = x,
-    y = y,
-    z = z,
+    x = pos.x,
+    y = pos.y,
+    z = pos.z,
     speed_y = speed_y,
-    grounded = grounded ~= 0,
-    powerup = powerup,
+    grounded = grounded,
+    powerup = mode,
   }
 end
 
-function player.write_pose(actor, pose)
-  local ok = nsmbu.guest.write_f32(actor + OFF.x, pose.x)
-  ok = ok and nsmbu.guest.write_f32(actor + OFF.y, pose.y)
-  ok = ok and nsmbu.guest.write_f32(actor + OFF.z, pose.z)
-  ok = ok and nsmbu.guest.write_f32(actor + OFF.speed_y, 0)
+function player.write_pose(pose)
+  local p, err = player.handle()
+  if not p then
+    return nil, err
+  end
+  local ok, set_err = p:set_pos(pose.x, pose.y, pose.z)
   if not ok then
-    return nil, "player pose write failed"
+    return nil, set_err
+  end
+  ok, set_err = p:set_speed_y(0)
+  if not ok then
+    return nil, set_err
   end
   return true
 end
 
-function player.write_powerup(actor, powerup)
-  return nsmbu.guest.write_u8(actor + OFF.powerup, powerup)
-end
-
-function player.restore(actor, pose, keep_powerup)
-  local ok, err = player.write_pose(actor, pose)
+function player.restore(pose, keep_powerup)
+  local ok, err = player.write_pose(pose)
   if not ok then
     return nil, err
   end
   if keep_powerup then
-    local wrote, write_err = player.write_powerup(actor, pose.powerup)
+    local p, handle_err = player.handle()
+    if not p then
+      return nil, handle_err
+    end
+    local wrote, write_err = p:set_mode(pose.powerup)
     if not wrote then
       return nil, write_err
     end
   end
+  local actor, actor_err = player.actor()
+  if not actor then
+    return nil, actor_err
+  end
   local clear = need("player_clear_damage")
   if clear then
-    local called, call_err = nsmbu.call(clear, { r3 = actor })
+    local called, call_err = hook.call(clear, { r3 = actor })
     if not called then
       return nil, call_err
     end

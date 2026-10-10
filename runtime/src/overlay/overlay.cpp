@@ -898,6 +898,11 @@ void package_controls() {
     note("Your active profile is protected from deletion.");
     heading("Installed packages");
     note("Install a local package, a content/ mod folder or ZIP, or a replacement .pack file.");
+    {
+        bool watch = hot_reload();
+        if (ImGui::Checkbox("Hot reload Lua scripts", &watch)) set_hot_reload(watch, error);
+        note("When on, enabled script-only packs reload when .lua files change. Packs with content still need a restart.");
+    }
     if (ImGui::Button("Choose package…")) hostui::choose_mod_source(false, [](std::string path) {
         std::lock_guard guard(picker_mutex); picked = std::move(path);
     });

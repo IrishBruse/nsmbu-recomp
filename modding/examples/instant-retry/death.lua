@@ -1,3 +1,7 @@
+local nsmbu = require("nsmbu")
+local fn = require("nsmbu.fn")
+local hook = require("nsmbu.hook")
+local input = require("nsmbu.input")
 local player = require("player")
 local state = require("state")
 
@@ -7,19 +11,19 @@ local function spend_life()
   if not nsmbu.config.bool("cost_life", false) then
     return true
   end
-  local lose = nsmbu.fn.player_lose_life
+  local lose = fn.player_lose_life
   if not lose then
     return nil, "player_lose_life is not in nsmbu.fn"
   end
-  return nsmbu.call(lose, {})
+  return hook.call(lose, {})
 end
 
 local function quit_course()
-  local quit = nsmbu.fn.course_quit_to_map
+  local quit = fn.course_quit_to_map
   if not quit then
     return nil, "course_quit_to_map is not in nsmbu.fn"
   end
-  return nsmbu.call(quit, {})
+  return hook.call(quit, {})
 end
 
 function death.begin(ctx)
@@ -37,14 +41,7 @@ function death.begin(ctx)
   ctx.skip = true
   state.mode = "restoring"
   state.quit_hold = 0
-  local actor, err = player.actor()
-  if not actor then
-    state.mode = "idle"
-    nsmbu.log(err)
-    return
-  end
   local ok, restore_err = player.restore(
-    actor,
     state.safe,
     nsmbu.config.bool("keep_powerup", true)
   )
@@ -69,7 +66,7 @@ function death.tick_hold()
     return
   end
   local need = nsmbu.config.number("quit_hold", 45)
-  if nsmbu.button.held("A") then
+  if input.button.held("A") then
     state.quit_hold = state.quit_hold + 1
   else
     state.quit_hold = 0
@@ -96,12 +93,12 @@ function death.tick_hold()
 end
 
 function death.install()
-  local target = nsmbu.fn.player_begin_death
+  local target = fn.player_begin_death
   if not target then
     nsmbu.log("player_begin_death is not in nsmbu.fn")
     return
   end
-  local id, err = nsmbu.hook(target, "entry", death.begin)
+  local id, err = hook.hook(target, "entry", death.begin)
   if not id then
     nsmbu.log(err)
   end

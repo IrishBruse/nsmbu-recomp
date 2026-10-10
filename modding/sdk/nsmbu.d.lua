@@ -1,7 +1,8 @@
 ---@meta
---- Proposed NSMBU Lua API v1 type declarations.
---- Matches docs/modding/api.md. The runtime does not implement this yet.
+--- NSMBU Lua API v1 type declarations.
+--- Matches docs/modding/api.md.
 --- Point the Lua language server library path at this file, or open modding/examples.
+--- There is no nsmbu global. Use require("nsmbu") and require("nsmbu.*").
 
 ---@alias nsmbu.GuestAddr integer
 ---@alias nsmbu.HookId integer
@@ -154,8 +155,6 @@ function Guest.alloc(size) end
 ---@return string|nil err
 function Guest.free(addr) end
 
---- Generated guest function addresses for the running build.
---- Missing names are nil until the header export includes them.
 ---@class nsmbu.Fn
 ---@field dScnPly_Execute nsmbu.GuestAddr|nil
 ---@field cLib_addCalc2 nsmbu.GuestAddr|nil
@@ -218,7 +217,7 @@ function Guest.free(addr) end
 ---@field f1 number
 
 ---@class nsmbu.Pad
----@field buttons integer Bit mask; see nsmbu.button.
+---@field buttons integer Bit mask; see input.button.
 ---@field lx number
 ---@field ly number
 ---@field rx number
@@ -276,20 +275,193 @@ function Data.write(name, data) end
 ---@return string|nil err
 function Data.remove(name) end
 
+---@class nsmbu.Level
+local Level = {}
+
+---@return boolean
+function Level.active() end
+
+---@return number|nil seconds
+---@return string|nil err
+function Level.time() end
+
+---@param seconds number
+---@return true|nil ok
+---@return string|nil err
+function Level.set_time(seconds) end
+
+---@param seconds number
+---@return true|nil ok
+---@return string|nil err
+function Level.add_time(seconds) end
+
+---@return number|nil coins
+---@return string|nil err
+function Level.coins() end
+
+---@param coins number
+---@return true|nil ok
+---@return string|nil err
+function Level.set_coins(coins) end
+
+---@return number|nil score
+---@return string|nil err
+function Level.score() end
+
+---@param score number
+---@return true|nil ok
+---@return string|nil err
+function Level.set_score(score) end
+
+---@class nsmbu.Vec3
+---@field x number
+---@field y number
+---@field z number
+
+---@class nsmbu.PlayerHandle
+---@field index integer 0..3
+local PlayerHandle = {}
+
+---@return boolean|nil entered
+---@return string|nil err
+function PlayerHandle:entered() end
+
+---@return number|nil lives
+---@return string|nil err
+function PlayerHandle:lives() end
+
+---@param lives number
+---@return true|nil ok
+---@return string|nil err
+function PlayerHandle:set_lives(lives) end
+
+---@return number|nil mode
+---@return string|nil err
+function PlayerHandle:mode() end
+
+---@param mode number
+---@return true|nil ok
+---@return string|nil err
+function PlayerHandle:set_mode(mode) end
+
+---@return number|nil coins
+---@return string|nil err
+function PlayerHandle:coins() end
+
+---@param coins number
+---@return true|nil ok
+---@return string|nil err
+function PlayerHandle:set_coins(coins) end
+
+---@return number|nil speed
+---@return string|nil err
+function PlayerHandle:speed_y() end
+
+---@param speed number
+---@return true|nil ok
+---@return string|nil err
+function PlayerHandle:set_speed_y(speed) end
+
+---@return nsmbu.Vec3|nil pos
+---@return string|nil err
+function PlayerHandle:pos() end
+
+---@param x number|nsmbu.Vec3
+---@param y number|nil
+---@param z number|nil
+---@return true|nil ok
+---@return string|nil err
+function PlayerHandle:set_pos(x, y, z) end
+
+---@return nsmbu.Vec3|nil speed
+---@return string|nil err
+function PlayerHandle:speed() end
+
+---@param x number|nsmbu.Vec3
+---@param y number|nil
+---@param z number|nil
+---@return true|nil ok
+---@return string|nil err
+function PlayerHandle:set_speed(x, y, z) end
+
+---@return boolean|nil grounded
+---@return string|nil err
+function PlayerHandle:grounded() end
+
+---@return nsmbu.GuestAddr|nil addr
+---@return string|nil err
+function PlayerHandle:actor() end
+
+---@class nsmbu.PlayerModule
+local PlayerModule = {}
+
+---@param index integer 0..3
+---@return nsmbu.PlayerHandle|nil player
+---@return string|nil err
+function PlayerModule.get(index) end
+
+---@param index integer 0..3
+---@return nsmbu.PlayerHandle|nil player
+---@return string|nil err
+function PlayerModule:__call(index) end
+
+---@return fun(): nsmbu.PlayerHandle|nil
+function PlayerModule.players() end
+
+---@class nsmbu.Hook
+local Hook = {}
+
+---@param target nsmbu.GuestAddr
+---@param when nsmbu.HookWhen
+---@param callback nsmbu.HookCallback
+---@return nsmbu.HookId|nil id
+---@return string|nil err
+function Hook.hook(target, when, callback) end
+
+---@param target nsmbu.GuestAddr
+---@param callback nsmbu.HookCallback
+---@return nsmbu.HookId|nil id
+---@return string|nil err
+function Hook.replace(target, callback) end
+
+---@param id nsmbu.HookId
+---@return true|nil ok
+---@return string|nil err
+function Hook.unhook(id) end
+
+---@return true|nil ok
+---@return string|nil err
+function Hook.original() end
+
+---@param target nsmbu.GuestAddr
+---@param args nsmbu.CallArgs|nil
+---@return true|nil ok
+---@return string|nil err
+function Hook.call(target, args) end
+
+---@param target nsmbu.GuestAddr
+---@param args nsmbu.CallArgs|nil
+---@return nsmbu.CallResult|nil result
+---@return string|nil err
+function Hook.call_result(target, args) end
+
+---@class nsmbu.Input
+---@field button nsmbu.Button
+local Input = {}
+
+---@return nsmbu.Pad
+function Input:__call() end
+
 ---@alias nsmbu.LogicStepCallback fun(step: integer)
 ---@alias nsmbu.VoidCallback fun()
 
 ---@class nsmbu
 ---@field package nsmbu.Package
 ---@field config nsmbu.Config
----@field guest nsmbu.Guest
----@field fn nsmbu.Fn
----@field button nsmbu.Button
----@field data nsmbu.Data
 ---@field on_logic_step nsmbu.LogicStepCallback|nil
 ---@field on_config_changed nsmbu.VoidCallback|nil
 ---@field on_unload nsmbu.VoidCallback|nil
-nsmbu = {}
+local nsmbu = {}
 
 ---@param message string
 ---@return true|nil ok
@@ -336,40 +508,44 @@ function nsmbu.listen(event, callback) end
 ---@return string|nil err
 function nsmbu.unlisten(id) end
 
----@param target nsmbu.GuestAddr
----@param when nsmbu.HookWhen
----@param callback nsmbu.HookCallback
----@return nsmbu.HookId|nil id
----@return string|nil err
-function nsmbu.hook(target, when, callback) end
+---@module 'nsmbu'
+return nsmbu
 
----@param target nsmbu.GuestAddr
----@param callback nsmbu.HookCallback
----@return nsmbu.HookId|nil id
----@return string|nil err
-function nsmbu.replace(target, callback) end
+---@module 'nsmbu.guest'
+return Guest
 
----@param id nsmbu.HookId
----@return true|nil ok
----@return string|nil err
-function nsmbu.unhook(id) end
+---@module 'nsmbu.level'
+return Level
 
---- Valid only inside a replace callback.
----@return true|nil ok
----@return string|nil err
-function nsmbu.original() end
+---@module 'nsmbu.player'
+return PlayerModule
 
----@param target nsmbu.GuestAddr
----@param args nsmbu.CallArgs|nil
----@return true|nil ok
----@return string|nil err
-function nsmbu.call(target, args) end
+---@module 'nsmbu.fn'
+---@type nsmbu.Fn
+local Fn = {}
+return Fn
 
----@param target nsmbu.GuestAddr
----@param args nsmbu.CallArgs|nil
----@return nsmbu.CallResult|nil result
----@return string|nil err
-function nsmbu.call_result(target, args) end
+---@module 'nsmbu.hook'
+return Hook
 
----@return nsmbu.Pad
-function nsmbu.input() end
+---@module 'nsmbu.input'
+return Input
+
+---@module 'nsmbu.data'
+return Data
+
+---@module 'nsmbu.enemy'
+local Enemy = {}
+return Enemy
+
+---@module 'nsmbu.boss'
+local Boss = {}
+return Boss
+
+---@module 'nsmbu.blocks'
+local Blocks = {}
+return Blocks
+
+---@module 'nsmbu.env'
+local Env = {}
+return Env

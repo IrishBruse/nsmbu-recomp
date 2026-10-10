@@ -1,3 +1,6 @@
+local nsmbu = require("nsmbu")
+local fn = require("nsmbu.fn")
+local hook = require("nsmbu.hook")
 local player = require("player")
 local state = require("state")
 local death = require("death")
@@ -19,13 +22,8 @@ local function record_safe(step)
   if step % every ~= 0 then
     return
   end
-  local actor, err = player.actor()
-  if not actor then
-    return
-  end
-  local pose, pose_err = player.read_pose(actor)
+  local pose, pose_err = player.read_pose()
   if not pose then
-    nsmbu.log(pose_err)
     return
   end
   if not pose.grounded then
@@ -52,9 +50,9 @@ local function on_course_enter()
   state.set_status("Instant retry: waiting for ground")
 end
 
-local enter = nsmbu.fn.course_enter
+local enter = fn.course_enter
 if enter then
-  local id, err = nsmbu.hook(enter, "return", function()
+  local id, err = hook.hook(enter, "return", function()
     on_course_enter()
   end)
   if not id then
@@ -64,14 +62,10 @@ else
   nsmbu.log("course_enter is not in nsmbu.fn")
 end
 
-local checkpoint = nsmbu.fn.checkpoint_touched
+local checkpoint = fn.checkpoint_touched
 if checkpoint then
-  local id, err = nsmbu.hook(checkpoint, "entry", function(ctx)
-    local actor = player.actor()
-    if not actor then
-      return
-    end
-    local pose = player.read_pose(actor)
+  local id, err = hook.hook(checkpoint, "entry", function()
+    local pose = player.read_pose()
     if pose then
       state.safe = pose
       state.set_status("Soft spot set from checkpoint")
