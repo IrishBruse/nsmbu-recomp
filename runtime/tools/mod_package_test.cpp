@@ -45,9 +45,10 @@ int main(int argc, char** argv) {
         };
         assert(install(lua_pack("lua.status",
             "local nsmbu=require(\"nsmbu\")\n"
+            "local config=require(\"nsmbu.config\")\n"
             "assert(rawget(_G,\"nsmbu\")==nil)\n"
             "function nsmbu.on_logic_step(step)\n"
-            "  nsmbu.status(nsmbu.config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
+            "  nsmbu.status(config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
             "end\n",
             ",\"options\":[{\"id\":\"label\",\"name\":\"Label\",\"type\":\"string\",\"default\":\"Hi\"}]"),error));
         assert(enable("lua.status",true,error));frame(1);

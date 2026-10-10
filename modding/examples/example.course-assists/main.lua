@@ -1,4 +1,5 @@
 local nsmbu = require("nsmbu")
+local config = require("nsmbu.config")
 local level = require("nsmbu.level")
 local player = require("nsmbu.player")
 
@@ -50,7 +51,7 @@ local function keep_powerup()
 end
 
 local function scale_jumps()
-  local scale = nsmbu.config.number("jump_scale", 1)
+  local scale = config.number("jump_scale", 1)
   if not scale or scale == 1 then
     return false
   end
@@ -81,16 +82,16 @@ end
 
 function nsmbu.on_logic_step(step)
   local parts = {}
-  if nsmbu.config.bool("infinite_time", false) and freeze_timer() then
+  if config.bool("infinite_time", false) and freeze_timer() then
     parts[#parts + 1] = "time"
   end
-  if nsmbu.config.bool("infinite_lives", false) and keep_lives() then
+  if config.bool("infinite_lives", false) and keep_lives() then
     parts[#parts + 1] = "lives"
   end
-  if nsmbu.config.bool("keep_powerup", false) and keep_powerup() then
+  if config.bool("keep_powerup", false) and keep_powerup() then
     parts[#parts + 1] = "power-up"
   end
-  local scale = nsmbu.config.number("jump_scale", 1)
+  local scale = config.number("jump_scale", 1)
   if scale and scale ~= 1 and scale_jumps() then
     parts[#parts + 1] = "jump x" .. tostring(scale)
   end

@@ -1,10 +1,11 @@
 local nsmbu = require("nsmbu")
+local config = require("nsmbu.config")
 local input = require("nsmbu.input")
 
 local last = ""
 
 local function every_n()
-  local every = nsmbu.config.number("every", 15)
+  local every = config.number("every", 15)
   if every < 1 then
     return 1
   end
@@ -22,7 +23,7 @@ function nsmbu.on_logic_step(step)
   end
   local line = string.format(
     "%s A=%s lx=%.2f",
-    nsmbu.config.string("label", "Pad"),
+    config.string("label", "Pad"),
     tostring(held),
     pad.lx
   )

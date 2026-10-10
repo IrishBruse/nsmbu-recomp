@@ -164,8 +164,8 @@ std::map<std::string,std::int64_t> scan_lua_mtimes(const fs::path& package){
     for(auto it=fs::recursive_directory_iterator(package,fs::directory_options::skip_permission_denied,ec);it!=fs::recursive_directory_iterator();it.increment(ec)){
         if(ec){ec.clear();continue;}
         const auto& entry=*it;
-        auto rel=fs::relative(entry.path(),package,ec);
-        if(ec||rel.empty()){ec.clear();continue;}
+        auto rel=entry.path().lexically_relative(package);
+        if(rel.empty())continue;
         if(content_folder_name(rel.begin()->string())){
             if(entry.is_directory())it.disable_recursion_pending();
             continue;
@@ -333,6 +333,8 @@ void frame(uint64_t step){
         running=!live.empty();
     }
     bool watch=false;{std::lock_guard guard(mutex);watch=ready&&hot_reload_flag();}
+    static uint64_t next_scan=0;
+    if(watch){if(step<next_scan)watch=false;else next_scan=step+15;}
     if(watch){
         std::vector<std::string> reload_ids;
         for(const auto& id:live_order){

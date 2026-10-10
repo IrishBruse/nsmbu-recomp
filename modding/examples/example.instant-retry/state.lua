@@ -27,7 +27,13 @@ end
 
 function state.save_file()
   if not state.safe then
-    data.remove("softspot.txt")
+    if data.remove then
+      data.remove("softspot.txt")
+    end
+    return
+  end
+  if not data.write then
+    nsmbu.log("data.write is not in nsmbu.data")
     return
   end
   local text = string.format(
@@ -46,6 +52,10 @@ function state.save_file()
 end
 
 function state.load_file()
+  if not data.read then
+    nsmbu.log("data.read is not in nsmbu.data")
+    return
+  end
   local text = data.read("softspot.txt")
   if not text then
     return

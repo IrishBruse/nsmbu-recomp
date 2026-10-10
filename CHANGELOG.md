@@ -10,10 +10,16 @@ At release, move those notes to a version heading and leave Unreleased empty.
     Preference is stored as `hot_reload` in ModManager `profiles.json`.
     Packs with `content_dir` stay restart-required.
 -   **Change**: Lua API has no `nsmbu` global.
-    Mods use `require("nsmbu")` and `require("nsmbu.*")` (guest, level, player, and stub modules for fn/hook/input/data/enemy/boss/blocks/env).
+    Mods use `require("nsmbu")` and `require("nsmbu.*")` (config, guest, level, player, and stub modules for fn/hooks/input/data/enemy/boss/blocks/env).
+-   **Change**: Lua module `nsmbu.hook` is renamed `nsmbu.hooks`, and option reads move from the `nsmbu.config` field to `require("nsmbu.config")`.
+    EmmyLua types for editors are split one file per module in `modding/sdk/`.
 -   **Add**: Lua high-level game helpers `nsmbu.level` and `nsmbu.player` (timer, course coins/score, lives, mode, coins, pos, speed, grounded, speed_y).
     Example `course-assists` uses them instead of raw guest offsets.
     Example `instant-retry` uses `pos` / `grounded` / `mode` instead of placeholder actor offsets.
+-   **Fix**: The hot reload scan no longer runs every logic step and no longer canonicalizes each file path.
+    It checks a few times per second, so enabled Lua packs do not cost frame time.
+-   **Fix**: Lua examples tolerate the stub `nsmbu.data` and `nsmbu.hooks` modules.
+    `example.instant-retry` and `example.play-scene-ticker` log a missing module instead of raising on load.
 -   **Fix**: `release_sdk_package` and the release packager tolerate a missing `tools/recomp/builds` maps directory (USA-only; empty dirs are not in git).
 -   **Change**: Settings overlay opens with `` ` `` or F12 (not F1).
     F1–F5 load save-state slots; Shift+F1–F5 still save.
@@ -30,9 +36,13 @@ At release, move those notes to a version heading and leave Unreleased empty.
     `just launch` / `just run` / `just profile` also pass `--save user/save` (migrating a top-level `save/` once).
     Portable installer releases still use `data/user` and `data/save` (`portable.txt` wins over `NSMBU_USER_DIR`).
     Setup can import from `<repo>/user`.
--   **Add**: `just launch` / `just run` / `just profile` copy `modding/examples` packages into `user/ModManager/Mods/<id>/` before start.
+-   **Change**: Example packages are linked into the dev user dir instead of copied.
+    `just launch` / `just run` / `just profile` point `user/ModManager/Mods` at `modding/examples/`.
+    Example folders are named by package id (`example.*`).
     Skip with `NSMBU_NO_EXAMPLE_MODS=1` or when `NSMBU_MOD_MANAGER_DIR` is set.
+    A non-empty real `Mods` folder keeps the old copy behavior.
 -   **Change**: Example Lua packages and EmmyLua types live under `modding/examples/` and `modding/sdk/` (was `examples/lua-mods/`).
+-   **Change**: EmmyLua types in `modding/sdk/` drop the `.d` suffix (`fn.d.lua` is now `fn.lua`).
 -   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
 -   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
     Wind Waker HD title ids and hashes are removed.

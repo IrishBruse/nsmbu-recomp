@@ -41,7 +41,7 @@ Disable a package and wait for its next game update before updating or removing 
 Lua packages with `content_dir`, and Cemu packs, need a restart after enable, disable, or preset changes.
 Script-only Lua packages (no `content_dir`) load live on enable.
 The Mods tab has a **Hot reload Lua scripts** checkbox.
-When it is on, enabled script-only packs unload and reload when `.lua` files under the package change (one-frame debounce).
+When it is on, enabled script-only packs unload and reload when `.lua` files under the package change (the scan runs about twice per second).
 Packs with `content_dir` ignore this path and still need a restart.
 The preference is the top-level `hot_reload` boolean in `profiles.json` (not per profile).
 Reinstall the same ID while disabled to update; configuration is preserved by ID.
@@ -59,8 +59,8 @@ Explicit startup environment values, including zero, override saved choices at s
 Storage is `<host config directory>/ModManager`: `Mods/<id>/manifest.json` plus package files, and `profiles.json`.
 `NSMBU_MOD_MANAGER_DIR` selects isolated storage.
 `NSMBU_NO_HOST_INPUT` skips user preferences and package storage unless an explicit manager directory is supplied for a test.
-Source `just launch` / `just run` copies `modding/examples/*` into `user/ModManager/Mods/<id>/` first.
-Set `NSMBU_NO_EXAMPLE_MODS=1` to skip that copy.
+Source `just launch` / `just run` links `user/ModManager/Mods` to `modding/examples/` first.
+Set `NSMBU_NO_EXAMPLE_MODS=1` to skip that link.
 Content files are copied locally into manager storage; the original game files are preserved.
 Game assets and saves are never committed, uploaded, or redistributed.
 

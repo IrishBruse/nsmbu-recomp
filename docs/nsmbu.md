@@ -96,9 +96,9 @@ The setup importer can also read `<repo>/user` from a source checkout.
 
 `just run` runs `just build` then `just launch`.
 
-`just launch` / `just run` copy `modding/examples` into `user/ModManager/Mods/<id>/` before start.
+`just launch` / `just run` link `user/ModManager/Mods` to `modding/examples/` before start.
 Enable packages in Mods.
-Set `NSMBU_NO_EXAMPLE_MODS=1` to skip the copy.
+Set `NSMBU_NO_EXAMPLE_MODS=1` to skip the link.
 
 `just run 3` loads save slot 3 after boot.
 The number is the save slot.

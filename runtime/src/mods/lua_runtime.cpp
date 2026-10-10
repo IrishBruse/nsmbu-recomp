@@ -575,13 +575,13 @@ void install_host_modules(lua_State* L, Instance* inst) {
     lua_setfield(L, -2, "path");
     lua_setfield(L, -2, "package");
 
+    set_loaded(L, "nsmbu");
+
     lua_newtable(L);
     bind(L, inst, "string", l_config_string);
     bind(L, inst, "number", l_config_number);
     bind(L, inst, "bool", l_config_bool);
-    lua_setfield(L, -2, "config");
-
-    set_loaded(L, "nsmbu");
+    set_loaded(L, "nsmbu.config");
 
     lua_newtable(L);
     bind_guest(L, "read_u8", guest_read_u8);
@@ -605,7 +605,7 @@ void install_host_modules(lua_State* L, Instance* inst) {
     set_loaded(L, "nsmbu.guest");
 
     set_empty_module(L, "nsmbu.fn");
-    set_empty_module(L, "nsmbu.hook");
+    set_empty_module(L, "nsmbu.hooks");
     set_empty_module(L, "nsmbu.input");
     set_empty_module(L, "nsmbu.data");
     set_empty_module(L, "nsmbu.enemy");

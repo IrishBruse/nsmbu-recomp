@@ -2,11 +2,11 @@
 
 Status: **Phase 2 partial**.
 Lifecycle (`on_logic_step`, `on_config_changed`, `on_unload`, `listen` / `unlisten`), package metadata, log and status, time, config, guest memory, and high-level `nsmbu.level` / `nsmbu.player` helpers are implemented with embedded LuaJIT.
-Hooks (`nsmbu.hook`), `call` / `call_result`, input, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
+Hooks (`nsmbu.hooks`), `call` / `call_result`, input, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
 Package plan: [lua-mods.md](lua-mods.md).
 Cemu packs do not use this API.
 
-EmmyLua types for editors live in [../../modding/sdk/nsmbu.d.lua](../../modding/sdk/nsmbu.d.lua).
+EmmyLua types for editors live in [../../modding/sdk/nsmbu.lua](../../modding/sdk/nsmbu.lua).
 
 There is no `nsmbu` global.
 Mods load host and game APIs with `require`.
@@ -22,12 +22,13 @@ local player = require("nsmbu.player")
 
 | Module | Role | Status |
 | --- | --- | --- |
-| `nsmbu` | Lifecycle fields, listen, log, status, time, config, package | Live |
+| `nsmbu` | Lifecycle fields, listen, log, status, time, package | Live |
+| `nsmbu.config` | Package option reads | Live |
 | `nsmbu.guest` | Guest memory read/write (heap alloc later) | Live (R/W) |
 | `nsmbu.level` | Course timer, course coins, score | Live |
 | `nsmbu.player` | Player handles and iterator | Live |
 | `nsmbu.fn` | Generated function addresses | Proposal (empty table) |
-| `nsmbu.hook` | Hooks, replace, original, call | Proposal (empty table) |
+| `nsmbu.hooks` | Hooks, replace, original, call | Proposal (empty table) |
 | `nsmbu.input` | Pad snapshot and button helpers | Proposal (empty table) |
 | `nsmbu.data` | Per-package data files | Proposal (empty table) |
 | `nsmbu.enemy` / `nsmbu.boss` / `nsmbu.blocks` / `nsmbu.env` | Future game domains | Stub empty tables |
@@ -155,9 +156,10 @@ Values come from the Mods tab.
 They match the manifest `options` entry.
 
 ```lua
-local name = nsmbu.config.string("label", "Coins")
-local every = nsmbu.config.number("poll_every", 30)
-local on = nsmbu.config.bool("enabled", true)
+local config = require("nsmbu.config")
+local name = config.string("label", "Coins")
+local every = config.number("poll_every", 30)
+local on = config.bool("enabled", true)
 ```
 
 | Function | Result |
@@ -341,17 +343,17 @@ Proposal (phase 4).
 ```lua
 local nsmbu = require("nsmbu")
 local fn = require("nsmbu.fn")
-local hook = require("nsmbu.hook")
+local hooks = require("nsmbu.hooks")
 
-local id = hook.hook(fn.dScnPly_Execute, "entry", function(ctx)
+local id = hooks.hook(fn.dScnPly_Execute, "entry", function(ctx)
   nsmbu.log_hex("r3", ctx.r3)
 end)
 
-hook.hook(fn.dScnPly_Execute, "return", function(ctx)
+hooks.hook(fn.dScnPly_Execute, "return", function(ctx)
   ctx.r3 = 0
 end)
 
-hook.unhook(id)
+hooks.unhook(id)
 ```
 
 | Function | Result |
@@ -392,8 +394,8 @@ An entry hook that only reads `ctx` must not set `skip`.
 ### `original`
 
 ```lua
-hook.replace(fn.cLib_addCalc2, function(ctx)
-  hook.original()
+hooks.replace(fn.cLib_addCalc2, function(ctx)
+  hooks.original()
   nsmbu.log_int("result", ctx.r3)
 end)
 ```
@@ -412,7 +414,7 @@ Entry and return hooks cannot call `original`.
 Proposal (phase 4).
 
 ```lua
-local ok, err = hook.call(fn.cLib_addCalc2, {
+local ok, err = hooks.call(fn.cLib_addCalc2, {
   r3 = object,
   f1 = 1.0,
 })
@@ -427,7 +429,7 @@ Read them with a return hook, or with `original` inside a replacement.
 `call` is for a script that wants to invoke a game function from `on_logic_step` or from a hook.
 
 ```lua
-local result = hook.call_result(fn.cLib_addCalc2, { r3 = object, f1 = 1.0 })
+local result = hooks.call_result(fn.cLib_addCalc2, { r3 = object, f1 = 1.0 })
 if result then
   nsmbu.log_int("r3", result.r3)
 end
@@ -563,10 +565,11 @@ A status line from an option and player coins (phase 2):
 
 ```lua
 local nsmbu = require("nsmbu")
+local config = require("nsmbu.config")
 local player = require("nsmbu.player")
 
 function nsmbu.on_logic_step(step)
-  if step % nsmbu.config.number("every", 30) ~= 0 then
+  if step % config.number("every", 30) ~= 0 then
     return
   end
   local p = player(0)
@@ -578,7 +581,7 @@ function nsmbu.on_logic_step(step)
     nsmbu.log(err)
     return
   end
-  nsmbu.status(nsmbu.config.string("label", "Coins") .. ": " .. coins)
+  nsmbu.status(config.string("label", "Coins") .. ": " .. coins)
 end
 ```
 
@@ -587,14 +590,14 @@ Count calls to a play-scene function, then leave the game body unchanged (propos
 ```lua
 local nsmbu = require("nsmbu")
 local fn = require("nsmbu.fn")
-local hook = require("nsmbu.hook")
+local hooks = require("nsmbu.hooks")
 local calls = 0
 
-hook.hook(fn.dScnPly_Execute, "entry", function(ctx)
+hooks.hook(fn.dScnPly_Execute, "entry", function(ctx)
   calls = calls + 1
 end)
 
-hook.hook(fn.dScnPly_Execute, "return", function(ctx)
+hooks.hook(fn.dScnPly_Execute, "return", function(ctx)
   if calls % 60 == 0 then
     nsmbu.log_int("play scene calls", calls)
   end

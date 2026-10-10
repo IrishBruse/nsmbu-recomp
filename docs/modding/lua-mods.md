@@ -120,7 +120,7 @@ Phase 2 covers this table.
 | `on_frame(logic_step)` once per logic step, not per interpolated draw | `require("nsmbu").on_logic_step` |
 | `on_config_changed` | `nsmbu.on_config_changed()` after `require("nsmbu")` |
 | `on_unload` | `nsmbu.on_unload()` |
-| `get_string` / `get_number` / `get_bool` | `nsmbu.config.string` / `number` / `bool` |
+| `get_string` / `get_number` / `get_bool` | `require("nsmbu.config")` reads |
 | `log` and `status` | `nsmbu.log` and `nsmbu.status` |
 | `read_guest` / `write_guest`, big-endian, at most 1 MiB | `require("nsmbu.guest")` typed helpers |
 | Common course reads (timer, coins, score, lives, power-up, pos, speed, grounded) | `require("nsmbu.level")` and `require("nsmbu.player")` |
@@ -162,12 +162,12 @@ Phase 4 proposal (hooks and calls).
 
 | Guest v2 | Lua |
 | --- | --- |
-| Entry hook on a game function | `require("nsmbu.hook").hook(address, "entry", fn)` |
-| Return hook | `hook.hook(address, "return", fn)` |
-| Replace a function | `hook.replace(address, fn)` |
-| Call the original body | `hook.original()` from inside a replacement |
-| Call another game function | `hook.call(address, args)` |
-| Read config at startup | `nsmbu.config.*` (live; no restart for script options) |
+| Entry hook on a game function | `require("nsmbu.hooks").hook(address, "entry", fn)` |
+| Return hook | `hooks.hook(address, "return", fn)` |
+| Replace a function | `hooks.replace(address, fn)` |
+| Call the original body | `hooks.original()` from inside a replacement |
+| Call another game function | `hooks.call(address, args)` |
+| Read config at startup | `require("nsmbu.config")` (live; no restart for script options) |
 | `nsmbu_log` and friends | `nsmbu.log` |
 | Per-mod guest heap | `guest.alloc` / `free`, or a Lua table when the data must not live in guest RAM |
 | `nsmbu_file_read` / `write` under `ModManager/Data/<id>` | `require("nsmbu.data")` |
@@ -186,7 +186,7 @@ Game calls use guest addresses from the public headers (`headers/`, and today `r
 The Lua runtime should ship a generated `require("nsmbu.fn")` table of those names.
 A mod can still pass a raw address.
 USA addresses are the authoring target.
-The European build map in SDK v2 (`tools/recomp/builds`) must still translate hook targets and `hook.call` targets.
+The European build map in SDK v2 (`tools/recomp/builds`) must still translate hook targets and `hooks.call` targets.
 Object field offsets are not translated.
 That limit is the same as in SDK v2.
 
@@ -242,6 +242,7 @@ A real mod uses a named field from the generated address table.
 
 ```lua
 local nsmbu = require("nsmbu")
+local config = require("nsmbu.config")
 local guest = require("nsmbu.guest")
 local fn = require("nsmbu.fn")
 local step = 0
@@ -252,7 +253,7 @@ function nsmbu.on_logic_step(logic_step)
     return
   end
   local coins = guest.read_u32(fn.example_coin_count)
-  local prefix = nsmbu.config.string("label", "Coins")
+  local prefix = config.string("label", "Coins")
   nsmbu.status(prefix .. ": " .. tostring(coins))
 end
 ```
@@ -264,17 +265,17 @@ The body is illustrative.
 It exists only when the header export includes that function.
 
 ```lua
-local hook = require("nsmbu.hook")
+local hooks = require("nsmbu.hooks")
 local fn = require("nsmbu.fn")
 
-hook.replace(fn.cLib_addCalc2, function(ctx)
-  hook.original()
+hooks.replace(fn.cLib_addCalc2, function(ctx)
+  hooks.original()
 end)
 ```
 
 `ctx` holds r3–r10 and f1–f8.
 A return hook sees those registers after the original function.
-A replacement that does not call `hook.original` skips the game body.
+A replacement that does not call `hooks.original` skips the game body.
 The port's own hooks in `hooks*.txt` stay outside this call.
 
 ### Files the package may contain

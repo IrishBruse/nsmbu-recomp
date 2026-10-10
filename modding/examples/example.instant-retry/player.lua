@@ -1,5 +1,5 @@
 local fn = require("nsmbu.fn")
-local hook = require("nsmbu.hook")
+local hooks = require("nsmbu.hooks")
 local api = require("nsmbu.player")
 
 local player = {}
@@ -96,7 +96,7 @@ function player.restore(pose, keep_powerup)
   end
   local clear = need("player_clear_damage")
   if clear then
-    local called, call_err = hook.call(clear, { r3 = actor })
+    local called, call_err = hooks.call(clear, { r3 = actor })
     if not called then
       return nil, call_err
     end
