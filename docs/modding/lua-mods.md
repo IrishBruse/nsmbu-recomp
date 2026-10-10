@@ -3,7 +3,7 @@
 Status: **proposal**.
 Nothing in this document is implemented.
 Cemu graphics packs stay.
-This proposal retires [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and Native SDK v1.
+This proposal retires [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and [native-sdk-v1.md](../deprecated/native-sdk-v1.md).
 It also retires `kind: content` as its own package kind.
 
 The player-facing manager stays.
@@ -22,7 +22,7 @@ Delete the other package kinds except `cemu`.
 | `native` (SDK v1, `dlopen` of a host library) | Removed. Lua covers the same jobs. |
 | `guest` (SDK v2, PowerPC ELF, install-time translation) | Removed. Lua covers hooks and calls. |
 | `content` (SDCafiine-style file replacement) | Removed as a kind. A Lua package can still ship a `content/` tree. |
-| `settings` | Already rejected. Stays rejected. |
+| `settings` | Removed. Stays rejected. |
 | `cemu` | Unchanged. |
 
 One package is one folder or one `.nsmbumod` zip.
@@ -44,7 +44,7 @@ The player must confirm the library hash before it loads.
 A mod author who wants Linux, Windows, and macOS must ship three binaries.
 The API cannot hook a game function.
 
-Guest v2 ([mod-sdk-v2.md](../deprecated/mod-sdk-v2.md)) is a prototype.
+Guest v2 ([mod-sdk-v2.md](../deprecated/mod-sdk-v2.md)) is a removed archive.
 The author writes C for 32-bit big-endian PowerPC.
 The package is one ELF on every OS.
 At startup the port translates that ELF to C and compiles it with the local toolchain.
@@ -84,7 +84,7 @@ A Lua mod must not become a second shader compiler.
 
 Do not fold Cemu into Lua.
 
-Keep these behaviours as they are in [mod-manager.md](mod-manager.md):
+Keep these behaviours as they are in [mod-manager.md](mod-manager.md) and [content.md](content.md):
 
 - `kind: cemu` and `cemu_dir`.
 - `rules.txt` versions 4 and 5.
@@ -136,7 +136,7 @@ The runtime drops the library-unload problem because there is no host library.
 A content-only Lua package has a manifest and a `content/` tree.
 It has no script.
 The loader only registers files.
-Language-pack behaviour in [mod-manager.md](mod-manager.md) stays.
+Language-pack behaviour in [content.md](content.md) stays.
 The package kind name in the UI changes from content to Lua.
 
 `docs/language-packs.md` is a different feature.
@@ -417,7 +417,7 @@ This document is the reason to stop extending either path.
 | --- | --- |
 | `docs/deprecated/mod-sdk-v2.md` | Kept as a historical archive only. Do not use it as the modder guide. |
 | `docs/deprecated/native-sdk-v1.md` | Kept as a historical archive only. Do not use it as the modder guide. |
-| `docs/modding/mod-manager.md` | Keep. Point native readers at the archive above. |
+| `docs/modding/mod-manager.md` | Keep. Live kinds are split into [content.md](content.md) and [cemu.md](cemu.md). |
 | `examples/guest-mods/` | Removed. Packages are in `examples/lua-mods/`. |
 | `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Mark the Mod SDK v2 and Native SDK v1 bullets as historical. Do not treat them as the NSMBU mod plan. |
 

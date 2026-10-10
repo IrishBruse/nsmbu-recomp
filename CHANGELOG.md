@@ -7,6 +7,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 -   **Remove**: Guest Mod SDK v2 and Native SDK v1 are gone (`examples/guest-mods/`, `tools/guestmod/`, the runtime guest loader, `code_mods`, `--mod-hooks` emission, the `guestmods` CI workflow, and the Native SDK v1 C ABI path).
     The mod manager rejects guest and native packages.
+-   **Docs**: Live modding docs live under `docs/modding/` (manager, content, cemu, Lua proposal).
+    SDK v1/v2 archives stay in `docs/deprecated/`.
+-   **Remove**: `kind: settings` packages and the built-in settings manager stub are gone.
 -   **Fix**: The overworld path seam is fixed.
 
 ## 0.2.0

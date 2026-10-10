@@ -2,7 +2,7 @@
 
 Fan translations into right-to-left languages work as plain content mods: install the
 translation's language pack (`permanent_2d_*.pack`, and its title logo if it has one) with the
-mod manager (docs/modding/mod-manager.md, "Fan translations"), enable it and restart. A Cemu code patch
+mod manager ([content packages](modding/content.md), fan translations), enable it and restart. A Cemu code patch
 that ships with such a translation is not needed and not used: the port shapes and orders the
 text itself.
 

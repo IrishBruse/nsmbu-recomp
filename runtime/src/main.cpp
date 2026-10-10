@@ -33,7 +33,6 @@
 #include "crashrec.h"
 #include "crash_context.h"
 #include "input.h"
-#include "mods/manager.h"
 #include "mods/mods.h"
 #include "mods/packages.h"
 #include "runtime.h"
@@ -372,7 +371,6 @@ int main(int argc, char** argv) {
         return result;
     }
 #endif
-    mods::manager::load_saved();
     mods::cemu::set_vulkan(render::requested()==render::Api::Vulkan);
     mods::content::set_game_root(config::game_dir);
     mods::packages::initialize();

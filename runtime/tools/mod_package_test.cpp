@@ -116,16 +116,15 @@ int main(int argc, char** argv) {
     std::ofstream(rejected/"manifest.json")<<R"({"format_version":1,"id":"rejected","name":"Rejected","version":"1.0.0","game_id":"nsmbu-usa","kind":"cemu","cemu_dir":"","dependencies":[{"id":"builtin:direct-camera"}]})";
     assert(!install(rejected.string(),error));
     assert(error.find("Unknown built-in mod: builtin:direct-camera")!=std::string::npos);
-    for(const char* kind:{"native","guest"}){
+    for(const auto& [kind,message]:std::initializer_list<std::pair<const char*,const char*>>{
+            {"native","Native mods are not supported"},
+            {"guest","Guest mods are not supported"},
+            {"settings","Settings mods are not supported"}}){
         auto rejected_kind=root/(std::string("rejected-")+kind);fs::create_directories(rejected_kind);
         std::ofstream(rejected_kind/"manifest.json")<<"{\"format_version\":1,\"id\":\"rejected-"<<kind<<"\",\"name\":\"Rejected\",\"version\":\"1.0.0\",\"game_id\":\"nsmbu-usa\",\"kind\":\""<<kind<<"\"}";
         assert(!install(rejected_kind.string(),error));
-        assert(error.find(kind==std::string("native")?"Native mods are not supported":"Guest mods are not supported")!=std::string::npos);
+        assert(error.find(message)!=std::string::npos);
     }
-    auto settings=root/"settings-preset";fs::create_directories(settings);
-    std::ofstream(settings/"manifest.json")<<R"({"format_version":1,"id":"settings-preset","name":"Settings","version":"1.0.0","game_id":"nsmbu-usa","kind":"settings","settings":{"wall-climb":true}})";
-    assert(!install(settings.string(),error));
-    assert(error.find("wall-climb")!=std::string::npos);
     assert(install(content_package("climb-preset"),error));
     assert(list().size()==1 && list()[0].id=="climb-preset");
     assert(list()[0].kind=="content" && list()[0].restart_required);
@@ -212,5 +211,5 @@ int main(int argc, char** argv) {
     auto duplicate=root/"Duplicate";fs::create_directories(duplicate/"content"/"Object");fs::create_directories(duplicate/"content"/"object");
     std::ofstream(duplicate/"content"/"Object"/"A.bin")<<"fixture";std::ofstream(duplicate/"content"/"object"/"a.bin")<<"fixture";
     if(std::distance(fs::directory_iterator(duplicate/"content"),fs::directory_iterator{})==2)assert(!install(duplicate.string(),error));
-    std::cout << "Package install, settings, profiles, dependencies, content and cemu lifecycle passed\n";
+    std::cout << "Package install, profiles, dependencies, content and cemu lifecycle passed\n";
 }
