@@ -21,7 +21,7 @@ static int failures = 0;
 
 static State sample() {
     State s;
-    s.title_id = "0005000010143500";
+    s.title_id = "0005000010101d00";
     s.title_version = 0;
     s.game_hash = "0123456789abcdef";
     s.runtime = "v0.2.6 (abc1234)";

@@ -124,8 +124,8 @@ def all_builds():
 
 _CANONICAL = {
     "name": CANONICAL,
-    "title_id": "0005000010143500",
-    "rpx_sha256": "c4f0ab300542e0bfc462696850534e71db2ad02288a7eb55e5a4cd4062f16153",
+    "title_id": "0005000010101d00",
+    "rpx_sha256": "ebd147ce4cdedb563db3ac6278186ca5dea282ad315271925b8bb5ac16c7dc8e",
 }
 
 def canonical_build():

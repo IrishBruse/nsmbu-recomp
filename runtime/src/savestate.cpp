@@ -692,7 +692,7 @@ std::string meta_value(const char* key) {
     if (p == std::string::npos || e == std::string::npos) return "";
     return meta.substr(p + 1, e - p - 1);
 }
-std::string title_id() { std::string t = meta_value("title_id"); return t.empty() ? "0005000010143500" : t; }
+std::string title_id() { std::string t = meta_value("title_id"); return t.empty() ? "0005000010101d00" : t; }
 
 std::string hex64(uint64_t v) { char b[20]; snprintf(b, sizeof b, "%016llx", (unsigned long long)v); return b; }
 

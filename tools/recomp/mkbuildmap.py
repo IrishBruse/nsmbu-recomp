@@ -2,7 +2,7 @@
 """Derive (and check) the address map between two regional builds of the game.
 
 usage:
-  mkbuildmap.py CANONICAL.rpx OTHER.rpx --name EU --title 0005000010143600 [--out FILE]
+  mkbuildmap.py CANONICAL.rpx OTHER.rpx --name EU --title 0005000010101e00 [--out FILE]
   mkbuildmap.py --check FILE [CANONICAL.rpx OTHER.rpx]
 
 Every game address in this repository (tools/recomp/hooks*.txt, runtime/src, the docs) is an
@@ -222,7 +222,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("rpx", nargs="*", help="the canonical (USA) cking.rpx and the other build's")
     ap.add_argument("--name", help="short name of the other build, e.g. EU")
-    ap.add_argument("--title", help="its title id, e.g. 0005000010143600")
+    ap.add_argument("--title", help="its title id, e.g. 0005000010101e00")
     ap.add_argument("--canonical-name", default="USA")
     ap.add_argument("--out", help="where to write the map (default: stdout)")
     ap.add_argument("--check", help="re-derive the map in this file and compare")

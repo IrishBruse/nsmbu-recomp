@@ -430,7 +430,7 @@ if(Python3_Interpreter_FOUND)
   add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/guest_map_fixture.c"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/recomp/write_map_fixture.py"
       "${CMAKE_BINARY_DIR}/guest_map_fixture.c"
-    DEPENDS tools/recomp/write_map_fixture.py tools/recomp/builds.py tools/recomp/builds/eu.json tools/recomp/recomp.py)
+    DEPENDS tools/recomp/write_map_fixture.py tools/recomp/builds.py tools/recomp/recomp.py)
   add_executable(guest_addr_test runtime/tools/guest_addr_test.cpp "${CMAKE_BINARY_DIR}/guest_map_fixture.c")
   target_include_directories(guest_addr_test PRIVATE runtime/include)
   target_compile_options(guest_addr_test PRIVATE -UNDEBUG)

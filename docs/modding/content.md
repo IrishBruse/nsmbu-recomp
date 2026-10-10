@@ -28,7 +28,7 @@ The importer accepts:
 - a single-pack SDCafiine layout
 - file-only Cemu packs with Definition metadata
 
-Explicit SDCafiine and Cemu title IDs must include NSMBU USA `0005000010143500`.
+Explicit SDCafiine and Cemu title IDs must include NSMBU USA `0005000010101d00`.
 ZIP wrappers are accepted if they contain exactly one content directory.
 Multiple packs require selecting or extracting one pack first.
 

@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
         auto root=fs::temp_directory_path()/("nsmbu-cemu-startup-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         auto storage=root/"storage",pack=storage/"Mods"/"cemu.test";fs::create_directories(pack);
         std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"cemu.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"cemu","cemu_dir":""})";
-        std::ofstream(pack/"rules.txt")<<"[Definition]\nname=Test\ntitleIds=0005000010143500\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n";
+        std::ofstream(pack/"rules.txt")<<"[Definition]\nname=Test\ntitleIds=0005000010101d00\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n";
         std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true},"config":{"cemu.test":{"preset-0":"Double"}}}}})";
         if(backend){
             std::ofstream(pack/"0000000000000001_0000000000000002_ps.txt")<<"#version 420\nvoid main(){}\n";
@@ -228,14 +228,14 @@ int main(int argc, char** argv) {
     };
     auto cemu_package=[&](const char* id, const char* extra) {
         auto path=root/id;fs::create_directories(path);
-        std::ofstream(path/"rules.txt")<<("[Definition]\nname="+std::string(id)+"\ntitleIds=0005000010143500\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n");
+        std::ofstream(path/"rules.txt")<<("[Definition]\nname="+std::string(id)+"\ntitleIds=0005000010101d00\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n");
         std::ofstream(path/"manifest.json") << "{\"format_version\":1,\"id\":\"" << id
           << "\",\"name\":\"" << id << "\",\"version\":\"1.0.0\",\"game_id\":\"nsmbu-usa\","
           << "\"kind\":\"cemu\",\"cemu_dir\":\"\"" << extra << "}";
         return path.string();
     };
     auto rejected=root/"rejected";fs::create_directories(rejected);
-    std::ofstream(rejected/"rules.txt")<<"[Definition]\nname=Rejected\ntitleIds=0005000010143500\nversion=4\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280\n";
+    std::ofstream(rejected/"rules.txt")<<"[Definition]\nname=Rejected\ntitleIds=0005000010101d00\nversion=4\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280\n";
     std::ofstream(rejected/"manifest.json")<<R"({"format_version":1,"id":"rejected","name":"Rejected","version":"1.0.0","game_id":"nsmbu-usa","kind":"cemu","cemu_dir":"","dependencies":[{"id":"builtin:direct-camera"}]})";
     assert(!install(rejected.string(),error));
     assert(error.find("Unknown built-in mod: builtin:direct-camera")!=std::string::npos);
@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
     assert(remove("plain",error));
     assert(list().empty());
     auto graphics=root/"CemuResolution";fs::create_directories(graphics);
-    std::ofstream(graphics/"rules.txt")<<"[Definition]\nname=Resolution\ntitleIds=0005000010143500\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\noverwriteHeight=720*$scale\n";
+    std::ofstream(graphics/"rules.txt")<<"[Definition]\nname=Resolution\ntitleIds=0005000010101d00\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\noverwriteHeight=720*$scale\n";
     assert(install(graphics.string(),error));auto graphicsView=list().at(0);
     assert(graphicsView.kind=="cemu"&&graphicsView.restart_required&&graphicsView.options.size()==1);
     assert(configure(graphicsView.id,"preset-0","Double",error));
@@ -327,10 +327,10 @@ int main(int argc, char** argv) {
     assert(install((translation/"content").string(),error));assert(list().at(0).id=="content.fantranslation");assert(remove(list().at(0).id,error));
     mods::content::set_game_root({});
     auto invalid=root/"CodeMod";fs::create_directories(invalid/"content");std::ofstream(invalid/"content"/"dummy")<<"fixture";std::ofstream(invalid/"patches.txt")<<"code";assert(!install(invalid.string(),error));
-    fs::remove(invalid/"patches.txt");fs::create_directories(invalid/"graphicPacks"/"Patch");std::ofstream(invalid/"graphicPacks"/"Patch"/"rules.txt")<<"[Definition]\ntitleIds = 0005000010143500\n";
+    fs::remove(invalid/"patches.txt");fs::create_directories(invalid/"graphicPacks"/"Patch");std::ofstream(invalid/"graphicPacks"/"Patch"/"rules.txt")<<"[Definition]\ntitleIds = 0005000010101d00\n";
     std::ofstream(invalid/"graphicPacks"/"Patch"/"patch_code.asm")<<"[Code]\nmoduleMatches = 0x475BD29F\n";assert(!install(invalid.string(),error));assert(error.find("code patch")!=std::string::npos);
-    fs::remove_all(invalid/"graphicPacks");std::ofstream(invalid/"rules.txt")<<"[Definition]\ntitleIds = 0005000010143600\n";assert(!install(invalid.string(),error));
-    std::ofstream(invalid/"rules.txt",std::ios::trunc)<<"[Definition]\ntitleIds = 0005000010143500\n[TextureRedefine]\n";assert(!install(invalid.string(),error));
+    fs::remove_all(invalid/"graphicPacks");std::ofstream(invalid/"rules.txt")<<"[Definition]\ntitleIds = 0005000010101e00\n";assert(!install(invalid.string(),error));
+    std::ofstream(invalid/"rules.txt",std::ios::trunc)<<"[Definition]\ntitleIds = 0005000010101d00\n[TextureRedefine]\n";assert(!install(invalid.string(),error));
     fs::remove(invalid/"rules.txt");std::ofstream(invalid/"content"/".deleted_dummy")<<"";assert(!install(invalid.string(),error));
     auto duplicate=root/"Duplicate";fs::create_directories(duplicate/"content"/"Object");fs::create_directories(duplicate/"content"/"object");
     std::ofstream(duplicate/"content"/"Object"/"A.bin")<<"fixture";std::ofstream(duplicate/"content"/"object"/"a.bin")<<"fixture";

@@ -94,7 +94,7 @@ Keep these behaviours as they are in [mod-manager.md](mod-manager.md) and [conte
 
 - `kind: cemu` and `cemu_dir`.
 - `rules.txt` versions 4 and 5.
-- USA title id `0005000010143500`.
+- USA title id `0005000010101d00`.
 - Preset categories as dropdowns.
 - Width, height, depth, format filters, and `overwriteWidth` / `overwriteHeight`.
 - GLSL shader replacement on Vulkan, including hash-named `vs` / `ps` files.

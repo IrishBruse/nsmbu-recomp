@@ -5,7 +5,7 @@ import builds
 from recomp import Recompiler
 
 compiler = Recompiler.__new__(Recompiler)
-compiler.build = builds.by_name("EU")
+compiler.build = builds.canonical_build()
 with open(sys.argv[1], "w", encoding="utf-8") as output:
     output.write('#include "guest_addr.h"\n')
     compiler.write_build_map(output)

@@ -1,6 +1,6 @@
 # Language sources (experimental)
 
-A language source is for a port built from the **USA** game (title 00050000-10143500, version 0),
+A language source is for a port built from the **USA** game (title 00050000-10101d00, title version 64),
 which has English, French and Spanish. It adds the languages of a European or Japanese copy of the
 game that you also own: German, Italian, British English, European French and Spanish, or Japanese.
 The game is still built from and runs the USA code; only the text, the fonts and the localised 2D
@@ -18,7 +18,7 @@ layouts are taken from the second game.
 ## Use
 
 You need the USA game (installed as usual) **and** your own dump of the European
-(00050000-10143600) or Japanese (00050000-10143400) game: a `.wux`/`.wud` image with its disc
+(00050000-10101e00) or Japanese (00050000-10101c00) game: a `.wux`/`.wud` image with its disc
 key, a Cemu `.wua` archive or an extracted folder.
 
 ```
@@ -102,7 +102,7 @@ folder).
 
 ## Results with the European game
 
-Tested with the European disc (00050000-10143600, v0; `setup.py --language-source` with the `.wux`
+Tested with the European disc (00050000-10101e00, v0; `setup.py --language-source` with the `.wux`
 and its key; 57 MB taken, five packs):
 
 * **Files**: the European disc differs from the USA disc only in the five 2D packs, the audio folder
