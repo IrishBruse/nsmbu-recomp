@@ -1,27 +1,31 @@
 # Lua mods: replace native, guest, and content packages
 
-Status: **proposal**.
-Nothing in this document is implemented.
+Status: **Phase 2 implemented**.
+The runtime embeds LuaJIT and loads `kind: lua` packages.
+Logic-step callbacks, config, log, status, and guest memory work now.
+See [api.md](api.md) for the live surface and for APIs that are still proposal.
+
+Later phases stay proposal: `content_dir` on Lua packages, hooks and `nsmbu.call`, and removal of `kind: content`.
 Cemu graphics packs stay.
-This proposal retires [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and [native-sdk-v1.md](../deprecated/native-sdk-v1.md).
-It also retires `kind: content` as its own package kind.
+This plan retires [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and [native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+It also retires `kind: content` as its own package kind (not done yet).
 
 The player-facing manager stays.
 The file-replacement behaviour that content packages use today stays inside the engine.
-Lua packages become the only way to turn that behaviour on, apart from Cemu packs.
+Lua packages become the only way to turn that behaviour on, apart from Cemu packs, after phase 3.
 
-The proposed script surface is [api.md](api.md).
+The script surface is [api.md](api.md).
 
 ## Decision
 
 Ship one scripting package kind, `lua`.
 Delete the other package kinds except `cemu`.
 
-| Package kind today | After this proposal |
+| Package kind today | Target |
 | --- | --- |
-| `native` (SDK v1, `dlopen` of a host library) | Removed. Lua covers the same jobs. |
-| `guest` (SDK v2, PowerPC ELF, install-time translation) | Removed. Lua covers hooks and calls. |
-| `content` (SDCafiine-style file replacement) | Removed as a kind. A Lua package can still ship a `content/` tree. |
+| `native` (SDK v1, `dlopen` of a host library) | Removed. Lua covers the same jobs (phase 2 logic-step path). |
+| `guest` (SDK v2, PowerPC ELF, install-time translation) | Removed. Lua covers hooks and calls (phase 4). |
+| `content` (SDCafiine-style file replacement) | Removed as a kind (phase 3). A Lua package can still ship a `content/` tree. |
 | `settings` | Removed. Stays rejected. |
 | `cemu` | Unchanged. |
 
@@ -107,6 +111,8 @@ Cemu jobs are out of scope.
 
 ### From native v1
 
+Phase 2 covers this table.
+
 | Native v1 | Lua |
 | --- | --- |
 | `on_frame(logic_step)` once per logic step, not per interpolated draw | `nsmbu.on_logic_step(logic_step)` |
@@ -122,6 +128,9 @@ Callbacks must not start worker threads that touch guest memory.
 The runtime drops the library-unload problem because there is no host library.
 
 ### From content packages
+
+Phase 3 proposal.
+`kind: content` stays live until then.
 
 | Content package | Lua package |
 | --- | --- |
@@ -145,6 +154,8 @@ That setup path is not a mod package.
 Leave it alone.
 
 ### From guest SDK v2
+
+Phase 4 proposal (hooks and calls).
 
 | Guest v2 | Lua |
 | --- | --- |
@@ -204,11 +215,15 @@ That limit is the same as in SDK v2.
 }
 ```
 
+Phase 2 accepts `kind: lua` with a script entry.
+`content_dir` on a Lua package is phase 3.
+Until then, file replacement stays on `kind: content`.
 `format_version` becomes 2 when `kind: lua` is the only non-Cemu kind.
-A version 1 manifest with `native`, `guest`, or `content` fails install with a message that names this document.
-`lua.entry` is optional when `content_dir` is set.
+A version 1 manifest with `native` or `guest` fails install with a message that names this document.
+After phase 3, `content` fails the same way.
+`lua.entry` is optional when `content_dir` is set (phase 3).
 `content_dir` is optional when `lua.entry` is set.
-At least one of them is required.
+At least one of them is required once phase 3 lands.
 `abi_version` and `binaries` are not valid on a Lua package.
 `guest` is not valid.
 
@@ -267,10 +282,8 @@ Reject `code/`, `meta/`, and DLC trees inside `content/`, as the content importe
 
 ## Runtime shape
 
-Embed one interpreter in the `nsmbu` executable.
-Prefer Lua 5.4 or Luau.
-Both use the MIT license.
-Luau is the better default if the sandbox must be strict.
+The `nsmbu` executable embeds LuaJIT (MIT license).
+LuaJIT is 5.1-based.
 Do not load a Lua shared library from the mod folder.
 
 Each enabled Lua package gets its own state.
@@ -374,8 +387,11 @@ Everything else is absent, including `io`, `os`, `package.loadlib`, `debug`, and
 | Allowed | Purpose |
 | --- | --- |
 | `nsmbu.*` | The API in this document. |
-| `string`, `table`, `math`, `utf8` | Language basics. |
+| `string`, `table`, `math` | Language basics. |
 | `require` | Other `.lua` files in the same package. |
+
+`utf8` is deferred.
+LuaJIT does not ship the Lua 5.3+ `utf8` library.
 
 Guest writes can still change the game.
 That is the point of a gameplay mod.
@@ -493,11 +509,23 @@ One scripted play run (see `AGENTS.md`) should enable a tiny Lua status mod from
 
 ## Phases
 
-1. **API freeze.** Accept this document. Stop new guest-mod features and new native ABI fields.
-2. **Interpreter and `kind: lua`.** Implement logic-step, config, log, status, and guest memory. Keep content kinds working until phase 3.
-3. **Content moves.** Allow `content_dir` on Lua packages. Point the importer at `kind: lua`. Keep `kind: content` as a read-only alias for one release, then reject it.
-4. **Hooks and `nsmbu.call`.** Turn hook flags on in the default build. Delete the code-mod rebuild flow.
-5. **Removal.** Finish any leftover cleanup in the tables above. Bump the manager so v1 code packages fail closed.
+1. **API freeze.** Done.
+   Accept this document.
+   Stop new guest-mod features and new native ABI fields.
+2. **Interpreter and `kind: lua`.** Done.
+   Embedded LuaJIT.
+   Logic-step, config, log, status, and guest memory.
+   Keep content kinds working until phase 3.
+3. **Content moves.** Proposal.
+   Allow `content_dir` on Lua packages.
+   Point the importer at `kind: lua`.
+   Keep `kind: content` as a read-only alias for one release, then reject it.
+4. **Hooks and `nsmbu.call`.** Proposal.
+   Turn hook flags on in the default build.
+   Delete the code-mod rebuild flow.
+5. **Removal.** Proposal.
+   Finish any leftover cleanup in the tables above.
+   Bump the manager so v1 code packages fail closed.
 
 Native SDK v1 and Guest SDK v2 code are already removed.
 Phase 3 is enough to replace content packages.
@@ -519,13 +547,17 @@ Do not ship Lua hooks without a hook test.
 
 ## Open decisions
 
-- Lua 5.4 or Luau.
+- Interpreter: **LuaJIT** (not Luau or Lua 5.4).
+  Settled for phase 2.
 - Whether `format_version` 2 is required, or `kind: lua` is enough on version 1.
 - Whether content-only packages show as "Lua" or as "Files" in the Mods list while the manifest kind stays `lua`.
 - Whether `nsmbu.guest.alloc` is in the first hook release or a later one.
 - Whether button injection exists at all.
-- Named parameters on hooks, taken from header signatures. API v1 uses registers only. See [api.md](api.md).
+- Named parameters on hooks, taken from header signatures.
+  API v1 uses registers only.
+  See [api.md](api.md).
 - How long v1 manifests remain installable as errors versus a hard parser break.
+- When to expose `utf8` (deferred while the host is LuaJIT 5.1-based).
 
 ## Prior art
 
@@ -537,14 +569,15 @@ Do not copy their code without a license review.
 | [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and N64Recomp | Hook versus replace, one replacement, many hooks, port hooks stay outside, config schema, dependency order. Drop the MIPS/PPC ELF and the JIT. |
 | Zelda64Recomp mod manager | Install, enable, and options in a menu. Already the model for [mod-manager.md](mod-manager.md). |
 | SM64coopDX / other Lua game mods | A small `hook` table and per-mod script files. Their APIs are game-specific. |
-| Luau | A locked standard library for untrusted scripts. |
+| Luau | A locked standard library for untrusted scripts (not chosen; host is LuaJIT). |
 
-## Current code this proposal talks about
+## Current code this plan talks about
 
 | Topic | Location |
 | --- | --- |
 | Native ABI | Removed (`runtime/include/nsmbu_mod.h`) |
 | Load, kinds, trust, frame tick | `runtime/src/mods/packages.cpp` |
+| LuaJIT embed and `kind: lua` (phase 2) | Runtime Lua package path (embedded LuaJIT under `runtime/third_party/luajit/`) |
 | File replacement | `runtime/src/mods/content.cpp` |
 | Cemu (keep) | `runtime/src/mods/cemu_pack.cpp` |
 | Guest hooks | Removed (`runtime/src/mods/guest_mods.cpp`) |

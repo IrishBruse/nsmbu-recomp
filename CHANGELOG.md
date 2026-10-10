@@ -5,11 +5,14 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Add**: Lua mod packages (`kind: lua`) with embedded LuaJIT, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
+    The mod manager (1.3.0) accepts format 1 or 2, scans for forbidden binaries/shaders, and loads Lua packages live each logic step.
+    Package tests cover load, options, fault isolation, sandbox require, and guest memory (`mod_package_test --lua`).
 -   **Docs**: The README records the last ZeldaWWHDRecomp merge commit.
     The upstream-merge skill updates that note.
 -   **Remove**: Guest Mod SDK v2 and Native SDK v1 are gone (`examples/guest-mods/`, `tools/guestmod/`, the runtime guest loader, `code_mods`, `--mod-hooks` emission, the `guestmods` CI workflow, and the Native SDK v1 C ABI path).
     The mod manager rejects guest and native packages.
--   **Docs**: Live modding docs live under `docs/modding/` (manager, content, cemu, Lua proposal).
+-   **Docs**: Live modding docs live under `docs/modding/` (manager, content, cemu, Lua phase 2).
     SDK v1/v2 archives stay in `docs/deprecated/`.
 -   **Remove**: `kind: settings` packages and the built-in settings manager stub are gone.
 -   **Fix**: The overworld path seam is fixed.

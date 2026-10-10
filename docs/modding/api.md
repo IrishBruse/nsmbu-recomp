@@ -1,8 +1,9 @@
-# Proposed Lua API (version 1)
+# Lua API (version 1)
 
-Status: **proposal**.
-The functions below are not implemented.
-They belong to the package plan in [lua-mods.md](lua-mods.md).
+Status: **Phase 2 partial**.
+Lifecycle (`on_logic_step`, `on_config_changed`, `on_unload`, `listen` / `unlisten`), package metadata, log and status, time, config, and guest memory are implemented with embedded LuaJIT.
+Hooks, `nsmbu.call` / `call_result`, input, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
+Package plan: [lua-mods.md](lua-mods.md).
 Cemu packs do not use this API.
 
 EmmyLua types for editors live in [../../examples/lua-mods/sdk/nsmbu.d.lua](../../examples/lua-mods/sdk/nsmbu.d.lua).
@@ -26,6 +27,8 @@ Each package has its own Lua state, so one package cannot replace another packag
 - Do not keep a guest pointer across frames unless you allocated it with `nsmbu.guest.alloc`.
 
 ## Lifecycle
+
+Implemented in phase 2.
 
 Assign these fields, or leave them unset.
 The runtime reads the field on each event.
@@ -73,6 +76,8 @@ Listeners inside one package run in registration order.
 
 ## Package
 
+Implemented in phase 2.
+
 `nsmbu.package` is read-only.
 
 | Field | Type | Meaning |
@@ -85,6 +90,8 @@ Do not write these fields.
 The next host call replaces the table if a script overwrites it.
 
 ## Log and status
+
+Implemented in phase 2.
 
 ```lua
 nsmbu.log("ready")
@@ -107,6 +114,8 @@ A bad type returns `nil` and a message.
 
 ## Time
 
+Implemented in phase 2.
+
 ```lua
 local step = nsmbu.logic_step()
 local seconds = nsmbu.logic_dt()
@@ -118,6 +127,8 @@ local seconds = nsmbu.logic_dt()
 | `logic_dt()` | Length of the current logic step in seconds. True 60 scaling is included. |
 
 ## Config
+
+Implemented in phase 2.
 
 Values come from the Mods tab.
 They match the manifest `options` entry.
@@ -140,10 +151,13 @@ A wrong `fallback` type returns `nil` and a message.
 
 Option edits are visible on the next `config.*` call.
 They also run `on_config_changed`.
-A package with `content_dir` still restarts before new files apply.
+A package with `content_dir` still restarts before new files apply (phase 3).
 The script options themselves do not wait for that restart.
 
 ## Guest memory
+
+Implemented in phase 2 (reads and writes).
+Guest heap alloc is still proposal.
 
 Reads and writes cover MEM1, MEM2, and the foreground bucket.
 An address outside those ranges returns `nil` and `"address out of range"`.
@@ -180,6 +194,8 @@ A partial object that crosses a valid region boundary fails the whole call.
 
 ### Guest heap
 
+Proposal (not in phase 2).
+
 Use this only when game code must hold a pointer to bytes you own.
 Lua tables do not need it.
 
@@ -204,6 +220,8 @@ Save states store it with that package id when this function exists.
 
 ## Function addresses
 
+Proposal (phase 4 with hooks).
+
 `nsmbu.fn` is a generated table.
 Keys are public function names from the USA headers.
 Values are integer addresses for the running build.
@@ -222,6 +240,8 @@ There is no guest address for a Lua function.
 The game cannot call a Lua function through a function pointer.
 
 ## Hooks
+
+Proposal (phase 4).
 
 ```lua
 local id = nsmbu.hook(nsmbu.fn.dScnPly_Execute, "entry", function(ctx)
@@ -290,6 +310,8 @@ Entry and return hooks cannot call `original`.
 
 ## Calls
 
+Proposal (phase 4).
+
 ```lua
 local ok, err = nsmbu.call(nsmbu.fn.cLib_addCalc2, {
   r3 = object,
@@ -324,6 +346,8 @@ Do not use `call` on a function that runs thousands of times per frame.
 Replace that function instead.
 
 ## Input
+
+Proposal.
 
 ```lua
 local pad = nsmbu.input()
@@ -379,6 +403,8 @@ It does not rumble the pad.
 
 ## Data files
 
+Proposal.
+
 Files live in `ModManager/Data/<package id>/`.
 The name is one path segment.
 `/`, `\`, `..`, and an empty name fail.
@@ -401,6 +427,8 @@ nsmbu.data.remove("counter.txt")
 
 ## Content files
 
+Proposal (phase 3).
+
 Scripts do not register file replacements.
 Put files under `content_dir` in the manifest.
 The map is fixed until the next process start.
@@ -412,7 +440,7 @@ There is no `nsmbu.content` table in API v1.
 
 | Available | Absent |
 | --- | --- |
-| `string`, `table`, `math`, `utf8`, `coroutine` | `io`, `os`, `debug`, `package.loadlib`, FFI |
+| `string`, `table`, `math`, `coroutine` | `io`, `os`, `debug`, `package.loadlib`, FFI, `utf8` (deferred; LuaJIT is 5.1-based) |
 | `require` of another `.lua` file in this package | `require` of a path with `..` or an absolute path |
 | `nsmbu` as described here | A native library, a PowerPC ELF, a Cemu `rules.txt` |
 
@@ -422,14 +450,14 @@ Prefer no coroutines in hooks.
 
 ## Examples
 
-A status line from an option and a guest word:
+A status line from an option and a guest word (phase 2):
 
 ```lua
 function nsmbu.on_logic_step(step)
   if step % nsmbu.config.number("every", 30) ~= 0 then
     return
   end
-  local coins, err = nsmbu.guest.read_u32(nsmbu.fn.example_coin_count)
+  local coins, err = nsmbu.guest.read_u32(0x105E2C80)
   if not coins then
     nsmbu.log(err)
     return
@@ -438,7 +466,7 @@ function nsmbu.on_logic_step(step)
 end
 ```
 
-Count calls to a play-scene function, then leave the game body unchanged:
+Count calls to a play-scene function, then leave the game body unchanged (proposal until phase 4):
 
 ```lua
 local calls = 0
@@ -454,7 +482,7 @@ nsmbu.hook(nsmbu.fn.dScnPly_Execute, "return", function(ctx)
 end)
 ```
 
-Save a counter beside the package:
+Save a counter beside the package (proposal until data files land):
 
 ```lua
 function nsmbu.on_unload()
@@ -472,6 +500,7 @@ end
 - Loading a `.so`, `.dll`, or `.dylib`.
 - Shader or resolution overrides. Those stay in Cemu packages.
 - Named C parameters generated from header signatures. Hooks use registers.
+- The `utf8` standard library (deferred on LuaJIT).
 
 ## Errors
 
