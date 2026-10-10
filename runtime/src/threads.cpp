@@ -1299,13 +1299,20 @@ struct HostCallPatches {
 bool host_frames(HostThread* t, std::vector<HostFrame>& out) {
 #ifndef _WIN32
     if (!t->host_fp || !t->pt) return false;
+    uintptr_t lo = 0, hi = 0;
+#if defined(__APPLE__)
+    hi = (uintptr_t)pthread_get_stackaddr_np(t->pt);
+    lo = hi - pthread_get_stacksize_np(t->pt);
+#else
     pthread_attr_t attr;
     if (pthread_getattr_np(t->pt, &attr)) return false;
     void* stack = nullptr;
     size_t size = 0;
     pthread_attr_getstack(&attr, &stack, &size);
     pthread_attr_destroy(&attr);
-    uintptr_t lo = (uintptr_t)stack, hi = lo + size;
+    lo = (uintptr_t)stack;
+    hi = lo + size;
+#endif
     uintptr_t fp = (uintptr_t)t->host_fp;
     for (int depth = 0; depth < 512 && fp >= lo && fp + sizeof(uintptr_t) * 2 <= hi; depth++) {
         uintptr_t ra = ((uintptr_t*)fp)[1];
