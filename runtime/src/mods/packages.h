@@ -2,7 +2,6 @@
 #include "mod_json.h"
 #include <cstdint>
 #include <string>
-#include <utility>
 #include <vector>
 namespace mods::packages {
 inline constexpr const char* kGameId="nsmbu-usa";
@@ -16,7 +15,6 @@ struct Option {
 struct View {
     std::string id,name,version,author,description,kind,reason,status;
     bool enabled=false,active=false,compatible=false,restart_required=false,pending_restart=false;
-    bool native_confirmed=true;
     std::vector<Option> options;
     std::vector<std::string> dependencies,conflicts;
 };
@@ -28,9 +26,6 @@ bool install(const std::string& source,std::string& error,std::string* installed
 bool remove(const std::string& id,std::string& error);
 bool enable(const std::string& id,bool on,std::string& error);
 
-std::vector<std::pair<std::string,std::string>> unconfirmed_native(const std::string& id);
-
-bool confirm_native(const std::string& id,std::string& error);
 bool configure(const std::string& id,const std::string& option,const json::Value& value,std::string& error);
 void disable_all();
 std::vector<std::string> profiles();
@@ -38,11 +33,7 @@ std::string current_profile();
 bool create_profile(const std::string& name,std::string& error);
 bool select_profile(const std::string& name,std::string& error);
 bool delete_profile(const std::string& name,std::string& error);
-using ReadMemory=int(*)(uint32_t,void*,size_t);
-using WriteMemory=int(*)(uint32_t,const void*,size_t);
-void set_memory_access(ReadMemory read,WriteMemory write);
 
 void frame(uint64_t step);
-std::string platform_key();
 bool refresh(std::string& error);
 }

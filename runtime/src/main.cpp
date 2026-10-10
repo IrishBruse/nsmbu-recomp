@@ -377,24 +377,6 @@ int main(int argc, char** argv) {
     mods::content::set_game_root(config::game_dir);
     mods::packages::initialize();
     mem::init();
-    auto valid_mod_memory = [](uint32_t address, size_t size) {
-        if (size > 1024 * 1024) return false;
-        uint64_t end = uint64_t(address) + size;
-        return (address >= mem::kMem2Start && end <= mem::kMem2End) ||
-               (address >= mem::kMem1 && end <= uint64_t(mem::kMem1) + mem::kMem1Size) ||
-               (address >= mem::kFgBucket && end <= uint64_t(mem::kFgBucket) + mem::kFgBucketSize);
-    };
-
-    static auto valid_memory = valid_mod_memory;
-    mods::packages::set_memory_access(
-        [](uint32_t a, void* out, size_t n) -> int {
-            if (!out || !valid_memory(a, n)) return 0;
-            memcpy(out, mem::ptr(a), n); return 1;
-        },
-        [](uint32_t a, const void* in, size_t n) -> int {
-            if (!in || !valid_memory(a, n)) return 0;
-            memcpy(mem::ptr(a), in, n); return 1;
-        });
 
     LoadedModule m{};
     std::string rpx = config::rpx_path();

@@ -809,52 +809,9 @@ void tab_display() {
     }
 }
 
-struct NativeConfirm {
-    std::string id, name;
-    std::vector<std::pair<std::string, std::string>> native;
-    bool open_now = false;
-};
-void native_confirm_dialog(NativeConfirm& c, std::string& error) {
-    using namespace mods::packages;
-    const char* title = "Native code##native_confirm";
-    if (c.open_now) { ImGui::OpenPopup(title); c.open_now = false; }
-    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) return;
-    bool answered = c.native.empty(), accept = false;
-    if (!answered) {
-        std::string names;
-        for (size_t i = 0; i < c.native.size(); i++)
-            names += (i == 0 ? "" : i + 1 == c.native.size() ? " and " : ", ") + c.native[i].second;
-        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28);
-        ImGui::TextWrapped("%s %s native code. It runs with the game's full permissions and can do anything a program "
-                           "on your computer can. Only enable mods from sources you trust.",
-                           names.c_str(), c.native.size() == 1 ? "contains" : "contain");
-        if (c.native.size() > 1 || c.native[0].first != c.id) note("Enabling %s also enables these packages.", c.name.c_str());
-        note("You won't be asked again for this version of the mod.");
-        ImGui::PopTextWrapPos();
-        ImGui::Spacing();
-        accept = ImGui::Button("Enable", ImVec2(120, 0));
-        ImGui::SameLine();
-        answered = ImGui::Button("Cancel", ImVec2(120, 0)) || accept;
-        ImGui::SetItemDefaultFocus();
-        if (controller_pressed(input_map::kPadB)) { answered = true; accept = false; g_pad_b_used = true; }
-    }
-    if (accept) {
-        bool ok = true;
-        for (const auto& [id, name] : c.native) ok = ok && confirm_native(id, error);
-        if (ok) enable(c.id, true, error);
-    }
-    if (answered) {
-        c = NativeConfirm{};
-        ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
-}
-
 void package_controls() {
     using namespace mods::packages;
     static std::string error;
-    static NativeConfirm confirm;
 
     static const char* test_enable = g_no_host ? getenv("NSMBU_TEST_MOD_ENABLE") : nullptr;
     static char source[1024] = {}, new_profile[65] = {};
@@ -914,20 +871,13 @@ void package_controls() {
         bool on = mod.enabled;
         bool toggled = ImGui::Checkbox("##package_enabled", &on);
         if (test_enable && mod.id == test_enable) { toggled = on = true; test_enable = nullptr; }
-        if (toggled) {
-            auto native = on ? unconfirmed_native(mod.id) : decltype(unconfirmed_native(mod.id)){};
-            if (native.empty()) enable(mod.id, on, error);
-            else confirm = {mod.id, mod.name, std::move(native), true};
-        }
+        if (toggled) enable(mod.id, on, error);
         ImGui::SameLine();
         if (installed.size() == 1) ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         bool expanded = ImGui::TreeNode("details", "%s · %s", mod.name.c_str(), mod.version.c_str());
         if (expanded) {
-            note("%s · %s", mod.kind == "native" ? "Native mod" : mod.kind == "cemu" ? "Cemu graphics / shader pack" : mod.kind == "content" ? "Model / texture / UI replacement" : "Built-in settings preset",
+            note("%s · %s", mod.kind == "cemu" ? "Cemu graphics / shader pack" : mod.kind == "content" ? "Model / texture / UI replacement" : "Built-in settings preset",
                  mod.pending_restart ? "Restart required" : mod.active ? "Active" : mod.enabled ? "Waiting for game update" : "Disabled");
-            if (mod.kind == "native" && mod.compatible)
-                note(mod.native_confirmed ? "Runs native code with the game's permissions (you confirmed this version)."
-                                          : "Runs native code with the game's permissions. Enabling it asks you to confirm first.");
             if (!mod.author.empty()) note("By %s", mod.author.c_str());
             ImGui::TextWrapped("%s", mod.description.c_str());
             if (!mod.reason.empty()) ImGui::TextWrapped("%s", mod.reason.c_str());
@@ -967,7 +917,6 @@ void package_controls() {
         }
         ImGui::PopID();
     }
-    native_confirm_dialog(confirm, error);
 }
 
 void tab_mods() {

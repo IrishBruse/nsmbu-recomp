@@ -307,10 +307,12 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
   - **Content mods** replace game files without touching your game folder.
   - **Cemu graphics packs** (`rules.txt`) can be imported, with their presets and resolution rules;
     shader packs need the Vulkan renderer. Code patches from Cemu packs are not supported.
-  - **Native mods** (packages with their own compiled code) ask for a one-time confirmation before
-    they are enabled, because they run with the game's full permissions; only enable mods from
-    sources you trust.
-  See `docs/modding/mod-manager.md` for the package format and `docs/deprecated/native-sdk-v1.md` for the native mod SDK.
+  - **Native mods (historical upstream text):** this bullet describes an upstream WWHD feature
+    that NSMBU no longer ships.
+    Native SDK v1, the native trust dialog, and `kind: native` packages are removed.
+    The design archive is [docs/deprecated/native-sdk-v1.md](docs/deprecated/native-sdk-v1.md).
+    The replacement plan is [docs/modding/lua-mods.md](docs/modding/lua-mods.md).
+  See `docs/modding/mod-manager.md` for the package format that remains.
 
 ### v0.2.2
 

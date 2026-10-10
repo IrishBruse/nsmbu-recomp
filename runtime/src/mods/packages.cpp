@@ -4,7 +4,6 @@
 #include "content.h"
 #include "cemu_pack.h"
 #include "../platform/host.h"
-#include "nsmbu_mod.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -19,8 +18,6 @@
 #include <mutex>
 #include <set>
 #include <stdexcept>
-#include <string_view>
-#include <unordered_set>
 
 namespace mods::packages {
 namespace {
@@ -28,7 +25,7 @@ namespace fs=std::filesystem;
 using json::Value;
 struct Requirement {std::string id,version;};
 struct Manifest {
-    std::string id,name,version,author,description,kind,binary,problem,fingerprint;
+    std::string id,name,version,author,description,kind,problem;
     std::vector<Requirement> dependencies;
     std::vector<std::string> conflicts;
     std::vector<Option> options;
@@ -44,7 +41,6 @@ fs::path root;
 bool ready=false;
 std::string last_problem;
 std::atomic<bool> dirty{false},running{false},profile_changed{false};
-ReadMemory read_memory=nullptr;WriteMemory write_memory=nullptr;
 void require(bool ok,const std::string& message){if(!ok)throw std::runtime_error(message);}
 bool id_ok(const std::string& s){return !s.empty()&&s.size()<=64&&s[0]!='.'&&std::all_of(s.begin(),s.end(),[](unsigned char c){return (c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_'||c=='-'||c=='.';});}
 std::array<unsigned,3> version(const std::string& s) {
@@ -54,30 +50,6 @@ std::array<unsigned,3> version(const std::string& s) {
 }
 std::string string_field(const Value& v,const char* key,bool optional=false,size_t limit=8192){const auto& f=v.get(key);if(optional&&f.type==Value::Null)return {};require(f.type==Value::String&&f.text.size()<=limit&&f.text.find('\0')==std::string::npos,"Invalid field: "+std::string(key));return f.text;}
 
-std::string sha256_file(const fs::path& p){
-    static constexpr uint32_t k[64]={0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-        0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-        0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-        0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2};
-    uint32_t h[8]={0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19};
-    auto rotr=[](uint32_t x,int n){return (x>>n)|(x<<(32-n));};
-    auto block=[&](const unsigned char* b){
-        uint32_t w[64],v[8];for(int i=0;i<16;i++)w[i]=uint32_t(b[4*i])<<24|uint32_t(b[4*i+1])<<16|uint32_t(b[4*i+2])<<8|uint32_t(b[4*i+3]);
-        for(int i=16;i<64;i++)w[i]=w[i-16]+(rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>3))+w[i-7]+(rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>10));
-        std::copy(h,h+8,v);
-        for(int i=0;i<64;i++){uint32_t t1=v[7]+(rotr(v[4],6)^rotr(v[4],11)^rotr(v[4],25))+((v[4]&v[5])^(~v[4]&v[6]))+k[i]+w[i],t2=(rotr(v[0],2)^rotr(v[0],13)^rotr(v[0],22))+((v[0]&v[1])^(v[0]&v[2])^(v[1]&v[2]));std::copy_backward(v,v+7,v+8);v[4]+=t1;v[0]=t1+t2;}
-        for(int i=0;i<8;i++)h[i]+=v[i];};
-    std::ifstream f(p,std::ios::binary);require(bool(f),"Cannot read native library");
-    std::vector<unsigned char> buffer(1<<16);unsigned char pending[128];size_t used=0;uint64_t total=0;
-    while(f){f.read(reinterpret_cast<char*>(buffer.data()),std::streamsize(buffer.size()));size_t n=size_t(f.gcount());total+=n;
-        for(size_t i=0;i<n;){size_t take=std::min<size_t>(64-used,n-i);std::copy_n(buffer.data()+i,take,pending+used);used+=take;i+=take;if(used==64){block(pending);used=0;}}}
-    require(f.eof(),"Cannot read native library");
-    pending[used++]=0x80;size_t end=used<=56?64:128;std::fill(pending+used,pending+end,0);
-    for(int i=0;i<8;i++)pending[end-1-i]=uint8_t((total*8)>>(8*i));
-    block(pending);if(end==128)block(pending+64);
-    std::string hex;const char* digits="0123456789abcdef";for(uint32_t word:h)for(int shift=28;shift>=0;shift-=4)hex+=digits[(word>>shift)&15];
-    return hex;
-}
 std::string read_text(const fs::path& p){require(fs::is_regular_file(p)&&!fs::is_symlink(p)&&fs::file_size(p)<=1024*1024,"Missing or oversized JSON file: "+p.filename().string());std::ifstream f(p,std::ios::binary);return {std::istreambuf_iterator<char>(f),{}};}
 bool valid_option(const Option& o,const Value& v){
     if(o.type=="bool")return v.type==Value::Bool;
@@ -95,19 +67,12 @@ Manifest manifest(const fs::path& path){
     m.author=string_field(v,"author",true,256);m.description=string_field(v,"description",true);
     m.kind=string_field(v,"kind",false,32);
     require(m.kind!="guest","Guest mods are not supported");
-    require(m.kind=="native"||m.kind=="settings"||m.kind=="content"||m.kind=="cemu","Unsupported mod kind");
+    require(m.kind!="native","Native mods are not supported");
+    require(m.kind=="settings"||m.kind=="content"||m.kind=="cemu","Unsupported mod kind");
     if(string_field(v,"game_id",false,64)!=kGameId)m.problem="This package targets another game";
     auto minimum=string_field(v,"minimum_manager_version",true,64);
     if(!minimum.empty()&&version(minimum)>version(kManagerVersion))m.problem="Requires mod manager "+minimum;
-    if(m.kind=="native") {
-        require(v.get("abi_version").type==Value::Number&&v.get("abi_version").number==1,"Unsupported native mod ABI");
-        const auto& binaries=v.get("binaries");require(binaries.type==Value::Object&&!binaries.object.empty(),"Native mod has no binaries");
-        for(const auto& [platform,b]:binaries.object)require(b.type==Value::String&&archive::relative_path(b.text),"Invalid native library path");
-        m.binary=binaries.get(platform_key()).string();
-        if(m.binary.empty()&&m.problem.empty())m.problem="No binary for "+platform_key();
-        else if(m.problem.empty()&&(!fs::is_regular_file(path/m.binary)||fs::is_symlink(path/m.binary)))m.problem="Native library is missing";
-        if(m.problem.empty())m.fingerprint=sha256_file(path/m.binary);
-    } else if(m.kind=="cemu") {
+    if(m.kind=="cemu") {
         auto folder=string_field(v,"cemu_dir",false,512);
         require(folder.empty()||archive::relative_path(folder),"Invalid Cemu directory");
         auto checked=path;for(const auto& part:fs::path(folder)){checked/=part;require(!fs::is_symlink(checked),"Cemu paths may not use symlinks");}
@@ -139,14 +104,6 @@ Manifest manifest(const fs::path& path){
 Value& profile(){return database["profiles"][database.get("active").string("Default")];}
 bool wanted(const std::string& id){const auto& v=profile().get("enabled").get(id);return v.type==Value::Bool&&v.boolean;}
 
-bool test_trusted(const std::string& id){
-    const char* list=std::getenv("NSMBU_TEST_TRUST_NATIVE_MODS");if(!list||!std::getenv("NSMBU_NO_HOST_INPUT")||!std::getenv("NSMBU_MOD_MANAGER_DIR"))return false;
-    for(std::string_view rest=list;!rest.empty();){auto comma=rest.find(',');if(rest.substr(0,comma)==id)return true;if(comma==std::string_view::npos)break;rest.remove_prefix(comma+1);}
-    return false;
-}
-
-bool confirmed(const Record& r){const auto& m=r.manifest;return m.kind!="native"||test_trusted(m.id)||(!m.fingerprint.empty()&&database.get("native_trust").get(m.id).string()==m.fingerprint);}
-const char* kUnconfirmed="Not loaded: it contains native code you have not confirmed. Enable it again to review.";
 Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=profile().get("config").get(m.id).get(o.id);out[o.id]=valid_option(o,saved)?saved:o.default_value;}return out;}
 void strip_builtins(){for(auto& entry:database["profiles"].object){entry.second.object.erase("builtins");entry.second.object.erase("builtin_options");}}
 void save(){if(!ready)return;strip_builtins();fs::create_directories(root);auto tmp=root/"profiles.json.tmp";std::ofstream f(tmp,std::ios::binary|std::ios::trunc);f<<json::dump(database)<<'\n';f.close();require(bool(f)&&host::replace_file(tmp.string(),(root/"profiles.json").string()),"Cannot save mod profiles");}
@@ -166,59 +123,19 @@ void validate_conflicts(const std::set<std::string>& enabled){
     for(const auto& id:enabled){const auto& m=records.at(id).manifest;for(const auto& [file,path]:m.files){auto [it,inserted]=file_owners.emplace(file,id);require(inserted,"Content file conflict: "+file+" between "+id+" and "+it->second);}for(const auto& conflict:m.conflicts){require(!enabled.contains(conflict),m.name+" conflicts with "+conflict);}for(const auto& [setting,on]:m.settings){auto [it,inserted]=setting_owners.emplace(setting,id);require(inserted,m.name+" overlaps a setting from "+it->second);}}
 }
 template<class Fn> bool operation(std::string& error,Fn fn){try{std::lock_guard guard(mutex);require(ready,"Mod manager storage is unavailable");fn();error.clear();return true;}catch(const std::exception& e){error=e.what();return false;}}
-struct Context {std::string id,path,status;Value config;NSMBUModHostV1 host{};};
-struct Live {std::unique_ptr<Context> context;NSMBUModV1 api{};void* library=nullptr;bool initialized=false;std::map<std::string,bool> previous;std::string kind;};
+struct Live {std::map<std::string,bool> previous;std::string kind;};
 std::map<std::string,Live> live;
 std::vector<std::string> live_order;
-const Value& option(void* c,const char* id){return static_cast<Context*>(c)->config.get(id?id:"");}
-void unload(Live& item){if(item.initialized&&item.api.on_unload)item.api.on_unload(item.api.instance);for(const auto& [id,on]:item.previous)if(const auto* e=manager::find(id))e->apply(on);if(item.library){
-#ifdef _WIN32
-    FreeLibrary(static_cast<HMODULE>(item.library));
-#else
-    dlclose(item.library);
-#endif
-}item.library=nullptr;}
-void load(Live& item,const Record& record,const Value& configuration){
-    item.kind=record.manifest.kind;item.context=std::make_unique<Context>();auto& c=*item.context;c.id=record.manifest.id;c.path=record.path.string();c.config=configuration;
-    if(item.kind=="settings"){for(const auto& [id,on]:record.manifest.settings){auto* e=manager::find(id);item.previous[id]=e->enabled();
+void unload(Live& item){for(const auto& [id,on]:item.previous)if(const auto* e=manager::find(id))e->apply(on);}
+void load(Live& item,const Record& record){
+    item.kind=record.manifest.kind;
+    require(item.kind=="settings","Unsupported live mod kind");
+    for(const auto& [id,on]:record.manifest.settings){auto* e=manager::find(id);item.previous[id]=e->enabled();
         if(e->restart_required){std::lock_guard guard(mutex);const auto& saved=profile().get("builtins").get(id);if(saved.type==Value::Bool)item.previous[id]=saved.boolean;}
-        e->apply(on);}return;}
-    auto path=record.path/record.manifest.binary;
-#ifdef _WIN32
-    item.library=LoadLibraryW(path.wstring().c_str());require(item.library,"Cannot load native mod library");auto init=reinterpret_cast<NSMBUModInitV1>(GetProcAddress(static_cast<HMODULE>(item.library),"nsmbu_mod_init_v1"));
-#else
-    item.library=dlopen(path.c_str(),RTLD_NOW|RTLD_LOCAL);if(!item.library){const char* reason=dlerror();throw std::runtime_error(reason?reason:"Cannot load native library");}auto init=reinterpret_cast<NSMBUModInitV1>(dlsym(item.library,"nsmbu_mod_init_v1"));
-#endif
-    require(init,"Native library has no nsmbu_mod_init_v1 entry point");
-    c.host={sizeof(NSMBUModHostV1),1,&c,kGameId,c.path.c_str(),
-        [](void*,uint32_t a,void* b,size_t n){return read_memory?read_memory(a,b,n):0;},
-        [](void*,uint32_t a,const void* b,size_t n){return write_memory?write_memory(a,b,n):0;},
-        [](void* p,const char* s){fprintf(stderr,"[mod:%s] %s\n",static_cast<Context*>(p)->id.c_str(),s?s:"");},
-        [](void* p,const char* s){auto* ctx=static_cast<Context*>(p);ctx->status=s?std::string(s).substr(0,1024):"";},
-        [](void* p,const char* id){return option(p,id).text.c_str();},
-        [](void* p,const char* id){return option(p,id).number;},
-        [](void* p,const char* id){return int(option(p,id).boolean);}};
-    item.api.size=sizeof(NSMBUModV1);item.api.abi_version=1;
-    require(init(&c.host,&item.api)!=0,"Native mod initialization failed");require(item.api.size>=sizeof(NSMBUModV1)&&item.api.abi_version==1,"Native library ABI does not match");item.initialized=true;
+        e->apply(on);}
 }
 }
 
-std::string platform_key(){
-#ifdef _WIN32
-    std::string key="windows";
-#elif defined(__APPLE__)
-    std::string key="macos";
-#elif defined(__ANDROID__)
-    std::string key="android";
-#else
-    std::string key="linux";
-#endif
-#if defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
-    return key+"-arm64";
-#else
-    return key+"-x86_64";
-#endif
-}
 void initialize(){
     std::lock_guard guard(mutex);if(ready)return;const char* override=std::getenv("NSMBU_MOD_MANAGER_DIR");if(std::getenv("NSMBU_NO_HOST_INPUT")&&!override)return;
     root=override?fs::path(override):fs::path(host::config_dir())/"ModManager";ready=true;defaults();
@@ -244,7 +161,7 @@ void initialize(){
     }catch(const std::exception& e){last_problem=e.what();ready=false;records.clear();fprintf(stderr,"[mod-manager] %s\n",e.what());}
 }
 std::string directory(){std::lock_guard guard(mutex);return ready?(root/"Mods").string():"";}
-std::vector<View> list(){std::lock_guard guard(mutex);std::vector<View> out;for(const auto& [id,r]:records){const auto& m=r.manifest;View v;v.id=id;v.name=m.name;v.version=m.version;v.author=m.author;v.description=m.description;v.kind=m.kind;v.restart_required=m.kind=="content"||m.kind=="cemu";v.enabled=wanted(id);v.active=r.active;v.compatible=m.problem.empty();v.native_confirmed=confirmed(r);v.reason=m.problem.empty()?r.error:m.problem;v.status=r.status;if(m.graphics){auto diagnostics=cemu::runtime_status(id);if(!diagnostics.empty())v.status+=". "+diagnostics;}v.options=m.options;auto cfg=config(m);v.pending_restart=v.restart_required&&(v.enabled!=v.active||(m.graphics&&v.active&&!(r.startup_config==cfg)));if(m.graphics&&!m.graphics->shaders.empty()&&!cemu::vulkan()){v.active=false;v.compatible=false;v.reason="GLSL shader packs require Vulkan; choose it in Graphics and restart";}for(auto& o:v.options)o.value=cfg.get(o.id);for(const auto& dep:m.dependencies)v.dependencies.push_back(dep.id+">="+dep.version);v.conflicts=m.conflicts;out.push_back(std::move(v));}return out;}
+std::vector<View> list(){std::lock_guard guard(mutex);std::vector<View> out;for(const auto& [id,r]:records){const auto& m=r.manifest;View v;v.id=id;v.name=m.name;v.version=m.version;v.author=m.author;v.description=m.description;v.kind=m.kind;v.restart_required=m.kind=="content"||m.kind=="cemu";v.enabled=wanted(id);v.active=r.active;v.compatible=m.problem.empty();v.reason=m.problem.empty()?r.error:m.problem;v.status=r.status;if(m.graphics){auto diagnostics=cemu::runtime_status(id);if(!diagnostics.empty())v.status+=". "+diagnostics;}v.options=m.options;auto cfg=config(m);v.pending_restart=v.restart_required&&(v.enabled!=v.active||(m.graphics&&v.active&&!(r.startup_config==cfg)));if(m.graphics&&!m.graphics->shaders.empty()&&!cemu::vulkan()){v.active=false;v.compatible=false;v.reason="GLSL shader packs require Vulkan; choose it in Graphics and restart";}for(auto& o:v.options)o.value=cfg.get(o.id);for(const auto& dep:m.dependencies)v.dependencies.push_back(dep.id+">="+dep.version);v.conflicts=m.conflicts;out.push_back(std::move(v));}return out;}
 static bool content_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n=="content";}
 bool install(const std::string& source,std::string& error,std::string* installed_id_out){return operation(error,[&]{
     auto nonce=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());auto stage=root/(".stage-"+nonce),backup=root/(".backup-"+nonce);fs::path target;bool backed=false,moved=false;
@@ -261,22 +178,14 @@ bool install(const std::string& source,std::string& error,std::string* installed
         auto named=fs::path(source).lexically_normal();if(named.filename().empty())named=named.parent_path();
         if(content_name(named.filename().string())&&!named.parent_path().filename().empty())named=named.parent_path();
         if(graphics)cemu::import_legacy(stage,named.filename().string());else content::import_legacy(stage,named.filename().string());
-    }auto m=manifest(stage);require(m.problem.empty()||m.problem.starts_with("No binary for")||m.problem.starts_with("GLSL shader packs require Vulkan"),m.problem);target=root/"Mods"/m.id;auto it=records.find(m.id);require(it==records.end()||(!wanted(m.id)&&!it->second.active&&!it->second.loading),it!=records.end()&&(it->second.manifest.kind=="content"||it->second.manifest.kind=="cemu")?"Disable this content mod and restart before updating":"Disable this mod and wait for it to unload before updating");fs::create_directories(target.parent_path());if(fs::exists(target)){fs::rename(target,backup);backed=true;}fs::rename(stage,target);moved=true;m=manifest(target);Record r;r.path=target;r.manifest=std::move(m);auto installed_id=r.manifest.id;records[installed_id]=std::move(r);if(installed_id_out)*installed_id_out=installed_id;if(backed){std::error_code cleanup;fs::remove_all(backup,cleanup);}dirty=true;
+    }auto m=manifest(stage);require(m.problem.empty()||m.problem.starts_with("GLSL shader packs require Vulkan"),m.problem);target=root/"Mods"/m.id;auto it=records.find(m.id);require(it==records.end()||(!wanted(m.id)&&!it->second.active&&!it->second.loading),it!=records.end()&&(it->second.manifest.kind=="content"||it->second.manifest.kind=="cemu")?"Disable this content mod and restart before updating":"Disable this mod and wait for it to unload before updating");fs::create_directories(target.parent_path());if(fs::exists(target)){fs::rename(target,backup);backed=true;}fs::rename(stage,target);moved=true;m=manifest(target);Record r;r.path=target;r.manifest=std::move(m);auto installed_id=r.manifest.id;records[installed_id]=std::move(r);if(installed_id_out)*installed_id_out=installed_id;if(backed){std::error_code cleanup;fs::remove_all(backup,cleanup);}dirty=true;
     }catch(...){if(moved)fs::remove_all(target);if(backed)fs::rename(backup,target);if(fs::exists(stage))fs::remove_all(stage);throw;}
 });}
-bool remove(const std::string& id,std::string& error){return operation(error,[&]{auto it=records.find(id);require(it!=records.end(),"Mod not found");require(!wanted(id)&&!it->second.active&&!it->second.loading,(it->second.manifest.kind=="content"||it->second.manifest.kind=="cemu")?"Disable this content mod and restart before removing":"Disable this mod and wait for it to unload before removing");for(const auto& [other,r]:records)if(wanted(other))for(const auto& d:r.manifest.dependencies)require(d.id!=id,r.manifest.name+" depends on this mod");auto previous=database;for(auto& [name,p]:database["profiles"].object){p["enabled"].object.erase(id);p["config"].object.erase(id);}database["native_trust"].object.erase(id);try{save();}catch(...){database=previous;throw;}fs::remove_all(it->second.path);records.erase(it);dirty=true;});}
+bool remove(const std::string& id,std::string& error){return operation(error,[&]{auto it=records.find(id);require(it!=records.end(),"Mod not found");require(!wanted(id)&&!it->second.active&&!it->second.loading,(it->second.manifest.kind=="content"||it->second.manifest.kind=="cemu")?"Disable this content mod and restart before removing":"Disable this mod and wait for it to unload before removing");for(const auto& [other,r]:records)if(wanted(other))for(const auto& d:r.manifest.dependencies)require(d.id!=id,r.manifest.name+" depends on this mod");auto previous=database;for(auto& [name,p]:database["profiles"].object){p["enabled"].object.erase(id);p["config"].object.erase(id);}try{save();}catch(...){database=previous;throw;}fs::remove_all(it->second.path);records.erase(it);dirty=true;});}
 bool enable(const std::string& id,bool on,std::string& error){return operation(error,[&]{require(records.contains(id),"Mod not found");auto enabled=enabled_set();if(on){
     std::set<std::string> visiting;
-    std::function<void(const std::string&)> add=[&](const std::string& current){require(!visiting.contains(current),"Dependency cycle at "+current);require(records.contains(current),"Missing dependency: "+current);const auto& graphics=records.at(current).manifest.graphics;if(graphics&&!graphics->shaders.empty())require(cemu::vulkan(),"GLSL shader packs require Vulkan; choose it in Graphics and restart");if(enabled.contains(current))return;visiting.insert(current);for(const auto& d:records.at(current).manifest.dependencies)add(d.id);visiting.erase(current);require(confirmed(records.at(current)),records.at(current).manifest.name+" contains native code that has not been confirmed");enabled.insert(current);};add(id);
+    std::function<void(const std::string&)> add=[&](const std::string& current){require(!visiting.contains(current),"Dependency cycle at "+current);require(records.contains(current),"Missing dependency: "+current);const auto& graphics=records.at(current).manifest.graphics;if(graphics&&!graphics->shaders.empty())require(cemu::vulkan(),"GLSL shader packs require Vulkan; choose it in Graphics and restart");if(enabled.contains(current))return;visiting.insert(current);for(const auto& d:records.at(current).manifest.dependencies)add(d.id);visiting.erase(current);enabled.insert(current);};add(id);
     }else enabled.erase(id);order(enabled);validate_conflicts(enabled);auto previous=database;for(const auto& [key,r]:records)profile()["enabled"][key]=enabled.contains(key);try{save();}catch(...){database=previous;throw;}for(const auto& key:enabled)records.at(key).error.clear();dirty=true;});}
-std::vector<std::pair<std::string,std::string>> unconfirmed_native(const std::string& id){
-    std::lock_guard guard(mutex);std::vector<std::pair<std::string,std::string>> result;if(!ready)return result;
-    auto enabled=enabled_set();std::set<std::string> seen;
-
-    std::function<void(const std::string&)> visit=[&](const std::string& current){auto it=records.find(current);if(it==records.end()||enabled.contains(current)||!seen.insert(current).second)return;for(const auto& d:it->second.manifest.dependencies)visit(d.id);if(!confirmed(it->second))result.emplace_back(current,it->second.manifest.name);};
-    visit(id);return result;
-}
-bool confirm_native(const std::string& id,std::string& error){return operation(error,[&]{auto it=records.find(id);require(it!=records.end(),"Mod not found");const auto& m=it->second.manifest;require(m.kind=="native"&&m.problem.empty()&&!m.fingerprint.empty(),"This package has no loadable native code");auto previous=database;database["native_trust"][id]=m.fingerprint;try{save();}catch(...){database=previous;throw;}});}
 bool configure(const std::string& id,const std::string& option_id,const Value& value,std::string& error){return operation(error,[&]{require(records.contains(id),"Mod not found");auto& opts=records.at(id).manifest.options;auto it=std::find_if(opts.begin(),opts.end(),[&](const Option& o){return o.id==option_id;});require(it!=opts.end()&&valid_option(*it,value),"Invalid configuration value");auto previous=database;profile()["config"][id][option_id]=value;try{if(records.at(id).manifest.graphics)cemu::validate({{id,*records.at(id).manifest.graphics,config(records.at(id).manifest)}});if(wanted(id))validate_conflicts(enabled_set());save();}catch(...){database=previous;throw;}dirty=true;});}
 void disable_all(){std::string ignored;operation(ignored,[&]{auto previous=database;for(const auto& [id,r]:records)profile()["enabled"][id]=false;try{save();}catch(...){database=previous;throw;}dirty=true;});manager::disable_all();}
 std::vector<std::string> profiles(){std::lock_guard guard(mutex);std::vector<std::string> result;if(ready)for(const auto& [name,p]:database.get("profiles").object)result.push_back(name);return result;}
@@ -285,26 +194,21 @@ bool create_profile(const std::string& name,std::string& error){return operation
 bool select_profile(const std::string& name,std::string& error){return operation(error,[&]{require(database.get("profiles").object.contains(name),"Profile not found");auto previous=database;database["active"]=name;try{order(enabled_set());validate_conflicts(enabled_set());save();}catch(...){database=previous;throw;}profile_changed=true;dirty=true;});}
 bool delete_profile(const std::string& name,std::string& error){return operation(error,[&]{require(name!=database.get("active").string(),"Switch profiles before deleting the active one");require(database.get("profiles").object.contains(name),"Profile not found");auto previous=database;database["profiles"].object.erase(name);try{save();}catch(...){database=previous;throw;}});}
 bool refresh(std::string& error){return operation(error,[&]{for(const auto& [id,r]:records)require(!r.active&&!r.loading&&!wanted(id),(r.manifest.kind=="content"||r.manifest.kind=="cemu")?"Disable content mods and restart before rescanning":"Disable installed mods before rescanning");scan();dirty=true;});}
-void set_memory_access(ReadMemory read,WriteMemory write){read_memory=read;write_memory=write;}
 void frame(uint64_t step){
     if(!dirty.load(std::memory_order_relaxed)&&!running.load(std::memory_order_relaxed))return;
     static uint64_t previous=~uint64_t(0);if(step==previous)return;previous=step;
     if(dirty.exchange(false)){
-        std::map<std::string,std::pair<Record,Value>> desired;std::vector<std::string> sequence;std::set<std::string> unconfirmed;bool switching=false;
-        {std::lock_guard guard(mutex);switching=profile_changed.exchange(false);try{auto enabled=enabled_set();sequence=order(enabled);validate_conflicts(enabled);std::erase_if(sequence,[](const auto& id){return records.at(id).manifest.kind=="content"||records.at(id).manifest.kind=="cemu";});for(const auto& id:sequence){desired[id]={records.at(id),config(records.at(id).manifest)};records.at(id).loading=true;if(!confirmed(records.at(id)))unconfirmed.insert(id);}}catch(const std::exception& e){last_problem=e.what();for(auto& [id,r]:records)if(wanted(id))r.error=e.what();sequence.clear();desired.clear();}}
+        std::map<std::string,Record> desired;std::vector<std::string> sequence;bool switching=false;
+        {std::lock_guard guard(mutex);switching=profile_changed.exchange(false);try{auto enabled=enabled_set();sequence=order(enabled);validate_conflicts(enabled);std::erase_if(sequence,[](const auto& id){return records.at(id).manifest.kind=="content"||records.at(id).manifest.kind=="cemu";});for(const auto& id:sequence){desired[id]=records.at(id);records.at(id).loading=true;}}catch(const std::exception& e){last_problem=e.what();for(auto& [id,r]:records)if(wanted(id))r.error=e.what();sequence.clear();desired.clear();}}
         for(auto it=live_order.rbegin();it!=live_order.rend();++it)if(!desired.contains(*it)||(switching&&live.at(*it).kind=="settings")){auto found=live.find(*it);if(found!=live.end()){unload(found->second);live.erase(found);}std::lock_guard guard(mutex);if(records.contains(*it)){records.at(*it).active=false;records.at(*it).status.clear();}}
         live_order.clear();
-        for(const auto& id:sequence){const auto& [record,cfg]=desired.at(id);bool deps_ok=true;for(const auto& dep:record.manifest.dependencies)if(!live.contains(dep.id)){std::lock_guard guard(mutex);if(!records.at(dep.id).active)deps_ok=false;}
+        for(const auto& id:sequence){const auto& record=desired.at(id);bool deps_ok=true;for(const auto& dep:record.manifest.dependencies)if(!live.contains(dep.id)){std::lock_guard guard(mutex);if(!records.at(dep.id).active)deps_ok=false;}
             if(!deps_ok){std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error="A dependency is unavailable (content dependencies may require restart)";continue;}
             auto it=live.find(id);
-
-            if(it==live.end()&&unconfirmed.contains(id)){fprintf(stderr,"[mod-manager] %s not loaded: native code not confirmed\n",id.c_str());std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=kUnconfirmed;profile()["enabled"][id]=false;try{save();}catch(...){}continue;}
-            if(it==live.end()){Live item;try{load(item,record,cfg);live.emplace(id,std::move(item));fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());}catch(const std::exception& e){unload(item);std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}continue;}}
-            else if(!(it->second.context->config==cfg)){it->second.context->config=cfg;if(it->second.api.on_config_changed)it->second.api.on_config_changed(it->second.api.instance);}
+            if(it==live.end()){Live item;try{load(item,record);live.emplace(id,std::move(item));fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());}catch(const std::exception& e){unload(item);std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}continue;}}
             live_order.push_back(id);std::lock_guard guard(mutex);records.at(id).active=true;records.at(id).loading=false;
         }
         running=!live.empty();
     }
-    for(const auto& id:live_order){auto& item=live.at(id);if(item.api.on_frame)item.api.on_frame(item.api.instance,step);if(item.context){std::lock_guard guard(mutex);if(records.contains(id))records.at(id).status=item.context->status;}}
 }
 }

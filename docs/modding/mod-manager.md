@@ -8,7 +8,10 @@ A proposal to replace native, guest, and content packages with Lua is in
 [lua-mods.md](lua-mods.md).
 Cemu graphics packs stay.
 This page describes the manager as it works today.
-The native library ABI is in [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+Native SDK v1 is removed.
+The design archive is [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+Guest Mod SDK v2 is removed.
+The design archive is [../deprecated/mod-sdk-v2.md](../deprecated/mod-sdk-v2.md).
 
 ## Public project references (checked 2026-10-06)
 
@@ -50,35 +53,13 @@ package and wait for its next game update before updating or removing it.
 Reinstall the same ID while disabled to update; configuration is preserved by
 ID. Refresh discovers manual folder changes when all packages are disabled.
 
-### Native code confirmation
+### Native code confirmation (historical)
 
-Enabling a package with native code (`kind: native`) first shows a confirmation:
-"<Mod name> contains native code. It runs with the game's full permissions and
-can do anything a program on your computer can. Only enable mods from sources
-you trust." **Enable** confirms and enables it; **Cancel** (the default button,
-also B on a controller) leaves it disabled. If enabling a package would also
-enable native dependencies that are not confirmed yet, the one dialog names all
-of them. The dialog works with the mouse, the keyboard (Tab/arrows, Enter or
-Space) and a controller (D-pad, A, B), on the AppKit and the SDL host.
-
-The confirmation is asked once per package and native library: it is stored in
-`profiles.json` as `native_trust`, mapping the package ID to the SHA-256 of the
-package's library for this platform (the file named in `binaries`). It applies
-to every profile. Installing an update whose library differs asks again;
-removing a package forgets its confirmation. Only that one library is
-fingerprinted; anything the library itself loads from its folder is not.
-Content mods and Cemu graphics packs never ask:
-they contain no native code, and the manager loads native code only through
-`kind: native` packages.
-
-Native code is never loaded without a matching confirmation, also when a
-profile switch, an older `profiles.json` or an updated library would enable it.
-Such a package stays unloaded and is switched off in that profile, and the tab
-shows "Not loaded: it contains native code you have not confirmed. Enable it
-again to review." Ticking it again shows the confirmation. Packages that depend
-on it report that a dependency failed to load, as for any failed load. The
-manager API enforces this as well (`enable()` refuses unconfirmed native code;
-`unconfirmed_native()` and `confirm_native()` serve the dialog).
+Native SDK v1 (`kind: native`) and its one-time trust dialog are removed.
+Do not treat them as part of the live manager.
+The old ABI and confirmation rules are only in
+[../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+Content mods and Cemu graphics packs never used that dialog.
 
 Profiles save package toggles and configuration.
 An older `profiles.json` may still contain `builtins` and `builtin_options`.
@@ -95,20 +76,19 @@ storage. `NSMBU_NO_HOST_INPUT` skips user preferences and package storage unless
 an explicit manager directory is supplied for a test. Content mods are copied locally into manager storage; the original game files
 are preserved. Game assets and saves are never committed, uploaded or redistributed.
 
-Test aids (only with `NSMBU_NO_HOST_INPUT`): `NSMBU_TEST_TRUST_NATIVE_MODS=id[,id…]`
-treats those native packages as confirmed without writing `native_trust`; it
-also needs an explicit `NSMBU_MOD_MANAGER_DIR`, so it never applies to a player's
-storage. `NSMBU_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when the
-Mods tab is drawn (with `NSMBU_TEST_OVERLAY=open:mods`), which shows the
-confirmation for an unconfirmed native package.
+Test aids (only with `NSMBU_NO_HOST_INPUT`): `NSMBU_TEST_MOD_ENABLE=<id>` ticks
+that package's checkbox once when the Mods tab is drawn (with
+`NSMBU_TEST_OVERLAY=open:mods`).
+It needs an explicit `NSMBU_MOD_MANAGER_DIR`, so it never applies to a player's
+storage.
 
 ## Package manifest
 
-Native SDK v1, the C ABI in `runtime/include/nsmbu_mod.h`, is documented in
-[../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+Native SDK v1 is removed.
+The design archive is [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
 Guest Mod SDK v2 function hooks are removed.
 See the Lua proposal in [lua-mods.md](lua-mods.md).
-The old design is a historical archive in
+The old guest design is a historical archive in
 [../deprecated/mod-sdk-v2.md](../deprecated/mod-sdk-v2.md).
 
 Package manifest fields:
@@ -120,8 +100,8 @@ Package manifest fields:
 | `game_id` | `nsmbu-usa` (the runtime also verifies its exact RPX entry) |
 | `author`, `description` | Optional display metadata |
 | `minimum_manager_version` | Optional three-part minimum |
-| `kind` | `native`, `content` or `cemu`. `settings` is rejected: there are no built-in mods |
-| `abi_version`, `binaries` | Native SDK v1 only. See [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md). |
+| `kind` | `content` or `cemu`. `native` and `guest` are rejected. `settings` is rejected: there are no built-in mods |
+| `abi_version`, `binaries` | Native SDK v1 only (historical). See [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md). |
 | `content_dir` | Content package: relative folder holding game-relative replacement files |
 | `cemu_dir` | Cemu package: relative folder holding `rules.txt` and shader files (empty for the package root) |
 | `dependencies` | Objects with `id` and optional `minimum_version`. `builtin:<id>` is rejected |
@@ -134,28 +114,23 @@ Online downloads and catalogues are outside this manager.
 ## Packaging a mod
 
 A package is a folder, or a ZIP archive of that folder's contents renamed to
-`.nsmbumod`, with `manifest.json` at its root and, for a native mod, the library
-named in `binaries`.
-The native library format is [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+`.nsmbumod`, with `manifest.json` at its root.
 Packages you publish must not contain game files; content and Cemu packs are
-imported locally by the player (see below). Native packages run
-with the same permissions as the game: install only mods you trust.
+imported locally by the player (see below).
+Native SDK v1 packages are not accepted; see the archive if you need the old format.
 
 ## Validation
 
-`mod_packages` loads an independently compiled fixture library and exercises
-install, profiles, missing dependencies, live configuration, disable/unload and
-removal. It also checks the native confirmation: an unconfirmed library is not
-enabled or loaded, a confirmed one loads in a second process on the same storage
-without asking, a changed library asks again (also through a profile switch),
-removal forgets the confirmation, and the test aid
-applies without writing to `profiles.json`.
+`mod_packages` exercises install, profiles, missing dependencies, live
+configuration, disable/unload and removal.
 A package that names `builtin:` or a settings preset fails to install.
 The next profile save drops leftover `builtins` keys.
 The same test installs synthetic
 Cemu and content packs: legacy imports, loose `.pack` files, preset validation,
 replacement conflicts, the rejection of code, shader, rule and region mismatches,
-and the restart-only lifecycle; such packages never ask for a native confirmation.
+and the restart-only lifecycle.
+Native SDK v1 load and trust checks are historical only; see
+[../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
 
 `mod_content_startup`, `mod_cemu_startup` and `mod_cemu_backend` start the
 manager on prepared storage and check startup activation, read-only routing,
@@ -174,8 +149,6 @@ Select a single local pack with a `content/` directory, or its ZIP. Installation
 starts disabled. Enable it and restart the game. Disable it and restart to restore
 original reads; then it can be updated or removed. Profiles choose the next
 launch's content set. Active content is deliberately immutable for the session.
-Content packages contain no native code and never ask for a native confirmation.
-
 The importer accepts a simple `MyMod/content/...` tree, a single-pack SDCafiine
 layout, and file-only Cemu packs with Definition metadata. Explicit SDCafiine
 and Cemu title IDs must include NSMBU USA `0005000010143500`. ZIP wrappers are
@@ -254,8 +227,7 @@ original names but reports replacement sizes for replaced entries: this adapter
 targets replacement of existing resources, not discovery of new files or
 deletion/hiding. Conflicting enabled packages are rejected, rather than silently
 choosing a load order. Content packages currently cannot declare runtime options
-or dependencies. Native packages can depend on content packages, but wait until
-the required startup content is active.
+or dependencies.
 
 Installed payloads should not be edited externally while the game runs.
 Savestates must be used with the same active content set; savestate metadata
@@ -271,8 +243,7 @@ package. The adapter reads `rules.txt` versions 4/5, checks the USA NSMBU title
 ID, and exposes each preset category as a dropdown. Enable it and restart.
 Changing a preset, disabling or switching profiles also requires a restart. The
 active snapshot stays fixed until exit; active pack files cannot be replaced or
-removed by the manager. Cemu packs contain no native code and never ask for a
-native confirmation.
+removed by the manager.
 
 Supported graphics rules are width/height/depth, formats/tileModes filters and
 `overwriteWidth`/`overwriteHeight`, applied to physical render-target dimensions.

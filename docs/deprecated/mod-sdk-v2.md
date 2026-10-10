@@ -13,7 +13,7 @@ The runtime guest loader is removed.
 `code_mods` and the Settings rebuild path are removed.
 `--mod-hooks` emission from the recompiler is removed.
 Lua stand-ins are under `examples/lua-mods/`.
-Native SDK v1 (`runtime/include/nsmbu_mod.h`, [native-sdk-v1.md](native-sdk-v1.md)) stays in the tree until the Lua plan lands.
+Native SDK v1 is a historical archive in [native-sdk-v1.md](native-sdk-v1.md).
 The mod manager is [../modding/mod-manager.md](../modding/mod-manager.md).
 The design text below is kept as an archive of the prototype.
 

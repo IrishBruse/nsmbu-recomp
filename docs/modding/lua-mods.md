@@ -408,17 +408,18 @@ Do not try to run the old ELF.
 
 Do this only after Lua covers the tables above and the tests below exist.
 Guest SDK v2 is already removed.
-Until Lua lands, native v1 stays in the tree as it is.
-This document is the reason to stop extending native v1.
+Native SDK v1 is already removed.
+This document is the reason to stop extending either path.
 
 ### Documents and examples
 
 | Item | Action |
 | --- | --- |
 | `docs/deprecated/mod-sdk-v2.md` | Kept as a historical archive only. Do not use it as the modder guide. |
-| `docs/modding/mod-manager.md` | Keep. Native SDK v1 is `docs/deprecated/native-sdk-v1.md`. |
+| `docs/deprecated/native-sdk-v1.md` | Kept as a historical archive only. Do not use it as the modder guide. |
+| `docs/modding/mod-manager.md` | Keep. Point native readers at the archive above. |
 | `examples/guest-mods/` | Removed. Packages are in `examples/lua-mods/`. |
-| `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Mark the Mod SDK v2 bullet as historical. Do not treat it as the NSMBU mod plan. |
+| `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Mark the Mod SDK v2 and Native SDK v1 bullets as historical. Do not treat them as the NSMBU mod plan. |
 
 ### Guest SDK v2 code
 
@@ -438,11 +439,11 @@ This document is the reason to stop extending native v1.
 
 | Item | Action |
 | --- | --- |
-| `runtime/include/nsmbu_mod.h` | Delete. |
-| `runtime/tools/mod_fixture.cpp` | Delete. Replace with a Lua fixture. |
-| `kind == "native"` load path in `packages.cpp` (`dlopen` / `LoadLibrary`, `nsmbu_mod_init_v1`) | Delete. |
-| Native confirmation dialog and `native_trust` | Delete after installed native packages are rejected. |
-| `NSMBU_TEST_TRUST_NATIVE_MODS` | Delete. |
+| `runtime/include/nsmbu_mod.h` | Removed. |
+| `runtime/tools/mod_fixture.cpp` | Removed. Replace with a Lua fixture when Lua lands. |
+| `kind == "native"` load path in `packages.cpp` (`dlopen` / `LoadLibrary`, `nsmbu_mod_init_v1`) | Removed. |
+| Native confirmation dialog and `native_trust` | Removed after installed native packages are rejected. |
+| `NSMBU_TEST_TRUST_NATIVE_MODS` | Removed. |
 
 ### Content kind
 
@@ -493,15 +494,14 @@ One scripted play run (see `AGENTS.md`) should enable a tiny Lua status mod from
 ## Phases
 
 1. **API freeze.** Accept this document. Stop new guest-mod features and new native ABI fields.
-2. **Interpreter and `kind: lua`.** Implement logic-step, config, log, status, and guest memory. Keep native, guest, and content kinds working.
+2. **Interpreter and `kind: lua`.** Implement logic-step, config, log, status, and guest memory. Keep content kinds working until phase 3.
 3. **Content moves.** Allow `content_dir` on Lua packages. Point the importer at `kind: lua`. Keep `kind: content` as a read-only alias for one release, then reject it.
 4. **Hooks and `nsmbu.call`.** Turn hook flags on in the default build. Delete the code-mod rebuild flow.
-5. **Removal.** Delete the files in the tables above. Bump the manager so v1 code packages fail closed.
+5. **Removal.** Finish any leftover cleanup in the tables above. Bump the manager so v1 code packages fail closed.
 
-Phase 2 is enough to replace native v1.
+Native SDK v1 and Guest SDK v2 code are already removed.
 Phase 3 is enough to replace content packages.
 Phase 4 replaces the guest v2 hook jobs in Lua.
-Guest SDK v2 code is already removed.
 Do not ship Lua hooks without a hook test.
 
 ## Risks
@@ -543,7 +543,7 @@ Do not copy their code without a license review.
 
 | Topic | Location |
 | --- | --- |
-| Native ABI | `runtime/include/nsmbu_mod.h` |
+| Native ABI | Removed (`runtime/include/nsmbu_mod.h`) |
 | Load, kinds, trust, frame tick | `runtime/src/mods/packages.cpp` |
 | File replacement | `runtime/src/mods/content.cpp` |
 | Cemu (keep) | `runtime/src/mods/cemu_pack.cpp` |

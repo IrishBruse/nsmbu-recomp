@@ -1,12 +1,14 @@
 # Native mod SDK v1
 
-Status: **deprecated**.
-The replacement plan is [../modding/lua-mods.md](../modding/lua-mods.md).
-This ABI stays in the tree until that plan lands.
-Install, enable, and the trust dialog are in [../modding/mod-manager.md](../modding/mod-manager.md).
-Guest Mod SDK v2 function hooks are removed.
-See the Lua proposal in [../modding/lua-mods.md](../modding/lua-mods.md).
-The old design is a historical archive in [mod-sdk-v2.md](mod-sdk-v2.md).
+Status: **removed**.
+This file is a historical archive only.
+Do not use it as a modder guide.
+[../modding/lua-mods.md](../modding/lua-mods.md) is the replacement plan.
+That plan also retires guest Mod SDK v2 and `kind: content`.
+Cemu graphics packs stay.
+The C ABI text below is kept as an archive of the design.
+The mod manager is [../modding/mod-manager.md](../modding/mod-manager.md).
+Guest Mod SDK v2 is a historical archive in [mod-sdk-v2.md](mod-sdk-v2.md).
 
 `runtime/include/nsmbu_mod.h` defines a plain C ABI.
 Export `nsmbu_mod_init_v1`, validate host size and ABI, and return an initialized `NSMBUModV1`.
@@ -22,7 +24,6 @@ Host services provide typed option access, a status line, logging, and bounded r
 Bytes use guest big-endian order.
 Native packages execute trusted host code with the same permissions as the game.
 The player confirms each native library once before it loads.
-See Native code confirmation in the mod manager doc.
 Unload callbacks run when a mod is disabled or the profile switches, before its library closes.
 Process termination is not a guaranteed cleanup callback.
 
