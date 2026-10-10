@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 
@@ -21,10 +22,36 @@ def ensure(root):
     return user, save
 
 
+def sync_example_mods(root):
+    if os.environ.get("NSMBU_MOD_MANAGER_DIR"):
+        return
+    if os.environ.get("NSMBU_NO_EXAMPLE_MODS") == "1":
+        return
+    src_root = os.path.join(root, "modding", "examples")
+    if not os.path.isdir(src_root):
+        return
+    mods_dir = os.path.join(root, USER_NAME, "ModManager", "Mods")
+    os.makedirs(mods_dir, exist_ok=True)
+    for name in sorted(os.listdir(src_root)):
+        src = os.path.join(src_root, name)
+        manifest_path = os.path.join(src, "manifest.json")
+        if not os.path.isdir(src) or not os.path.isfile(manifest_path):
+            continue
+        with open(manifest_path, encoding="utf-8") as f:
+            package_id = json.load(f).get("id")
+        if not isinstance(package_id, str) or not package_id:
+            continue
+        dest = os.path.join(mods_dir, package_id)
+        if os.path.isdir(dest):
+            shutil.rmtree(dest)
+        shutil.copytree(src, dest)
+
+
 def apply_env(env, root):
     user, save = ensure(root)
     env.setdefault("NSMBU_USER_DIR", user)
     os.environ.setdefault("NSMBU_USER_DIR", env["NSMBU_USER_DIR"])
+    sync_example_mods(root)
     return user, save
 
 

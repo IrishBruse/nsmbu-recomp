@@ -22,7 +22,8 @@ Rejected on install: `kind: native`, `kind: guest`, and `kind: settings`.
 | [lua-mods.md](lua-mods.md) phases 4–5 | Hooks, `nsmbu.call`, and hard rejection of the content alias |
 | [api.md](api.md) (hooks, calls, input, data, guest heap) | Host APIs still marked proposal in that doc |
 
-Example packages: [../../examples/lua-mods/](../../examples/lua-mods/).
+Example packages: [../../modding/examples/](../../modding/examples/).
+EmmyLua SDK: [../../modding/sdk/](../../modding/sdk/).
 
 ## Historical archives
 

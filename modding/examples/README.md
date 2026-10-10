@@ -5,7 +5,7 @@ Phase 2 loads `kind: lua` with logic-step, config, log, status, and guest memory
 Hooks, `nsmbu.fn`, input, and data files are still proposal.
 They contain no game files.
 
-`sdk/nsmbu.d.lua` is the EmmyLua type file for the global `nsmbu` API.
+EmmyLua types live in [../sdk/nsmbu.d.lua](../sdk/nsmbu.d.lua).
 `.luarc.json` in this folder points the Lua language server at that file.
 
 | Mod | What it shows | Phase |
@@ -23,3 +23,9 @@ Those names are the two entries in `runtime/guest/include/nsmbu/functions.h`.
 Each folder is a package.
 It has `manifest.json` and `main.lua`.
 `smooth-step-replace` and `instant-retry` also load extra `.lua` files with `require`.
+
+`just launch` and `just run` copy these packages into `user/ModManager/Mods/<id>/` before start.
+Edit here, then relaunch.
+Enable a package in Mods (`` ` `` or F12).
+Set `NSMBU_NO_EXAMPLE_MODS=1` to skip the copy.
+`NSMBU_MOD_MANAGER_DIR` also skips it (isolated test storage).

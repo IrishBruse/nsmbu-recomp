@@ -20,6 +20,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
     `just launch` / `just run` / `just profile` also pass `--save user/save` (migrating a top-level `save/` once).
     Portable installer releases still use `data/user` and `data/save` (`portable.txt` wins over `NSMBU_USER_DIR`).
     Setup can import from `<repo>/user`.
+-   **Add**: `just launch` / `just run` / `just profile` copy `modding/examples` packages into `user/ModManager/Mods/<id>/` before start.
+    Skip with `NSMBU_NO_EXAMPLE_MODS=1` or when `NSMBU_MOD_MANAGER_DIR` is set.
+-   **Change**: Example Lua packages and EmmyLua types live under `modding/examples/` and `modding/sdk/` (was `examples/lua-mods/`).
 -   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
 -   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
     Wind Waker HD title ids and hashes are removed.

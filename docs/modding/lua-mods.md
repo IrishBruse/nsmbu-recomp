@@ -439,7 +439,7 @@ This document is the reason to stop extending either path.
 | `docs/deprecated/mod-sdk-v2.md` | Kept as a historical archive only. Do not use it as the modder guide. |
 | `docs/deprecated/native-sdk-v1.md` | Kept as a historical archive only. Do not use it as the modder guide. |
 | `docs/modding/mod-manager.md` | Keep. Live kinds are `lua` and `cemu`; file replacement is documented in [content.md](content.md). |
-| `examples/guest-mods/` | Removed. Packages are in `examples/lua-mods/`. |
+| `examples/guest-mods/` | Removed. Packages are in `modding/examples/`. |
 | `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Mark the Mod SDK v2 and Native SDK v1 bullets as historical. Do not treat them as the NSMBU mod plan. |
 
 ### Guest SDK v2 code

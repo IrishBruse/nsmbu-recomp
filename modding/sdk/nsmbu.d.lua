@@ -1,7 +1,7 @@
 ---@meta
 --- Proposed NSMBU Lua API v1 type declarations.
 --- Matches docs/modding/api.md. The runtime does not implement this yet.
---- Point the Lua language server library path at this file, or open examples/lua-mods.
+--- Point the Lua language server library path at this file, or open modding/examples.
 
 ---@alias nsmbu.GuestAddr integer
 ---@alias nsmbu.HookId integer

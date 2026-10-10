@@ -6,7 +6,7 @@ Hooks, `nsmbu.call` / `call_result`, input, data files, guest heap alloc, and `n
 Package plan: [lua-mods.md](lua-mods.md).
 Cemu packs do not use this API.
 
-EmmyLua types for editors live in [../../examples/lua-mods/sdk/nsmbu.d.lua](../../examples/lua-mods/sdk/nsmbu.d.lua).
+EmmyLua types for editors live in [../../modding/sdk/nsmbu.d.lua](../../modding/sdk/nsmbu.d.lua).
 
 `nsmbu` is a global table.
 The loader creates it before `main.lua` runs.
