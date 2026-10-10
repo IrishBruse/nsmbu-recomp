@@ -237,7 +237,7 @@ end
 ```
 
 A hook that replaces the guest `cLib_addCalc2` example looks like this.
-The address matches `examples/guest-mods` (`0200ED84` in that README).
+The address is `0200ED84` (`NSMBU_ADDR_cLib_addCalc2`).
 The body is illustrative.
 `nsmbu.fn.cLib_addCalc2` is a generated name.
 It exists only when the header export includes that function.
@@ -407,31 +407,32 @@ Do not try to run the old ELF.
 ## Removal
 
 Do this only after Lua covers the tables above and the tests below exist.
-Until then, SDK v2 and native v1 stay in the tree as they are.
-This document is the reason to stop extending them.
+Guest SDK v2 is already removed.
+Until Lua lands, native v1 stays in the tree as it is.
+This document is the reason to stop extending native v1.
 
 ### Documents and examples
 
 | Item | Action |
 | --- | --- |
-| `docs/deprecated/mod-sdk-v2.md` | Already moved. Delete it when Lua hooks replace guest mods. Do not keep it as the modder guide. |
+| `docs/deprecated/mod-sdk-v2.md` | Kept as a historical archive only. Do not use it as the modder guide. |
 | `docs/modding/mod-manager.md` | Keep. Native SDK v1 is `docs/deprecated/native-sdk-v1.md`. |
-| `examples/guest-mods/` | Delete when Lua hooks exist. Proposed packages are in `examples/lua-mods/`. |
-| `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Do not treat it as the NSMBU mod plan. |
+| `examples/guest-mods/` | Removed. Packages are in `examples/lua-mods/`. |
+| `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Mark the Mod SDK v2 bullet as historical. Do not treat it as the NSMBU mod plan. |
 
 ### Guest SDK v2 code
 
 | Item | Action |
 | --- | --- |
-| `tools/guestmod/` | Delete (`build_guest_mod.py`, `guestmod.py`, public SDK generators, tests). |
-| `runtime/guest/` | Delete after the Lua address table has a new generator. |
-| `runtime/src/mods/guest_mods.cpp` and `guest_mods.h` | Delete. Replace the hook entry with a Lua dispatcher if the flag check remains. |
-| `guest_validation.h`, `guest_heap.h`, `guest_files.h`, `guest_build.h`, `guest_identity.h`, `guest_state_section.h` | Delete. |
-| `runtime/src/mods/code_mods.cpp` and `code_mods.h` | Delete with the rebuild UI. |
-| `runtime/tools/guest_*_test.cpp`, `code_mods_test.cpp` | Delete. |
-| `.github/workflows/guestmods.yml` | Delete. |
-| `PPC_MOD_HOOK` / `--mod-hooks` | Keep only if the Lua hook dispatcher uses it. Remove guest-only comments in `tools/recomp/recomp.py`. |
-| `Cpu::mod_skip` and `g_mod_bodies` | Keep only if replacements still call the original body through that skip. |
+| `tools/guestmod/` | Removed. |
+| `runtime/guest/` | Removed for the guest-mod ABI path. A Lua address table needs a new generator later. |
+| `runtime/src/mods/guest_mods.cpp` and `guest_mods.h` | Removed. A Lua hook dispatcher can replace the entry later if the flag check remains. |
+| `guest_validation.h`, `guest_heap.h`, `guest_files.h`, `guest_build.h`, `guest_identity.h`, `guest_state_section.h` | Removed. |
+| `runtime/src/mods/code_mods.cpp` and `code_mods.h` | Removed with the rebuild UI. |
+| `runtime/tools/guest_*_test.cpp`, `code_mods_test.cpp` | Removed. |
+| `.github/workflows/guestmods.yml` | Removed. |
+| `PPC_MOD_HOOK` / `--mod-hooks` | Removed for guest mods. Reintroduce only if a Lua hook dispatcher needs the flag check. |
+| `Cpu::mod_skip` and `g_mod_bodies` | Removed with the guest loader. Reintroduce only if Lua replacements call the original body through that skip. |
 
 ### Native SDK v1 code
 
@@ -499,8 +500,9 @@ One scripted play run (see `AGENTS.md`) should enable a tiny Lua status mod from
 
 Phase 2 is enough to replace native v1.
 Phase 3 is enough to replace content packages.
-Phase 4 is enough to replace guest v2.
-Do not delete SDK v2 before phase 4 has a hook test.
+Phase 4 replaces the guest v2 hook jobs in Lua.
+Guest SDK v2 code is already removed.
+Do not ship Lua hooks without a hook test.
 
 ## Risks
 
@@ -545,8 +547,8 @@ Do not copy their code without a license review.
 | Load, kinds, trust, frame tick | `runtime/src/mods/packages.cpp` |
 | File replacement | `runtime/src/mods/content.cpp` |
 | Cemu (keep) | `runtime/src/mods/cemu_pack.cpp` |
-| Guest hooks | `runtime/src/mods/guest_mods.cpp` |
-| Code-mod rebuild | `runtime/src/mods/code_mods.cpp` |
-| Guest toolchain | `tools/guestmod/`, `examples/guest-mods/` |
-| Hook emission | `tools/recomp/recomp.py` |
+| Guest hooks | Removed (`runtime/src/mods/guest_mods.cpp`) |
+| Code-mod rebuild | Removed (`runtime/src/mods/code_mods.cpp`) |
+| Guest toolchain | Removed (`tools/guestmod/`) |
+| Hook emission | Removed for guest mods (`--mod-hooks` in `tools/recomp/recomp.py`) |
 | Mod identity in states | `runtime/src/portable_state.cpp` |

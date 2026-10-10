@@ -100,7 +100,7 @@ def worker_pids(process_listing, own_pid):
             script = next((a for a in argv[1:] if not a.startswith('-')), '')
             name = os.path.basename(script).casefold()
             busy = busy or any(word in name for word in ("test", "smoke", "bench")) or name in {
-                "recomp.py", "build_guest_mod.py", "guestmod.py", "setup.py", "ppc2c.py"}
+                "recomp.py", "setup.py", "ppc2c.py"}
         if busy:
             found.append(int(pid))
     return found

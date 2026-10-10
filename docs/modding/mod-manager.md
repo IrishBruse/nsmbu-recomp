@@ -106,7 +106,9 @@ confirmation for an unconfirmed native package.
 
 Native SDK v1, the C ABI in `runtime/include/nsmbu_mod.h`, is documented in
 [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md).
-Function hooks are the guest prototype in
+Guest Mod SDK v2 function hooks are removed.
+See the Lua proposal in [lua-mods.md](lua-mods.md).
+The old design is a historical archive in
 [../deprecated/mod-sdk-v2.md](../deprecated/mod-sdk-v2.md).
 
 Package manifest fields:

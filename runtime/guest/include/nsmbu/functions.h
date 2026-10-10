@@ -1,6 +1,0 @@
-#pragma once
-
-#define NSMBU_ADDR_cLib_addCalc2_0200ED84 0x0200ED84
-#define NSMBU_ADDR_cLib_addCalc2 NSMBU_ADDR_cLib_addCalc2_0200ED84
-#define NSMBU_ADDR_dScnPly_Execute_025B0314 0x025B0314
-#define NSMBU_ADDR_dScnPly_Execute NSMBU_ADDR_dScnPly_Execute_025B0314

@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """Statically recompile a Wii U RPX into C.
 
-usage: recomp.py game/code/red-pro2.rpx OUTDIR [--insns-per-file N] [--build NAME] [--mod-hooks]
+usage: recomp.py game/code/red-pro2.rpx OUTDIR [--insns-per-file N] [--build NAME]
 
 The rpx is identified by its SHA-256 (tools/recomp/builds.py). Functions are named by their
 *canonical* (USA) address, so the runtime refers to the same f_XXXXXXXX whichever build of the game
 it was translated from; the dispatch table maps this build's real addresses to them.
-
---mod-hooks (or NSMBU_RECOMP_MOD_HOOKS=1): every function body starts with a check of its byte in
-g_mod_hook_flags (runtime/src/mods/guest_mods.cpp), so guest mods (docs/deprecated/mod-sdk-v2.md) can hook or
-replace any game function at runtime without rebuilding the game code.
 
 Output:
   OUTDIR/funcs.h         prototypes of every recompiled function and import
@@ -54,13 +50,12 @@ DATA_IMPORT_BASE = 0xC1000000
 DATA_IMPORT_STRIDE = 0x1000
 
 class Recompiler:
-    def __init__(self, path, build=None, mod_hooks=False):
+    def __init__(self, path, build=None):
         """`build` is which build of the game `path` is (tools/recomp/builds.py); by default it is
         identified by its SHA-256, and an rpx that is none of them is refused."""
         self.build = build or game_builds.identify(path)
         if self.build is None:
             raise SystemExit(unknown_build_message(path))
-        self.mod_hooks = mod_hooks
         self.p = Program(path)
         self.p.discover()
         self.entries = set(self.p.entries)
@@ -257,9 +252,6 @@ class Recompiler:
             if icases:
                 out.append("    if (c->pc != 0x%08Xu) { switch (c->pc) { %s default: break; } }" % (
                     start, " ".join(icases)))
-        if self.mod_hooks:
-
-            out.append("    PPC_MOD_HOOK(%d, 0x%08Xu);" % (self.ordinal[start], start))
         for a, w, s in body:
             if a in self.labels:
                 out.append("L_%08X: ;" % a)
@@ -282,7 +274,6 @@ class Recompiler:
         self.used_imports = set()
         self.imm_override = self.imm_override
         files, cur, n = [], [], 0
-        self.ordinal = {e: i for i, e in enumerate(self.sorted_entries)}
         for start in self.sorted_entries:
             src, count = self.emit_function(start)
             cur.append(src)
@@ -332,18 +323,6 @@ class Recompiler:
             f.write("};\nconst unsigned g_recomp_import_count = %d;\n" % len(self.imports))
             f.write("const uint32_t g_recomp_entry_point = 0x%08Xu;\n" % self.p.entry)
             self.write_build_map(f)
-
-            if self.mod_hooks:
-                n = len(self.sorted_entries)
-                f.write("\n/* guest mod hooks: on */\n")
-                f.write("static uint8_t mod_hook_flags[%d] = {0};\n" % n)
-                f.write("static const PpcFunc mod_bodies[] = {\n")
-                for e in self.sorted_entries:
-                    f.write("    f_%08X%s,\n" % (self.sym(e), "_orig" if e in self.hooks else ""))
-                f.write("};\n")
-                f.write("extern void ppc_mod_register(unsigned, uint8_t*, const PpcFunc*);\n")
-                f.write("__attribute__((constructor)) static void register_mod_hooks(void) {\n")
-                f.write("    ppc_mod_register(%d, mod_hook_flags, mod_bodies);\n}\n" % n)
         with open(os.path.join(outdir, "imports.c"), "w") as f:
             f.write('#include "funcs.h"\n\nvoid hle_unimplemented(Cpu* c, const char* lib, const char* name);\n\n')
             for s in func_slots:
@@ -393,11 +372,10 @@ if __name__ == "__main__":
     ap.add_argument("--insns-per-file", type=int, default=30000)
     ap.add_argument("--build", help="which build the rpx is, when it should not be identified by "
                                     "its SHA-256 (%s)" % ", ".join(b.name for b in game_builds.all_builds()))
-    ap.add_argument("--mod-hooks", action="store_true", default=os.environ.get("NSMBU_RECOMP_MOD_HOOKS") == "1")
     a = ap.parse_args()
     build = None
     if a.build:
         build = game_builds.by_name(a.build)
         if build is None:
             sys.exit("unknown build %r; known: %s" % (a.build, ", ".join(b.name for b in game_builds.all_builds())))
-    Recompiler(a.rpx, build, mod_hooks=a.mod_hooks).run(a.outdir, a.insns_per_file)
+    Recompiler(a.rpx, build).run(a.outdir, a.insns_per_file)

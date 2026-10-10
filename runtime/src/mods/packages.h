@@ -1,7 +1,6 @@
 #pragma once
 #include "mod_json.h"
 #include <cstdint>
-#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,14 +21,11 @@ struct View {
     std::vector<std::string> dependencies,conflicts;
 };
 
-void set_code_mod_support(bool built);
-bool needs_code_mod_support(const std::string& id);
 void initialize();
 std::string directory();
 std::vector<View> list();
 bool install(const std::string& source,std::string& error,std::string* installed_id=nullptr);
 bool remove(const std::string& id,std::string& error);
-bool enable_after_code_rebuild(const std::string& id,std::string& error);
 bool enable(const std::string& id,bool on,std::string& error);
 
 std::vector<std::pair<std::string,std::string>> unconfirmed_native(const std::string& id);
@@ -46,15 +42,6 @@ using ReadMemory=int(*)(uint32_t,void*,size_t);
 using WriteMemory=int(*)(uint32_t,const void*,size_t);
 void set_memory_access(ReadMemory read,WriteMemory write);
 
-struct GuestPackage {
-    std::string id, version, path, data_path, fingerprint;
-    json::Value options;
-    uint32_t heap_size=256*1024;
-};
-using GuestInspect = std::function<uint32_t(const GuestPackage&)>;
-using GuestLoad = std::function<void(const GuestPackage&, uint32_t base)>;
-
-void start_guests(const GuestInspect& inspect, const GuestLoad& load);
 void frame(uint64_t step);
 std::string platform_key();
 bool refresh(std::string& error);

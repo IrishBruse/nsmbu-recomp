@@ -17,18 +17,16 @@ class SDKPackage(unittest.TestCase):
             with self.subTest(platform=platform), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp) / ("NSMBU-test-" + platform)
                 package.copy_sdk_headers(str(root))
-                headers = root / "sdk/guest/include/nsmbu"
-                include = root / "sdk/guest/include"
-                self.assertTrue((headers / "functions.h").is_file())
-                self.assertTrue((include / "nsmbu_guest.h").is_file())
-                self.assertFalse((headers.parent / "game").exists())
+                include = root / "sdk/include"
+                self.assertTrue((include / "ppc.h").is_file())
+                self.assertFalse((root / "sdk/guest").exists())
                 archive = Path(tmp) / "sdk.zip"
                 with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
                     for path in root.rglob("*"):
                         if path.is_file():
                             z.write(path, path.relative_to(root.parent).as_posix())
                 problems, count = guard.scan(str(archive))
-                self.assertGreaterEqual(count, 10)
+                self.assertGreaterEqual(count, 7)
                 self.assertEqual(problems, [])
 
     def test_installer_local_imports_are_shipped(self):

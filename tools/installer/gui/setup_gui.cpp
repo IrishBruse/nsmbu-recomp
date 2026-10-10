@@ -1313,7 +1313,7 @@ static void screen_done() {
         if (A.toolchain_bytes > 0) {
             checkbox(("Remove the downloaded compiler (" + format_size(A.toolchain_bytes) + ")").c_str(),
                             &A.opt_remove_toolchain);
-            muted("Keep it for guest mod builds and repairs. Run setup again to restore it if removed.");
+            muted("Keep it for repairs. Run setup again to restore it if removed.");
         }
         checkbox(
 #if defined(__APPLE__)

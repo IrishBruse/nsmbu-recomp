@@ -114,18 +114,6 @@ int main() {
           r.hd_event == s.hd_event && r.hd_map == s.hd_map);
 
     {
-        State modded=s;modded.guest_mods={{"play-scene-ticker","0.1.0"},{"smooth-step-replace","1.2.3"}};
-        auto with_mods=write(modded,why);State loaded;
-        CHECK(!with_mods.empty()&&read(with_mods,loaded,why));
-        CHECK(!guestmods::different_mods(loaded.guest_mods,modded.guest_mods));
-        CHECK(guestmods::different_mods(loaded.guest_mods,s.guest_mods));
-        CHECK(read(text,loaded,why)&&loaded.guest_mods.empty());
-        modded.guest_mods.push_back(modded.guest_mods[0]);CHECK(write(modded,why).empty());
-        modded.guest_mods={{"../invalid","1.0.0"}};CHECK(write(modded,why).empty());
-        CHECK(!read(reseal(replace(with_mods,"guest_mod.play-scene-ticker = 0.1.0","guest_mod.play-scene-ticker = bad/version")),loaded,why));
-    }
-
-    {
         std::string crlf;
         for (char c : text) {
             if (c == '\n') crlf += '\r';

@@ -13,7 +13,6 @@
 #include "../input_map.h"
 #include "../overlay/hostui.h"
 #include "../overlay/overlay.h"
-#include "../mods/code_mods.h"
 #include "../crashrec.h"
 #include "../aspect.h"
 #include "renderer.h"

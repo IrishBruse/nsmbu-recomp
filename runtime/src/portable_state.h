@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "mods/guest_identity.h"
 
 namespace pstate {
 
@@ -30,7 +29,6 @@ struct State {
     int controller = 0;
     int file_slot = 0;
     std::string player_name;
-    std::vector<guestmods::ModIdentity> guest_mods;
 
     std::string stage;
     int start_point = 0, start_room = 0, layer = -1;

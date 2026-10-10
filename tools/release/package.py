@@ -43,12 +43,9 @@ TOOL_FILES = [
     "tools/recomp/analyze.py",
     "tools/recomp/ppc2c.py",
     "tools/recomp/builds.py",
-    "tools/guestmod/build_guest_mod.py",
-    "tools/guestmod/guestmod.py",
 ]
 INSTALLER_FILES = [
     "tools/installer/setup.py",
-    "tools/installer/code_mods.py",
     "tools/installer/toolchains.json",
     "tools/installer/README.md",
 ]
@@ -313,10 +310,7 @@ def make_zip(src_dir, zip_path):
                     z.writestr(info, f.read(), compresslevel=9)
 
 def copy_sdk_headers(pkg):
-    """Shared by every platform: public declarations use nsmbu/, never a game/ tree."""
     shutil.copytree(os.path.join(ROOT, "runtime", "include"), os.path.join(pkg, "sdk", "include"))
-    shutil.copytree(os.path.join(ROOT, "runtime", "guest", "include"),
-                    os.path.join(pkg, "sdk", "guest", "include"))
 
 def main():
     ap = argparse.ArgumentParser()

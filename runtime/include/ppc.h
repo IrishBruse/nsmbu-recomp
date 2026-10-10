@@ -28,7 +28,6 @@ typedef struct Cpu {
     uint32_t res_addr, res_val;
     uint32_t pc;
     uint32_t core;
-    uint32_t mod_skip;
 
     void* thread;
 } Cpu;
@@ -52,19 +51,6 @@ void ppc_preempt(Cpu* c);
 #define PPC_ENTER(a) do {                                                     \
         if (__builtin_expect(g_ppc_trace, 0)) ppc_trace_enter(a);             \
         if (__builtin_expect(g_core_preempt[c->core], 0)) ppc_preempt(c);     \
-    } while (0)
-
-#if defined(__GNUC__) && !defined(_WIN32)
-__attribute__((visibility("hidden")))
-#endif
-extern uint8_t* g_mod_hook_flags;
-void ppc_mod_run(Cpu* c);
-
-#define PPC_MOD_HOOK(i, a) do {                                               \
-        if (g_mod_hook_flags[i]) {                                           \
-            if (c->mod_skip != (a)) { c->pc = (a); MUSTTAIL return ppc_mod_run(c); } \
-            c->mod_skip = 0;                                                  \
-        }                                                                     \
     } while (0)
 
 #define PPC_LOOP() __asm__ __volatile__("" ::: "memory")

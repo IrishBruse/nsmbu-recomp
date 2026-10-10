@@ -37,8 +37,6 @@
 #include "crashrec.h"
 #include "portable_state.h"
 #include "state_memory.h"
-#include "mods/guest_mods.h"
-#include "mods/guest_state_section.h"
 #include "quit_prompt.h"
 #include "rumble.h"
 
@@ -87,7 +85,6 @@ enum : uint32_t {
     kSecAllocs = 'RALC',
     kSecDispatch = 'DSPT',
     kSecMemory = 'MEM ',
-    kSecGuestMods = 'GMOD',
 };
 
 using Region=MemoryRegion;
@@ -98,8 +95,7 @@ std::vector<Region> regions() {
             {mem::kRuntimeStart, top - mem::kRuntimeStart},
             {mem::kFixedStart, mem::kFixedSize},
             {mem::kFgBucket, mem::kFgBucketSize},
-            {mem::kMem1, mem::kMem1Size},
-            {guestmods::kRegionStart,guestmods::kRegionSize}};
+            {mem::kMem1, mem::kMem1Size}};
 }
 
 struct Snapshot {
@@ -109,7 +105,6 @@ struct Snapshot {
     std::unordered_map<uint32_t, const uint8_t*> chunks;
     std::vector<Region> regs;
     int slot = 0;
-    std::vector<guestmods::ModIdentity> guest_mods;
 
     Reader section(uint32_t tag) const {
         auto it = sections.find(tag);
@@ -126,7 +121,6 @@ struct Snapshot {
             sections[tag] = {off, (size_t)n};
         }
         if (!r.ok || !sections.count(kSecMemory)) return false;
-        if(!guestmods::read_mod_set(section(kSecGuestMods),guest_mods))return false;
         Reader m=section(kSecMemory);
         return read_regions(m,regs,chunks);
     }
@@ -155,14 +149,6 @@ void message(const char* fmt, ...) {
     std::lock_guard<std::mutex> lk(g_mu);
     g_message = buf;
     g_message_time = std::chrono::steady_clock::now();
-}
-
-void append_mod_warning(bool differs) {
-    if(!differs)return;
-    LOG("[savestate] %s",guestmods::kModWarning);
-    std::lock_guard<std::mutex> lock(g_mu);
-    g_message+="; ";g_message+=guestmods::kModWarning;
-    g_message_time=std::chrono::steady_clock::now();
 }
 
 std::function<void(bool, const std::string&)> take_done(int slot) {
@@ -469,8 +455,6 @@ bool do_save(int slot) {
     w = Writer();
     save_dispatch(w);
     put_section(*payload, kSecDispatch, w);
-    w=Writer();guestmods::save_mod_set(w,guestmods::enabled_mods());
-    put_section(*payload,kSecGuestMods,w);
 
     payload->u32(kSecMemory);
     size_t len_at = payload->b.size();
@@ -582,9 +566,7 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
     threads::thaw();
     double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     std::string area = s->h.area[0] ? " (" + area_label(s->h.area) + ")" : "";
-    const bool mods_differ=guestmods::different_mods(s->guest_mods,guestmods::enabled_mods());
     message("Loaded %s%s", is_auto(s->slot) ? slot_label(s->slot).c_str() : ("slot " + std::to_string(s->slot)).c_str(), area.c_str());
-    append_mod_warning(mods_differ);
     LOG("[savestate] slot %d: restored in %.1f ms", s->slot, ms);
     return true;
 }
@@ -779,7 +761,6 @@ bool capture_portable(Cpu* c, pstate::State& s, std::string& why) {
     s.title_version = (uint32_t)strtoul(meta_value("title_version").c_str(), nullptr, 10);
     s.game_hash = hex64(game_id());
     s.runtime = std::string(build::version()) + " (" + build::commit() + ")";
-    s.guest_mods=guestmods::enabled_mods();
     s.created = now_text();
     s.file_slot = slot;
     s.controller = input::pro_controller() ? 2 : 1;
@@ -983,7 +964,6 @@ void service_portable_load(Cpu* c) {
             message("Loaded %s (%s; progress and position)", p.slot ? ("slot " + std::to_string(p.slot)).c_str() : "portable state",
                     area_label(p.s->stage.c_str()).c_str());
         }
-        append_mod_warning(guestmods::different_mods(p.s->guest_mods,guestmods::enabled_mods()));
         g_arrival = Arrival{p.s->stage, {p.s->pos[0], p.s->pos[1], p.s->pos[2]}, render::frame_count(), ld32(ld32(kLinkPtr) + 4), 0, p.s};
         std::lock_guard<std::mutex> lk(g_mu);
         g_last_portable = p.path;
@@ -1193,7 +1173,6 @@ void request_load_portable_file(const std::string& path) {
     }
     if (s->runtime != std::string(build::version()) + " (" + build::commit() + ")")
         LOG("[savestate] portable state from %s (this build: %s %s)", s->runtime.c_str(), build::version(), build::commit());
-    if(guestmods::different_mods(s->guest_mods,guestmods::enabled_mods()))message("%s",guestmods::kModWarning);
     int slot = 0;
     for (int i = 1; i <= kSlots; i++)
         if (path == slot_path(i, pstate::kExtension)) slot = i;
@@ -1221,7 +1200,6 @@ void request_load(int slot) {
             g_loading = false;
             return;
         }
-        if(guestmods::different_mods(s->guest_mods,guestmods::enabled_mods()))message("%s",guestmods::kModWarning);
         LOG("[savestate] slot %d: read and decompressed %.1f MB in %.0f ms", slot, s->payload.size() / 1048576.0,
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
         std::lock_guard<std::mutex> lk(g_mu);

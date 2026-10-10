@@ -1,12 +1,21 @@
 # Mod SDK v2: PowerPC guest mods (design study and prototype)
 
-Status: **prototype, proposed for removal**.
+Status: **removed**.
+This file is a historical archive only.
+Do not use it as a modder guide.
 [../modding/lua-mods.md](../modding/lua-mods.md) is the replacement plan.
-It retires this SDK, Native SDK v1, and `kind: content`.
+That plan also retires Native SDK v1 and `kind: content`.
 Cemu graphics packs stay.
-Until that plan is implemented, this prototype stays on branch `sdk2-guest-mods`, off by default.
-Native SDK v1 (`runtime/include/nsmbu_mod.h`, [native-sdk-v1.md](native-sdk-v1.md)) stays in the tree and unchanged.
+The public packages under `examples/guest-mods/` are removed.
+The install-time translator under `tools/guestmod/` is removed.
+The `guestmods` CI workflow is removed.
+The runtime guest loader is removed.
+`code_mods` and the Settings rebuild path are removed.
+`--mod-hooks` emission from the recompiler is removed.
+Lua stand-ins are under `examples/lua-mods/`.
+Native SDK v1 (`runtime/include/nsmbu_mod.h`, [native-sdk-v1.md](native-sdk-v1.md)) stays in the tree until the Lua plan lands.
 The mod manager is [../modding/mod-manager.md](../modding/mod-manager.md).
+The design text below is kept as an archive of the prototype.
 
 Code mods for this port are written in C (or C++) against mod headers and compiled for the
 console CPU: 32-bit big-endian PowerPC, the game's ABI. The package is the same on every
@@ -159,7 +168,7 @@ function runs, and mods hook the game's code below them.
 - **Compiler**: clang with the PowerPC target and ld.lld, free on all three platforms
   (LLVM releases; Homebrew `llvm` + `lld` on macOS; Apple's clang has no PowerPC target). Tested:
   Homebrew clang 20.1.8 and ld.lld 21. Only clang/lld is supported for mod authors.
-- **Flags** (see `runtime/guest/include/nsmbu_guest.h`, `examples/guest-mods/Makefile`):
+- **Flags** (see `runtime/guest/include/nsmbu_guest.h`):
   `--target=powerpc-unknown-eabi -mcpu=750 -O2 -ffreestanding -fno-builtin -nostdlib
   -fno-jump-tables -ffunction-sections -fdata-sections`. `-mcpu=750` keeps to instructions
   of the game's CPU family (no AltiVec, no `isel`); clang does not use small-data (r2/r13)
@@ -258,9 +267,8 @@ compiler command/version and flags. This also invalidates development caches whe
 the translator or CPU layout changes without a release version bump. ELF paths are
 relative to the package; parent paths, absolute paths and symlinks are rejected.
 
-The `guestmods` CI workflow compiles the examples with Apple CLT, pinned llvm-mingw
-and pinned zig selected by setup. The modder-side PowerPC compiler remains clang
-with lld. These tests use synthetic mod code and require no game files.
+The `guestmods` CI workflow and `tools/guestmod/` translator were removed.
+Historical notes below still describe that toolchain.
 
 Errors for the player are short (`--json`: `{"ok": false, "error": "..."}`), for example
 "instructions the translator does not support: …", "the mod needs guest API 2; this game
@@ -632,21 +640,19 @@ or disable mods. Use the same mod versions that created a state when reproducing
 | check macro, `Cpu::mod_skip` | `runtime/include/ppc.h` |
 | module ABI | `runtime/include/nsmbu_guest_abi.h` |
 | loader, hook chains, host services | `runtime/src/mods/guest_mods.cpp` |
-| translator, install-time build | `tools/guestmod/guestmod.py`, `tools/guestmod/build_guest_mod.py` |
+| translator, install-time build | Removed (`tools/guestmod/`) |
 | SDK header | `runtime/guest/include/nsmbu_guest.h` |
-| tests | `tools/guestmod/test_guestmod.py` (needs a PowerPC clang: `NSMBU_PPC_CLANG`, `NSMBU_PPC_LLD`) |
-| examples | `examples/guest-mods/play-scene-ticker` (entry + return hook on `dScnPly_Execute` with a configurable log interval), `examples/guest-mods/smooth-step-replace` (replaces `cLib_addCalc2` by an equivalent implementation; every other call goes to the game's original) |
+| tests / fixtures | Removed with `tools/guestmod/` |
 
 ```sh
 python3 tools/recomp/recomp.py game/code/red-pro2.rpx build/gen --mod-hooks
 cmake --build build/cmake                                   # as usual
-make -C examples/guest-mods CLANG=/opt/homebrew/opt/llvm/bin/clang LLD=/opt/homebrew/opt/lld/bin/ld.lld
-python3 tools/guestmod/build_guest_mod.py examples/guest-mods/play-scene-ticker --out build/guestcache --base 0x7F000000
-python3 tools/guestmod/build_guest_mod.py examples/guest-mods/smooth-step-replace --out build/guestcache --base 0x7F100000
 ```
 
-These commands describe the prototype build. Install the packages through the manager
-as described above; direct `NSMBU_GUEST_MODS` loading has been retired.
+`examples/guest-mods/` and `tools/guestmod/` were removed.
+Lua stand-ins are under `examples/lua-mods/`.
+Install packages through the manager as described above; direct `NSMBU_GUEST_MODS` loading has been retired.
+Install-time translation no longer ships.
 
 Historically verified end to end on macOS arm64 (headless scripted run, copy of a save): both modules
 load, the heart display changes by quarter hearts during gameplay, the replacement handles

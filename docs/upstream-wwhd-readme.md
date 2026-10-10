@@ -73,10 +73,11 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
   kept as `wwhd-previous.log`), with your user paths removed as in crash logs. Please attach it to bug
   reports. `WWHD_LOG_FILE=<path>` writes it elsewhere, `WWHD_LOG_FILE=0` turns it off.
 
-- **Code mods (Mod SDK v2, off by default):** mods written in C for the console's CPU, translated and
-  built on your machine when you install them, for the USA and the European game. Turn them on in
-  Settings → Mods → *Enable code mods* (this rebuilds the game code once; with it off nothing changes).
-  For modders: [docs/deprecated/mod-sdk-v2.md](docs/deprecated/mod-sdk-v2.md).
+- **Code mods (Mod SDK v2, historical upstream text):** this bullet describes an upstream WWHD
+  feature that NSMBU no longer ships.
+  Guest Mod SDK v2, the code-mod rebuild UI, and related tooling are removed.
+  The design archive is [docs/deprecated/mod-sdk-v2.md](docs/deprecated/mod-sdk-v2.md).
+  The replacement plan is [docs/modding/lua-mods.md](docs/modding/lua-mods.md).
 
 - **Smaller fixes:** `WWHD_SHADOW_FIX` is gone, use `WWHD_SHADOW_SCALE=1` for console-sized shadow maps
   (issue #67: since v0.2.9 both sizes look practically the same); the buffer cache's verify mode no

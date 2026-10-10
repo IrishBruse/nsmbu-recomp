@@ -4,7 +4,9 @@ Status: **deprecated**.
 The replacement plan is [../modding/lua-mods.md](../modding/lua-mods.md).
 This ABI stays in the tree until that plan lands.
 Install, enable, and the trust dialog are in [../modding/mod-manager.md](../modding/mod-manager.md).
-Function hooks are the guest prototype in [mod-sdk-v2.md](mod-sdk-v2.md).
+Guest Mod SDK v2 function hooks are removed.
+See the Lua proposal in [../modding/lua-mods.md](../modding/lua-mods.md).
+The old design is a historical archive in [mod-sdk-v2.md](mod-sdk-v2.md).
 
 `runtime/include/nsmbu_mod.h` defines a plain C ABI.
 Export `nsmbu_mod_init_v1`, validate host size and ABI, and return an initialized `NSMBUModV1`.

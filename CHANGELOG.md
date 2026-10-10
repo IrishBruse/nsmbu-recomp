@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Remove**: Guest Mod SDK v2 is gone (`examples/guest-mods/`, `tools/guestmod/`, the runtime guest loader, `code_mods`, `--mod-hooks` emission, and the `guestmods` CI workflow).
+    The mod manager rejects guest packages.
 -   **Fix**: The overworld path seam is fixed.
 
 ## 0.2.0
