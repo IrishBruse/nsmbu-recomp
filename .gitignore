@@ -46,5 +46,21 @@ headstart.bin
 /task.md
 /.tmp/
 
+# LuaJIT Makefile outputs (also ignored under runtime/third_party/luajit/.gitignore)
+/runtime/third_party/luajit/src/libluajit.a
+/runtime/third_party/luajit/src/luajit
+/runtime/third_party/luajit/src/*.o
+/runtime/third_party/luajit/src/host/*.o
+/runtime/third_party/luajit/src/host/minilua
+/runtime/third_party/luajit/src/host/buildvm
+/runtime/third_party/luajit/src/lj_vm.S
+/runtime/third_party/luajit/src/lj_bcdef.h
+/runtime/third_party/luajit/src/lj_ffdef.h
+/runtime/third_party/luajit/src/lj_libdef.h
+/runtime/third_party/luajit/src/lj_recdef.h
+/runtime/third_party/luajit/src/lj_folddef.h
+/runtime/third_party/luajit/src/luajit.h
+/runtime/third_party/luajit/src/luajit_relver.txt
+
 # Reference repos and data
 references/
