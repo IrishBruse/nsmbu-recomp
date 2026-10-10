@@ -13,7 +13,7 @@ You supply the disc image, the keys, and the game files.
 
 ## Status
 
-Currently 1-1 is completable in 0.2.0, with slowdown below 60 fps.
+In 0.2.0 the World 1-1 crash is fixed; World 1-1 through 1-3 are playable with low performance.
 
 ## Install
 
@@ -146,6 +146,7 @@ The file layout is in [game/README.md](game/README.md).
 | `just launch-release` | Start without the debug environment defaults |
 | `just launch-trace` | Start with `--trace` for HLE logging |
 | `just run` | Run `just build`, then `just launch` |
+| `just run 3` | Same, and load save slot 3 |
 | `just recomp` | Translate `game/code/red-pro2.rpx` into `build/gen` |
 | `just gdb` | Start the game under gdb |
 | `just lldb` | Start the game under lldb |

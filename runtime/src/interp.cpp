@@ -935,6 +935,8 @@ extern "C" void hook_0200E6EC(Cpu* c) { if (!skip(32)) f_0200E6EC_orig(c); }
 extern "C" void f_02715310_orig(Cpu* c);
 extern "C" void hook_02715310(Cpu* c) { if (!skip(64)) f_02715310_orig(c); }
 
+namespace gx2 { uint64_t swap_count(); }
+
 namespace interp {
 
 void trace_read(const char* who) {
@@ -949,7 +951,7 @@ bool hold_pass() { return g_hold; }
 
 static uint64_t guest_logic_ticks() { return ld32(GD(0x101FF558)); }
 
-uint64_t logic_steps() { return g_logic_steps ? g_logic_steps : guest_logic_ticks(); }
+uint64_t logic_steps() { return g_logic_steps ? g_logic_steps : ::gx2::swap_count(); }
 void record_executed_step() { g_executed_steps.fetch_add(1, std::memory_order_relaxed); }
 uint64_t executed_steps() {
     const uint64_t hooked = g_executed_steps.load(std::memory_order_relaxed);

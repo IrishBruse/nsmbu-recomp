@@ -86,6 +86,11 @@ Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
 
 `just run` runs `just build` then `just launch`.
 
+`just run 3` loads save slot 3 after boot.
+The number is the save slot.
+Slots are 1 through 5.
+The load frame is TV frame 900.
+
 `just recomp` runs `recomp.py` only.
 
 Put an extracted game you own in `game/`.

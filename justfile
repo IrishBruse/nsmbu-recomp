@@ -28,6 +28,7 @@ gdb *args:
 lldb *args:
     python3 tools/launch.py --lldb {{args}}
 
+# Build, then launch. A number 1 through 5 loads that save slot.
 run *args:
     just build {{args}} && NSMBU_NO_AUDIO=1 just launch {{args}}
 

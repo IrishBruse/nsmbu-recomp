@@ -5,6 +5,9 @@ import shutil
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import slot
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 BUILD = os.path.join(ROOT, "build")
@@ -31,6 +34,7 @@ def main():
     parser.add_argument("--trace", action="store_true", help="pass --trace to the game (HLE trace)")
     parser.add_argument("run_args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    slot_num, args.run_args = slot.take_slot(args.run_args)
     use_debug_env = not args.no_debug
     exe = nsmbu_exe()
     if not os.path.isfile(exe):
@@ -39,6 +43,8 @@ def main():
     if not os.path.isdir(game):
         sys.exit("missing game/; run: just extract")
     env = os.environ.copy()
+    if slot_num is not None:
+        slot.apply_slot(env, slot_num)
     if use_debug_env:
         for key, value in LAUNCH_DEBUG_ENV.items():
             if key not in env:

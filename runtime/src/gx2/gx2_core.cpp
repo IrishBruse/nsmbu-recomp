@@ -533,6 +533,7 @@ namespace gx2 { uint64_t flips_presented() { return __atomic_load_n(&g_flip_coun
 static uint32 g_swap_interval = 1;
 namespace interp { uint32_t effective_swap_interval(uint32_t game); uint64_t logic_steps(); int vsync_rate(); }
 static std::mutex g_flip_mutex;
+namespace gx2 { uint64_t swap_count() { std::lock_guard<std::mutex> lk(g_flip_mutex); return g_swap_count; } }
 static const auto g_vsync_epoch = std::chrono::steady_clock::now();
 static constexpr std::chrono::nanoseconds kVsyncPeriod(16683333);
 static constexpr uint64_t kTicksPerVsync = 4;

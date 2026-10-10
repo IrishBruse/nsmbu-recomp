@@ -7,6 +7,9 @@ import subprocess
 import sys
 import tempfile
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import slot
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 BUILD = os.path.join(ROOT, "build")
@@ -109,6 +112,7 @@ def main():
     parser.add_argument("--sanitizer", action="store_true")
     parser.add_argument("cmake_args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    _, args.cmake_args = slot.take_slot(args.cmake_args)
     debug_build = not args.release and not args.no_debug
     ensure_gen_dir()
     libdir = libstdcxx_libdir()

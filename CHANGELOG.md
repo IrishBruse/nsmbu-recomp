@@ -5,6 +5,12 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+## 0.2.0
+
+-   **Fix**: The crash in World 1-1 is fixed.
+-   **Play**: World 1-1 through 1-3 are playable.
+    Performance is low and frame rate often stays below 60 fps.
+
 ## 0.1
 
 -   **Add**: The download is the NSMBU runtime and installer.
