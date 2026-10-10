@@ -1,8 +1,11 @@
 #include "mods/packages.h"
 #include "mods/content.h"
+#include "mods/lua_guest.h"
 #include <cassert>
+#include <cstdint>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 namespace {
 void env(const char* key, const char* value) {
@@ -24,6 +27,95 @@ mods::packages::View view(const std::string& id) {for(auto v:mods::packages::lis
 int main(int argc, char** argv) {
     namespace fs=std::filesystem;
     using namespace mods::packages;
+    if(argc==2&&std::string(argv[1])=="--lua"){
+        auto root=fs::temp_directory_path()/("nsmbu-lua-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        auto storage=root/"storage";fs::create_directories(storage);
+        env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());
+        initialize();
+        std::string error;
+        auto lua_pack=[&](const char* id,const char* main_src,const char* extra_manifest,const char* sib_src=nullptr){
+            auto path=root/id;fs::create_directories(path);
+            std::ofstream(path/"main.lua")<<main_src;
+            if(sib_src)std::ofstream(path/"sib.lua")<<sib_src;
+            std::ofstream(path/"manifest.json")<<"{\"format_version\":2,\"id\":\""<<id
+              <<"\",\"name\":\""<<id<<"\",\"version\":\"1.0.0\",\"game_id\":\"nsmbu-usa\","
+              <<"\"kind\":\"lua\",\"lua\":{\"api_version\":1,\"entry\":\"main.lua\"}"
+              <<extra_manifest<<"}";
+            return path.string();
+        };
+        assert(install(lua_pack("lua.status",
+            "function nsmbu.on_logic_step(step)\n"
+            "  nsmbu.status(nsmbu.config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
+            "end\n",
+            ",\"options\":[{\"id\":\"label\",\"name\":\"Label\",\"type\":\"string\",\"default\":\"Hi\"}]"),error));
+        assert(enable("lua.status",true,error));frame(1);
+        {auto v=view("lua.status");assert(v.active&&v.enabled&&v.status.find("Hi")!=std::string::npos);}
+        assert(configure("lua.status","label",mods::json::Value("Yo"),error));frame(2);
+        {auto v=view("lua.status");assert(v.active&&v.status.find("Yo")!=std::string::npos&&v.status.find("Hi")==std::string::npos);}
+        assert(enable("lua.status",false,error));frame(3);assert(remove("lua.status",error));
+
+        assert(install(lua_pack("lua.boom",
+            "function nsmbu.on_logic_step(step)\n"
+            "  error(\"boom\")\n"
+            "end\n",""),error));
+        assert(install(lua_pack("lua.ok",
+            "function nsmbu.on_logic_step(step)\n"
+            "  nsmbu.status(\"ok\")\n"
+            "end\n",""),error));
+        assert(enable("lua.boom",true,error));assert(enable("lua.ok",true,error));frame(10);
+        {auto a=view("lua.boom");assert(!a.active&&!a.enabled&&a.reason.find("boom")!=std::string::npos);}
+        {auto b=view("lua.ok");assert(b.active&&b.enabled&&b.status=="ok");}
+        assert(enable("lua.ok",false,error));frame(11);assert(remove("lua.boom",error));assert(remove("lua.ok",error));
+
+        assert(install(lua_pack("lua.sandbox",
+            "assert(io==nil)\n"
+            "assert(os==nil)\n"
+            "local sib=require(\"sib\")\n"
+            "function nsmbu.on_logic_step(step)\n"
+            "  nsmbu.status(sib.tag)\n"
+            "end\n","",
+            "return {tag=\"sib-ok\"}\n"),error));
+        assert(enable("lua.sandbox",true,error));frame(20);
+        {auto v=view("lua.sandbox");assert(v.active&&v.status=="sib-ok");}
+        assert(enable("lua.sandbox",false,error));frame(21);assert(remove("lua.sandbox",error));
+
+        assert(install(lua_pack("lua.escape",
+            "require(\"../escape\")\n",""),error));
+        assert(enable("lua.escape",true,error));frame(22);
+        {auto v=view("lua.escape");assert(!v.active&&!v.enabled&&!v.reason.empty());}
+        assert(remove("lua.escape",error));
+
+        assert(install(lua_pack("lua.dots",
+            "require(\"foo..bar\")\n",""),error));
+        assert(enable("lua.dots",true,error));frame(23);
+        {auto v=view("lua.dots");assert(!v.active&&!v.enabled);}
+        assert(remove("lua.dots",error));
+
+        std::vector<uint8_t> slab(65536,0);
+        mods::lua_guest::set_base(reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(slab.data())-0x10000000u));
+        assert(install(lua_pack("lua.guest",
+            "function nsmbu.on_logic_step(step)\n"
+            "  local addr=0x10000000\n"
+            "  local ok=nsmbu.guest.write_u32(addr,0x11223344)\n"
+            "  local v=nsmbu.guest.read_u32(addr)\n"
+            "  local bad=nsmbu.guest.read_u32(0x50)\n"
+            "  local big=nsmbu.guest.read(addr,0x200000)\n"
+            "  if ok and v==0x11223344 and bad==nil and big==nil then\n"
+            "    nsmbu.status(\"mem-ok\")\n"
+            "  else\n"
+            "    nsmbu.status(\"mem-fail\")\n"
+            "  end\n"
+            "end\n",""),error));
+        assert(enable("lua.guest",true,error));frame(30);
+        {auto v=view("lua.guest");assert(v.active&&v.status=="mem-ok");}
+        assert(slab[0]==0x11&&slab[1]==0x22&&slab[2]==0x33&&slab[3]==0x44);
+        assert(enable("lua.guest",false,error));frame(31);assert(remove("lua.guest",error));
+        mods::lua_guest::set_base(nullptr);
+
+        fs::remove_all(root);
+        std::cout<<"Lua load, options, fault isolation, sandbox, and guest memory passed\n";
+        return 0;
+    }
     if(argc==2&&(std::string(argv[1])=="--cemu-startup"||std::string(argv[1])=="--cemu-backend")){
         bool backend=std::string(argv[1])=="--cemu-backend";
         auto root=fs::temp_directory_path()/("nsmbu-cemu-startup-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
