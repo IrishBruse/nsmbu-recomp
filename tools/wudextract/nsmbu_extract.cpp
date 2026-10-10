@@ -5,7 +5,7 @@
 // src/Cafe/Filesystem/WUD/wud.cpp and FST/FST.cpp, Copyright (c) Cemu contributors, Mozilla Public
 // License 2.0, see runtime/third_party/cemu/LICENSE.txt), without Python or pycryptodome.
 // Cemu archives: ZArchive files (zarchive.h), already decrypted, so no keys; one folder per title
-// (<title id>_v<version>, e.g. 0005000010143500_v0 for the game, 0005000e10143500_v.. for an update).
+// (<title id>_v<version>, e.g. 0005000010101d00_v64 for the game, 0005000e10101d00_v.. for an update).
 //
 // usage:
 //   nsmbu-extract [KEYS] [--progress] info    IMAGE          check the keys, print the title
@@ -24,7 +24,7 @@
 //   --keys-stdin        read "disc <32 hex digits>" / "common <32 hex digits>" lines from stdin
 // A key file holds 16 raw bytes or 32 hex digits (whitespace ignored). Keys are never printed.
 // --title T: a title id (16 hex digits; the highest version of it is used) or a folder name
-// (0005000010143500_v0). Without it an archive with a single title uses that one.
+// (0005000010101d00_v64). Without it an archive with a single title uses that one.
 // --only GLOB (repeatable): extract only the files whose path in the title (code/..., content/...,
 // meta/...) matches one of the patterns, without case; '*' matches any run of characters ('/' too),
 // '?' one character. The setup uses it to take only the language files of a second disc
@@ -552,7 +552,7 @@ int run_archive(const std::string& cmd, const fs::path& path, const std::string&
                    t->version, (unsigned long long)t->files, (unsigned long long)t->bytes);
         fflush(stdout);
     }
-    if (titles.empty()) fail(10, "the archive contains no Wii U title folders (named like 0005000010143500_v0)");
+    if (titles.empty()) fail(10, "the archive contains no Wii U title folders (named like 0005000010101d00_v64)");
     if (cmd == "info" && !t && title.empty()) return 0;
     if (!t && title.empty())
         fail(10, "the archive contains several titles (" + describe(titles) + "): choose one with --title");

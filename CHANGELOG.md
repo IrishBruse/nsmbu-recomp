@@ -9,6 +9,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
     Wind Waker HD title ids and hashes are removed.
     The leftover Europe address map is removed; this port is USA-only for now.
+-   **Add**: `just extract` and the installer require the USA 1.3.0 update (title version 64).
+    Source builds use `game/update/`.
+    The installer looks for `update/` next to the disc image (or `--update-dir` / the Keys screen), checks it, applies it after extract, and verifies the merged dump against the known USA SHA-256.
 -   **Add**: Lua mod packages (`kind: lua`) with embedded LuaJIT, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
     The mod manager accepts format 1 or 2, scans for forbidden binaries/shaders, and loads script-only Lua packages live each logic step.
     Package tests cover load, options, fault isolation, sandbox require, and guest memory (`mod_package_test --lua`).

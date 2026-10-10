@@ -393,6 +393,7 @@ struct App {
     std::string probe_msg;
     bool probe_ok = false;
     std::string disc_key_found, disc_key_file, common_key_found, common_key_file;
+    std::string update_dir_found, update_dir;
     int common_mode = 0;
     char paste[128] = {};
     std::string keys_msg;
@@ -706,6 +707,8 @@ static void set_source(const std::string& path) {
     A.disc_key_found.clear();
     A.common_key_found.clear();
     A.disc_key_file.clear();
+    A.update_dir_found.clear();
+    A.update_dir.clear();
     A.keys_msg.clear();
     request("probe", "\"path\":" + jstr(path));
 }
@@ -716,6 +719,7 @@ static void keys_changed() {
 
 static void set_disc_key_file(const std::string& p) { A.disc_key_file = p, keys_changed(); }
 static void set_common_key_file(const std::string& p) { A.common_key_file = p, keys_changed(); }
+static void set_update_dir(const std::string& p) { A.update_dir = p, keys_changed(); }
 static void set_common_mode(int m) {
     if (A.common_mode != m) A.common_mode = m, keys_changed();
 }
@@ -729,6 +733,7 @@ static void apply_dialog(const std::string& target, const std::string& path) {
     if (target == "source") set_source(path);
     else if (target == "disc_key") set_disc_key_file(path);
     else if (target == "common_key") set_common_key_file(path);
+    else if (target == "update") set_update_dir(path);
     else if (target == "save") set_save_path(path);
 }
 
@@ -747,7 +752,9 @@ static void check_keys() {
     if (!A.disc_key_file.empty()) f += ",\"disc_key_file\":" + jstr(A.disc_key_file);
     if (A.common_mode == 1 && A.paste[0]) f += ",\"common_key_hex\":" + jstr(A.paste);
     else if (A.common_mode == 0 && !A.common_key_file.empty()) f += ",\"common_key_file\":" + jstr(A.common_key_file);
-    A.keys_msg = "Checking the keys...";
+    if (!A.update_dir.empty()) f += ",\"update_dir\":" + jstr(A.update_dir);
+    else if (!A.update_dir_found.empty()) f += ",\"update_dir\":" + jstr(A.update_dir_found);
+    A.keys_msg = "Checking the keys and update...";
     request("check_keys", f);
     f.assign(f.size(), '\0');
     SDL_memset(A.paste, 0, sizeof A.paste);
@@ -773,6 +780,7 @@ static void handle_reply(const J& ev) {
         A.source_path = ev.str("path", A.source_path);
         A.disc_key_found = ev.str("disc_key");
         A.common_key_found = ev.str("common_key");
+        A.update_dir_found = ev.str("update_dir");
         A.source_bytes = ev.num("bytes");
         if (A.source_kind == "archive")
             A.probe_msg = ev.str("message");
@@ -781,7 +789,7 @@ static void handle_reply(const J& ev) {
                                                    "nothing is copied."
                                                  : "Extracted game folder: New Super Mario Bros. U (USA)";
         else
-            A.probe_msg = "Wii U disc image. The game files are extracted from it into this folder (about 1.7 GB).";
+            A.probe_msg = "Wii U disc image. Setup extracts it, then applies the USA 1.3.0 update folder.";
     } else if (cmd == "check_keys") {
         if (ok) {
             A.keys_msg.clear();
@@ -1005,11 +1013,13 @@ static void screen_welcome() {
     ImGui::Spacing();
     ImGui::TextUnformatted("You need:");
     ImGui::Bullet();
-    ImGui::TextWrapped("your NSMBU (USA): a disc image (.wud/.wux), a Cemu archive (.wua), or an extracted "
-                       "folder (code, content, meta);");
+    ImGui::TextWrapped("your NSMBU (USA): a disc image (.wud/.wux) plus the USA 1.3.0 update folder, a Cemu archive "
+                       "already at title version 64, or an extracted folder with that update applied "
+                       "(code, content, meta);");
     ImGui::Bullet();
-    ImGui::TextWrapped("for a disc image, its disc key and the Wii U common key (from your console). A Cemu archive "
-                       "or an extracted folder needs no keys.");
+    ImGui::TextWrapped("for a disc image: its disc key, the Wii U common key (from your console), and the USA 1.3.0 "
+                       "update (update/ next to the image, or chosen on the next screen). A Cemu archive or an "
+                       "extracted folder needs no keys.");
     ImGui::Spacing();
     if (A.portable) {
         ImGui::TextUnformatted("Space, all of it in this folder:");
@@ -1058,7 +1068,8 @@ static void screen_menu() {
 
 static void screen_source() {
     page_header("Choose your game",
-                "A Wii U disc image (.wux or .wud), a Cemu archive (.wua) or an already extracted game folder.");
+                "A Wii U disc image (.wux or .wud) with the USA 1.3.0 update, a Cemu archive (.wua) at title "
+                "version 64, or an already extracted game folder with that update applied.");
     static const SDL_DialogFileFilter filters[] = {{"Wii U disc image or Cemu archive (.wux, .wud, .wua)", "wux;wud;wua"},
                                                    {"Wii U disc image (.wux, .wud)", "wux;wud"},
                                                    {"Cemu Wii U archive (.wua)", "wua"},
@@ -1090,7 +1101,7 @@ static std::string base_name(const std::string& p) {
 }
 
 static void screen_keys() {
-    page_header("Keys", base_name(A.source_path));
+    page_header("Keys and update", base_name(A.source_path));
     static const SDL_DialogFileFilter keyf[] = {{"Key files (.key, .bin, .txt)", "key;bin;txt"}, {"All files", "*"}};
 
     ImGui::BeginChild("disc", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
@@ -1136,6 +1147,25 @@ static void screen_keys() {
         muted("The key is hidden, used once to check and decrypt, and never saved.");
     }
     ImGui::EndChild();
+    ImGui::Spacing();
+
+    ImGui::BeginChild("update", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
+    heading("USA 1.3.0 update", 20);
+    muted("Extracted update folder with code, content and meta (title version 64).");
+    if (!A.update_dir.empty()) {
+        mark(2);
+        ImGui::TextWrapped("Update folder: %s", A.update_dir.c_str());
+    } else if (!A.update_dir_found.empty()) {
+        mark(2);
+        ImGui::TextWrapped("Found next to the image: %s", A.update_dir_found.c_str());
+    } else {
+        mark(3);
+        ImGui::TextWrapped("Not found. Put an update/ folder next to the disc image, or choose it here.");
+    }
+    if (button(A.update_dir_found.empty() && A.update_dir.empty() ? "Choose update folder...##upd"
+                                                                  : "Choose a different update folder...##upd"))
+        choose_folder("update");
+    ImGui::EndChild();
 
     if (!A.keys_msg.empty()) {
         ImGui::Spacing();
@@ -1148,7 +1178,8 @@ static void screen_keys() {
     }
     bool have_disc = !A.disc_key_found.empty() || !A.disc_key_file.empty();
     bool have_common = A.common_mode == 1 ? strlen(A.paste) > 0 : (!A.common_key_file.empty() || !A.common_key_found.empty());
-    int b = footer({"Back", "Check keys and install"}, 1, (have_disc && have_common && !busy()) ? 0 : 2);
+    bool have_update = !A.update_dir_found.empty() || !A.update_dir.empty();
+    int b = footer({"Back", "Check keys and install"}, 1, (have_disc && have_common && have_update && !busy()) ? 0 : 2);
     if (b == 0) go(Screen::Source);
     if (b == 1) check_keys();
 }

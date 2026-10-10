@@ -16,7 +16,8 @@ Run it again to play, to repair the installation, or to update after downloading
 Saves are never changed without asking.
 
 Non-interactive use (tests, scripts):
-  setup.py --yes --image DISC.wux [--disc-key FILE] --common-key FILE [--data-dir DIR] [--no-launch]
+  setup.py --yes --image DISC.wux [--disc-key FILE] --common-key FILE [--update-dir DIR]
+           [--data-dir DIR] [--no-launch]
   setup.py --yes --archive GAME.wua [...]
   setup.py --yes --game-dir EXTRACTED_GAME [...]
   setup.py --yes --gen-dir GENERATED_C --no-launch   (build check with placeholder code, no game)
@@ -65,9 +66,9 @@ IS_LINUX = not IS_MAC and not IS_WIN
 EXE_SUFFIX = ".exe" if IS_WIN else ""
 APP_NAME = "NSMBU"
 TITLE_IDS = {
-    "0005000010143500": "USA",
-    "0005000010143600": "Europe",
-    "0005000010143400": "Japan",
+    "0005000010101d00": "USA",
+    "0005000010101e00": "Europe",
+    "0005000010101c00": "Japan",
 }
 
 sys.path.insert(0, os.path.join(PKG, "tools", "recomp"))
@@ -75,7 +76,7 @@ import builds as game_builds
 SUPPORTED_BUILDS = {b.title_id: b for b in game_builds.all_builds()}
 SUPPORTED_TITLE = game_builds.canonical_build().title_id
 
-SUPPORTED_VERSION = 0
+SUPPORTED_VERSION = 64
 
 SUPPORTED_RPX_SHA256 = game_builds.canonical_build().sha256
 
@@ -677,24 +678,27 @@ def archive_choice(info):
                 except SetupError as e:
                     raise SetupError("this archive contains %s" % str(e)[len("this is "):])
         updates = ["0005000e" + t[8:] for t in SUPPORTED_BUILDS]
-        if any(t["id"] in updates for t in titles):
-            raise SetupError("this archive contains only the update for New Super Mario Bros. U, not the game itself "
-                             "(%s). In Cemu, make the archive with the game included (it contains: %s)."
+        if any(t["id"] in updates and t["version"] == SUPPORTED_VERSION for t in titles):
+            raise SetupError("this archive has the USA 1.3.0 update but not the base game title (%s). "
+                             "In Cemu, make the archive with the game and update (it contains: %s)."
                              % (supported_titles_text(), found))
         raise SetupError("this archive does not contain New Super Mario Bros. U, %s (it contains: %s)."
                          % (supported_titles_text(), found))
     version = int(info.get("version", -1))
+    selected_id = next((t["id"] for t in titles if t["folder"] == info["selected"]), "").lower()
+    update_ids = ["0005000e" + x[8:] for x in SUPPORTED_BUILDS]
+    base_tid = "00050000" + selected_id[8:] if selected_id[:8] in ("00050000", "0005000e") else selected_id
+    if base_tid not in SUPPORTED_BUILDS:
+        check_title(base_tid if base_tid in TITLE_IDS else selected_id)
     if version != SUPPORTED_VERSION:
-        raise SetupError("the game in this archive is version %d; the port is built for version %d of New Super Mario Bros. U, "
-                         "the disc and eShop release (folder %s)." % (version, SUPPORTED_VERSION, info["selected"]))
+        raise SetupError("the game in this archive is version %d; the port is built for title version %d "
+                         "(USA 1.3.0, folder %s)." % (version, SUPPORTED_VERSION, info["selected"]))
     notes = []
     for t in titles:
         if t["folder"] == info["selected"]:
             continue
-        if t["id"] in ["0005000e" + x[8:] for x in SUPPORTED_BUILDS]:
-            notes.append("Not used: %s (%s). The port is built for the game's own code (version %d); the update "
-                         "replaces that code, and its data files belong to the updated code, so the game is set up "
-                         "from the base game alone." % (title_desc(t["id"], t["version"]), t["folder"], SUPPORTED_VERSION))
+        if t["id"] in update_ids:
+            notes.append("Also present: %s (%s)." % (title_desc(t["id"], t["version"]), t["folder"]))
         else:
             notes.append("Not used: %s (%s), not needed for this game." % (title_desc(t["id"], t["version"]), t["folder"]))
     return info["selected"], notes
@@ -734,15 +738,16 @@ def file_sha256(path):
             h.update(chunk)
     return h.hexdigest()
 
-GAME_VERSION_FIX = ("Use the game's own files: a disc image (.wud/.wux), a Cemu archive (.wua; setup takes the game from it "
-                    "and leaves an update out), or the game's folder exactly as dumped (in Cemu: "
-                    "mlc01/usr/title/00050000/10143500 for the USA game, 10143600 for the European one; not the "
-                    "update in 0005000e/...), without update files copied over it.")
+GAME_VERSION_FIX = ("Use USA New Super Mario Bros. U with the 1.3.0 update (title version 64): a disc image plus an "
+                    "update/ folder next to it, a merged game folder (base plus update), or a Cemu archive that "
+                    "already has title version 64.")
+
+UPDATE_DIRNAME = "update"
 
 def check_game_version(path):
     """The build of the game in `path` (tools/recomp/builds.py), or SetupError if it is not one the
     port can be built from. The translated code and its hooks are made for exactly those files
-    (version 0 of each region), so this runs before translating."""
+    (USA 1.3.0 / title version 64), so this runs before translating."""
     rpx = os.path.join(path, "code", "red-pro2.rpx")
     try:
         digest = file_sha256(rpx)
@@ -756,20 +761,65 @@ def check_game_version(path):
     if tid and tid not in SUPPORTED_BUILDS and tid not in updates:
         found = "the game code (code/red-pro2.rpx) is from %s (title %s-%s)" % (title_desc(tid, ver), tid[:8].upper(),
                                                                             tid[8:].upper())
-    elif tid in updates or ver:
-        found = ("the game code (code/red-pro2.rpx) is %s (per the folder's app.xml/meta.xml): this looks like the "
-                 "game with an update merged in" % ("version %d of the game" % ver if ver else "from the update"))
+    elif ver is not None and ver != SUPPORTED_VERSION:
+        found = ("the game code (code/red-pro2.rpx) is %s (per the folder's app.xml/meta.xml); need title version %d"
+                 % (title_desc(tid, ver) if tid else "an unknown build", SUPPORTED_VERSION))
     else:
-        found = ("the game code (code/red-pro2.rpx) is not a file the port knows (SHA-256 %s...): not version 0 of "
-                 "the game, or a modified or damaged copy" % digest[:16])
+        found = ("the game code (code/red-pro2.rpx) is not a file the port knows (SHA-256 %s...): not USA 1.3.0 "
+                 "(title version %d), or a modified or damaged copy" % (digest[:16], SUPPORTED_VERSION))
     LOG.write("red-pro2.rpx SHA-256 %s, known: %s" % (
         digest, ", ".join("%s %s" % (b.name, b.sha256[:16]) for b in SUPPORTED_BUILDS.values())))
-    raise SetupError("%s. The port needs New Super Mario Bros. U, %s, version 0 (the disc or eShop release, without the "
-                     "update). %s" % (found, supported_titles_text(), GAME_VERSION_FIX))
+    raise SetupError("%s. The port needs New Super Mario Bros. U, %s, title version %d (USA 1.3.0). %s"
+                     % (found, supported_titles_text(), SUPPORTED_VERSION, GAME_VERSION_FIX))
 
 def valid_game_folder(path):
     return (os.path.isfile(os.path.join(path, "code", "red-pro2.rpx")) and os.path.isdir(os.path.join(path, "content"))
             and os.path.isfile(os.path.join(path, "meta", "meta.xml")))
+
+def find_sidecar_update(image):
+    cand = os.path.join(os.path.dirname(os.path.abspath(image)), UPDATE_DIRNAME)
+    return cand if valid_game_folder(cand) else None
+
+def check_update_folder(path):
+    """USA 1.3.0 update folder (code/, content/, meta/), or SetupError."""
+    if not valid_game_folder(path):
+        raise SetupError("%s is not an update folder (needs code/red-pro2.rpx, content/, meta/meta.xml)" % path)
+    build = check_game_version(path)
+    tid, ver = code_title_version(path)
+    update_tid = "0005000e" + build.title_id[8:]
+    if tid and tid not in (build.title_id, update_tid):
+        raise SetupError("the update folder title id is %s; need %s or %s (USA 1.3.0)"
+                         % (tid, update_tid, build.title_id))
+    if ver is not None and ver != SUPPORTED_VERSION:
+        raise SetupError("the update folder is title version %d; need %d (USA 1.3.0)" % (ver, SUPPORTED_VERSION))
+    return build
+
+def apply_update_to(dst, update_dir):
+    for name in ("code", "content", "meta"):
+        src = os.path.join(update_dir, name)
+        if not os.path.isdir(src):
+            raise SetupError("update is incomplete: missing %s/%s" % (UPDATE_DIRNAME, name))
+        os.makedirs(os.path.join(dst, name), exist_ok=True)
+        shutil.copytree(src, os.path.join(dst, name), dirs_exist_ok=True)
+
+def get_update_dir(image, ui, args):
+    """USA 1.3.0 update next to the disc image, --update-dir, or chosen interactively."""
+    path = getattr(args, "update_dir", None) or find_sidecar_update(image)
+    if path:
+        path = os.path.abspath(path)
+        check_update_folder(path)
+        say("  OK: USA 1.3.0 update in %s" % path)
+        return path
+    if not ui.interactive:
+        raise SetupError("put the USA 1.3.0 update in %s/ next to the disc image (code/, content/, meta/), "
+                         "or pass --update-dir" % UPDATE_DIRNAME)
+    while True:
+        p = ui.pick_path("Choose the USA 1.3.0 update folder (it contains code, content and meta)", folder=True)
+        try:
+            check_update_folder(p)
+            return os.path.abspath(p)
+        except SetupError as e:
+            say("  %s" % e)
 
 def folder_size(path):
     total = 0
@@ -830,8 +880,9 @@ def get_disc_keys(image, ui, args):
         else:
             raise SetupError("cannot read the disc image: %s" % err)
 
-def extract_game(image, keys, info, data_dir, title=None):
-    """Extracts a disc image (keys) or one title folder of a Cemu archive (title, no keys) into data_dir/game."""
+def extract_game(image, keys, info, data_dir, title=None, update_dir=None):
+    """Extracts a disc image (keys) or one title folder of a Cemu archive (title, no keys) into data_dir/game.
+    For a disc image, update_dir is the USA 1.3.0 update folder applied after the base extract."""
     dst = os.path.join(data_dir, "game")
     tmp = os.path.join(data_dir, "game.partial")
     shutil.rmtree(tmp, ignore_errors=True)
@@ -843,6 +894,9 @@ def extract_game(image, keys, info, data_dir, title=None):
     if not valid_game_folder(tmp):
         raise SetupError("the extracted files are incomplete (no code/red-pro2.rpx)")
     try:
+        if update_dir:
+            say("  Applying USA 1.3.0 update from %s" % update_dir)
+            apply_update_to(tmp, update_dir)
         check_game_version(tmp)
     except SetupError:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -918,7 +972,7 @@ def replace_dir(new, dst):
     os.replace(new, dst)
     shutil.rmtree(old, ignore_errors=True)
 
-LANGUAGE_SOURCE_TITLES = {"0005000010143600": "EU", "0005000010143400": "JP"}
+LANGUAGE_SOURCE_TITLES = {"0005000010101e00": "EU", "0005000010101c00": "JP"}
 LANGUAGE_SOURCE_FILES = ["content/Common/Pack/permanent_2d_*.pack", "meta/meta.xml"]
 
 LANGUAGE_PACKS = {
@@ -940,12 +994,12 @@ def language_source_region(title_id):
         return LANGUAGE_SOURCE_TITLES[tid]
     if tid == SUPPORTED_TITLE:
         raise SetupError("this is the USA game, whose languages (English, French, Spanish) the port already has. A "
-                         "language source is the European (00050000-10143600) or Japanese (00050000-10143400) game")
+                         "language source is the European (00050000-10101e00) or Japanese (00050000-10101c00) game")
     if tid[:8] in ("0005000e", "0005000c") and ("00050000" + tid[8:]) in TITLE_IDS:
         raise SetupError("this is %s, not the game itself: a language source is the European or Japanese game "
-                         "(title 00050000-10143600 or 00050000-10143400)" % title_desc(tid))
+                         "(title 00050000-10101e00 or 00050000-10101c00)" % title_desc(tid))
     raise SetupError("this is not the European or Japanese version of New Super Mario Bros. U (title %s); a language source "
-                     "is title 00050000-10143600 (Europe) or 00050000-10143400 (Japan)" % (tid or "unknown"))
+                     "is title 00050000-10101e00 (Europe) or 00050000-10101c00 (Japan)" % (tid or "unknown"))
 
 def find_dir_nocase(base, *parts):
     """base/part/... matched without case (a disc's spelling on any host); None if a part is missing."""
@@ -1626,6 +1680,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
         step(next(counter), total, STEP_TITLES[sid], sid)
 
     archive_title = None
+    update_dir = None
 
     if kind == "image":
         begin("keys")
@@ -1636,6 +1691,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
         check_title(info.get("title_id", ""))
         say("  OK: %s, %s files, %s" % (title_desc(info.get("title_id", "")), info.get("files"),
                                         human(int(info.get("bytes", 0)))))
+        update_dir = get_update_dir(source[1], ui, args)
     elif kind == "archive":
         begin("archive")
         if not os.path.isfile(source[1]):
@@ -1657,7 +1713,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
         if tid:
             check_title(tid)
         build = check_game_version(source[1])
-        say("  OK: %s (%s, version 0)" % (source[1], build.name))
+        say("  OK: %s (%s, title version %d)" % (source[1], build.name, SUPPORTED_VERSION))
     elif kind == "installed":
         if not valid_game_folder(ctx.game_dir):
             raise SetupError("no installed game files in %s; run setup with your disc image" % ctx.game_dir)
@@ -1674,7 +1730,9 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
     if kind in ("image", "archive"):
         begin("extract")
         t0 = time.time()
-        extract_game(source[1], keys, info, data_dir, archive_title if kind == "archive" else None)
+        extract_game(source[1], keys, info, data_dir,
+                     archive_title if kind == "archive" else None,
+                     update_dir if kind == "image" else None)
         game_dir = os.path.join(data_dir, "game")
         say("  Game files are in %s (%d s)" % (game_dir, time.time() - t0))
     elif kind == "folder":
@@ -1785,6 +1843,7 @@ def main():
     ap.add_argument("--archive", help="Cemu Wii U archive (.wua): no keys needed")
     ap.add_argument("--disc-key", help="disc key file (default: IMAGE.key)")
     ap.add_argument("--common-key", help="Wii U common key file (or WIIU_COMMON_KEY)")
+    ap.add_argument("--update-dir", help="USA 1.3.0 update folder (code/, content/, meta/); default: update/ next to the disc image")
     ap.add_argument("--game-dir", help="an already extracted game folder (code/, content/, meta/) instead of an image")
     ap.add_argument("--gen-dir", help="use this generated code instead of recompiling (build checks)")
     ap.add_argument("--data-dir", help="where the game is installed (default: %s)" % default_data_dir())
@@ -1902,9 +1961,11 @@ def run(args, ui):
             source = ("installed", game_dir)
         else:
             say("")
-            i = ui.choose("What do you have?", ["a disc image (.wux or .wud) with its keys",
-                                                 "a Cemu Wii U archive (.wua; no keys needed)",
-                                                 "an already extracted game folder (with code, content and meta folders)"])
+            i = ui.choose("What do you have?", [
+                "a disc image (.wux or .wud) with its keys and the USA 1.3.0 update folder",
+                "a Cemu Wii U archive (.wua; no keys needed; already title version 64)",
+                "an already extracted game folder with the 1.3.0 update applied (code, content, meta)",
+            ])
             if i in (0, 1):
                 p = ui.pick_path("Choose your NSMBU disc image (.wux or .wud)" if i == 0 else
                                  "Choose your NSMBU Cemu archive (.wua)",
@@ -1976,7 +2037,7 @@ def gui_main(args):
     except SetupError as e:
         GUI.emit({"event": "fatal", "message": str(e)})
         return 1
-    session = {"keys": None, "info": None, "image": None}
+    session = {"keys": None, "info": None, "image": None, "update_dir": None}
 
     def hello():
         st = ctx.state()
@@ -2034,7 +2095,9 @@ def gui_main(args):
             return fail(req, "invalid", "Choose a .wux or .wud disc image, a .wua Cemu archive, or an extracted game "
                         "folder.")
         src, _ = find_common_key(p)
-        reply(req, kind="image", path=p, disc_key=find_sidecar_disc_key(p), common_key=src)
+        upd = find_sidecar_update(p)
+        reply(req, kind="image", path=p, disc_key=find_sidecar_disc_key(p), common_key=src,
+              update_dir=upd or "")
 
     def request_keys(req, image):
         """(keys, None) or (None, (problem, message)) from a request's key fields (check_keys, add_language_source)."""
@@ -2120,8 +2183,17 @@ def gui_main(args):
             check_title(info.get("title_id", ""))
         except SetupError as e:
             return fail(req, "wrong_title", str(e))
-        session.update(keys=keys, info=info, image=image)
-        reply(req, title_id=info.get("title_id"), files=int(info.get("files", 0)), bytes=int(info.get("bytes", 0)))
+        update_dir = req.get("update_dir") or find_sidecar_update(image)
+        if not update_dir:
+            return fail(req, "update_missing",
+                        "Choose the USA 1.3.0 update folder (code, content and meta), or put it in update/ next to the disc image.")
+        try:
+            check_update_folder(update_dir)
+        except SetupError as e:
+            return fail(req, "wrong_update", str(e)[0].upper() + str(e)[1:])
+        session.update(keys=keys, info=info, image=image, update_dir=os.path.abspath(update_dir))
+        reply(req, title_id=info.get("title_id"), files=int(info.get("files", 0)), bytes=int(info.get("bytes", 0)),
+              update_dir=session["update_dir"])
 
     def do_install(req):
         kind = req.get("source")
@@ -2130,6 +2202,9 @@ def gui_main(args):
         if kind == "image":
             if not session["keys"] or session["image"] != req.get("path"):
                 return fail(req, "keys", "Check the keys first.")
+            if not session.get("update_dir"):
+                return fail(req, "update_missing", "Check the USA 1.3.0 update folder with the keys.")
+            ctx.args.update_dir = session["update_dir"]
             source = ("image", req["path"])
         elif kind == "archive":
             source = ("archive", req.get("path") or "")
@@ -2146,7 +2221,8 @@ def gui_main(args):
             LOG.write("setup stopped: %s" % e)
             return fail(req, "install", str(e))
         finally:
-            session.update(keys=None, info=None)
+            session.update(keys=None, info=None, update_dir=None)
+            ctx.args.update_dir = None
         tdir = toolchain_dir(ctx.data_dir)
         reply(req, app=state.get("app", ""), exe=state.get("exe", ""), data_dir=ctx.data_dir,
               game_dir=state.get("game_dir", ""), save_exists=have_save(ctx.data_dir),

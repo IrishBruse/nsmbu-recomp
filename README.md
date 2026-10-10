@@ -34,10 +34,10 @@ Each later start launches the game.
 The installer asks which copy of the game you have.
 Choose one option.
 
-1. A disc image (`.wux` or `.wud`) and its keys.
-2. A Cemu archive (`.wua`).
+1. A disc image (`.wux` or `.wud`), its keys, and the USA **1.3.0** update folder.
+2. A Cemu archive (`.wua`) that already has title version 64.
    This file needs no keys.
-3. An extracted game folder.
+3. An extracted game folder that already has the 1.3.0 update applied.
    The folder contains `code`, `content`, and `meta`.
 
 The installer then opens a file window and asks you to choose that file or folder.
@@ -48,7 +48,8 @@ Linux uses Zenity or KDialog when one of those programs is installed.
 When no file window opens, the installer asks you to type the path.
 You can drag the file into the window and press Enter.
 
-A disc image also needs a disc key and the Wii U common key.
+A disc image also needs a disc key, the Wii U common key, and the USA 1.3.0 update.
+Put the update in an `update/` folder next to the disc image (`code/`, `content/`, `meta/`), or choose that folder in the installer.
 The installer uses a `.key` file that has the same name as the image when that file is next to the image.
 The installer uses `common.key` when that file is next to the image.
 When a key is missing, the installer asks you to choose a key file or to paste 32 hex digits.
@@ -56,8 +57,8 @@ The paste field hides the text.
 The keys stay in memory until extraction starts.
 The setup log contains no keys.
 
-The installer accepts the USA game, title `00050000-10143500`, version 0.
-It checks `code/red-pro2.rpx` before it translates the code.
+The installer accepts USA New Super Mario Bros. U, title `00050000-10101d00`, title version 64 (1.3.0).
+For a disc image it checks the update folder, extracts the disc, applies the update, then checks `code/red-pro2.rpx` before it translates the code.
 
 The installer then prepares the game.
 For a disc image or a Cemu archive, it extracts the files into the release folder.
@@ -138,7 +139,7 @@ The file layout is in [game/README.md](game/README.md).
 | Command | Result |
 |---------|--------|
 | `just` | List the commands |
-| `just extract` | Read `game/game.wux` and write `game/code/`, `game/content/`, and `game/meta/` |
+| `just extract` | Check `game/update/` (USA 1.3.0), extract `game/game.wux`, then apply the update |
 | `just build` | Configure `build/` in Debug and build `nsmbu` |
 | `just build-release` | Build in Release |
 | `just build-sanitizer` | Build with AddressSanitizer and UBSan |

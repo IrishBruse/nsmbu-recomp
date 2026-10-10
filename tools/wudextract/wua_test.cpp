@@ -231,10 +231,10 @@ int main(int argc, char** argv) {
                                     {"content/patched.bin", pattern(5000, 12)},
                                     {"meta/meta.xml", pattern(10, 13)}};
     ZWriter w;
-    for (auto& f : update) w.add("0005000e10143500_v16/" + f.path, f.data);
-    for (auto& f : base) w.add("0005000010143500_v0/" + f.path, f.data);
-    w.add("0005000c10143500_v5/content/0010/dlc.bin", pattern(999, 21));
-    w.mkdir("0005000010143500_v0/content/emptydir");
+    for (auto& f : update) w.add("0005000e10101d00_v64/" + f.path, f.data);
+    for (auto& f : base) w.add("0005000010101d00_v64/" + f.path, f.data);
+    w.add("0005000c10101d00_v5/content/0010/dlc.bin", pattern(999, 21));
+    w.mkdir("0005000010101d00_v64/content/emptydir");
     w.add("readme.txt", pattern(12, 22));
     std::vector<uint8_t> arc = w.finish();
     fs::path wua = work / "game.wua";
@@ -254,18 +254,18 @@ int main(int argc, char** argv) {
         expect(ok && n == files.size(), what);
     };
 
-    expect(run(x + " --title 0005000010143500 info " + q(wua) + " > " + q(work / "info.txt")) == 0, "info --title (no keys)");
+    expect(run(x + " --title 0005000010101d00 info " + q(wua) + " > " + q(work / "info.txt")) == 0, "info --title (no keys)");
     {
         std::string s = read_text(work / "info.txt");
         uint64_t bytes = 0;
         for (auto& f : base) bytes += f.data.size();
         expect(s.find("format wua\n") == 0, "info: format line");
-        expect(s.find("title 0005000010143500 0 0005000010143500_v0 6 " + std::to_string(bytes) + "\n") != std::string::npos,
+        expect(s.find("title 0005000010101d00 64 0005000010101d00_v64 6 " + std::to_string(bytes) + "\n") != std::string::npos,
                "info: base title line (files, bytes)");
-        expect(s.find("title 0005000e10143500 16 0005000e10143500_v16 3 ") != std::string::npos, "info: update title line");
-        expect(s.find("title 0005000c10143500 5 0005000c10143500_v5 1 999\n") != std::string::npos, "info: DLC title line");
+        expect(s.find("title 0005000e10101d00 64 0005000e10101d00_v64 3 ") != std::string::npos, "info: update title line");
+        expect(s.find("title 0005000c10101d00 5 0005000c10101d00_v5 1 999\n") != std::string::npos, "info: DLC title line");
         expect(s.find("readme") == std::string::npos, "info: files at the top are not titles");
-        expect(s.find("selected 0005000010143500_v0\ntitle_id 0005000010143500\nversion 0\nfiles 6\nbytes " +
+        expect(s.find("selected 0005000010101d00_v64\ntitle_id 0005000010101d00\nversion 64\nfiles 6\nbytes " +
                       std::to_string(bytes) + "\n") != std::string::npos,
                "info: selected title");
     }
@@ -274,12 +274,12 @@ int main(int argc, char** argv) {
     expect(run(x + " list " + q(wua) + " > " + q(work / "list.txt")) == 0, "list");
     {
         std::string s = read_text(work / "list.txt");
-        expect(s.find("0005000010143500_v0/content/a/b/c/deep.bin") != std::string::npos &&
-                   s.find("0005000e10143500_v16/content/patched.bin") != std::string::npos,
+        expect(s.find("0005000010101d00_v64/content/a/b/c/deep.bin") != std::string::npos &&
+                   s.find("0005000e10101d00_v64/content/patched.bin") != std::string::npos,
                "list shows the files of every title");
     }
 
-    expect(run(x + " --title 0005000010143500 --progress extract " + q(wua) + " " + q(work / "out") + " > " +
+    expect(run(x + " --title 0005000010101d00 --progress extract " + q(wua) + " " + q(work / "out") + " > " +
                q(work / "progress.txt")) == 0,
            "extract the base title");
     check_tree(work / "out", base, "extracted files match (and nothing from the other titles)");
@@ -290,18 +290,18 @@ int main(int argc, char** argv) {
                "progress: verify, then extract");
     }
 
-    expect(run(x + " --title 0005000E10143500_V16 extract " + q(wua) + " " + q(work / "out_upd") + " 2> " +
+    expect(run(x + " --title 0005000e10101d00_V64 extract " + q(wua) + " " + q(work / "out_upd") + " 2> " +
                q(work / "log.txt")) == 0,
            "extract a title by its folder name (any case)");
     check_tree(work / "out_upd", update, "update files match");
 
     fs::copy_file(wua, work / "game.bin");
-    expect(run(x + " --title 0005000010143500 info " + q(work / "game.bin") + " > " + q(work / "info3.txt")) == 0,
+    expect(run(x + " --title 0005000010101d00 info " + q(work / "game.bin") + " > " + q(work / "info3.txt")) == 0,
            "archive recognized without the .wua extension");
 
     {
         ZWriter one;
-        for (auto& f : base) one.add("0005000010143500_v0/" + f.path, f.data);
+        for (auto& f : base) one.add("0005000010101d00_v64/" + f.path, f.data);
         write_file(work / "one.wua", one.finish());
         expect(run(x + " extract " + q(work / "one.wua") + " " + q(work / "out_one") + " 2> " + q(work / "log1.txt")) == 0,
                "single-title archive without --title");
@@ -310,15 +310,15 @@ int main(int argc, char** argv) {
 
     {
         ZWriter eu;
-        for (auto& f : base) eu.add("0005000010143600_v0/" + f.path, f.data);
+        for (auto& f : base) eu.add("0005000010101e00_v64/" + f.path, f.data);
         write_file(work / "eu.wua", eu.finish());
-        expect(run(x + " --title 0005000010143500 info " + q(work / "eu.wua") + " > " + q(work / "info_eu.txt") + " 2> " +
+        expect(run(x + " --title 0005000010101d00 info " + q(work / "eu.wua") + " > " + q(work / "info_eu.txt") + " 2> " +
                    q(work / "e_eu.txt")) == 10,
                "title not in the archive -> exit 10");
-        expect(read_text(work / "info_eu.txt").find("title 0005000010143600 0 ") != std::string::npos,
+        expect(read_text(work / "info_eu.txt").find("title 0005000010101e00 64 ") != std::string::npos,
                "  ... info still lists what is there");
-        expect(read_text(work / "e_eu.txt").find("0005000010143600_v0") != std::string::npos, "  ... message names it");
-        expect(run(x + " --title 0005000010143500 extract " + q(work / "eu.wua") + " " + q(work / "out_eu") + " 2> " +
+        expect(read_text(work / "e_eu.txt").find("0005000010101e00_v64") != std::string::npos, "  ... message names it");
+        expect(run(x + " --title 0005000010101d00 extract " + q(work / "eu.wua") + " " + q(work / "out_eu") + " 2> " +
                    q(work / "e_eu2.txt")) == 10 &&
                    !fs::exists(work / "out_eu"),
                "  ... extract refuses, writes nothing");
@@ -336,11 +336,11 @@ int main(int argc, char** argv) {
         std::vector<FileSpec> want = {{"content/Common/Pack/permanent_2d_EuGerman.pack", pattern(400, 31)},
                                       {"content/Common/Pack/permanent_2d_EuFrench.pack", pattern(500, 32)},
                                       {"meta/meta.xml", pattern(300, 3)}};
-        for (auto& f : want) eu.add("0005000010143600_v0/" + f.path, f.data);
-        eu.add("0005000010143600_v0/code/red-pro2.rpx", pattern(1000, 33));
-        eu.add("0005000010143600_v0/content/Common/Pack/permanent_3d.pack", pattern(600, 34));
+        for (auto& f : want) eu.add("0005000010101e00_v64/" + f.path, f.data);
+        eu.add("0005000010101e00_v64/code/red-pro2.rpx", pattern(1000, 33));
+        eu.add("0005000010101e00_v64/content/Common/Pack/permanent_3d.pack", pattern(600, 34));
         write_file(work / "eu_lang.wua", eu.finish());
-        expect(run(x + " --title 0005000010143600 --only CONTENT/Common/Pack/permanent_2d_*.pack --only meta/meta.xml "
+        expect(run(x + " --title 0005000010101e00 --only CONTENT/Common/Pack/permanent_2d_*.pack --only meta/meta.xml "
                    "--progress extract " + q(work / "eu_lang.wua") + " " + q(work / "out_lang") + " > " +
                    q(work / "progress_lang.txt")) == 0,
                "extract --only (archive)");
@@ -364,9 +364,9 @@ int main(int argc, char** argv) {
         std::vector<uint8_t> d = arc;
         d[stored] ^= 0x40;
         write_file(work / "flipped.wua", d);
-        expect(run(x + " --title 0005000010143500 info " + q(work / "flipped.wua") + " > " + q(work / "o2.txt")) == 0,
+        expect(run(x + " --title 0005000010101d00 info " + q(work / "flipped.wua") + " > " + q(work / "o2.txt")) == 0,
                "flipped data byte: info still works");
-        expect(run(x + " --title 0005000010143500 extract " + q(work / "flipped.wua") + " " + q(work / "out_flip") + " 2> " +
+        expect(run(x + " --title 0005000010101d00 extract " + q(work / "flipped.wua") + " " + q(work / "out_flip") + " 2> " +
                    q(work / "e4.txt")) == 8 &&
                    !fs::exists(work / "out_flip"),
                "flipped data byte: extract -> exit 8 before writing anything");
@@ -379,7 +379,7 @@ int main(int argc, char** argv) {
         d[packed] ^= 0xFF;
         ZWriter::rehash(d);
         write_file(work / "badframe.wua", d);
-        expect(run(x + " --title 0005000010143500 extract " + q(work / "badframe.wua") + " " + q(work / "out_bf") + " 2> " +
+        expect(run(x + " --title 0005000010101d00 extract " + q(work / "badframe.wua") + " " + q(work / "out_bf") + " 2> " +
                    q(work / "e5.txt")) == 8,
                "broken zstd block -> exit 8");
         expect(read_text(work / "e5.txt").find("cannot be decompressed") != std::string::npos, "  ... message");
@@ -392,10 +392,10 @@ int main(int argc, char** argv) {
         expect(run(x + " info " + q(work / "badtree.wua") + " 2> " + q(work / "e6.txt")) == 7, "corrupt file tree -> exit 7");
 
         ZWriter evil;
-        evil.add("0005000010143500_v0/code/red-pro2.rpx", pattern(10, 1));
-        evil.add("0005000010143500_v0/../escape.bin", pattern(10, 2));
+        evil.add("0005000010101d00_v64/code/red-pro2.rpx", pattern(10, 1));
+        evil.add("0005000010101d00_v64/../escape.bin", pattern(10, 2));
         write_file(work / "evil.wua", evil.finish());
-        expect(run(x + " --title 0005000010143500 extract " + q(work / "evil.wua") + " " + q(work / "out_evil") + " 2> " +
+        expect(run(x + " --title 0005000010101d00 extract " + q(work / "evil.wua") + " " + q(work / "out_evil") + " 2> " +
                    q(work / "e7.txt")) == 7 &&
                    !fs::exists(work / "escape.bin"),
                "unsafe name -> exit 7, nothing written outside");

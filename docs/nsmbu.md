@@ -57,11 +57,14 @@ User files live under `game/`:
 - `game/game.wux` — disc image
 - `game/game.key` — title key next to the image
 - `game/common.key` — common key (or `WIIU_COMMON_KEY`)
-- `game/code/`, `game/content/`, `game/meta/` — output of `just extract`
+- `game/update/` — USA 1.3.0 update (title version 64), with `code/`, `content/`, `meta/`
+- `game/code/`, `game/content/`, `game/meta/` — output of `just extract` (base disc plus update)
 
 `.gitignore` ignores all of `game/` except `game/README.md` (layout and steps for this folder).
 
-`just extract` reads `game/game.wux` and writes into the same folder tree.
+`just extract` starts by checking `game/update/` is USA 1.3.0.
+It then extracts `game/game.wux` into `game/code`, `game/content`, and `game/meta`.
+It applies `game/update/` over those folders and checks the merged RPX matches the known USA 1.3.0 hash.
 
 `just build` configures `build/` in **Debug** and builds `nsmbu`.
 
@@ -102,7 +105,7 @@ Put an extracted game you own in `game/`.
 
 The layout is `game/code/`, `game/content/`, and `game/meta/`.
 
-The headers match the v1.3.0 executable.
+The headers match the USA v1.3.0 executable (title `0005000010101d00`, title version 64).
 
 A disc image without that update has a different `red-pro2.rpx`.
 

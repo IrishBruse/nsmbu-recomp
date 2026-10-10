@@ -62,9 +62,9 @@ class Paths(unittest.TestCase):
             os.makedirs(os.path.join(d, "meta"))
             open(os.path.join(d, "code", "red-pro2.rpx"), "wb").close()
             with open(os.path.join(d, "meta", "meta.xml"), "w") as f:
-                f.write('<menu><title_id type="hexBinary" length="8">0005000010143500</title_id></menu>')
+                f.write('<menu><title_id type="hexBinary" length="8">0005000010101d00</title_id></menu>')
             self.assertTrue(setup.valid_game_folder(d))
-            self.assertEqual(setup.game_folder_title(d), "0005000010143500")
+            self.assertEqual(setup.game_folder_title(d), "0005000010101d00")
 
 class DataDir(unittest.TestCase):
     """default_data_dir: portable.txt next to the release means <release>/data; without it (a source
@@ -103,12 +103,13 @@ class DataDir(unittest.TestCase):
 
 class Titles(unittest.TestCase):
     def test_supported_ok(self):
-        setup.check_title("0005000010143500")
-        setup.check_title("0005000010143600")
+        setup.check_title("0005000010101d00")
 
     def test_unsupported(self):
+        with self.assertRaisesRegex(setup.SetupError, "Europe.*can be built from"):
+            setup.check_title("0005000010101e00")
         with self.assertRaisesRegex(setup.SetupError, "Japan.*can be built from"):
-            setup.check_title("0005000010143400")
+            setup.check_title("0005000010101c00")
         with self.assertRaisesRegex(setup.SetupError, "not New Super Mario Bros. U"):
             setup.check_title("000500001010ec00")
 
@@ -116,9 +117,9 @@ def _title(tid, version, files=10, size=1000):
     return {"id": tid, "version": version, "folder": "%s_v%d" % (tid, version), "files": files, "bytes": size}
 
 class ArchiveTitles(unittest.TestCase):
-    """Which title of a Cemu archive (.wua) is used (info as nsmbu-extract --title 0005000010143500 info prints it)."""
+    """Which title of a Cemu archive (.wua) is used (info as nsmbu-extract --title 0005000010101d00 info prints it)."""
 
-    BASE, UPDATE = _title("0005000010143500", 0), _title("0005000e10143500", 16)
+    BASE, UPDATE = _title("0005000010101d00", 64), _title("0005000e10101d00", 64)
 
     def info(self, titles, selected=None):
         i = {"format": "wua", "titles": titles}
@@ -128,29 +129,27 @@ class ArchiveTitles(unittest.TestCase):
         return i
 
     def test_base_only(self):
-        self.assertEqual(setup.archive_choice(self.info([self.BASE], self.BASE)), ("0005000010143500_v0", []))
+        self.assertEqual(setup.archive_choice(self.info([self.BASE], self.BASE)), ("0005000010101d00_v64", []))
 
-    def test_update_not_used(self):
-        folder, notes = setup.archive_choice(self.info([self.UPDATE, self.BASE, _title("0005000c10143500", 3)], self.BASE))
-        self.assertEqual(folder, "0005000010143500_v0")
+    def test_update_also_present(self):
+        folder, notes = setup.archive_choice(self.info([self.UPDATE, self.BASE, _title("0005000c10101d00", 3)], self.BASE))
+        self.assertEqual(folder, "0005000010101d00_v64")
         self.assertEqual(len(notes), 2)
-        self.assertIn("the update for New Super Mario Bros. U (USA), version 16", notes[0])
-        self.assertIn("version 0", notes[0])
+        self.assertIn("Also present: the update for New Super Mario Bros. U (USA), version 64", notes[0])
         self.assertIn("downloadable content", notes[1])
 
     def test_update_without_game(self):
-        with self.assertRaisesRegex(setup.SetupError, "only the update"):
+        with self.assertRaisesRegex(setup.SetupError, "USA 1.3.0 update but not the base game"):
             setup.archive_choice(self.info([self.UPDATE]))
 
     def test_european_archive(self):
-        eu, eu_update = _title("0005000010143600", 0), _title("0005000e10143600", 16)
-        folder, notes = setup.archive_choice(self.info([eu, eu_update], eu))
-        self.assertEqual(folder, "0005000010143600_v0")
-        self.assertIn("the update for New Super Mario Bros. U (Europe), version 16", notes[0])
+        eu, eu_update = _title("0005000010101e00", 64), _title("0005000e10101e00", 64)
+        with self.assertRaisesRegex(setup.SetupError, "Europe.*can be built from"):
+            setup.archive_choice(self.info([eu, eu_update], eu))
 
     def test_other_region(self):
         with self.assertRaisesRegex(setup.SetupError, "archive contains the Japan version"):
-            setup.archive_choice(self.info([_title("0005000010143400", 0), _title("0005000e10143400", 16)]))
+            setup.archive_choice(self.info([_title("0005000010101c00", 64), _title("0005000e10101c00", 64)]))
 
     def test_other_game(self):
         with self.assertRaisesRegex(setup.SetupError, "does not contain New Super Mario Bros. U.*title 00050000-1010EC00"):
@@ -159,13 +158,13 @@ class ArchiveTitles(unittest.TestCase):
             setup.archive_choice(self.info([]))
 
     def test_other_version(self):
-        v2 = _title("0005000010143500", 2)
-        with self.assertRaisesRegex(setup.SetupError, "version 2.*built for version 0"):
+        v2 = _title("0005000010101d00", 2)
+        with self.assertRaisesRegex(setup.SetupError, "version 2.*title version 64"):
             setup.archive_choice(self.info([v2], v2))
 
     def test_title_desc(self):
-        self.assertEqual(setup.title_desc("0005000010143500", 0), "New Super Mario Bros. U (USA), version 0")
-        self.assertEqual(setup.title_desc("0005000E10143400"), "the update for New Super Mario Bros. U (Japan)")
+        self.assertEqual(setup.title_desc("0005000010101d00", 64), "New Super Mario Bros. U (USA), version 64")
+        self.assertEqual(setup.title_desc("0005000e10101c00"), "the update for New Super Mario Bros. U (Japan)")
 
     def test_plan(self):
         self.assertEqual(setup.plan_steps("archive"), ["archive", "compiler", "extract", "translate", "compile", "app"])
@@ -183,9 +182,9 @@ class LanguageSourceBuild(unittest.TestCase):
 
     def setUp(self):
         self.saved = setup.game_builds.by_sha256
-        usa = setup.game_builds.Build({"name": "USA", "title_id": "0005000010143500",
+        usa = setup.game_builds.Build({"name": "USA", "title_id": "0005000010101d00",
                                        "rpx_sha256": hashlib.sha256(b"usa").hexdigest()})
-        eu = setup.game_builds.Build({"name": "EU", "title_id": "0005000010143600",
+        eu = setup.game_builds.Build({"name": "EU", "title_id": "0005000010101e00",
                                       "code_bounds": ["02000000", "03000000"],
                                       "data_bounds": ["10000000", "10500000"],
                                       "rpx_sha256": hashlib.sha256(b"eu").hexdigest()})
@@ -209,10 +208,10 @@ class LanguageSourceBuild(unittest.TestCase):
                 setup.check_language_source_allowed(d)
 
 class GameVersion(unittest.TestCase):
-    """code/red-pro2.rpx must be one of the builds the port knows (version 0 of a region,
+    """code/red-pro2.rpx must be one of the builds the port knows (version 64 of a region,
     tools/recomp/builds.py); synthetic files, made-up bytes."""
 
-    def make(self, d, rpx=b"made-up rpx", app_tid="0005000010143500", app_ver="0000"):
+    def make(self, d, rpx=b"made-up rpx", app_tid="0005000010101d00", app_ver="0040"):
         os.makedirs(os.path.join(d, "code"), exist_ok=True)
         with open(os.path.join(d, "code", "red-pro2.rpx"), "wb") as f:
             f.write(rpx)
@@ -222,9 +221,9 @@ class GameVersion(unittest.TestCase):
 
     def setUp(self):
         self.saved = (setup.SUPPORTED_BUILDS, setup.game_builds.by_sha256)
-        fake = [setup.game_builds.Build({"name": "USA", "title_id": "0005000010143500",
+        fake = [setup.game_builds.Build({"name": "USA", "title_id": "0005000010101d00",
                                          "rpx_sha256": hashlib.sha256(b"made-up rpx").hexdigest()}),
-                setup.game_builds.Build({"name": "EU", "title_id": "0005000010143600",
+                setup.game_builds.Build({"name": "EU", "title_id": "0005000010101e00",
                                          "code_bounds": ["02000000", "03000000"],
                                          "data_bounds": ["10000000", "10500000"],
                                          "rpx_sha256": hashlib.sha256(b"made-up eu rpx").hexdigest()})]
@@ -241,18 +240,16 @@ class GameVersion(unittest.TestCase):
 
     def test_other_build(self):
         with tempfile.TemporaryDirectory() as d:
-            self.make(d, rpx=b"made-up eu rpx", app_tid="0005000010143600")
+            self.make(d, rpx=b"made-up eu rpx", app_tid="0005000010101e00")
             self.assertEqual(setup.check_game_version(d).name, "EU")
 
-    def test_update_merged_in(self):
+    def test_wrong_version_or_update_without_known_rpx(self):
         with tempfile.TemporaryDirectory() as d:
             self.make(d, rpx=b"other code", app_ver="0010")
-            with self.assertRaisesRegex(setup.SetupError, "version 16 of the game.*update merged in.*"
-                                                          "00050000-10143500 \\(USA\\).*version 0.*"
-                                                          "Use the game's own files"):
+            with self.assertRaisesRegex(setup.SetupError, "need title version 64.*USA 1.3.0"):
                 setup.check_game_version(d)
-            self.make(d, rpx=b"other code", app_tid="0005000E10143500", app_ver="0000")
-            with self.assertRaisesRegex(setup.SetupError, "from the update.*merged in"):
+            self.make(d, rpx=b"other code", app_tid="0005000e10101d00", app_ver="0040")
+            with self.assertRaisesRegex(setup.SetupError, "not a file the port knows.*USA 1.3.0"):
                 setup.check_game_version(d)
 
     def test_unknown_build(self):
@@ -266,7 +263,7 @@ class GameVersion(unittest.TestCase):
 
     def test_unsupported_region(self):
         with tempfile.TemporaryDirectory() as d:
-            self.make(d, rpx=b"jp", app_tid="0005000010143400")
+            self.make(d, rpx=b"jp", app_tid="0005000010101c00")
             with self.assertRaisesRegex(setup.SetupError, "New Super Mario Bros. U \\(Japan\\)"):
                 setup.check_game_version(d)
 
@@ -280,6 +277,62 @@ class GameVersion(unittest.TestCase):
         setup.SUPPORTED_BUILDS, setup.game_builds.by_sha256 = self.saved
         build = setup.check_game_version(os.environ["NSMBU_GAME_DIR"])
         self.assertIn(build.title_id, setup.SUPPORTED_BUILDS)
+
+class UpdateFolder(unittest.TestCase):
+    """Disc images need a USA 1.3.0 update/ folder (checked then applied after extract)."""
+
+    def make_folder(self, d, rpx=b"made-up rpx", app_tid="0005000e10101d00", app_ver="0040"):
+        os.makedirs(os.path.join(d, "code"), exist_ok=True)
+        os.makedirs(os.path.join(d, "content"), exist_ok=True)
+        os.makedirs(os.path.join(d, "meta"), exist_ok=True)
+        with open(os.path.join(d, "code", "red-pro2.rpx"), "wb") as f:
+            f.write(rpx)
+        with open(os.path.join(d, "code", "app.xml"), "w") as f:
+            f.write('<app><title_id type="hexBinary" length="8">%s</title_id>\n'
+                    '<title_version type="hexBinary" length="2">%s</title_version></app>' % (app_tid, app_ver))
+        with open(os.path.join(d, "meta", "meta.xml"), "w") as f:
+            f.write('<menu><title_id type="hexBinary" length="8">%s</title_id></menu>' % app_tid)
+
+    def setUp(self):
+        self.saved = (setup.SUPPORTED_BUILDS, setup.game_builds.by_sha256)
+        fake = setup.game_builds.Build({"name": "USA", "title_id": "0005000010101d00",
+                                        "rpx_sha256": hashlib.sha256(b"made-up rpx").hexdigest()})
+        setup.SUPPORTED_BUILDS = {fake.title_id: fake}
+        setup.game_builds.by_sha256 = lambda d: fake if d == fake.sha256 else None
+
+    def tearDown(self):
+        setup.SUPPORTED_BUILDS, setup.game_builds.by_sha256 = self.saved
+
+    def test_check_and_apply(self):
+        with tempfile.TemporaryDirectory() as d:
+            upd = os.path.join(d, "update")
+            base = os.path.join(d, "base")
+            self.make_folder(upd)
+            self.make_folder(base, rpx=b"base disc", app_tid="0005000010101d00", app_ver="0000")
+            self.assertEqual(setup.check_update_folder(upd).name, "USA")
+            setup.apply_update_to(base, upd)
+            self.assertEqual(setup.check_game_version(base).name, "USA")
+            with open(os.path.join(base, "code", "red-pro2.rpx"), "rb") as f:
+                self.assertEqual(f.read(), b"made-up rpx")
+
+    def test_sidecar_next_to_image(self):
+        with tempfile.TemporaryDirectory() as d:
+            image = os.path.join(d, "game.wux")
+            open(image, "wb").close()
+            self.assertIsNone(setup.find_sidecar_update(image))
+            self.make_folder(os.path.join(d, "update"))
+            self.assertEqual(setup.find_sidecar_update(image), os.path.join(d, "update"))
+
+    def test_wrong_version(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.make_folder(d, app_ver="0010")
+            with self.assertRaisesRegex(setup.SetupError, "title version 16; need 64"):
+                setup.check_update_folder(d)
+
+    def test_missing_layout(self):
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaisesRegex(setup.SetupError, "not an update folder"):
+                setup.check_update_folder(d)
 
 class Recipe(unittest.TestCase):
     def test_substitution(self):
@@ -406,12 +459,12 @@ class LanguageSources(unittest.TestCase):
     """setup --language-source on synthetic folders (no game files in the tests)."""
 
     def test_titles(self):
-        self.assertEqual(setup.language_source_region("0005000010143600"), "EU")
-        self.assertEqual(setup.language_source_region("0005000010143400"), "JP")
+        self.assertEqual(setup.language_source_region("0005000010101e00"), "EU")
+        self.assertEqual(setup.language_source_region("0005000010101c00"), "JP")
         with self.assertRaisesRegex(setup.SetupError, "USA game"):
-            setup.language_source_region("0005000010143500")
+            setup.language_source_region("0005000010101d00")
         with self.assertRaisesRegex(setup.SetupError, "update"):
-            setup.language_source_region("0005000e10143600")
+            setup.language_source_region("0005000e10101e00")
         with self.assertRaisesRegex(setup.SetupError, "not the European or Japanese"):
             setup.language_source_region("000500001010ec00")
         with self.assertRaisesRegex(setup.SetupError, "not the European or Japanese"):
@@ -428,7 +481,7 @@ class LanguageSources(unittest.TestCase):
     def test_folder_european(self):
         with tempfile.TemporaryDirectory() as d:
             src, data = os.path.join(d, "eur"), os.path.join(d, "data")
-            _game_folder(src, "0005000010143600", EU_PACKS + ["permanent_2d_EuRussian.pack"],
+            _game_folder(src, "0005000010101e00", EU_PACKS + ["permanent_2d_EuRussian.pack"],
                          extra=[("code/red-pro2.rpx", b"synthetic code"), ("content/Common/Pack/permanent_3d.pack", b"SARC 3d"),
                                 ("content/Common/Layout/Title_00.szs", b"synthetic")])
             os.makedirs(data)
@@ -457,7 +510,7 @@ class LanguageSources(unittest.TestCase):
     def test_folder_japanese_any_case(self):
         with tempfile.TemporaryDirectory() as d:
             src, data = os.path.join(d, "jpn"), os.path.join(d, "data")
-            _game_folder(src, "0005000010143400", [])
+            _game_folder(src, "0005000010101c00", [])
             os.rename(os.path.join(src, "content", "Common"), os.path.join(src, "content", "COMMON"))
             with open(os.path.join(src, "content", "COMMON", "Pack", "PERMANENT_2D_JPJAPANESE.PACK"), "wb") as f:
                 f.write(b"SARC synthetic jp")
@@ -470,15 +523,15 @@ class LanguageSources(unittest.TestCase):
             data = os.path.join(d, "data")
             os.makedirs(data)
             usa = os.path.join(d, "usa")
-            _game_folder(usa, "0005000010143500", ["permanent_2d_UsEnglish.pack"])
+            _game_folder(usa, "0005000010101d00", ["permanent_2d_UsEnglish.pack"])
             with self.assertRaisesRegex(setup.SetupError, "USA game"):
                 setup.add_language_source(("folder", usa), data)
             empty = os.path.join(d, "empty")
-            _game_folder(empty, "0005000010143600", ["permanent_2d_UsEnglish.pack"])
+            _game_folder(empty, "0005000010101e00", ["permanent_2d_UsEnglish.pack"])
             with self.assertRaisesRegex(setup.SetupError, "no language packs"):
                 setup.add_language_source(("folder", empty), data)
             bad = os.path.join(d, "bad")
-            _game_folder(bad, "0005000010143600", [])
+            _game_folder(bad, "0005000010101e00", [])
             with open(os.path.join(bad, "content", "Common", "Pack", "permanent_2d_EuGerman.pack"), "wb") as f:
                 f.write(b"not a pack")
             with self.assertRaisesRegex(setup.SetupError, "not a language pack"):
@@ -491,29 +544,29 @@ class LanguageSources(unittest.TestCase):
 
         def fake_extract(image, keys, out, title=None, only=None):
             calls.append((image, title, list(only or [])))
-            _game_folder(out, "0005000010143600" if title != "0005000010143400_v0" else "0005000010143400",
-                         EU_PACKS[:2] if title != "0005000010143400_v0" else ["permanent_2d_JpJapanese.pack"])
+            _game_folder(out, "0005000010101e00" if title != "0005000010101c00_v64" else "0005000010101c00",
+                         EU_PACKS[:2] if title != "0005000010101c00_v64" else ["permanent_2d_JpJapanese.pack"])
 
         def fake_archive_info(path, title=setup.SUPPORTED_TITLE):
             self.assertIsNone(title)
             return "wrong_title", "", {"titles": [
-                {"id": "0005000010143500", "version": 0, "folder": "0005000010143500_v0", "files": 1, "bytes": 1},
-                {"id": "0005000010143600", "version": 0, "folder": "0005000010143600_v0", "files": 1, "bytes": 1},
-                {"id": "0005000010143400", "version": 0, "folder": "0005000010143400_v0", "files": 1, "bytes": 1}]}
+                {"id": "0005000010101d00", "version": 0, "folder": "0005000010101d00_v64", "files": 1, "bytes": 1},
+                {"id": "0005000010101e00", "version": 0, "folder": "0005000010101e00_v64", "files": 1, "bytes": 1},
+                {"id": "0005000010101c00", "version": 0, "folder": "0005000010101c00_v64", "files": 1, "bytes": 1}]}
         saved = setup.run_extract, setup.archive_info
         setup.run_extract, setup.archive_info = fake_extract, fake_archive_info
         try:
             with tempfile.TemporaryDirectory() as d:
                 ms = setup.add_language_source(("image", os.path.join(d, "eu.wux")), d, keys=setup.Keys(),
-                                               info={"title_id": "0005000010143600"})
+                                               info={"title_id": "0005000010101e00"})
                 self.assertEqual(ms[0]["region"], "EU")
                 self.assertEqual(calls[-1], (os.path.join(d, "eu.wux"), None, setup.LANGUAGE_SOURCE_FILES))
                 with self.assertRaisesRegex(setup.SetupError, "USA game"):
                     setup.add_language_source(("image", "usa.wux"), d, keys=setup.Keys(),
-                                              info={"title_id": "0005000010143500"})
+                                              info={"title_id": "0005000010101d00"})
                 ms = setup.add_language_source(("archive", os.path.join(d, "both.wua")), d)
                 self.assertEqual([m["region"] for m in ms], ["EU", "JP"])
-                self.assertEqual([c[1] for c in calls[-2:]], ["0005000010143600_v0", "0005000010143400_v0"])
+                self.assertEqual([c[1] for c in calls[-2:]], ["0005000010101e00_v64", "0005000010101c00_v64"])
                 self.assertEqual([m["region"] for m in setup.language_sources(d)], ["EU", "JP"])
         finally:
             setup.run_extract, setup.archive_info = saved

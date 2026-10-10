@@ -277,7 +277,7 @@ int main(int argc, char** argv) {
     put_be32(pt, 0x1C, 2);
     memcpy(&pt[0x800], "SI", 2);
     put_be32(pt, 0x800 + 0x20, si_sector);
-    memcpy(&pt[0x880], "GM0005000010143500", 18);
+    memcpy(&pt[0x880], "GM0005000010101d00", 18);
     put_be32(pt, 0x880 + 0x20, gm_sector);
     uint8_t iv0[16] = {};
     encrypt(disc_key, iv0, pt.data(), pt.size());
@@ -337,7 +337,7 @@ int main(int argc, char** argv) {
     {
         auto t = read_file(work / "info.txt");
         std::string s(t.begin(), t.end());
-        expect(s.find("title_id 0005000010143500") != std::string::npos, "info reports the title id");
+        expect(s.find("title_id 0005000010101d00") != std::string::npos, "info reports the title id");
         expect(s.find(hex(common_key)) == std::string::npos && s.find(hex(disc_key)) == std::string::npos,
                "info does not print keys");
     }
