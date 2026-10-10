@@ -63,13 +63,13 @@ User files live under `game/`:
 
 `just extract` reads `game/game.wux` and writes into the same folder tree.
 
-`just build` configures `build/` in **Debug**, links `compile_commands.json` at the repo root, and builds `nsmbu`.
+`just build` configures `build/` in **Debug** and builds `nsmbu`.
 
 If `game/code/red-pro2.rpx` exists, `just build` runs `recomp.py` into `build/gen` when the RPX is newer than the generated code.
 
 Otherwise it runs `stubgen.py` so the tree links without your RPX.
 
-`just build-release` uses **Release** with no debug symlink.
+`just build-release` uses **Release**.
 
 `just build-sanitizer` adds AddressSanitizer and UBSan.
 

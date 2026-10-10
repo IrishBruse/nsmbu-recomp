@@ -26,14 +26,6 @@ def debug_link_flags(link_dir, sanitizer=False):
         flags = f"{flags} -fsanitize=address,undefined"
     return flags
 
-def link_compile_commands(build_dir):
-    src = os.path.join(build_dir, "compile_commands.json")
-    dst = os.path.join(ROOT, "compile_commands.json")
-    if os.path.isfile(src):
-        if os.path.islink(dst) or os.path.isfile(dst):
-            os.remove(dst)
-        os.symlink(os.path.relpath(src, ROOT), dst)
-
 def libstdcxx_libdir():
     for ver in range(20, 10, -1):
         hits = glob.glob(f"/usr/lib/gcc/*-linux-gnu/{ver}/libstdc++.so")
@@ -156,8 +148,6 @@ def main():
         check=True,
         cwd=ROOT,
     )
-    if debug_build:
-        link_compile_commands(BUILD)
 
 if __name__ == "__main__":
     main()

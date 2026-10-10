@@ -5,6 +5,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
 -   **Add**: Lua mod packages (`kind: lua`) with embedded LuaJIT, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
     The mod manager accepts format 1 or 2, scans for forbidden binaries/shaders, and loads script-only Lua packages live each logic step.
     Package tests cover load, options, fault isolation, sandbox require, and guest memory (`mod_package_test --lua`).

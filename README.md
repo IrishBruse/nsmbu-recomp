@@ -151,7 +151,6 @@ The file layout is in [game/README.md](game/README.md).
 | `just gdb` | Start the game under gdb |
 | `just lldb` | Start the game under lldb |
 
-`just build` links `compile_commands.json` at the repository root.
 When `game/code/red-pro2.rpx` is newer than the generated code, `just build` runs the recompiler.
 When that file is absent, the build uses stubs so the tree can link.
 
