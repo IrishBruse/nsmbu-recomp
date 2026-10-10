@@ -1,7 +1,6 @@
 ---
 name: scripted-run
 description: Boot NSMBU from a copy of save/ and dump frames with tools/scripted-run.sh.
-disable-model-invocation: true
 ---
 
 # Scripted run
