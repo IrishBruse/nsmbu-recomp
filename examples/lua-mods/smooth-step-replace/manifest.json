@@ -1,0 +1,12 @@
+{
+  "format_version": 2,
+  "id": "example.smooth-step-replace",
+  "name": "Smooth step replacement",
+  "version": "0.1.0",
+  "game_id": "nsmbu-usa",
+  "kind": "lua",
+  "lua": {
+    "api_version": 1,
+    "entry": "main.lua"
+  }
+}

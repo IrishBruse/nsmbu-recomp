@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "id": "example.button-watch",
+  "name": "Button watch",
+  "version": "0.1.0",
+  "game_id": "nsmbu-usa",
+  "kind": "lua",
+  "lua": {
+    "api_version": 1,
+    "entry": "main.lua"
+  },
+  "options": [
+    {
+      "id": "label",
+      "name": "Status prefix",
+      "type": "string",
+      "default": "Pad"
+    },
+    {
+      "id": "every",
+      "name": "Logic steps between updates",
+      "type": "number",
+      "default": 15,
+      "min": 1,
+      "max": 300,
+      "step": 1
+    }
+  ]
+}

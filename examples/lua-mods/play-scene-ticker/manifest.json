@@ -1,0 +1,23 @@
+{
+  "format_version": 2,
+  "id": "example.play-scene-ticker",
+  "name": "Play scene ticker",
+  "version": "0.1.0",
+  "game_id": "nsmbu-usa",
+  "kind": "lua",
+  "lua": {
+    "api_version": 1,
+    "entry": "main.lua"
+  },
+  "options": [
+    {
+      "id": "every",
+      "name": "Logic steps between log lines",
+      "type": "number",
+      "default": 60,
+      "min": 1,
+      "max": 6000,
+      "step": 1
+    }
+  ]
+}

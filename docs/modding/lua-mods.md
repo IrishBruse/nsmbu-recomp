@@ -416,7 +416,7 @@ This document is the reason to stop extending them.
 | --- | --- |
 | `docs/deprecated/mod-sdk-v2.md` | Already moved. Delete it when Lua hooks replace guest mods. Do not keep it as the modder guide. |
 | `docs/modding/mod-manager.md` | Keep. Native SDK v1 is `docs/deprecated/native-sdk-v1.md`. |
-| `examples/guest-mods/` | Delete. Replace with `examples/lua-mods/` when the API exists. |
+| `examples/guest-mods/` | Delete when Lua hooks exist. Proposed packages are in `examples/lua-mods/`. |
 | `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Do not treat it as the NSMBU mod plan. |
 
 ### Guest SDK v2 code
