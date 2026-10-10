@@ -156,7 +156,7 @@ void save(){if(!ready)return;strip_builtins();fs::create_directories(root);auto 
 void defaults(){database=Value{};database["format_version"]=1;database["active"]="Default";database["hot_reload"]=false;profile()["enabled"].type=Value::Object;}
 bool hot_reload_flag(){const auto& v=database.get("hot_reload");return v.type==Value::Bool&&v.boolean;}
 bool content_folder_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n=="content";}
-bool lua_file_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n.size()>=4&&n.compare(n.size()-4,4,".lua")==0;}
+bool lua_file_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n.size()>=5&&n.compare(n.size()-5,5,".luau")==0;}
 std::map<std::string,std::int64_t> scan_lua_mtimes(const fs::path& package){
     std::map<std::string,std::int64_t> out;
     std::error_code ec;

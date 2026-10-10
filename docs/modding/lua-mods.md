@@ -33,7 +33,7 @@ Delete the other package kinds except `cemu`.
 
 One package is one folder or one `.nsmbumod` zip.
 It has `manifest.json` at the root.
-It may contain `main.lua`, a `content/` tree, or both.
+It may contain `main.luau`, a `content/` tree, or both.
 It does not contain a host `.so`, `.dll`, or `.dylib`.
 It does not contain a PowerPC ELF.
 
@@ -143,7 +143,7 @@ Phase 3 implemented.
 | No new files, no deletes, no writes through the replacement | Same limits |
 | Conflicts if two packages replace one path | Same check, across Lua packages |
 | SDCafiine, loose `.pack`, and single-file import | Importer writes a `lua` package, not `kind: content` |
-| Fan translations (`permanent_2d_*.pack`, `Title_00.szs`) | Same files. The package can omit `main.lua`. |
+| Fan translations (`permanent_2d_*.pack`, `Title_00.szs`) | Same files. The package can omit `main.luau`. |
 
 A content-only Lua package has a manifest and a `content/` tree.
 It has no script.
@@ -202,7 +202,7 @@ That limit is the same as in SDK v2.
   "kind": "lua",
   "lua": {
     "api_version": 1,
-    "entry": "main.lua"
+    "entry": "main.luau"
   },
   "content_dir": "content",
   "dependencies": [],
@@ -283,7 +283,7 @@ The port's own hooks in `hooks*.txt` stay outside this call.
 | Path | Role |
 | --- | --- |
 | `manifest.json` | Required. |
-| `main.lua` and other `.lua` files | Script. `require` searches only inside the package. Optional when `content_dir` is set. |
+| `main.luau` and other `.luau` files | Script. `require` searches only inside the package. Optional when `content_dir` is set. |
 | `content/...` | Optional file replacements. Same layout rules as today. |
 | `ModManager/Data/<id>/` | Created by the runtime for `nsmbu.data`. Not shipped in the zip. |
 
@@ -309,7 +309,7 @@ Do not abort the process.
 
 A package with `content_dir` needs a restart so the file map and any script start together.
 A script-only package (no `content_dir`) still loads live on enable.
-With **Hot reload Lua scripts** on in the Mods tab, a script-only package also reloads while enabled when its `.lua` files change.
+With **Hot reload Lua scripts** on in the Mods tab, a script-only package also reloads while enabled when its `.luau` files change.
 Reload runs `on_unload` / unload listeners, then creates a new Lua state and runs the entry script again.
 A failed reload disables that package the same way a failed first load does.
 
@@ -373,7 +373,7 @@ A script that needs a different file set edits the package and restarts, which i
 The importer stays.
 It accepts a `content/` tree, an SDCafiine layout, a loose language pack, and a known loose file.
 It writes `kind: lua`, a generated `id`, and `content_dir`.
-It does not write a fake `main.lua`.
+It does not write a fake `main.luau`.
 A content-only package is valid.
 
 ### Data files and input
@@ -405,7 +405,7 @@ Everything else is absent, including `io`, `os`, `package.loadlib`, `debug`, and
 | `nsmbu.*` | The API in this document. |
 | `string`, `table`, `math` | Language basics. |
 | `coroutine`, `bit32`, `utf8` | Coroutines and byte/UTF-8 helpers. |
-| `require` | Other `.lua` files in the same package. |
+| `require` | Other `.luau` files in the same package. |
 
 Guest writes can still change the game.
 That is the point of a gameplay mod.

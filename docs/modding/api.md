@@ -6,7 +6,8 @@ Hooks (`nsmbu.hooks`), `call` / `call_result`, input, data files, guest heap all
 Package plan: [lua-mods.md](lua-mods.md).
 Cemu packs do not use this API.
 
-EmmyLua types for editors live in [../../modding/sdk/nsmbu.lua](../../modding/sdk/nsmbu.lua).
+Luau type definitions for editors live in [../../modding/sdk/nsmbu.luau](../../modding/sdk/nsmbu.luau).
+The SDK ships one `.luau` module per `require` name, and `modding/examples/.luaurc` maps each name to the SDK for Luau tooling.
 
 There is no `nsmbu` global.
 Mods load host and game APIs with `require`.
@@ -552,7 +553,7 @@ There is no `nsmbu.content` module in API v1.
 | --- | --- |
 | `string`, `table`, `math`, `coroutine`, `bit32`, `utf8` | `io`, `os`, `debug`, `package.loadlib`, FFI |
 | `require` of host `nsmbu` / `nsmbu.*` modules | `require` of an unknown `nsmbu.*` name |
-| `require` of another `.lua` file in this package | `require` of a path with `..` or an absolute path |
+| `require` of another `.luau` file in this package | `require` of a path with `..` or an absolute path |
 | Host modules as described here | A native library, a PowerPC ELF, a Cemu `rules.txt` |
 
 `coroutine` may yield only inside the callback that resumed it.

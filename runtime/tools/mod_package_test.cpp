@@ -35,11 +35,11 @@ int main(int argc, char** argv) {
         std::string error;
         auto lua_pack=[&](const char* id,const char* main_src,const char* extra_manifest,const char* sib_src=nullptr){
             auto path=root/id;fs::create_directories(path);
-            std::ofstream(path/"main.lua")<<main_src;
-            if(sib_src)std::ofstream(path/"sib.lua")<<sib_src;
+            std::ofstream(path/"main.luau")<<main_src;
+            if(sib_src)std::ofstream(path/"sib.luau")<<sib_src;
             std::ofstream(path/"manifest.json")<<"{\"format_version\":2,\"id\":\""<<id
               <<"\",\"name\":\""<<id<<"\",\"version\":\"1.0.0\",\"game_id\":\"nsmbu-usa\","
-              <<"\"kind\":\"lua\",\"lua\":{\"api_version\":1,\"entry\":\"main.lua\"}"
+              <<"\"kind\":\"lua\",\"lua\":{\"api_version\":1,\"entry\":\"main.luau\"}"
               <<extra_manifest<<"}";
             return path.string();
         };
@@ -226,8 +226,8 @@ int main(int argc, char** argv) {
 
         auto both=root/"lua.both";fs::create_directories(both/"content"/"Common");
         std::ofstream(both/"content"/"Common"/"b.bin")<<"x";
-        std::ofstream(both/"main.lua")<<"function nsmbu.on_logic_step(step) nsmbu.status(\"both\") end\n";
-        std::ofstream(both/"manifest.json")<<R"({"format_version":2,"id":"lua.both","name":"Both","version":"1.0.0","game_id":"nsmbu-usa","kind":"lua","lua":{"api_version":1,"entry":"main.lua"},"content_dir":"content"})";
+        std::ofstream(both/"main.luau")<<"function nsmbu.on_logic_step(step) nsmbu.status(\"both\") end\n";
+        std::ofstream(both/"manifest.json")<<R"({"format_version":2,"id":"lua.both","name":"Both","version":"1.0.0","game_id":"nsmbu-usa","kind":"lua","lua":{"api_version":1,"entry":"main.luau"},"content_dir":"content"})";
         assert(install(both.string(),error));
         assert(enable("lua.both",true,error));frame(42);
         {auto v=view("lua.both");assert(v.enabled&&!v.active&&v.pending_restart&&v.restart_required);}
@@ -244,7 +244,7 @@ int main(int argc, char** argv) {
         assert(set_hot_reload(true,error));assert(hot_reload());
         frame(51);
         {
-            auto script=storage/"Mods"/"lua.reload"/"main.lua";
+            auto script=storage/"Mods"/"lua.reload"/"main.luau";
             std::ofstream(script)
                 <<"local nsmbu=require(\"nsmbu\")\n"
                 <<"function nsmbu.on_logic_step(step)\n"
@@ -256,7 +256,7 @@ int main(int argc, char** argv) {
         frame(70);frame(90);
         {auto v=view("lua.reload");assert(v.active&&v.enabled&&v.status=="after");}
         {
-            auto script=storage/"Mods"/"lua.reload"/"main.lua";
+            auto script=storage/"Mods"/"lua.reload"/"main.luau";
             std::ofstream(script)<<"this is not valid lua {{\n";
             auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(4);
             fs::last_write_time(script,stamp);
@@ -271,7 +271,7 @@ int main(int argc, char** argv) {
         assert(set_hot_reload(true,error));
         frame(60);
         {
-            auto script=storage/"Mods"/"lua.both"/"main.lua";
+            auto script=storage/"Mods"/"lua.both"/"main.luau";
             std::ofstream(script)
                 <<"local nsmbu=require(\"nsmbu\")\n"
                 <<"function nsmbu.on_logic_step(step)\n"

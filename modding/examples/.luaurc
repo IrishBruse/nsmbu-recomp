@@ -1,0 +1,18 @@
+{
+  "languageMode": "strict",
+  "aliases": {
+    "nsmbu": "../sdk/nsmbu",
+    "nsmbu.blocks": "../sdk/blocks",
+    "nsmbu.boss": "../sdk/boss",
+    "nsmbu.config": "../sdk/config",
+    "nsmbu.data": "../sdk/data",
+    "nsmbu.enemy": "../sdk/enemy",
+    "nsmbu.env": "../sdk/env",
+    "nsmbu.fn": "../sdk/fn",
+    "nsmbu.guest": "../sdk/guest",
+    "nsmbu.hooks": "../sdk/hooks",
+    "nsmbu.input": "../sdk/input",
+    "nsmbu.level": "../sdk/level",
+    "nsmbu.player": "../sdk/player"
+  }
+}

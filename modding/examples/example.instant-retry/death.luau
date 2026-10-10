@@ -8,7 +8,7 @@ local state = require("state")
 
 local death = {}
 
-local function spend_life()
+local function spend_life(): (boolean?, string?)
   if not config.bool("cost_life", false) then
     return true
   end
@@ -19,7 +19,7 @@ local function spend_life()
   return hooks.call(lose, {})
 end
 
-local function quit_course()
+local function quit_course(): (boolean?, string?)
   local quit = fn.course_quit_to_map
   if not quit then
     return nil, "course_quit_to_map is not in nsmbu.fn"
@@ -27,7 +27,7 @@ local function quit_course()
   return hooks.call(quit, {})
 end
 
-function death.begin(ctx)
+function death.begin(ctx: any)
   if not config.bool("enabled", true) then
     return
   end

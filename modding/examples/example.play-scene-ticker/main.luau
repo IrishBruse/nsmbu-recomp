@@ -7,7 +7,7 @@ local data = require("nsmbu.data")
 local steps = 0
 local returns = 0
 
-local function every_n()
+local function every_n(): number
   local every = config.number("every", 60)
   if every < 1 then
     return 1
@@ -17,7 +17,7 @@ end
 
 local target = fn.dScnPly_Execute
 if target and hooks.hook then
-  local entry_id, entry_err = hooks.hook(target, "entry", function(ctx)
+  local entry_id, entry_err = hooks.hook(target, "entry", function(ctx: any)
     steps = steps + 1
     if steps % every_n() ~= 0 then
       return
@@ -29,7 +29,7 @@ if target and hooks.hook then
     nsmbu.log(entry_err)
   end
 
-  local return_id, return_err = hooks.hook(target, "return", function(ctx)
+  local return_id, return_err = hooks.hook(target, "return", function(ctx: any)
     returns = returns + 1
     if returns ~= 1 then
       return

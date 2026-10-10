@@ -81,7 +81,7 @@ These conventions follow the upstream [SDCafiine documentation](https://github.c
 }
 ```
 
-No `lua.entry` or `main.lua` is required for a content-only package.
+No `lua.entry` or `main.luau` is required for a content-only package.
 Keep the original game-relative filenames and directory structure under `content`.
 The game must already be able to load the replacement format: archive/model sizes, joints, animations, and resource names must match the mod's target.
 Raw PNG/DDS texture packs that expect Cemu's renderer interception are not equivalent to replacements of game archives and need a separate adapter.

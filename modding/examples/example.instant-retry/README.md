@@ -25,10 +25,10 @@ The work is split across files.
 
 | File | Role |
 | --- | --- |
-| `main.lua` | Hooks course enter and checkpoint touch, records safe spots each logic step. |
-| `death.lua` | Death entry hook, restore path, hold-to-quit. |
-| `player.lua` | High-level `require("nsmbu.player")` pose helpers, plus `player_clear_damage` when bound. |
-| `state.lua` | Mode machine, status line, data file. |
+| `main.luau` | Hooks course enter and checkpoint touch, records safe spots each logic step. |
+| `death.luau` | Death entry hook, restore path, hold-to-quit. |
+| `player.luau` | High-level `require("nsmbu.player")` pose helpers, plus `player_clear_damage` when bound. |
+| `state.luau` | Mode machine, status line, data file. |
 
 Pose reads use `pos()`, `speed_y()`, `grounded()`, and `mode()`.
 Restore uses `set_pos`, `set_speed_y`, and `set_mode`.

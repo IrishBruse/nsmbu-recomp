@@ -7,14 +7,18 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 -   **Change**: Lua mods run on Luau instead of LuaJIT (embedded under `runtime/third_party/luau/`).
     Scripts keep the Lua 5.1 syntax and gain `utf8`; LuaJIT's `bit` library becomes `bit32`.
+-   **Change**: Lua mod scripts use the `.luau` extension (`main.luau` and sibling modules).
+    The manifest `lua.entry` names the `.luau` entry, and `require` resolves `.luau` files.
+-   **Change**: The mod SDK in `modding/sdk/` is now Luau.
+    Each `nsmbu` module is a `.luau` file with `export type` definitions, `.luarc.json` (LuaLS) is replaced by `.luaurc` files, and the example mods gain Luau type annotations.
 -   **Add**: Mods tab checkbox **Hot reload Lua scripts**.
-    When on, enabled script-only Lua packs unload and reload when `.lua` files change (debounced).
+    When on, enabled script-only Lua packs unload and reload when `.luau` files change (debounced).
     Preference is stored as `hot_reload` in ModManager `profiles.json`.
     Packs with `content_dir` stay restart-required.
 -   **Change**: Lua API has no `nsmbu` global.
     Mods use `require("nsmbu")` and `require("nsmbu.*")` (config, guest, level, player, and stub modules for fn/hooks/input/data/enemy/boss/blocks/env).
 -   **Change**: Lua module `nsmbu.hook` is renamed `nsmbu.hooks`, and option reads move from the `nsmbu.config` field to `require("nsmbu.config")`.
-    EmmyLua types for editors are split one file per module in `modding/sdk/`.
+    Luau type definitions for editors are split one module per file in `modding/sdk/`.
 -   **Add**: Lua high-level game helpers `nsmbu.level` and `nsmbu.player` (timer, course coins/score, lives, mode, coins, pos, speed, grounded, speed_y).
     Example `course-assists` uses them instead of raw guest offsets.
     Example `instant-retry` uses `pos` / `grounded` / `mode` instead of placeholder actor offsets.
@@ -43,8 +47,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
     Example folders are named by package id (`example.*`).
     Skip with `NSMBU_NO_EXAMPLE_MODS=1` or when `NSMBU_MOD_MANAGER_DIR` is set.
     A non-empty real `Mods` folder keeps the old copy behavior.
--   **Change**: Example Lua packages and EmmyLua types live under `modding/examples/` and `modding/sdk/` (was `examples/lua-mods/`).
--   **Change**: EmmyLua types in `modding/sdk/` drop the `.d` suffix (`fn.d.lua` is now `fn.lua`).
+-   **Change**: Example Lua packages and Luau type definitions live under `modding/examples/` and `modding/sdk/` (was `examples/lua-mods/`).
+-   **Change**: Luau type definitions in `modding/sdk/` drop the `.d` suffix (`fn.d.lua` is now `fn.luau`).
 -   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
 -   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
     Wind Waker HD title ids and hashes are removed.

@@ -2,9 +2,18 @@ local fn = require("nsmbu.fn")
 local hooks = require("nsmbu.hooks")
 local api = require("nsmbu.player")
 
+export type Pose = {
+	x: number,
+	y: number,
+	z: number,
+	speed_y: number,
+	grounded: boolean,
+	powerup: number,
+}
+
 local player = {}
 
-local function need(name)
+local function need(name: string)
   local addr = fn[name]
   if not addr then
     return nil, name .. " is not in nsmbu.fn"
@@ -12,7 +21,7 @@ local function need(name)
   return addr
 end
 
-function player.handle()
+function player.handle(): (any?, string?)
   local p, err = api(0)
   if not p then
     return nil, err or "no player"
@@ -20,7 +29,7 @@ function player.handle()
   return p
 end
 
-function player.actor()
+function player.actor(): (any?, string?)
   local p, err = player.handle()
   if not p then
     return nil, err
@@ -28,7 +37,7 @@ function player.actor()
   return p:actor()
 end
 
-function player.read_pose()
+function player.read_pose(): (Pose?, string?)
   local p, err = player.handle()
   if not p then
     return nil, err
@@ -59,7 +68,7 @@ function player.read_pose()
   }
 end
 
-function player.write_pose(pose)
+function player.write_pose(pose: Pose): (boolean?, string?)
   local p, err = player.handle()
   if not p then
     return nil, err
@@ -75,7 +84,7 @@ function player.write_pose(pose)
   return true
 end
 
-function player.restore(pose, keep_powerup)
+function player.restore(pose: Pose, keep_powerup: boolean): (boolean?, string?)
   local ok, err = player.write_pose(pose)
   if not ok then
     return nil, err

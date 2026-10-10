@@ -7,6 +7,6 @@
   "kind": "lua",
   "lua": {
     "api_version": 1,
-    "entry": "main.lua"
+    "entry": "main.luau"
   }
 }

@@ -9,7 +9,7 @@ local death = require("death")
 state.load_file()
 death.install()
 
-local function record_safe(step)
+local function record_safe(step: number)
   if not config.bool("enabled", true) then
     return
   end
@@ -79,7 +79,7 @@ else
   nsmbu.log("checkpoint_touched is not in nsmbu.fn")
 end
 
-function nsmbu.on_logic_step(step)
+function nsmbu.on_logic_step(step: number)
   death.tick_hold()
   record_safe(step)
 end

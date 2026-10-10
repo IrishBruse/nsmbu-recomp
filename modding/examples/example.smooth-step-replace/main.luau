@@ -6,7 +6,7 @@ local smooth = require("smooth")
 local calls = 0
 local own = 0
 
-local id, err = hooks.replace(fn.cLib_addCalc2, function(ctx)
+local id, err = hooks.replace(fn.cLib_addCalc2, function(ctx: any)
   calls = calls + 1
   if calls % 65536 == 1 then
     nsmbu.log_int("calls", calls)

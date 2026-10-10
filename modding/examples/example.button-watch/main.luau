@@ -2,9 +2,9 @@ local nsmbu = require("nsmbu")
 local config = require("nsmbu.config")
 local input = require("nsmbu.input")
 
-local last = ""
+local last: string = ""
 
-local function every_n()
+local function every_n(): number
   local every = config.number("every", 15)
   if every < 1 then
     return 1
@@ -12,7 +12,7 @@ local function every_n()
   return every
 end
 
-function nsmbu.on_logic_step(step)
+function nsmbu.on_logic_step(step: number)
   if step % every_n() ~= 0 then
     return
   end

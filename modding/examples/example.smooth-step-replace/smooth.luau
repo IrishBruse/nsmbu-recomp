@@ -1,6 +1,6 @@
 local smooth = {}
 
-function smooth.step(value, target, scale, max_step)
+function smooth.step(value: number, target: number, scale: number, max_step: number): number
   if value == target then
     return value
   end

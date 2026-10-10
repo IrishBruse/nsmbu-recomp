@@ -2,7 +2,7 @@
 
 | Path | Contents |
 | --- | --- |
-| [sdk/](sdk/) | EmmyLua types for the `nsmbu` API, one file per module |
+| [sdk/](sdk/) | Luau type definitions for the `nsmbu` API, one module per file |
 | [examples/](examples/) | Example Lua packages for the mod manager |
 
 Docs: [docs/modding/](../docs/modding/).

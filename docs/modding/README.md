@@ -23,7 +23,7 @@ Rejected on install: `kind: native`, `kind: guest`, and `kind: settings`.
 | [api.md](api.md) (hooks, calls, input, data, guest heap) | Host APIs still marked proposal in that doc |
 
 Example packages: [../../modding/examples/](../../modding/examples/).
-EmmyLua SDK: [../../modding/sdk/](../../modding/sdk/).
+Luau SDK: [../../modding/sdk/](../../modding/sdk/).
 
 ## Historical archives
 

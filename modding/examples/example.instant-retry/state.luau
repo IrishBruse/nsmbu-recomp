@@ -1,12 +1,27 @@
 local nsmbu = require("nsmbu")
 local data = require("nsmbu.data")
 
-local state = {
-  mode = "idle",
-  safe = nil,
-  retries = 0,
-  quit_hold = 0,
-  last_status = "",
+type Pose = {
+	x: number,
+	y: number,
+	z: number,
+	speed_y: number,
+	grounded: boolean,
+	powerup: number,
+}
+
+local state: {
+	mode: string,
+	safe: Pose?,
+	retries: number,
+	quit_hold: number,
+	last_status: string,
+} = {
+	mode = "idle",
+	safe = nil,
+	retries = 0,
+	quit_hold = 0,
+	last_status = "",
 }
 
 function state.reset_course()
@@ -17,7 +32,7 @@ function state.reset_course()
   state.last_status = ""
 end
 
-function state.set_status(text)
+function state.set_status(text: string)
   if text == state.last_status then
     return
   end

@@ -41,7 +41,7 @@ Disable a package and wait for its next game update before updating or removing 
 Lua packages with `content_dir`, and Cemu packs, need a restart after enable, disable, or preset changes.
 Script-only Lua packages (no `content_dir`) load live on enable.
 The Mods tab has a **Hot reload Lua scripts** checkbox.
-When it is on, enabled script-only packs unload and reload when `.lua` files under the package change (the scan runs about twice per second).
+When it is on, enabled script-only packs unload and reload when `.luau` files under the package change (the scan runs about twice per second).
 Packs with `content_dir` ignore this path and still need a restart.
 The preference is the top-level `hot_reload` boolean in `profiles.json` (not per profile).
 Reinstall the same ID while disabled to update; configuration is preserved by ID.

@@ -3,16 +3,16 @@ local config = require("nsmbu.config")
 local level = require("nsmbu.level")
 local player = require("nsmbu.player")
 
-local held_mode = {}
-local prev_speed_y = {}
-local scaled_jump = {}
-local last_parts = ""
+local held_mode: { [number]: number? } = {}
+local prev_speed_y: { [number]: number? } = {}
+local scaled_jump: { [number]: boolean? } = {}
+local last_parts: string = ""
 
-local function freeze_timer()
+local function freeze_timer(): boolean
   return level.set_time(500) == true
 end
 
-local function keep_lives()
+local function keep_lives(): boolean
   local ok = false
   for p in player.players() do
     local lives = p:lives()
@@ -26,7 +26,7 @@ local function keep_lives()
   return ok
 end
 
-local function keep_powerup()
+local function keep_powerup(): boolean
   local ok = false
   for i = 0, 3 do
     local p = player(i)
@@ -50,7 +50,7 @@ local function keep_powerup()
   return ok
 end
 
-local function scale_jumps()
+local function scale_jumps(): boolean
   local scale = config.number("jump_scale", 1)
   if not scale or scale == 1 then
     return false
@@ -80,8 +80,8 @@ local function scale_jumps()
   return ok
 end
 
-function nsmbu.on_logic_step(step)
-  local parts = {}
+function nsmbu.on_logic_step(step: number)
+  local parts: { string } = {}
   if config.bool("infinite_time", false) and freeze_timer() then
     parts[#parts + 1] = "time"
   end

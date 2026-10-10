@@ -79,7 +79,7 @@ bool resolve_under(const fs::path& root, std::string rel, fs::path& out, std::st
 std::string module_to_rel(std::string name) {
     for (char& c : name)
         if (c == '.') c = '/';
-    if (name.size() < 4 || name.compare(name.size() - 4, 4, ".lua") != 0) name += ".lua";
+    if (name.size() < 5 || name.compare(name.size() - 5, 5, ".luau") != 0) name += ".luau";
     return name;
 }
 

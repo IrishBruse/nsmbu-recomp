@@ -6,8 +6,10 @@ There is no `nsmbu` global; scripts `require("nsmbu")` and related modules.
 Hooks, `nsmbu.fn`, input, and data files are still proposal.
 They contain no game files.
 
-EmmyLua types live in [../sdk/](../sdk/), one declaration file per module.
-`.luarc.json` in this folder points the Lua language server at that folder.
+Luau type definitions live in [../sdk/](../sdk/), one `.luau` module per `require` name.
+`.luaurc` in this folder maps every `nsmbu.*` name to that folder for Luau tooling and sets the language mode.
+For typing inside a mod, `require("nsmbu")` is a host module that the editor resolves as `any`.
+Require the SDK module directly (`require("@nsmbu")` under the `.luaurc` aliases) when you want the editor to use these types.
 
 | Mod | What it shows | Phase |
 | --- | --- | --- |
@@ -23,8 +25,8 @@ Those names are the two entries in `runtime/guest/include/nsmbu/functions.h`.
 
 Each folder is a package.
 Its folder name is the package id.
-It has `manifest.json` and `main.lua`.
-`example.smooth-step-replace` and `example.instant-retry` also load extra `.lua` files with `require`.
+It has `manifest.json` and `main.luau`.
+`example.smooth-step-replace` and `example.instant-retry` also load extra `.luau` files with `require`.
 
 `just launch` and `just run` link `user/ModManager/Mods` to this folder before start.
 Edit here, then relaunch.

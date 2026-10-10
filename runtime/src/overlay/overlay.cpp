@@ -901,7 +901,7 @@ void package_controls() {
     {
         bool watch = hot_reload();
         if (ImGui::Checkbox("Hot reload Lua scripts", &watch)) set_hot_reload(watch, error);
-        note("When on, enabled script-only packs reload when .lua files change. Packs with content still need a restart.");
+        note("When on, enabled script-only packs reload when .luau files change. Packs with content still need a restart.");
     }
     if (ImGui::Button("Choose package…")) hostui::choose_mod_source(false, [](std::string path) {
         std::lock_guard guard(picker_mutex); picked = std::move(path);
