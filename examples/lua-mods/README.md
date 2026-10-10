@@ -13,7 +13,7 @@ They contain no game files.
 | `play-scene-ticker` | Entry and return hooks, a number option, and a data file written on unload. | Proposal (hooks, data) |
 | `smooth-step-replace` | A replacement that calls `nsmbu.original` on odd calls and edits the guest float on even calls. | Proposal (hooks) |
 | `button-watch` | `on_logic_step`, pad input, and the Mods status line. | Partial (logic-step and status work; input is proposal) |
-| `course-assists` | Simple course cheats (skip hooks). Kept as a contrast. | Proposal (hooks) |
+| `course-assists` | Course timer, lives, power-up, and jump assists through guest memory. | Phase 2 |
 | `instant-retry` | Soft checkpoint retry with state, restore calls, and hold-jump to quit. Inspired by Tsuru instant respawn. | Proposal (hooks, call) |
 
 `play-scene-ticker` and `smooth-step-replace` use `nsmbu.fn.dScnPly_Execute` and `nsmbu.fn.cLib_addCalc2`.

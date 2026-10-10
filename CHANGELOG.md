@@ -18,6 +18,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Add**: Lua phase 3 content moves: optional `content_dir` on `kind: lua` packages (content-only packages are valid; restart when `content_dir` is set).
     The importer emits `kind: lua`.
     `kind: content` remains a one-release read-only alias and migrates to `lua` on scan.
+-   **Add**: Example `course-assists` Lua package uses guest memory for unlimited time/lives, keep power-up, and jump scale (USA v1.3.0).
+-   **Fix**: Lua mod logic steps run from the GX2 swap path so script packages load without a recomp hook rebuild.
 -   **Docs**: The README records the last ZeldaWWHDRecomp merge commit.
     The upstream-merge skill updates that note.
 -   **Remove**: Guest Mod SDK v2 and Native SDK v1 are gone (`examples/guest-mods/`, `tools/guestmod/`, the runtime guest loader, `code_mods`, `--mod-hooks` emission, the `guestmods` CI workflow, and the Native SDK v1 C ABI path).

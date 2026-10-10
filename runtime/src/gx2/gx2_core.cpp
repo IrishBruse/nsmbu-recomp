@@ -29,6 +29,7 @@
 #include "gfx/renderer.h"
 #include "platform/perf_hint.h"
 #include "render_prof.h"
+#include "mods/packages.h"
 
 using namespace Latte;
 
@@ -743,6 +744,7 @@ HLE(gx2, GX2SwapScanBuffers) {
     const uint64_t steps = interp::logic_steps();
     const bool hold = steps == lastSteps;
     lastSteps = steps;
+    if (!hold) mods::packages::frame(steps);
 
     static const char* captureCounter = getenv("NSMBU_TEST_CAPTURE_LOAD_COUNTER");
     static const char* captureStep = getenv("NSMBU_TEST_CAPTURE_LOAD_STEP");

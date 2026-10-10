@@ -4,7 +4,7 @@
   "name": "Course assists",
   "version": "0.1.0",
   "game_id": "nsmbu-usa",
-  "description": "Hypothetical stand-in for common NSMBU course cheats: unlimited time, unlimited lives, a higher jump, and keeping the current power-up.",
+  "description": "Course assists via guest memory: unlimited time, unlimited lives, a higher jump, and keeping the current power-up.",
   "kind": "lua",
   "lua": {
     "api_version": 1,
