@@ -9,6 +9,12 @@ Include the release version in that sentence.
 Read `docs/nsmbu.md` for the dump layout, the build, and the upstream base.
 Read the justfile for dev commands.
 
+## Names and addresses
+
+Use `references/headers` ([nsmbu/headers](https://github.com/nsmbu/headers)) for guest type names, function names, and `Address:` values.
+Those headers match USA v1.3.0 (`red-pro2.rpx`).
+Prefer them over Wind Waker HD leftovers or guessed addresses when you add hooks, sites, or runtime guest literals.
+
 ## Code comments
 
 Write code without comments.
