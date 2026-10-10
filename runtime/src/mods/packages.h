@@ -5,7 +5,7 @@
 #include <vector>
 namespace mods::packages {
 inline constexpr const char* kGameId="nsmbu-usa";
-inline constexpr const char* kManagerVersion="1.2.0";
+inline constexpr const char* kManagerVersion="1.3.0";
 struct Option {
     std::string id,name,description,type;
     json::Value value,default_value;
