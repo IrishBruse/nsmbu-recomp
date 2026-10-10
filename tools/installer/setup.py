@@ -1474,14 +1474,24 @@ def import_save(kind, path, data_dir, replace=False):
     say("  " + msg)
     return msg
 
+def source_checkout_user_dir():
+    """`<repo>/user` when this setup.py lives in a source tree (`just` sets NSMBU_USER_DIR there)."""
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "user"))
+
 def legacy_config_dirs():
-    """Settings folders the game used before portable releases (and still uses in source builds)."""
+    """Settings folders to import from: source `just` userdata, then older per-user config dirs."""
+    dirs = []
+    checkout = source_checkout_user_dir()
+    if os.path.isdir(checkout):
+        dirs.append(checkout)
     if IS_MAC:
-        return [os.path.expanduser("~/Library/Application Support/NSMBU"),
-                os.path.expanduser("~/Library/Application Support/nsmbu")]
-    if IS_WIN:
-        return [os.path.join(os.environ.get("APPDATA", ""), "NSMBU")]
-    return [os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "nsmbu")]
+        dirs.extend([os.path.expanduser("~/Library/Application Support/NSMBU"),
+                     os.path.expanduser("~/Library/Application Support/nsmbu")])
+    elif IS_WIN:
+        dirs.append(os.path.join(os.environ.get("APPDATA", ""), "NSMBU"))
+    else:
+        dirs.append(os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "nsmbu"))
+    return dirs
 
 SETTINGS_ITEMS = ["controls.json", "settings.ini", "display.plist", "states", "shadercache"]
 
@@ -1494,7 +1504,12 @@ def import_sources(path=None):
         save = os.path.join(root, "save", "user")
         cfg = [os.path.join(root, "user")]
     else:
-        save = os.path.join(legacy_data_dir(), "save", "user")
+        checkout_save = os.path.join(source_checkout_user_dir(), "save", "user")
+        legacy_save = os.path.join(legacy_data_dir(), "save", "user")
+        if os.path.isfile(os.path.join(checkout_save, "cking.sav")):
+            save = checkout_save
+        else:
+            save = legacy_save
         cfg = legacy_config_dirs()
     seen = set()
     for d in cfg:

@@ -11,6 +11,10 @@ At release, move those notes to a version heading and leave Unreleased empty.
     `NSMBU_NO_AUDIO`, `NSMBU_AUDIO_VOLUME`, and `NSMBU_AUDIO_OUTPUT` still override for one start (tools and benches).
 -   **Change**: `just run` no longer sets `NSMBU_NO_AUDIO=1`.
     Mute from the Audio tab instead.
+-   **Change**: Every `just` recipe sets `NSMBU_USER_DIR` to gitignored `user/` (settings, states, mods, shader cache).
+    `just launch` / `just run` / `just profile` also pass `--save user/save` (migrating a top-level `save/` once).
+    Portable installer releases still use `data/user` and `data/save` (`portable.txt` wins over `NSMBU_USER_DIR`).
+    Setup can import from `<repo>/user`.
 -   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
 -   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
     Wind Waker HD title ids and hashes are removed.

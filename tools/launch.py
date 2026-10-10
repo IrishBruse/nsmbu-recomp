@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import devdata
 import slot
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -43,6 +44,7 @@ def main():
     if not os.path.isdir(game):
         sys.exit("missing game/; run: just extract")
     env = os.environ.copy()
+    _, save = devdata.apply_env(env, ROOT)
     if slot_num is not None:
         slot.apply_slot(env, slot_num)
     if use_debug_env:
@@ -52,7 +54,7 @@ def main():
     cmd = [exe, "--game", game]
     if args.trace:
         cmd.append("--trace")
-    cmd.extend(args.run_args)
+    cmd.extend(devdata.with_save_arg(args.run_args, save))
     os.chdir(ROOT)
     if args.gdb:
         gdb = shutil.which("gdb")

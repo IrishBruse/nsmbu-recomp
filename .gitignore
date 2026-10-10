@@ -17,6 +17,7 @@ extract.log
 /ref/
 trace_dump.txt
 /save/
+/user/
 compile_commands.json
 .cache/
 frame_*.png

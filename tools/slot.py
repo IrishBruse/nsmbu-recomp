@@ -27,6 +27,8 @@ def state_path(slot):
     override = os.environ.get("NSMBU_STATE_DIR")
     if override:
         directory = override
+    elif os.environ.get("NSMBU_USER_DIR"):
+        directory = os.path.join(os.environ["NSMBU_USER_DIR"], "states")
     elif sys.platform == "darwin":
         directory = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "nsmbu", "states")
     elif sys.platform == "win32":

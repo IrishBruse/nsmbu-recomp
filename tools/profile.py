@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import devdata
 import slot
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -47,6 +48,7 @@ def main():
         sys.exit("missing game/; run: just extract")
     os.makedirs(os.path.dirname(args.log), exist_ok=True)
     env = os.environ.copy()
+    _, save = devdata.apply_env(env, ROOT)
     for key, value in PROFILE_ENV.items():
         env.setdefault(key, value)
     env["NSMBU_LOG_FILE"] = args.log
@@ -55,7 +57,7 @@ def main():
     path = slot.state_path(slot_num)
     if not os.path.isfile(path):
         sys.exit(f"missing {path}. Save a state in slot {slot_num}.")
-    cmd = [exe, "--game", game, *run_args]
+    cmd = [exe, "--game", game, *devdata.with_save_arg(run_args, save)]
     print(f"[profile] log {args.log}", flush=True)
     print(f"[profile] load slot {slot_num} at TV frame {args.load_at}; exit at {args.exit_at}", flush=True)
     os.chdir(ROOT)

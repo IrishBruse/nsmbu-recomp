@@ -1,13 +1,13 @@
 ---
 name: scripted-run
-description: Boot NSMBU from a copy of save/ and dump frames with tools/scripted-run.sh.
+description: Boot NSMBU from a copy of user/save and dump frames with tools/scripted-run.sh.
 ---
 
 # Scripted run
 
 Dumps are `frame_N.png` in the process working directory.
-`tools/scripted-run.sh` sets that directory to `.tmp/<name>` and copies `save/` to `.tmp/<name>/save`.
-The repo `save/` stays unread by the game.
+`tools/scripted-run.sh` sets that directory to `.tmp/<name>` and copies `user/save` to `.tmp/<name>/save`.
+The repo `user/save` stays unread by the game.
 
 ## Steps
 
@@ -36,7 +36,7 @@ Positive y is up.
 
 ## World 1-1
 
-`save/` is already past the opening cutscene.
+`user/save` is already past the opening cutscene.
 This recipe starts from that save.
 
 ```

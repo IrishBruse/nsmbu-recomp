@@ -84,7 +84,8 @@ and the actual-device renderer smoke test passed in the local build.
 
 Load slot 1 to reach 1-1.
 Do this before you play through the title screen.
-Slot 1 is `~/.config/nsmbu/states/slot1.bin`.
+Slot 1 is `user/states/slot1.bin` when you use `just run` / `just launch`.
+Otherwise it is under the platform config folder (`~/.config/nsmbu/states/` on Linux).
 `NSMBU_STATE_LOAD_AT` is `TV frame:slot`.
 Frame 700 is after the boot threads exist.
 The log line `Loaded slot 1` means the load worked.

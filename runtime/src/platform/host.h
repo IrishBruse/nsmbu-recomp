@@ -153,14 +153,17 @@ inline std::string exe_dir() {
 }
 inline const std::string& portable_user_dir() {
  static const std::string dir=[]{
-  if(const char* override=std::getenv("NSMBU_USER_DIR"))return std::string(override);
   std::string e=exe_dir();
-  if(e.empty()) return std::string();
-  FILE* f=fopen((e+"/portable.txt").c_str(),"rb");
-  if(!f) return std::string();
-  fclose(f);
-  size_t s=e.find_last_of("/\\");
-  return (s==std::string::npos?e:e.substr(0,s))+"/user";
+  if(!e.empty()){
+   FILE* f=fopen((e+"/portable.txt").c_str(),"rb");
+   if(f){
+    fclose(f);
+    size_t s=e.find_last_of("/\\");
+    return (s==std::string::npos?e:e.substr(0,s))+"/user";
+   }
+  }
+  if(const char* override=std::getenv("NSMBU_USER_DIR"))return std::string(override);
+  return std::string();
  }();
  return dir;
 }

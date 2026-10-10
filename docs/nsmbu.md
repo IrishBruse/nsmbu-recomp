@@ -79,9 +79,16 @@ Otherwise it runs `stubgen.py` so the tree links without your RPX.
 Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
 `tools/build.py` adds the matching `-L` path when it finds `libstdc++.so` under `/usr/lib/gcc/`.
 
-`just launch` starts `build/nsmbu` with `--game` set to `game/` and sets default debug env vars (`NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, `NSMBU_CRASH_RECOVERY`) when they are not already set in the environment.
+The justfile exports `NSMBU_USER_DIR` to the gitignored `user/` folder for every recipe.
+`just launch` starts `build/nsmbu` with `--game` set to `game/` and `--save user/save`.
+An existing top-level `save/` is moved to `user/save` on the first launch.
+Default debug env vars (`NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, `NSMBU_CRASH_RECOVERY`) are set when they are not already in the environment.
 
-`just launch-release` skips those defaults.
+`just launch-release` skips those debug defaults.
+It still uses `user/`.
+
+Portable installer releases keep their own `data/user` and `data/save` (via `portable.txt`).
+The setup importer can also read `<repo>/user` from a source checkout.
 
 `just launch-trace` passes `--trace` for HLE logging.
 
@@ -94,7 +101,7 @@ The number is the save slot.
 Slots are 1 through 5.
 The load starts at TV frame 200 and waits until the boot threads exist.
 
-`just profile` runs `build/nsmbu` with the fixed-scene profile env (no audio, profile and Vulkan stats, slow-swap log, log file under `.tmp/repro/`).
+`just profile` runs `build/nsmbu` with the fixed-scene profile env (`NSMBU_NO_AUDIO`, profile and Vulkan stats, slow-swap log, log file under `.tmp/repro/`).
 Default load is slot 1 at TV frame 700; the run stops at TV frame 1100.
 Pass a slot number, or `--exit-at`, `--load-at`, or `--log`.
 Use a Release binary (`just build-release`) for hitch checks.
