@@ -6,6 +6,11 @@ At release, move those notes to a version heading and leave Unreleased empty.
 ## Unreleased
 
 -   **Fix**: Save-state build identity on Linux reads `/proc/self/exe` (the running image) so a rebuild that replaces `build/nsmbu` no longer drops state compatibility.
+-   **Add**: Settings overlay (F1) Audio tab: mute, volume, and TV / GamePad / Auto output.
+    Choices are saved in `settings.ini`.
+    `NSMBU_NO_AUDIO`, `NSMBU_AUDIO_VOLUME`, and `NSMBU_AUDIO_OUTPUT` still override for one start (tools and benches).
+-   **Change**: `just run` no longer sets `NSMBU_NO_AUDIO=1`.
+    Mute from the Audio tab instead.
 -   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
 -   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
     Wind Waker HD title ids and hashes are removed.

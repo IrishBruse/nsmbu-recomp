@@ -30,9 +30,6 @@ lldb *args:
 
 # Build, then launch. A number 1 through 5 loads that save slot.
 run *args:
-    just build {{args}} && NSMBU_NO_AUDIO=1 just launch {{args}}
-
-run-sound *args:
     just build {{args}} && just launch {{args}}
 
 # Fixed-scene profile (slot 1 @ TV 700, exit 1100, log .tmp/repro/nsmbu.log). Use a Release build.

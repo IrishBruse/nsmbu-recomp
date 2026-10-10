@@ -42,6 +42,7 @@ namespace gfxvk { bool buffer_cache_enabled(); }
 #include "../mods/packages.h"
 #include "../motion/motion.h"
 #include "../platform/keycodes.h"
+#include "../audio_out.h"
 #include "../rumble.h"
 #include "../interp.h"
 #include "../runtime.h"
@@ -122,9 +123,9 @@ ImGuiKey imgui_key(int code) {
     }
 }
 
-enum Tab { kSaves, kGraphics, kDisplay, kMods, kControls, kAbout, kTabs };
-const char* const kTabNames[kTabs] = {"Saves", "Graphics", "Display", "Mods", "Controls", "Language / About"};
-const char* const kTabIds[kTabs] = {"saves", "graphics", "display", "mods", "controls", "about"};
+enum Tab { kSaves, kGraphics, kDisplay, kAudio, kMods, kControls, kAbout, kTabs };
+const char* const kTabNames[kTabs] = {"Saves", "Graphics", "Display", "Audio", "Mods", "Controls", "Language / About"};
+const char* const kTabIds[kTabs] = {"saves", "graphics", "display", "audio", "mods", "controls", "about"};
 
 struct Ui {
     bool init = false;
@@ -744,6 +745,57 @@ void tab_graphics() {
         ImGui::TextDisabled("Copied");
     }
     help("Where the renderer spends its time over the last few seconds, as text for a bug report");
+}
+
+void tab_audio() {
+    heading("Sound");
+    bool v;
+    const bool mute_locked = audio::mute_env_override();
+    if (check("Mute", audio::muted(), &v, !mute_locked)) {
+        audio::set_muted(v);
+        hostui::post([v] { hostui::set("audioMute", v ? "1" : "0"); });
+    }
+    if (mute_locked) note("NSMBU_NO_AUDIO is set for this start and takes precedence.");
+    help("Off plays the game through the host speakers. On keeps the mix running with no sound.");
+
+    const bool vol_locked = audio::volume_env_override();
+    float vol = audio::volume() * 100.0f;
+    ImGui::BeginDisabled(vol_locked);
+    ImGui::SetNextItemWidth(260);
+    if (ImGui::SliderFloat("Volume", &vol, 0.0f, 100.0f, "%.0f%%", ImGuiSliderFlags_AlwaysClamp)) {
+        const float n = vol / 100.0f;
+        audio::set_volume(n);
+        hostui::post([n] {
+            char buf[32];
+            snprintf(buf, sizeof buf, "%g", n);
+            hostui::set("audioVolume", buf);
+        });
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("100%##volume")) {
+        audio::set_volume(1.0f);
+        hostui::post([] { hostui::set("audioVolume", "1"); });
+    }
+    ImGui::EndDisabled();
+    if (vol_locked) note("NSMBU_AUDIO_VOLUME=%s is set for this start and takes precedence.", getenv("NSMBU_AUDIO_VOLUME"));
+    help("Host output gain. 100% is full level. Applies at once.");
+
+    heading("Output");
+    const bool out_locked = audio::output_env_override();
+    const audio::OutputSelect::Source cur = audio::output_source();
+    static const audio::OutputSelect::Source sources[] = {
+        audio::OutputSelect::kAuto, audio::OutputSelect::kTv, audio::OutputSelect::kGamePad};
+    for (int i = 0; i < 3; i++) {
+        if (i) ImGui::SameLine();
+        const auto s = sources[i];
+        if (radio(audio::output_source_label(s), cur == s, !out_locked)) {
+            audio::set_output_source(s);
+            hostui::post([s] { hostui::set("audioOutput", audio::output_source_id(s)); });
+        }
+    }
+    if (out_locked) note("NSMBU_AUDIO_OUTPUT=%s is set for this start and takes precedence.", getenv("NSMBU_AUDIO_OUTPUT"));
+    help("Auto follows the game's Off-TV Play faders (TV, then TV + GamePad when the GamePad is audible).\n"
+         "TV and GamePad force one mix to the host speakers.");
 }
 
 void tab_display() {
@@ -1477,6 +1529,7 @@ void settings_window() {
                     case kSaves: tab_saves(); break;
                     case kGraphics: tab_graphics(); break;
                     case kDisplay: tab_display(); break;
+                    case kAudio: tab_audio(); break;
                     case kMods: tab_mods(); break;
                     case kControls: tab_controls(); break;
                     default: tab_about(); break;
@@ -1586,6 +1639,12 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
             hostui::post([pro = v == "1"] { hostui::set_pro_controller(pro); });
 
         if (!rumble::env_override() && hostui::get("rumble", v)) rumble::set_enabled(v != "0");
+
+        if (!audio::mute_env_override() && hostui::get("audioMute", v)) audio::set_muted(v == "1");
+        if (!audio::volume_env_override() && hostui::get("audioVolume", v) && !v.empty())
+            audio::set_volume((float)atof(v.c_str()));
+        if (!audio::output_env_override() && hostui::get("audioOutput", v) && !v.empty())
+            audio::set_output_source(audio::OutputSelect::parse(v.c_str()));
 
         hostui::post([] { load_gyro(); });
     }

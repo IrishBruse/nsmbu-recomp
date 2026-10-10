@@ -311,7 +311,7 @@ void init_buffers() {
     G.drc_param = mem::runtime_alloc(0x10, 32);
     for (auto& f : g_drc_aux)
         for (auto& b : f) b = mem::host_alloc(4 * kDrcChannels * kSamples, 64);
-    g_output.source = audio::OutputSelect::parse(getenv("NSMBU_AUDIO_OUTPUT"));
+    g_output.source = audio::output_source();
 }
 
 bool guest_obj(uint32_t a) { return a >= mem::kMem2Start && a < mem::kMem2End - 0x400 && !(a & 3); }
@@ -339,6 +339,7 @@ void update_output_mode() {
     audio::Fader tv, drc;
     bool ok = read_game_faders(tv, drc);
     bool before = g_output.play_drc;
+    g_output.source = audio::output_source();
     g_output.update(ok, tv, drc);
     static bool stats = getenv("NSMBU_AX_STATS") != nullptr;
     if (stats && g_output.play_drc != before)

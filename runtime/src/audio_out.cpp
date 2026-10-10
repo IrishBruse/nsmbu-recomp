@@ -1,5 +1,4 @@
 
-
 #include "audio_out.h"
 
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
@@ -17,6 +16,7 @@
 #include <thread>
 #include <vector>
 
+#include "overlay/hostui.h"
 #include "runtime.h"
 
 namespace audio {
@@ -30,6 +30,9 @@ std::atomic<uint32_t> g_read{0}, g_write{0};
 std::atomic<bool> g_started{false};
 std::atomic<bool> g_flush{false};
 std::atomic<bool> g_silent{false};
+std::atomic<bool> g_muted{false};
+std::atomic<float> g_volume{1.0f};
+std::atomic<int> g_source{(int)OutputSelect::kAuto};
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 AudioComponentInstance g_unit = nullptr;
 #else
@@ -40,6 +43,23 @@ std::atomic<uint64_t> g_underrun{0}, g_dropped{0};
 
 FILE* g_dump = nullptr;
 uint32_t g_dump_frames = 0;
+
+float clamp_volume(float v) {
+    if (!(v == v)) return 1.0f;
+    if (v < 0.0f) return 0.0f;
+    if (v > 1.0f) return 1.0f;
+    return v;
+}
+
+void apply_device_gain() {
+    const float gain = g_muted.load(std::memory_order_relaxed) ? 0.0f : g_volume.load(std::memory_order_relaxed);
+#if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
+    if (g_unit)
+        AudioUnitSetParameter(g_unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, (AudioUnitParameterValue)gain, 0);
+#else
+    if (g_unit) SDL_SetAudioStreamGain(g_unit, gain);
+#endif
+}
 
 void write_wav_header() {
     uint32_t data = g_dump_frames * 4;
@@ -65,7 +85,7 @@ void write_wav_header() {
     fflush(g_dump);
 }
 
-void pull(int16_t* out,uint32_t frames) {
+void pull(int16_t* out, uint32_t frames) {
     uint32_t r = g_read.load(std::memory_order_relaxed), w = g_write.load(std::memory_order_acquire);
     if (g_flush.exchange(false)) r = w;
     uint32_t avail = w - r, n = std::min<uint32_t>(avail, frames);
@@ -81,15 +101,19 @@ void pull(int16_t* out,uint32_t frames) {
     g_read.store(r + n, std::memory_order_release);
 }
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
-OSStatus render(void*,AudioUnitRenderActionFlags*,const AudioTimeStamp*,UInt32,UInt32 frames,AudioBufferList* io) {
-    pull((int16_t*)io->mBuffers[0].mData,frames);return noErr;
+OSStatus render(void*, AudioUnitRenderActionFlags*, const AudioTimeStamp*, UInt32, UInt32 frames, AudioBufferList* io) {
+    pull((int16_t*)io->mBuffers[0].mData, frames);
+    return noErr;
 }
 #else
-void SDLCALL render(void*,SDL_AudioStream* stream,int additional,int) {
-
-    int16_t samples[1024*2];
-    while(additional>0) { uint32_t frames=std::min(additional/4,1024);if(!frames)break;
-      pull(samples,frames);if(!SDL_PutAudioStreamData(stream,samples,(int)frames*4))break;additional-=(int)frames*4;
+void SDLCALL render(void*, SDL_AudioStream* stream, int additional, int) {
+    int16_t samples[1024 * 2];
+    while (additional > 0) {
+        uint32_t frames = std::min(additional / 4, 1024);
+        if (!frames) break;
+        pull(samples, frames);
+        if (!SDL_PutAudioStreamData(stream, samples, (int)frames * 4)) break;
+        additional -= (int)frames * 4;
     }
 }
 #endif
@@ -107,10 +131,30 @@ void silent_clock() {
     }
 }
 
+void load_prefs() {
+    std::string v;
+    if (const char* e = getenv("NSMBU_AUDIO_VOLUME")) {
+        g_volume.store(clamp_volume((float)atof(e)), std::memory_order_relaxed);
+    } else if (hostui::get("audioVolume", v) && !v.empty()) {
+        g_volume.store(clamp_volume((float)atof(v.c_str())), std::memory_order_relaxed);
+    }
+    if (getenv("NSMBU_NO_AUDIO")) {
+        g_muted.store(true, std::memory_order_relaxed);
+    } else if (hostui::get("audioMute", v)) {
+        g_muted.store(v == "1", std::memory_order_relaxed);
+    }
+    if (const char* e = getenv("NSMBU_AUDIO_OUTPUT")) {
+        g_source.store((int)OutputSelect::parse(e), std::memory_order_relaxed);
+    } else if (hostui::get("audioOutput", v) && !v.empty()) {
+        g_source.store((int)OutputSelect::parse(v.c_str()), std::memory_order_relaxed);
+    }
+}
+
 }
 
 void init() {
     if (g_started.exchange(true)) return;
+    load_prefs();
     if (const char* p = getenv("NSMBU_AUDIO_DUMP")) {
         g_dump = fopen(p, "wb");
         if (g_dump) {
@@ -148,21 +192,30 @@ void init() {
     AudioUnitSetProperty(g_unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &fmt, sizeof fmt);
     AURenderCallbackStruct cb{render, nullptr};
     AudioUnitSetProperty(g_unit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb, sizeof cb);
-
-    if (const char* v = getenv("NSMBU_AUDIO_VOLUME"))
-        AudioUnitSetParameter(g_unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, (AudioUnitParameterValue)atof(v), 0);
+    apply_device_gain();
     if (AudioUnitInitialize(g_unit) != noErr || AudioOutputUnitStart(g_unit) != noErr) {
         LOG("[audio] failed to start output unit");
         return;
     }
     LOG("[audio] CoreAudio output started (48 kHz stereo)");
 #else
-    if(!SDL_InitSubSystem(SDL_INIT_AUDIO)){LOG("[audio] SDL audio initialization: %s",SDL_GetError());return;}
-    SDL_AudioSpec spec{SDL_AUDIO_S16,2,kRate};
-    g_unit=SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,&spec,render,nullptr);
-    if(!g_unit){LOG("[audio] no output device: %s",SDL_GetError());return;}
-    if(const char* v=getenv("NSMBU_AUDIO_VOLUME"))SDL_SetAudioStreamGain(g_unit,(float)atof(v));
-    if(!SDL_ResumeAudioStreamDevice(g_unit)){LOG("[audio] failed to start: %s",SDL_GetError());SDL_DestroyAudioStream(g_unit);g_unit=nullptr;return;}
+    if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+        LOG("[audio] SDL audio initialization: %s", SDL_GetError());
+        return;
+    }
+    SDL_AudioSpec spec{SDL_AUDIO_S16, 2, kRate};
+    g_unit = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, render, nullptr);
+    if (!g_unit) {
+        LOG("[audio] no output device: %s", SDL_GetError());
+        return;
+    }
+    apply_device_gain();
+    if (!SDL_ResumeAudioStreamDevice(g_unit)) {
+        LOG("[audio] failed to start: %s", SDL_GetError());
+        SDL_DestroyAudioStream(g_unit);
+        g_unit = nullptr;
+        return;
+    }
     LOG("[audio] SDL output started (48 kHz stereo)");
 #endif
 }
@@ -199,6 +252,50 @@ void flush() { g_flush = true; }
 void stats(uint64_t& underrun, uint64_t& dropped) {
     underrun = g_underrun;
     dropped = g_dropped;
+}
+
+bool muted() { return g_muted.load(std::memory_order_relaxed); }
+void set_muted(bool on) {
+    if (mute_env_override()) return;
+    if (g_muted.exchange(on, std::memory_order_relaxed) != on) {
+        LOG("[audio] mute %s", on ? "on" : "off");
+        apply_device_gain();
+    }
+}
+bool mute_env_override() { return getenv("NSMBU_NO_AUDIO") != nullptr; }
+
+float volume() { return g_volume.load(std::memory_order_relaxed); }
+void set_volume(float v) {
+    if (volume_env_override()) return;
+    float n = clamp_volume(v);
+    float prev = g_volume.exchange(n, std::memory_order_relaxed);
+    if (prev != n) apply_device_gain();
+}
+bool volume_env_override() { return getenv("NSMBU_AUDIO_VOLUME") != nullptr; }
+
+OutputSelect::Source output_source() {
+    return (OutputSelect::Source)g_source.load(std::memory_order_relaxed);
+}
+void set_output_source(OutputSelect::Source s) {
+    if (output_env_override()) return;
+    int prev = g_source.exchange((int)s, std::memory_order_relaxed);
+    if (prev != (int)s) LOG("[audio] output %s", output_source_label(s));
+}
+bool output_env_override() { return getenv("NSMBU_AUDIO_OUTPUT") != nullptr; }
+
+const char* output_source_id(OutputSelect::Source s) {
+    switch (s) {
+    case OutputSelect::kTv: return "tv";
+    case OutputSelect::kGamePad: return "gamepad";
+    default: return "auto";
+    }
+}
+const char* output_source_label(OutputSelect::Source s) {
+    switch (s) {
+    case OutputSelect::kTv: return "TV";
+    case OutputSelect::kGamePad: return "GamePad";
+    default: return "Auto (Off-TV Play)";
+    }
 }
 
 }
