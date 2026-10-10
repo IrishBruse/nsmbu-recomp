@@ -52,8 +52,9 @@ class SDKPackage(unittest.TestCase):
                     dest = root / relative
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(Path(package.ROOT) / relative, dest)
-                maps = root / "tools/recomp/builds"
-                shutil.copytree(Path(package.ROOT) / "tools/recomp/builds", maps)
+                maps = Path(package.ROOT) / "tools/recomp/builds"
+                if maps.is_dir():
+                    shutil.copytree(maps, root / "tools/recomp/builds")
                 result = subprocess.run(
                     [sys.executable, "-I", "-B", "-c",
                      "import runpy,sys; runpy.run_path(sys.argv[1], run_name='package_import_test')",

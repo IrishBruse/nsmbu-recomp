@@ -370,10 +370,12 @@ def main():
         if re.match(r"hooks.*\.txt$", hp):
             copy(os.path.join(ROOT, "tools", "recomp", hp), os.path.join(pkg, "tools", "recomp", hp))
 
-    for bp in sorted(os.listdir(os.path.join(ROOT, "tools", "recomp", "builds"))):
-        if bp.endswith(".json"):
-            copy(os.path.join(ROOT, "tools", "recomp", "builds", bp),
-                 os.path.join(pkg, "tools", "recomp", "builds", bp))
+    builds_dir = os.path.join(ROOT, "tools", "recomp", "builds")
+    if os.path.isdir(builds_dir):
+        for bp in sorted(os.listdir(builds_dir)):
+            if bp.endswith(".json"):
+                copy(os.path.join(builds_dir, bp),
+                     os.path.join(pkg, "tools", "recomp", "builds", bp))
 
     try:
         with open(os.path.join(build, "nsmbu-zstd.txt")) as f:

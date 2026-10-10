@@ -5,6 +5,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Fix**: `release_sdk_package` and the release packager tolerate a missing `tools/recomp/builds` maps directory (USA-only; empty dirs are not in git).
 -   **Change**: Settings overlay opens with `` ` `` or F12 (not F1).
     F1–F5 load save-state slots; Shift+F1–F5 still save.
     Frame capture stays on P.
