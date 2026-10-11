@@ -9,7 +9,7 @@ export type Pose = {
 
 local player = {}
 
-local function need(name: string)
+local function need(name: string): (number?, string?)
   local addr = nsmbu.fn[name]
   if not addr then
     return nil, name .. " is not in nsmbu.fn"

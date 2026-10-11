@@ -20,7 +20,7 @@ if target and nsmbu.hooks.hook then
   end)
 
   if not entry_id then
-    nsmbu.log(entry_err)
+    nsmbu.log(entry_err or "entry hook failed")
   end
 
   local return_id, return_err = nsmbu.hooks.hook(target, "return", function(ctx)
@@ -32,7 +32,7 @@ if target and nsmbu.hooks.hook then
   end)
 
   if not return_id then
-    nsmbu.log(return_err)
+    nsmbu.log(return_err or "return hook failed")
   end
 else
   nsmbu.log("dScnPly_Execute or nsmbu.hooks.hook is not in nsmbu")
@@ -45,6 +45,6 @@ nsmbu.listen("unload", function()
   end
   local written, err = nsmbu.data.write("steps.txt", tostring(steps))
   if not written then
-    nsmbu.log(err)
+    nsmbu.log(err or "data write failed")
   end
 end)

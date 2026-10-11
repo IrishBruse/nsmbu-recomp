@@ -13,10 +13,10 @@ type State = {
 	retries: number,
 	quit_hold: number,
 	last_status: string,
-	reset_course: (self: State) -> (),
-	set_status: (self: State, text: string) -> (),
-	save_file: (self: State) -> (),
-	load_file: (self: State) -> (),
+	reset_course: () -> (),
+	set_status: (text: string) -> (),
+	save_file: () -> (),
+	load_file: () -> (),
 }
 
 local state = {} :: State
@@ -64,7 +64,7 @@ function state.save_file()
   )
   local wrote, err = nsmbu.data.write("softspot.txt", text)
   if not wrote then
-    nsmbu.log(err)
+    nsmbu.log(err or "data write failed")
   end
 end
 

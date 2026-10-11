@@ -20,7 +20,7 @@ local id, err = nsmbu.hooks.replace(target, function(ctx)
   end
   local value, read_err = nsmbu.guest.read_f32(ctx.r3)
   if not value then
-    nsmbu.log(read_err)
+    nsmbu.log(read_err or "guest read failed")
     nsmbu.hooks.original()
     return
   end
@@ -28,10 +28,10 @@ local id, err = nsmbu.hooks.replace(target, function(ctx)
   local next_value = smooth.step(value, ctx.f1, ctx.f2, ctx.f3)
   local wrote, write_err = nsmbu.guest.write_f32(ctx.r3, next_value)
   if not wrote then
-    nsmbu.log(write_err)
+    nsmbu.log(write_err or "guest write failed")
   end
 end)
 
 if not id then
-  nsmbu.log(err)
+  nsmbu.log(err or "replace failed")
 end

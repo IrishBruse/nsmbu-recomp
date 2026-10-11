@@ -62,7 +62,7 @@ function death.tick_hold()
   if state.mode ~= "holding" then
     return
   end
-  local need = nsmbu.config.number("quit_hold", 45)
+  local need = nsmbu.config.number("quit_hold", 45) or 45
   if nsmbu.input.button.held("A") then
     state.quit_hold = state.quit_hold + 1
   else
@@ -81,7 +81,7 @@ function death.tick_hold()
   end
   local ok, err = quit_course()
   if not ok then
-    nsmbu.log(err)
+    nsmbu.log(err or "quit failed")
     state.mode = "idle"
     return
   end
@@ -97,7 +97,7 @@ function death.install()
   end
   local id, err = nsmbu.hooks.hook(target, "entry", death.begin)
   if not id then
-    nsmbu.log(err)
+    nsmbu.log(err or "hook failed")
   end
 end
 

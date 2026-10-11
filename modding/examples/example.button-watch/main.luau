@@ -2,7 +2,7 @@ local last: string = ""
 
 local function every_n(): number
   local every = nsmbu.config.number("every", 15)
-  if every < 1 then
+  if not every or every < 1 then
     return 1
   end
   return every

@@ -12,7 +12,7 @@ local function record_safe(step: number)
   if state.mode ~= "idle" then
     return
   end
-  local every = nsmbu.config.number("record_every", 10)
+  local every = nsmbu.config.number("record_every", 10) or 10
   if every < 1 then
     every = 1
   end
@@ -53,7 +53,7 @@ if enter then
     on_course_enter()
   end)
   if not id then
-    nsmbu.log(err)
+    nsmbu.log(err or "hook failed")
   end
 else
   nsmbu.log("course_enter is not in nsmbu.fn")
@@ -69,7 +69,7 @@ if checkpoint then
     end
   end)
   if not id then
-    nsmbu.log(err)
+    nsmbu.log(err or "hook failed")
   end
 else
   nsmbu.log("checkpoint_touched is not in nsmbu.fn")
