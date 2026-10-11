@@ -16,8 +16,6 @@ Author date: Fri Oct 9 11:22:57 2026 +0200
 
 The remote name in this clone is `upstream`.
 
-The archived Wind Waker HD readme is [upstream-wwhd-readme.md](upstream-wwhd-readme.md).
-
 The next update is one merge, not a rebase.
 
 Follow `.cursor/skills/upstream-merge/SKILL.md`.

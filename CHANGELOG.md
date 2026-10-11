@@ -75,7 +75,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Remove**: Guest Mod SDK v2 and Native SDK v1 are gone (`examples/guest-mods/`, `tools/guestmod/`, the runtime guest loader, `code_mods`, `--mod-hooks` emission, the `guestmods` CI workflow, and the Native SDK v1 C ABI path).
     The mod manager rejects guest and native packages.
 -   **Docs**: Live modding docs live under `docs/modding/` (manager, content via Luau `content_dir`, cemu, Luau phases 2–3).
-    SDK v1/v2 archives stay in `docs/deprecated/`.
+-   **Docs**: Remove the deprecated Mod SDK v2 and Native SDK v1 archives and every reference to them.
+-   **Docs**: Remove the archived Wind Waker HD readme (`docs/upstream-wwhd-readme.md`) and every reference to it.
 -   **Remove**: `kind: settings` packages and the built-in settings manager stub are gone.
 -   **Fix**: The overworld path seam is fixed.
 -   **Fix**: `hooks.txt` uses USA 1.3.0 entries: frame-allocator wait (`02ACD218`), null-model draw-queue filter (`024D752C`), and DistantViewMgr flicker (`@022A79C4`).

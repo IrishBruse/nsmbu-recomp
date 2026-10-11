@@ -24,12 +24,10 @@ A squash is one pass this time and a full pass on every later update, because it
    Run `git add` on a file only after `git diff` on that file shows no conflict markers.
 5. `git diff --check` is clean.
    `git grep -n '<<<<<<<' -- ':!runtime/third_party' ':!references'` prints nothing.
-6. Replace `docs/upstream-wwhd-readme.md` with `git show upstream/main:README.md`.
-   Leave Wind Waker names in that file.
-7. Set the recorded base in `docs/nsmbu.md` and the last-merge note in `README.md` to `git rev-parse upstream/main`, plus that commit's subject and author date.
+6. Set the recorded base in `docs/nsmbu.md` and the last-merge note in `README.md` to `git rev-parse upstream/main`, plus that commit's subject and author date.
    In `README.md`, keep the sentence form `The last merge from [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp) is commit \`<hash>\`.`
-8. When `build/Makefile` exists, run `make -C build -j"$(nproc)" nsmbu`.
-9. Finish the merge with those doc files included.
+7. When `build/Makefile` exists, run `make -C build -j"$(nproc)" nsmbu`.
+8. Finish the merge with those doc files included.
    Do not push.
 
 ## Conflict rules

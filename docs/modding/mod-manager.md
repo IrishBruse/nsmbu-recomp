@@ -14,9 +14,6 @@ Manager version **1.0.0**.
 | `luau` | Live | [luau-mods.md](luau-mods.md), [api.md](api.md), [content.md](content.md) for `content_dir` |
 | `cemu` | Live | [cemu.md](cemu.md) |
 | `content` | Alias this release (migrates to `luau` on scan) | [content.md](content.md) |
-| `native` | Rejected | [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md) (archive) |
-| `guest` | Rejected | [../deprecated/mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) (archive) |
-| `settings` | Rejected | — |
 
 Live kinds are `luau` and `cemu`.
 `kind: content` is accepted as a read-only alias this release and rewritten to `luau` on scan.

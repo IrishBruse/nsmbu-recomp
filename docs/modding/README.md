@@ -24,12 +24,3 @@ Rejected on install: `kind: native`, `kind: guest`, and `kind: settings`.
 
 Example packages: [../../modding/examples/](../../modding/examples/).
 Luau SDK: [../../modding/sdk/](../../modding/sdk/).
-
-## Historical archives
-
-| Doc | What it was |
-| --- | --- |
-| [../deprecated/native-sdk-v1.md](../deprecated/native-sdk-v1.md) | Host `dlopen` C ABI (`kind: native`) |
-| [../deprecated/mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) | PowerPC guest mods (`kind: guest`) |
-
-Do not use the archives as modder guides.

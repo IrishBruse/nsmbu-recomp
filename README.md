@@ -160,5 +160,4 @@ When that file is absent, the build uses stubs so the tree can link.
 `just launch` sets `NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, and `NSMBU_CRASH_RECOVERY` when those variables are unset.
 
 Build notes and the upstream base are in [docs/nsmbu.md](docs/nsmbu.md).
-The archived Wind Waker HD readme is in [docs/upstream-wwhd-readme.md](docs/upstream-wwhd-readme.md).
 Changes are in [CHANGELOG.md](CHANGELOG.md).

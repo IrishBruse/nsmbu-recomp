@@ -8,7 +8,7 @@ See [api.md](api.md) for the live surface and for APIs that are still proposal.
 
 Later phases stay proposal: hooks and `nsmbu.call`, and hard rejection of `kind: content` after the alias window.
 Cemu graphics packs stay.
-This plan retires [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and [native-sdk-v1.md](../deprecated/native-sdk-v1.md).
+This plan retires Mod SDK v2 and Native SDK v1.
 It also retires `kind: content` as its own package kind (alias and migration land in phase 3; hard reject follows).
 
 The player-facing manager stays.
@@ -50,7 +50,7 @@ The player must confirm the library hash before it loads.
 A mod author who wants Linux, Windows, and macOS must ship three binaries.
 The API cannot hook a game function.
 
-Guest v2 ([mod-sdk-v2.md](../deprecated/mod-sdk-v2.md)) is a removed archive.
+Guest v2 is a removed archive.
 The author writes C for 32-bit big-endian PowerPC.
 The package is one ELF on every OS.
 At startup the port translates that ELF to C and compiles it with the local toolchain.
@@ -313,7 +313,6 @@ Keep the cheap flag check from SDK v2 if measurements stay acceptable.
 The flag byte is set only when a Luau mod hooks or replaces that function.
 An unhooked function pays one load and a not-taken branch.
 SDK v2 already measured that cost and kept it.
-See the measurements section of [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md).
 
 Delete the rest of the guest pipeline.
 
@@ -438,11 +437,8 @@ This document is the reason to stop extending either path.
 
 | Item | Action |
 | --- | --- |
-| `docs/deprecated/mod-sdk-v2.md` | Kept as a historical archive only. Do not use it as the modder guide. |
-| `docs/deprecated/native-sdk-v1.md` | Kept as a historical archive only. Do not use it as the modder guide. |
 | `docs/modding/mod-manager.md` | Keep. Live kinds are `luau` and `cemu`; file replacement is documented in [content.md](content.md). |
 | `examples/guest-mods/` | Removed. Packages are in `modding/examples/`. |
-| `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Mark the Mod SDK v2 and Native SDK v1 bullets as historical. Do not treat them as the NSMBU mod plan. |
 
 ### Guest SDK v2 code
 
@@ -572,7 +568,7 @@ Do not copy their code without a license review.
 
 | Project | What to copy as an idea |
 | --- | --- |
-| [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and N64Recomp | Hook versus replace, one replacement, many hooks, port hooks stay outside, config schema, dependency order. Drop the MIPS/PPC ELF and the JIT. |
+| Mod SDK v2 (removed) and N64Recomp | Hook versus replace, one replacement, many hooks, port hooks stay outside, config schema, dependency order. Drop the MIPS/PPC ELF and the JIT. |
 | Zelda64Recomp mod manager | Install, enable, and options in a menu. Already the model for [mod-manager.md](mod-manager.md). |
 | SM64coopDX / other Luau game mods | A small `hook` table and per-mod script files. Their APIs are game-specific. |
 | Luau | A locked standard library for untrusted scripts (chosen; the host embeds Luau). |
