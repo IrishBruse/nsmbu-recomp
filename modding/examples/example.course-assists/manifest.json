@@ -5,8 +5,8 @@
   "version": "0.1.0",
   "game_id": "nsmbu-usa",
   "description": "Course assists via guest memory: unlimited time, unlimited lives, a higher jump, and keeping the current power-up.",
-  "kind": "lua",
-  "lua": {
+  "kind": "luau",
+  "luau": {
     "api_version": 1,
     "entry": "main.luau"
   },

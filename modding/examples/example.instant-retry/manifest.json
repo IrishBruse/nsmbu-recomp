@@ -6,8 +6,8 @@
   "game_id": "nsmbu-usa",
   "author": "example",
   "description": "Soft checkpoint retry inside a course: record a safe landing, skip the usual death cutscene, restore the player, and hold jump to quit. Inspired by Tsuru instant respawn, not a copy of its code.",
-  "kind": "lua",
-  "lua": {
+  "kind": "luau",
+  "luau": {
     "api_version": 1,
     "entry": "main.luau",
     "heap_size": 65536

@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parents[2]
 NON_ADDRESS = {
     ("runtime.h", 0x02800000): "foreground bucket size",
     ("runtime.h", 0x02000000): "MEM1 size",
-    ("mods/lua_guest.cpp", 0x02800000): "foreground bucket size",
-    ("mods/lua_guest.cpp", 0x02000000): "MEM1 size",
+    ("mods/luau_guest.cpp", 0x02800000): "foreground bucket size",
+    ("mods/luau_guest.cpp", 0x02000000): "MEM1 size",
     ("core.cpp", 0x02000000): "executable memory lower bound",
     ("gfx/metal_main.mm", 0x02000000): "executable memory lower bound",
     ("hle/system_stubs.cpp", 0x02000000): "executable memory lower bound",

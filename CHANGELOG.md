@@ -5,26 +5,28 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
--   **Change**: Lua mods run on Luau instead of LuaJIT (embedded under `runtime/third_party/luau/`).
+-   **Change**: Mod scripts run on Luau instead of LuaJIT (embedded under `runtime/third_party/luau/`).
     Scripts keep the Lua 5.1 syntax and gain `utf8`; LuaJIT's `bit` library becomes `bit32`.
--   **Change**: Lua mod scripts use the `.luau` extension (`main.luau` and sibling modules).
-    The manifest `lua.entry` names the `.luau` entry, and `require` resolves `.luau` files.
+-   **Change**: Luau mod scripts use the `.luau` extension (`main.luau` and sibling modules).
+    The manifest `luau.entry` names the `.luau` entry, and `require` resolves `.luau` files.
+-   **Change**: The mod package kind is `luau` (manifest `"kind": "luau"` and a `"luau"` block).
 -   **Change**: The mod SDK in `modding/sdk/` is now Luau.
     Each `nsmbu` module is a `.luau` file with `export type` definitions, `.luarc.json` (LuaLS) is replaced by `.luaurc` files, and the example mods gain Luau type annotations.
--   **Add**: Mods tab checkbox **Hot reload Lua scripts**.
-    When on, enabled script-only Lua packs unload and reload when `.luau` files change (debounced).
+-   **Add**: Mods tab checkbox **Hot reload Luau scripts**.
+    When on, enabled script-only Luau packs unload and reload when `.luau` files change (debounced).
     Preference is stored as `hot_reload` in ModManager `profiles.json`.
     Packs with `content_dir` stay restart-required.
--   **Change**: Lua API has no `nsmbu` global.
+-   **Change**: Luau API has no `nsmbu` global.
     Mods use `require("nsmbu")` and `require("nsmbu.*")` (config, guest, level, player, and stub modules for fn/hooks/input/data/enemy/boss/blocks/env).
--   **Change**: Lua module `nsmbu.hook` is renamed `nsmbu.hooks`, and option reads move from the `nsmbu.config` field to `require("nsmbu.config")`.
+-   **Change**: Luau module `nsmbu.hook` is renamed `nsmbu.hooks`, and option reads move from the `nsmbu.config` field to `require("nsmbu.config")`.
     Luau type definitions for editors are split one module per file in `modding/sdk/`.
--   **Add**: Lua high-level game helpers `nsmbu.level` and `nsmbu.player` (timer, course coins/score, lives, mode, coins, pos, speed, grounded, speed_y).
+-   **Add**: Luau high-level game helpers `nsmbu.level` and `nsmbu.player` (timer, course coins/score, lives, mode, coins, pos, speed, grounded, speed_y).
     Example `course-assists` uses them instead of raw guest offsets.
     Example `instant-retry` uses `pos` / `grounded` / `mode` instead of placeholder actor offsets.
+-   **Fix**: The high-level game helpers map their guest data addresses through `GD` so portable builds remap them.
 -   **Fix**: The hot reload scan no longer runs every logic step and no longer canonicalizes each file path.
-    It checks a few times per second, so enabled Lua packs do not cost frame time.
--   **Fix**: Lua examples tolerate the stub `nsmbu.data` and `nsmbu.hooks` modules.
+    It checks a few times per second, so enabled Luau packs do not cost frame time.
+-   **Fix**: Luau examples tolerate the stub `nsmbu.data` and `nsmbu.hooks` modules.
     `example.instant-retry` and `example.play-scene-ticker` log a missing module instead of raising on load.
 -   **Fix**: `release_sdk_package` and the release packager tolerate a missing `tools/recomp/builds` maps directory (USA-only; empty dirs are not in git).
 -   **Change**: Settings overlay opens with `` ` `` or F12 (not F1).
@@ -47,8 +49,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
     Example folders are named by package id (`example.*`).
     Skip with `NSMBU_NO_EXAMPLE_MODS=1` or when `NSMBU_MOD_MANAGER_DIR` is set.
     A non-empty real `Mods` folder keeps the old copy behavior.
--   **Change**: Example Lua packages and Luau type definitions live under `modding/examples/` and `modding/sdk/` (was `examples/lua-mods/`).
--   **Change**: Luau type definitions in `modding/sdk/` drop the `.d` suffix (`fn.d.lua` is now `fn.luau`).
+-   **Change**: Example Luau packages and Luau type definitions live under `modding/examples/` and `modding/sdk/` (moved from the former `examples/` SDK folder).
+-   **Change**: Luau type definitions in `modding/sdk/` drop the `.d` suffix.
 -   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
 -   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
     Wind Waker HD title ids and hashes are removed.
@@ -56,19 +58,19 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Add**: `just extract` and the installer require the USA 1.3.0 update (title version 64).
     Source builds use `game/update/`.
     The installer looks for `update/` next to the disc image (or `--update-dir` / the Keys screen), checks it, applies it after extract, and verifies the merged dump against the known USA SHA-256.
--   **Add**: Lua mod packages (`kind: lua`) with embedded Luau, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
-    The mod manager accepts format 1 or 2, scans for forbidden binaries/shaders, and loads script-only Lua packages live each logic step.
-    Package tests cover load, options, fault isolation, sandbox require, guest memory, and hot reload (`mod_package_test --lua`).
--   **Add**: Lua phase 3 content moves: optional `content_dir` on `kind: lua` packages (content-only packages are valid; restart when `content_dir` is set).
-    The importer emits `kind: lua`.
-    `kind: content` remains a one-release read-only alias and migrates to `lua` on scan.
--   **Add**: Example `course-assists` Lua package for unlimited time/lives, keep power-up, and jump scale.
--   **Fix**: Lua mod logic steps run from the GX2 swap path so script packages load without a recomp hook rebuild.
+-   **Add**: Luau mod packages (`kind: luau`) with embedded Luau, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
+    The mod manager accepts format 1 or 2, scans for forbidden binaries/shaders, and loads script-only Luau packages live each logic step.
+    Package tests cover load, options, fault isolation, sandbox require, guest memory, and hot reload (`mod_package_test --luau`).
+-   **Add**: Luau phase 3 content moves: optional `content_dir` on `kind: luau` packages (content-only packages are valid; restart when `content_dir` is set).
+    The importer emits `kind: luau`.
+    `kind: content` remains a one-release read-only alias and migrates to `luau` on scan.
+-   **Add**: Example `course-assists` Luau package for unlimited time/lives, keep power-up, and jump scale.
+-   **Fix**: Luau mod logic steps run from the GX2 swap path so script packages load without a recomp hook rebuild.
 -   **Docs**: The README records the last ZeldaWWHDRecomp merge commit.
     The upstream-merge skill updates that note.
 -   **Remove**: Guest Mod SDK v2 and Native SDK v1 are gone (`examples/guest-mods/`, `tools/guestmod/`, the runtime guest loader, `code_mods`, `--mod-hooks` emission, the `guestmods` CI workflow, and the Native SDK v1 C ABI path).
     The mod manager rejects guest and native packages.
--   **Docs**: Live modding docs live under `docs/modding/` (manager, content via Lua `content_dir`, cemu, Lua phases 2–3).
+-   **Docs**: Live modding docs live under `docs/modding/` (manager, content via Luau `content_dir`, cemu, Luau phases 2–3).
     SDK v1/v2 archives stay in `docs/deprecated/`.
 -   **Remove**: `kind: settings` packages and the built-in settings manager stub are gone.
 -   **Fix**: The overworld path seam is fixed.

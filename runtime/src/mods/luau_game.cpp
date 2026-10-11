@@ -1,17 +1,18 @@
-#include "lua_game.h"
-#include "lua_guest.h"
+#include "luau_game.h"
+#include "luau_guest.h"
+#include "guest_addr.h"
 #include <cstdint>
 #include <string>
 
 #include "lua.h"
 #include "lualib.h"
 
-namespace mods::lua_game {
+namespace mods::luau_game {
 namespace {
 
-constexpr uint32_t kCourseTimerSingleton = 0x101D15F4u;
-constexpr uint32_t kFieldGameSingleton = 0x101D1604u;
-constexpr uint32_t kPlayerMgrSingleton = 0x101E6994u;
+const uint32_t kCourseTimerSingleton = GD(0x101D15F4);
+const uint32_t kFieldGameSingleton = GD(0x101D1604);
+const uint32_t kPlayerMgrSingleton = GD(0x101E6994);
 
 constexpr uint32_t kTimerTime = 0x14u;
 constexpr uint32_t kCourseCoinNum = 0x144u;
@@ -43,12 +44,12 @@ int fail(lua_State* L, const char* msg) {
 }
 
 bool guest_ok(uint32_t addr, size_t size, std::string& err) {
-    return lua_guest::check(addr, size, err);
+    return luau_guest::check(addr, size, err);
 }
 
 bool read_ptr(uint32_t addr, uint32_t& out, std::string& err) {
     uint32_t p = 0;
-    if (!lua_guest::read_u32(addr, p, err)) return false;
+    if (!luau_guest::read_u32(addr, p, err)) return false;
     if (p == 0 || !guest_ok(p, 4, err)) {
         err = "not available";
         return false;
@@ -88,7 +89,7 @@ bool actor_addr(int index, uint32_t& out, std::string& err) {
     uint32_t mgr = 0;
     if (!player_mgr(mgr, err)) return false;
     uint32_t actor = 0;
-    if (!lua_guest::read_u32(mgr + kPlayerObjects + (uint32_t)index * 4u, actor, err)) return false;
+    if (!luau_guest::read_u32(mgr + kPlayerObjects + (uint32_t)index * 4u, actor, err)) return false;
     if (actor == 0 || !guest_ok(actor, 4, err)) {
         err = "no player actor";
         return false;
@@ -101,7 +102,7 @@ bool player_entered(int index, bool& out, std::string& err) {
     uint32_t slot = 0;
     if (!slot_addr(index, slot, err)) return false;
     uint8_t entry = 0;
-    if (!lua_guest::read_u8(slot + kEntryOff, entry, err)) return false;
+    if (!luau_guest::read_u8(slot + kEntryOff, entry, err)) return false;
     out = entry != 0;
     return true;
 }
@@ -173,17 +174,17 @@ bool read_xyz(lua_State* L, int arg, float& x, float& y, float& z, std::string& 
 
 bool read_vec3(uint32_t base, uint32_t ox, uint32_t oy, uint32_t oz, float& x, float& y, float& z,
                std::string& err) {
-    if (!lua_guest::read_f32(base + ox, x, err)) return false;
-    if (!lua_guest::read_f32(base + oy, y, err)) return false;
-    if (!lua_guest::read_f32(base + oz, z, err)) return false;
+    if (!luau_guest::read_f32(base + ox, x, err)) return false;
+    if (!luau_guest::read_f32(base + oy, y, err)) return false;
+    if (!luau_guest::read_f32(base + oz, z, err)) return false;
     return true;
 }
 
 bool write_vec3(uint32_t base, uint32_t ox, uint32_t oy, uint32_t oz, float x, float y, float z,
                 std::string& err) {
-    if (!lua_guest::write_f32(base + ox, x, err)) return false;
-    if (!lua_guest::write_f32(base + oy, y, err)) return false;
-    if (!lua_guest::write_f32(base + oz, z, err)) return false;
+    if (!luau_guest::write_f32(base + ox, x, err)) return false;
+    if (!luau_guest::write_f32(base + oy, y, err)) return false;
+    if (!luau_guest::write_f32(base + oz, z, err)) return false;
     return true;
 }
 
@@ -199,7 +200,7 @@ int l_course_time(lua_State* L) {
     std::string err;
     if (!singleton(kCourseTimerSingleton, timer, err)) return fail(L, err.c_str());
     uint32_t units = 0;
-    if (!lua_guest::read_u32(timer + kTimerTime, units, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u32(timer + kTimerTime, units, err)) return fail(L, err.c_str());
     lua_pushnumber(L, (lua_Number)(units >> 12));
     return 1;
 }
@@ -213,7 +214,7 @@ int l_course_set_time(lua_State* L) {
     std::string err;
     if (!singleton(kCourseTimerSingleton, timer, err)) return fail(L, err.c_str());
     uint32_t units = ((uint32_t)seconds) << 12;
-    if (!lua_guest::write_u32(timer + kTimerTime, units, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u32(timer + kTimerTime, units, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -225,12 +226,12 @@ int l_course_add_time(lua_State* L) {
     std::string err;
     if (!singleton(kCourseTimerSingleton, timer, err)) return fail(L, err.c_str());
     uint32_t units = 0;
-    if (!lua_guest::read_u32(timer + kTimerTime, units, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u32(timer + kTimerTime, units, err)) return fail(L, err.c_str());
     double seconds = (double)(units >> 12) + delta;
     if (seconds < 0) seconds = 0;
     if (seconds > 999) seconds = 999;
     units = ((uint32_t)seconds) << 12;
-    if (!lua_guest::write_u32(timer + kTimerTime, units, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u32(timer + kTimerTime, units, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -240,7 +241,7 @@ int l_course_coins(lua_State* L) {
     std::string err;
     if (!field_game(field, err)) return fail(L, err.c_str());
     int32_t coins = 0;
-    if (!lua_guest::read_s32(field + kCourseCoinNum, coins, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_s32(field + kCourseCoinNum, coins, err)) return fail(L, err.c_str());
     lua_pushnumber(L, (lua_Number)coins);
     return 1;
 }
@@ -251,7 +252,7 @@ int l_course_set_coins(lua_State* L) {
     std::string err;
     if (!field_game(field, err)) return fail(L, err.c_str());
     int32_t coins = (int32_t)lua_tonumber(L, 1);
-    if (!lua_guest::write_s32(field + kCourseCoinNum, coins, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_s32(field + kCourseCoinNum, coins, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -261,7 +262,7 @@ int l_course_score(lua_State* L) {
     std::string err;
     if (!field_game(field, err)) return fail(L, err.c_str());
     uint32_t score = 0;
-    if (!lua_guest::read_u32(field + kCurrentScore, score, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u32(field + kCurrentScore, score, err)) return fail(L, err.c_str());
     lua_pushnumber(L, (lua_Number)score);
     return 1;
 }
@@ -272,7 +273,7 @@ int l_course_set_score(lua_State* L) {
     std::string err;
     if (!field_game(field, err)) return fail(L, err.c_str());
     uint32_t score = (uint32_t)lua_tonumber(L, 1);
-    if (!lua_guest::write_u32(field + kCurrentScore, score, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u32(field + kCurrentScore, score, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -328,7 +329,7 @@ int l_player_lives(lua_State* L) {
     uint32_t slot = 0;
     if (!slot_addr(index, slot, err)) return fail(L, err.c_str());
     int32_t lives = 0;
-    if (!lua_guest::read_s32(slot + kLifeOff, lives, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_s32(slot + kLifeOff, lives, err)) return fail(L, err.c_str());
     lua_pushnumber(L, (lua_Number)lives);
     return 1;
 }
@@ -343,7 +344,7 @@ int l_player_set_lives(lua_State* L) {
     uint32_t slot = 0;
     if (!slot_addr(index, slot, err)) return fail(L, err.c_str());
     int32_t lives = (int32_t)lua_tonumber(L, 2);
-    if (!lua_guest::write_s32(slot + kLifeOff, lives, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_s32(slot + kLifeOff, lives, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -357,11 +358,11 @@ int l_player_mode(lua_State* L) {
     uint32_t slot = 0;
     if (!slot_addr(index, slot, err)) return fail(L, err.c_str());
     int32_t mode = 0;
-    if (!lua_guest::read_s32(slot + kModeOff, mode, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_s32(slot + kModeOff, mode, err)) return fail(L, err.c_str());
     uint32_t actor = 0;
     if (actor_addr(index, actor, err)) {
         int32_t actor_mode = 0;
-        if (lua_guest::read_s32(actor + kActorMode, actor_mode, err) && actor_mode >= 0 &&
+        if (luau_guest::read_s32(actor + kActorMode, actor_mode, err) && actor_mode >= 0 &&
             actor_mode <= 8)
             mode = actor_mode;
     }
@@ -381,10 +382,10 @@ int l_player_set_mode(lua_State* L) {
     if (!entered) return fail(L, "not entered");
     uint32_t slot = 0;
     if (!slot_addr(index, slot, err)) return fail(L, err.c_str());
-    if (!lua_guest::write_s32(slot + kModeOff, mode, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_s32(slot + kModeOff, mode, err)) return fail(L, err.c_str());
     uint32_t actor = 0;
     if (actor_addr(index, actor, err)) {
-        if (!lua_guest::write_s32(actor + kActorMode, mode, err)) return fail(L, err.c_str());
+        if (!luau_guest::write_s32(actor + kActorMode, mode, err)) return fail(L, err.c_str());
     }
     lua_pushboolean(L, 1);
     return 1;
@@ -399,7 +400,7 @@ int l_player_coins(lua_State* L) {
     uint32_t slot = 0;
     if (!slot_addr(index, slot, err)) return fail(L, err.c_str());
     int32_t coins = 0;
-    if (!lua_guest::read_s32(slot + kCoinOff, coins, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_s32(slot + kCoinOff, coins, err)) return fail(L, err.c_str());
     lua_pushnumber(L, (lua_Number)coins);
     return 1;
 }
@@ -414,7 +415,7 @@ int l_player_set_coins(lua_State* L) {
     uint32_t slot = 0;
     if (!slot_addr(index, slot, err)) return fail(L, err.c_str());
     int32_t coins = (int32_t)lua_tonumber(L, 2);
-    if (!lua_guest::write_s32(slot + kCoinOff, coins, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_s32(slot + kCoinOff, coins, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -425,7 +426,7 @@ int l_player_speed_y(lua_State* L) {
     std::string err;
     if (!actor_addr(index, actor, err)) return fail(L, err.c_str());
     float speed = 0;
-    if (!lua_guest::read_f32(actor + kSpeedY, speed, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_f32(actor + kSpeedY, speed, err)) return fail(L, err.c_str());
     lua_pushnumber(L, speed);
     return 1;
 }
@@ -437,7 +438,7 @@ int l_player_set_speed_y(lua_State* L) {
     std::string err;
     if (!actor_addr(index, actor, err)) return fail(L, err.c_str());
     float speed = (float)lua_tonumber(L, 2);
-    if (!lua_guest::write_f32(actor + kSpeedY, speed, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_f32(actor + kSpeedY, speed, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -494,7 +495,7 @@ int l_player_grounded(lua_State* L) {
     std::string err;
     if (!actor_addr(index, actor, err)) return fail(L, err.c_str());
     uint32_t cross = 0;
-    if (!lua_guest::read_u32(actor + kNowBgCross, cross, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u32(actor + kNowBgCross, cross, err)) return fail(L, err.c_str());
     lua_pushboolean(L, (cross & kBgCrossIsFoot) ? 1 : 0);
     return 1;
 }

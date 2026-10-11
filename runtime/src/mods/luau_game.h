@@ -2,7 +2,7 @@
 
 struct lua_State;
 
-namespace mods::lua_game {
+namespace mods::luau_game {
 
 void install(lua_State* L);
 

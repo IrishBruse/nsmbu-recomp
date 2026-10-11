@@ -3,7 +3,7 @@
 Status: **removed**.
 This file is a historical archive only.
 Do not use it as a modder guide.
-[../modding/lua-mods.md](../modding/lua-mods.md) is the replacement plan.
+[../modding/luau-mods.md](../modding/luau-mods.md) is the replacement plan.
 That plan also retires Native SDK v1 and `kind: content`.
 Cemu graphics packs stay.
 The public packages under `examples/guest-mods/` are removed.
@@ -12,7 +12,7 @@ The `guestmods` CI workflow is removed.
 The runtime guest loader is removed.
 `code_mods` and the Settings rebuild path are removed.
 `--mod-hooks` emission from the recompiler is removed.
-Lua stand-ins are under `modding/examples/`.
+Luau stand-ins are under `modding/examples/`.
 Native SDK v1 is a historical archive in [native-sdk-v1.md](native-sdk-v1.md).
 The mod manager is [../modding/mod-manager.md](../modding/mod-manager.md).
 The design text below is kept as an archive of the prototype.
@@ -650,7 +650,7 @@ cmake --build build/cmake                                   # as usual
 ```
 
 `examples/guest-mods/` and `tools/guestmod/` were removed.
-Lua stand-ins are under `modding/examples/`.
+Luau stand-ins are under `modding/examples/`.
 Install packages through the manager as described above; direct `NSMBU_GUEST_MODS` loading has been retired.
 Install-time translation no longer ships.
 

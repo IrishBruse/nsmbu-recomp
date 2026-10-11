@@ -1,6 +1,6 @@
-#include "lua_runtime.h"
-#include "lua_game.h"
-#include "lua_guest.h"
+#include "luau_runtime.h"
+#include "luau_game.h"
+#include "luau_guest.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -13,7 +13,7 @@
 #include "luacode.h"
 #include "lualib.h"
 
-namespace mods::lua_mod {
+namespace mods::luau_mod {
 namespace {
 namespace fs = std::filesystem;
 using json::Value;
@@ -30,7 +30,7 @@ int fail(lua_State* L, const char* msg) {
 
 void set_fault(Instance& inst, const char* msg) {
     inst.fault = true;
-    inst.fault_msg = msg ? msg : "lua error";
+    inst.fault_msg = msg ? msg : "luau error";
     fprintf(stderr, "[mod:%s] %s\n", inst.id.c_str(), inst.fault_msg.c_str());
 }
 
@@ -433,56 +433,56 @@ uint32_t addr_arg(lua_State* L, int idx) { return (uint32_t)(int64_t)luaL_checkn
 int guest_read_u8(lua_State* L) {
     std::string err;
     uint8_t v;
-    if (!lua_guest::read_u8(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u8(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
     lua_pushinteger(L, v);
     return 1;
 }
 int guest_read_s8(lua_State* L) {
     std::string err;
     int8_t v;
-    if (!lua_guest::read_s8(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_s8(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
     lua_pushinteger(L, v);
     return 1;
 }
 int guest_read_u16(lua_State* L) {
     std::string err;
     uint16_t v;
-    if (!lua_guest::read_u16(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u16(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
     lua_pushinteger(L, v);
     return 1;
 }
 int guest_read_s16(lua_State* L) {
     std::string err;
     int16_t v;
-    if (!lua_guest::read_s16(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_s16(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
     lua_pushinteger(L, v);
     return 1;
 }
 int guest_read_u32(lua_State* L) {
     std::string err;
     uint32_t v;
-    if (!lua_guest::read_u32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
     lua_pushnumber(L, (lua_Number)v);
     return 1;
 }
 int guest_read_s32(lua_State* L) {
     std::string err;
     int32_t v;
-    if (!lua_guest::read_s32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_s32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
     lua_pushnumber(L, (lua_Number)v);
     return 1;
 }
 int guest_read_f32(lua_State* L) {
     std::string err;
     float v;
-    if (!lua_guest::read_f32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_f32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
     lua_pushnumber(L, v);
     return 1;
 }
 int guest_read_f64(lua_State* L) {
     std::string err;
     double v;
-    if (!lua_guest::read_f64(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_f64(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
     lua_pushnumber(L, v);
     return 1;
 }
@@ -490,63 +490,63 @@ int guest_read(lua_State* L) {
     uint32_t addr = addr_arg(L, 1);
     size_t size = (size_t)luaL_checkinteger(L, 2);
     std::string err, out;
-    if (!lua_guest::read_bytes(addr, size, out, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_bytes(addr, size, out, err)) return fail(L, err.c_str());
     lua_pushlstring(L, out.data(), out.size());
     return 1;
 }
 
 int guest_write_u8(lua_State* L) {
     std::string err;
-    if (!lua_guest::write_u8(addr_arg(L, 1), (uint8_t)(uint32_t)luaL_checknumber(L, 2), err))
+    if (!luau_guest::write_u8(addr_arg(L, 1), (uint8_t)(uint32_t)luaL_checknumber(L, 2), err))
         return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
 int guest_write_s8(lua_State* L) {
     std::string err;
-    if (!lua_guest::write_s8(addr_arg(L, 1), (int8_t)(int32_t)luaL_checknumber(L, 2), err))
+    if (!luau_guest::write_s8(addr_arg(L, 1), (int8_t)(int32_t)luaL_checknumber(L, 2), err))
         return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
 int guest_write_u16(lua_State* L) {
     std::string err;
-    if (!lua_guest::write_u16(addr_arg(L, 1), (uint16_t)(uint32_t)luaL_checknumber(L, 2), err))
+    if (!luau_guest::write_u16(addr_arg(L, 1), (uint16_t)(uint32_t)luaL_checknumber(L, 2), err))
         return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
 int guest_write_s16(lua_State* L) {
     std::string err;
-    if (!lua_guest::write_s16(addr_arg(L, 1), (int16_t)(int32_t)luaL_checknumber(L, 2), err))
+    if (!luau_guest::write_s16(addr_arg(L, 1), (int16_t)(int32_t)luaL_checknumber(L, 2), err))
         return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
 int guest_write_u32(lua_State* L) {
     std::string err;
-    if (!lua_guest::write_u32(addr_arg(L, 1), (uint32_t)(int64_t)luaL_checknumber(L, 2), err))
+    if (!luau_guest::write_u32(addr_arg(L, 1), (uint32_t)(int64_t)luaL_checknumber(L, 2), err))
         return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
 int guest_write_s32(lua_State* L) {
     std::string err;
-    if (!lua_guest::write_s32(addr_arg(L, 1), (int32_t)(int64_t)luaL_checknumber(L, 2), err))
+    if (!luau_guest::write_s32(addr_arg(L, 1), (int32_t)(int64_t)luaL_checknumber(L, 2), err))
         return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
 int guest_write_f32(lua_State* L) {
     std::string err;
-    if (!lua_guest::write_f32(addr_arg(L, 1), (float)luaL_checknumber(L, 2), err))
+    if (!luau_guest::write_f32(addr_arg(L, 1), (float)luaL_checknumber(L, 2), err))
         return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
 int guest_write_f64(lua_State* L) {
     std::string err;
-    if (!lua_guest::write_f64(addr_arg(L, 1), (double)luaL_checknumber(L, 2), err))
+    if (!luau_guest::write_f64(addr_arg(L, 1), (double)luaL_checknumber(L, 2), err))
         return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
@@ -556,7 +556,7 @@ int guest_write(lua_State* L) {
     size_t len = 0;
     const char* data = luaL_checklstring(L, 2, &len);
     std::string err;
-    if (!lua_guest::write_bytes(addr, data, len, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_bytes(addr, data, len, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -637,7 +637,7 @@ void install_host_modules(lua_State* L, Instance* inst) {
     set_empty_module(L, "nsmbu.blocks");
     set_empty_module(L, "nsmbu.env");
 
-    lua_game::install(L);
+    luau_game::install(L);
 }
 
 void sandbox(lua_State* L, Instance* inst) {

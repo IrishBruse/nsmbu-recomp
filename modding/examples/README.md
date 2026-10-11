@@ -1,7 +1,7 @@
-# Example Lua mods
+# Example Luau mods
 
 These packages follow [docs/modding/api.md](../../docs/modding/api.md).
-Phase 2 loads `kind: lua` with logic-step, config, log, status, and guest memory (embedded Luau).
+Phase 2 loads `kind: luau` with logic-step, config, log, status, and guest memory (embedded Luau).
 There is no `nsmbu` global; scripts `require("nsmbu")` and related modules.
 Hooks, `nsmbu.fn`, input, and data files are still proposal.
 They contain no game files.
@@ -9,7 +9,7 @@ They contain no game files.
 Luau type definitions live in [../sdk/](../sdk/), one `.luau` module per `require` name.
 `.luaurc` in this folder maps every `nsmbu.*` name to that folder for Luau tooling and sets the language mode.
 For typing inside a mod, `require("nsmbu")` is a host module that the editor resolves as `any`.
-Require the SDK module directly (`require("@nsmbu")` under the `.luaurc` aliases) when you want the editor to use these types.
+The `.luaurc` aliases are for editor tooling only; scripts use the plain `require("nsmbu")` form, which is what the runtime resolves.
 
 | Mod | What it shows | Phase |
 | --- | --- | --- |

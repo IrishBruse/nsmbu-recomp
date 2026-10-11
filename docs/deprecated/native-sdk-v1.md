@@ -3,7 +3,7 @@
 Status: **removed**.
 This file is a historical archive only.
 Do not use it as a modder guide.
-[../modding/lua-mods.md](../modding/lua-mods.md) is the replacement plan.
+[../modding/luau-mods.md](../modding/luau-mods.md) is the replacement plan.
 That plan also retires guest Mod SDK v2 and `kind: content`.
 Cemu graphics packs stay.
 The C ABI text below is kept as an archive of the design.

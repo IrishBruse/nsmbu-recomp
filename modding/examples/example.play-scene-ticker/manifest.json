@@ -4,8 +4,8 @@
   "name": "Play scene ticker",
   "version": "0.1.0",
   "game_id": "nsmbu-usa",
-  "kind": "lua",
-  "lua": {
+  "kind": "luau",
+  "luau": {
     "api_version": 1,
     "entry": "main.luau"
   },

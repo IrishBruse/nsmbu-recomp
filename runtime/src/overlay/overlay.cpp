@@ -900,7 +900,7 @@ void package_controls() {
     note("Install a local package, a content/ mod folder or ZIP, or a replacement .pack file.");
     {
         bool watch = hot_reload();
-        if (ImGui::Checkbox("Hot reload Lua scripts", &watch)) set_hot_reload(watch, error);
+        if (ImGui::Checkbox("Hot reload Luau scripts", &watch)) set_hot_reload(watch, error);
         note("When on, enabled script-only packs reload when .luau files change. Packs with content still need a restart.");
     }
     if (ImGui::Button("Choose package…")) hostui::choose_mod_source(false, [](std::string path) {
@@ -935,7 +935,7 @@ void package_controls() {
         if (expanded) {
             note("%s · %s",
                  mod.kind == "cemu" ? "Cemu graphics / shader pack"
-                     : mod.kind == "lua" ? "Lua script (can change guest memory)"
+                     : mod.kind == "luau" ? "Luau script (can change guest memory)"
                                         : "Model / texture / UI replacement",
                  mod.pending_restart ? "Restart required" : mod.active ? "Active" : mod.enabled ? "Waiting for game update" : "Disabled");
             if (!mod.author.empty()) note("By %s", mod.author.c_str());

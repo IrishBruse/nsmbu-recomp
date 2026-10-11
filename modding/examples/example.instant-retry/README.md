@@ -55,4 +55,4 @@ Until the death and map helpers exist in `nsmbu.fn`, the script logs missing sym
 
 A Cemu timer or lives patch writes one value every frame.
 This mod keeps a mode (`idle`, `restoring`, `holding`), samples physics, calls game helpers, and mixes pad input with restore logic.
-That is the same class of change as Tsuru's instant respawn, expressed with the proposed Lua API.
+That is the same class of change as Tsuru's instant respawn, expressed with the proposed Luau API.

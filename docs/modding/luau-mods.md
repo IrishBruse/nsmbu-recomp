@@ -1,9 +1,9 @@
-# Lua mods: replace native, guest, and content packages
+# Luau mods: replace native, guest, and content packages
 
-Status: **Phase 3 implemented** (`content_dir` on Lua packages; `kind: content` is a one-release read-only alias and migrates to `lua` on scan).
-The runtime embeds Luau and loads `kind: lua` packages.
+Status: **Phase 3 implemented** (`content_dir` on Luau packages; `kind: content` is a one-release read-only alias and migrates to `luau` on scan).
+The runtime embeds Luau and loads `kind: luau` packages.
 Logic-step callbacks, config, log, status, and guest memory work now.
-Optional `content_dir` on a Lua package drives the same file-replacement map as the old content kind.
+Optional `content_dir` on a Luau package drives the same file-replacement map as the old content kind.
 See [api.md](api.md) for the live surface and for APIs that are still proposal.
 
 Later phases stay proposal: hooks and `nsmbu.call`, and hard rejection of `kind: content` after the alias window.
@@ -13,21 +13,21 @@ It also retires `kind: content` as its own package kind (alias and migration lan
 
 The player-facing manager stays.
 The file-replacement behaviour that content packages used stays inside the engine.
-Lua packages are the way to turn that behaviour on, apart from Cemu packs.
-`kind: content` is accepted as a read-only alias this release and rewritten to `lua` on scan.
+Luau packages are the way to turn that behaviour on, apart from Cemu packs.
+`kind: content` is accepted as a read-only alias this release and rewritten to `luau` on scan.
 
 The script surface is [api.md](api.md).
 
 ## Decision
 
-Ship one scripting package kind, `lua`.
+Ship one scripting package kind, `luau`.
 Delete the other package kinds except `cemu`.
 
 | Package kind today | Target |
 | --- | --- |
-| `native` (SDK v1, `dlopen` of a host library) | Removed. Lua covers the same jobs (phase 2 logic-step path). |
-| `guest` (SDK v2, PowerPC ELF, install-time translation) | Removed. Lua covers hooks and calls (phase 4). |
-| `content` (SDCafiine-style file replacement) | Alias this release, then removed as a kind. A Lua package can ship a `content/` tree. |
+| `native` (SDK v1, `dlopen` of a host library) | Removed. Luau covers the same jobs (phase 2 logic-step path). |
+| `guest` (SDK v2, PowerPC ELF, install-time translation) | Removed. Luau covers hooks and calls (phase 4). |
+| `content` (SDCafiine-style file replacement) | Alias this release, then removed as a kind. A Luau package can ship a `content/` tree. |
 | `settings` | Removed. Stays rejected. |
 | `cemu` | Unchanged. |
 
@@ -71,7 +71,7 @@ The importer also accepts loose packs and simple `content/` trees.
 Those three paths duplicate install, enable, conflict, and profile logic in `runtime/src/mods/packages.cpp`.
 They also force three different author workflows.
 
-Lua is one workflow.
+Luau is one workflow.
 
 - The package is text and data files.
 - The same files run on every desktop OS.
@@ -84,11 +84,11 @@ Lua is one workflow.
 Cemu packs stay a separate kind.
 They are not scripts.
 They select shader and resolution rules for the renderer (`runtime/src/mods/cemu_pack.cpp`).
-A Lua mod must not become a second shader compiler.
+A Luau mod must not become a second shader compiler.
 
 ## What Cemu keeps
 
-Do not fold Cemu into Lua.
+Do not fold Cemu into Luau.
 
 Keep these behaviours as they are in [mod-manager.md](mod-manager.md) and [content.md](content.md):
 
@@ -103,19 +103,19 @@ Keep these behaviours as they are in [mod-manager.md](mod-manager.md) and [conte
 - Rejection of `patches.txt` and other instruction patches.
 - No native-code confirmation for Cemu packs.
 
-Lua packages must not ship `rules.txt`, shader files, or `patches.txt`.
-The importer refuses a mixed Lua and Cemu archive the same way it refuses a content pack that also contains a code patch.
+Luau packages must not ship `rules.txt`, shader files, or `patches.txt`.
+The importer refuses a mixed Luau and Cemu archive the same way it refuses a content pack that also contains a code patch.
 
-## What Lua must cover
+## What Luau must cover
 
-The replacement is complete only when a Lua package can do every job that native, guest, and content packages do today.
+The replacement is complete only when a Luau package can do every job that native, guest, and content packages do today.
 Cemu jobs are out of scope.
 
 ### From native v1
 
 Phase 2 covers this table.
 
-| Native v1 | Lua |
+| Native v1 | Luau |
 | --- | --- |
 | `on_frame(logic_step)` once per logic step, not per interpolated draw | `require("nsmbu").on_logic_step` |
 | `on_config_changed` | `nsmbu.on_config_changed()` after `require("nsmbu")` |
@@ -133,23 +133,23 @@ The runtime drops the library-unload problem because there is no host library.
 ### From content packages
 
 Phase 3 implemented.
-`kind: content` remains a one-release read-only alias and migrates to `kind: lua` on scan.
+`kind: content` remains a one-release read-only alias and migrates to `kind: luau` on scan.
 
-| Content package | Lua package |
+| Content package | Luau package |
 | --- | --- |
-| `content_dir` of game-relative files | Optional `content_dir` on a `lua` manifest |
+| `content_dir` of game-relative files | Optional `content_dir` on a `luau` manifest |
 | Restart to activate | Same. The file map is fixed for the process. |
 | Case-insensitive replacement of existing reads | Same engine map in `content.cpp` |
 | No new files, no deletes, no writes through the replacement | Same limits |
-| Conflicts if two packages replace one path | Same check, across Lua packages |
-| SDCafiine, loose `.pack`, and single-file import | Importer writes a `lua` package, not `kind: content` |
+| Conflicts if two packages replace one path | Same check, across Luau packages |
+| SDCafiine, loose `.pack`, and single-file import | Importer writes a `luau` package, not `kind: content` |
 | Fan translations (`permanent_2d_*.pack`, `Title_00.szs`) | Same files. The package can omit `main.luau`. |
 
-A content-only Lua package has a manifest and a `content/` tree.
+A content-only Luau package has a manifest and a `content/` tree.
 It has no script.
 The loader only registers files.
 Language-pack behaviour in [content.md](content.md) stays.
-The package kind name in the UI is Lua.
+The package kind name in the UI is Luau.
 
 `docs/language-packs.md` is a different feature.
 It copies packs from a second disc the player owns.
@@ -160,7 +160,7 @@ Leave it alone.
 
 Phase 4 proposal (hooks and calls).
 
-| Guest v2 | Lua |
+| Guest v2 | Luau |
 | --- | --- |
 | Entry hook on a game function | `require("nsmbu.hooks").hook(address, "entry", fn)` |
 | Return hook | `hooks.hook(address, "return", fn)` |
@@ -169,21 +169,21 @@ Phase 4 proposal (hooks and calls).
 | Call another game function | `hooks.call(address, args)` |
 | Read config at startup | `require("nsmbu.config")` (live; no restart for script options) |
 | `nsmbu_log` and friends | `nsmbu.log` |
-| Per-mod guest heap | `guest.alloc` / `free`, or a Lua table when the data must not live in guest RAM |
+| Per-mod guest heap | `guest.alloc` / `free`, or a Luau table when the data must not live in guest RAM |
 | `nsmbu_file_read` / `write` under `ModManager/Data/<id>` | `require("nsmbu.data")` |
 | `nsmbu_input_read` | `require("nsmbu.input")` |
 | `nsmbu_logic_dt` / `nsmbu_logic_step` | `nsmbu.logic_dt()` and the step argument |
 | One replacement per function, many hooks | Same conflict rule |
 | Port hooks stay outside mod hooks | Same. Interpolation and true 60 run first. |
-| Save-state identity of enabled mods | Lua package id and version, not a guest ELF region |
+| Save-state identity of enabled mods | Luau package id and version, not a guest ELF region |
 
 Guest v2 also planned a HUD service.
 That service was not in phase 1.
-Lua can add `nsmbu.hud` later.
+Luau can add `nsmbu.hud` later.
 It is not required to retire v2.
 
 Game calls use guest addresses from the public headers (`headers/`, and today `runtime/guest/include/nsmbu/functions.h`).
-The Lua runtime should ship a generated `require("nsmbu.fn")` table of those names.
+The Luau runtime should ship a generated `require("nsmbu.fn")` table of those names.
 A mod can still pass a raw address.
 USA addresses are the authoring target.
 The European build map in SDK v2 (`tools/recomp/builds`) must still translate hook targets and `hooks.call` targets.
@@ -199,8 +199,8 @@ That limit is the same as in SDK v2.
   "name": "Coin counter",
   "version": "1.0.0",
   "game_id": "nsmbu-usa",
-  "kind": "lua",
-  "lua": {
+  "kind": "luau",
+  "luau": {
     "api_version": 1,
     "entry": "main.luau"
   },
@@ -218,16 +218,16 @@ That limit is the same as in SDK v2.
 }
 ```
 
-Phase 3 accepts `kind: lua` with an optional `content_dir`.
-`lua.entry` is optional when `content_dir` is set.
-`content_dir` is optional when `lua.entry` is set.
+Phase 3 accepts `kind: luau` with an optional `content_dir`.
+`luau.entry` is optional when `content_dir` is set.
+`content_dir` is optional when `luau.entry` is set.
 At least one of them is required.
 A content-only package (manifest plus `content/`, no script) is valid.
-`kind: content` is accepted as a read-only alias this release and migrates to `lua` on scan.
-`format_version` becomes 2 when `kind: lua` is the only non-Cemu kind.
+`kind: content` is accepted as a read-only alias this release and migrates to `luau` on scan.
+`format_version` becomes 2 when `kind: luau` is the only non-Cemu kind.
 A version 1 manifest with `native` or `guest` fails install with a message that names this document.
 After the alias window, `content` fails the same way.
-`abi_version` and `binaries` are not valid on a Lua package.
+`abi_version` and `binaries` are not valid on a Luau package.
 `guest` is not valid.
 
 `game_id` stays `nsmbu-usa` for packages that target the USA executable.
@@ -240,7 +240,7 @@ This script matches the native fixture in `runtime/tools/mod_fixture.cpp`, plus 
 The address is a placeholder.
 A real mod uses a named field from the generated address table.
 
-```lua
+```luau
 local nsmbu = require("nsmbu")
 local config = require("nsmbu.config")
 local guest = require("nsmbu.guest")
@@ -264,7 +264,7 @@ The body is illustrative.
 `fn.cLib_addCalc2` is a generated name.
 It exists only when the header export includes that function.
 
-```lua
+```luau
 local hooks = require("nsmbu.hooks")
 local fn = require("nsmbu.fn")
 
@@ -287,59 +287,59 @@ The port's own hooks in `hooks*.txt` stay outside this call.
 | `content/...` | Optional file replacements. Same layout rules as today. |
 | `ModManager/Data/<id>/` | Created by the runtime for `nsmbu.data`. Not shipped in the zip. |
 
-Reject `.so`, `.dll`, `.dylib`, `.elf`, `.rpx`, `patches.txt`, `.asm`, shader files, and `rules.txt` inside a Lua package.
+Reject `.so`, `.dll`, `.dylib`, `.elf`, `.rpx`, `patches.txt`, `.asm`, shader files, and `rules.txt` inside a Luau package.
 Reject `code/`, `meta/`, and DLC trees inside `content/`, as the content importer does today.
 
 ## Runtime shape
 
 The `nsmbu` executable embeds Luau (MIT license), vendored under `runtime/third_party/luau/`.
 Luau is Lua 5.1-based and adds gradual typing.
-Do not load a Lua shared library from the mod folder.
+Do not load a Luau shared library from the mod folder.
 
-Each enabled Lua package gets its own state.
+Each enabled Luau package gets its own state.
 Packages cannot see each other's globals.
 Call order follows the existing dependency order in `packages.cpp`.
 Hooks on one function run in that same order.
 Return hooks run in reverse order, as guest v2 does.
 
-Run every Lua callback on the game thread.
+Run every Luau callback on the game thread.
 A callback error is a package fault.
-Log the Lua message, unload that package, and leave the others running.
+Log the Luau message, unload that package, and leave the others running.
 Do not abort the process.
 
 A package with `content_dir` needs a restart so the file map and any script start together.
 A script-only package (no `content_dir`) still loads live on enable.
-With **Hot reload Lua scripts** on in the Mods tab, a script-only package also reloads while enabled when its `.luau` files change.
-Reload runs `on_unload` / unload listeners, then creates a new Lua state and runs the entry script again.
+With **Hot reload Luau scripts** on in the Mods tab, a script-only package also reloads while enabled when its `.luau` files change.
+Reload runs `on_unload` / unload listeners, then creates a new Luau state and runs the entry script again.
 A failed reload disables that package the same way a failed first load does.
 
 ### Hooks without a PowerPC toolchain
 
 Keep the cheap flag check from SDK v2 if measurements stay acceptable.
 `recomp.py` emits `PPC_MOD_HOOK` at function entry.
-The flag byte is set only when a Lua mod hooks or replaces that function.
+The flag byte is set only when a Luau mod hooks or replaces that function.
 An unhooked function pays one load and a not-taken branch.
 SDK v2 already measured that cost and kept it.
 See the measurements section of [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md).
 
 Delete the rest of the guest pipeline.
 
-On a hit, the runtime builds a small register table and calls the Lua function.
+On a hit, the runtime builds a small register table and calls the Luau function.
 It does not translate mod PowerPC.
 It does not place mod code in guest RAM.
 Mod functions are not guest function pointers.
 If a game function pointer must point at mod code, that remains unsupported.
 Document it as a limit.
 Guest v2 solved it by copying mod code into the guest region at `0x7F000000`.
-Lua does not get that region.
+Luau does not get that region.
 
 `nsmbu.call` writes the argument registers and calls the existing translated function (`ppc_dispatch` or the direct `f_XXXXXXXX` entry).
 The call is slower than a compiled guest mod.
 It is fast enough for gameplay scripts.
 It is the wrong tool for a replacement of a function that runs thousands of times per frame.
-The mod author uses `nsmbu.replace` for that function so the Lua body runs in place of the game body.
+The mod author uses `nsmbu.replace` for that function so the Luau body runs in place of the game body.
 
-Compile the hook flags into the default game build once Lua hooks exist.
+Compile the hook flags into the default game build once Luau hooks exist.
 Then delete the opt-in code-mod rebuild (`runtime/src/mods/code_mods.cpp` and the Settings control that calls it).
 Players should not rebuild the game to turn scripting on.
 
@@ -352,27 +352,27 @@ Keep the native v1 bounds.
 - Multi-byte values are big-endian.
 - Typed helpers (`read_u8`, `read_u16`, `read_u32`, `read_f32`, and the matching writes) hide the byte order.
 
-A bad address returns an error to Lua.
+A bad address returns an error to Luau.
 It does not crash the host.
-Do not expose a raw pointer into guest RAM to Lua.
+Do not expose a raw pointer into guest RAM to Luau.
 
 `nsmbu.guest.alloc` is optional.
 Use it only when the game must hold a pointer to mod bytes.
 The block lives in a per-mod guest heap with the same caps SDK v2 planned (default 256 KiB, maximum 8 MiB).
-Pure Lua data stays in the Lua heap and is not part of the guest save image.
+Pure Luau data stays in the Luau heap and is not part of the guest save image.
 
 ### Content files
 
 `content.cpp` stays.
 `content::activate` and `content::replacement` stay.
-The package scanner migrates installed `kind: content` records to `kind: lua` on scan.
-On startup it collects `content_dir` from enabled Lua packages and builds the same immutable map.
+The package scanner migrates installed `kind: content` records to `kind: luau` on scan.
+On startup it collects `content_dir` from enabled Luau packages and builds the same immutable map.
 Script code cannot add or remove replacements after startup.
 A script that needs a different file set edits the package and restarts, which is the rule today.
 
 The importer stays.
 It accepts a `content/` tree, an SDCafiine layout, a loose language pack, and a known loose file.
-It writes `kind: lua`, a generated `id`, and `content_dir`.
+It writes `kind: luau`, a generated `id`, and `content_dir`.
 It does not write a fake `main.luau`.
 A content-only package is valid.
 
@@ -394,7 +394,7 @@ It is not required to replace v1 or v2.
 
 Native and guest packages run as native code after confirmation.
 `profiles.json` stores `native_trust` as a SHA-256 of the library or ELF.
-Lua packages do not get that dialog.
+Luau packages do not get that dialog.
 They also do not get full process rights.
 
 The base libraries available to a package are the ones listed below.
@@ -409,20 +409,20 @@ Everything else is absent, including `io`, `os`, `package.loadlib`, `debug`, and
 
 Guest writes can still change the game.
 That is the point of a gameplay mod.
-The Mods tab should say that a Lua package can change guest memory and replace files.
+The Mods tab should say that a Luau package can change guest memory and replace files.
 That sentence is not the native-code confirmation.
 There is no host-library hash to store.
 Delete `native_trust` after migration.
 Delete `guest_regions`.
 
-Do not offer a supported way to load a native library from Lua.
+Do not offer a supported way to load a native library from Luau.
 A later "escape hatch" would recreate SDK v1 and the trust dialog.
 This proposal does not include that hatch.
 
 ## Save states
 
 Guest mods record enabled mod id and version in the portable state (`runtime/src/portable_state.cpp`, section handled with `guestmods::ModIdentity`).
-Replace that list with enabled Lua packages (id and version).
+Replace that list with enabled Luau packages (id and version).
 Keep the warning when the set differs.
 Drop guest RAM regions for mod code and the guest heap from the state format, unless `nsmbu.guest.alloc` exists.
 If the heap exists, store it as a per-id blob with a size cap.
@@ -436,7 +436,7 @@ Do not try to run the old ELF.
 
 ## Removal
 
-Do this only after Lua covers the tables above and the tests below exist.
+Do this only after Luau covers the tables above and the tests below exist.
 Guest SDK v2 is already removed.
 Native SDK v1 is already removed.
 This document is the reason to stop extending either path.
@@ -447,7 +447,7 @@ This document is the reason to stop extending either path.
 | --- | --- |
 | `docs/deprecated/mod-sdk-v2.md` | Kept as a historical archive only. Do not use it as the modder guide. |
 | `docs/deprecated/native-sdk-v1.md` | Kept as a historical archive only. Do not use it as the modder guide. |
-| `docs/modding/mod-manager.md` | Keep. Live kinds are `lua` and `cemu`; file replacement is documented in [content.md](content.md). |
+| `docs/modding/mod-manager.md` | Keep. Live kinds are `luau` and `cemu`; file replacement is documented in [content.md](content.md). |
 | `examples/guest-mods/` | Removed. Packages are in `modding/examples/`. |
 | `docs/upstream-wwhd-readme.md` | Leave the historical Wind Waker text. Mark the Mod SDK v2 and Native SDK v1 bullets as historical. Do not treat them as the NSMBU mod plan. |
 
@@ -456,21 +456,21 @@ This document is the reason to stop extending either path.
 | Item | Action |
 | --- | --- |
 | `tools/guestmod/` | Removed. |
-| `runtime/guest/` | Removed for the guest-mod ABI path. A Lua address table needs a new generator later. |
-| `runtime/src/mods/guest_mods.cpp` and `guest_mods.h` | Removed. A Lua hook dispatcher can replace the entry later if the flag check remains. |
+| `runtime/guest/` | Removed for the guest-mod ABI path. A Luau address table needs a new generator later. |
+| `runtime/src/mods/guest_mods.cpp` and `guest_mods.h` | Removed. A Luau hook dispatcher can replace the entry later if the flag check remains. |
 | `guest_validation.h`, `guest_heap.h`, `guest_files.h`, `guest_build.h`, `guest_identity.h`, `guest_state_section.h` | Removed. |
 | `runtime/src/mods/code_mods.cpp` and `code_mods.h` | Removed with the rebuild UI. |
 | `runtime/tools/guest_*_test.cpp`, `code_mods_test.cpp` | Removed. |
 | `.github/workflows/guestmods.yml` | Removed. |
-| `PPC_MOD_HOOK` / `--mod-hooks` | Removed for guest mods. Reintroduce only if a Lua hook dispatcher needs the flag check. |
-| `Cpu::mod_skip` and `g_mod_bodies` | Removed with the guest loader. Reintroduce only if Lua replacements call the original body through that skip. |
+| `PPC_MOD_HOOK` / `--mod-hooks` | Removed for guest mods. Reintroduce only if a Luau hook dispatcher needs the flag check. |
+| `Cpu::mod_skip` and `g_mod_bodies` | Removed with the guest loader. Reintroduce only if Luau replacements call the original body through that skip. |
 
 ### Native SDK v1 code
 
 | Item | Action |
 | --- | --- |
 | `runtime/include/nsmbu_mod.h` | Removed. |
-| `runtime/tools/mod_fixture.cpp` | Removed. Replace with a Lua fixture when Lua lands. |
+| `runtime/tools/mod_fixture.cpp` | Removed. Replace with a Luau fixture when Luau lands. |
 | `kind == "native"` load path in `packages.cpp` (`dlopen` / `LoadLibrary`, `nsmbu_mod_init_v1`) | Removed. |
 | Native confirmation dialog and `native_trust` | Removed after installed native packages are rejected. |
 | `NSMBU_TEST_TRUST_NATIVE_MODS` | Removed. |
@@ -479,16 +479,16 @@ This document is the reason to stop extending either path.
 
 | Item | Action |
 | --- | --- |
-| `kind: content` in the manifest parser | Alias this release; migrate to `lua` on scan; reject after the alias window. |
-| `runtime/src/mods/content.cpp` | Keep. Call it from the Lua startup path. |
-| Content tests (`mod_content_*`) | Retarget them at Lua packages with `content_dir`. |
-| Importer for SDCafiine, loose packs, and single files | Keep. Emit `kind: lua`. |
+| `kind: content` in the manifest parser | Alias this release; migrate to `luau` on scan; reject after the alias window. |
+| `runtime/src/mods/content.cpp` | Keep. Call it from the Luau startup path. |
+| Content tests (`mod_content_*`) | Retarget them at Luau packages with `content_dir`. |
+| Importer for SDCafiine, loose packs, and single files | Keep. Emit `kind: luau`. |
 
 ### Manager and states
 
 | Item | Action |
 | --- | --- |
-| `packages.cpp` kinds | Allow `lua` and `cemu` (plus `content` alias this release). |
+| `packages.cpp` kinds | Allow `luau` and `cemu` (plus `content` alias this release). |
 | `guest_regions` in `profiles.json` | Ignore, then drop on the next save. |
 | `native_trust` | Ignore, then drop on the next save. |
 | Restart rules | Content files and Cemu still need a restart. Script hooks and options apply on enable when the package has no `content_dir`. A package with both restarts, so the file map and the script start together. |
@@ -496,43 +496,43 @@ This document is the reason to stop extending either path.
 ### Player migration
 
 Installed `native` and `guest` packages do not convert.
-On the first run after the change, disable them and show "This package uses a removed mod format. Install a Lua package instead."
-Installed `content` packages are rewritten in place to `kind: lua` with the same `content_dir` and the same id.
+On the first run after the change, disable them and show "This package uses a removed mod format. Install a Luau package instead."
+Installed `content` packages are rewritten in place to `kind: luau` with the same `content_dir` and the same id.
 Keep their options empty.
 Keep their enabled bit.
 Cemu packages load as they do now.
 
 ## Tests to add before deletion
 
-- Load a Lua package, call `on_logic_step`, and read an option.
+- Load a Luau package, call `on_logic_step`, and read an option.
 - A script error unloads that package only.
 - `require` cannot escape the package directory.
 - `io` and `os` are nil.
 - Guest read and write honour the 1 MiB cap and big-endian layout.
 - Two packages cannot replace one function.
 - Two packages cannot replace one content path.
-- A content-only Lua package changes a synthetic file open and does not create a Lua state.
-- A Cemu package still enables without loading Lua.
+- A content-only Luau package changes a synthetic file open and does not create a Luau state.
+- A Cemu package still enables without loading Luau.
 - A v1 `native`, `guest`, or (after the alias window) `content` manifest fails install.
-- A portable state records Lua ids and warns on a mismatch.
+- A portable state records Luau ids and warns on a mismatch.
 - The hook flag stays clear when no package hooks that function.
 
 Host tests can use a fake guest memory buffer.
 They do not need a game dump.
-One scripted play run (see `AGENTS.md`) should enable a tiny Lua status mod from a slot-1 state and check the log line.
+One scripted play run (see `AGENTS.md`) should enable a tiny Luau status mod from a slot-1 state and check the log line.
 
 ## Phases
 
 1. **API freeze.** Done.
    Accept this document.
    Stop new guest-mod features and new native ABI fields.
-2. **Interpreter and `kind: lua`.** Done.
+2. **Interpreter and `kind: luau`.** Done.
    Embedded Luau.
    Logic-step, config, log, status, and guest memory.
    Keep content kinds working until phase 3.
 3. **Content moves.** Done.
-   Allow `content_dir` on Lua packages.
-   Point the importer at `kind: lua`.
+   Allow `content_dir` on Luau packages.
+   Point the importer at `kind: luau`.
    Keep `kind: content` as a read-only alias for one release, then reject it.
 4. **Hooks and `nsmbu.call`.** Proposal.
    Turn hook flags on in the default build.
@@ -542,29 +542,29 @@ One scripted play run (see `AGENTS.md`) should enable a tiny Lua status mod from
    Bump the manager so v1 code packages fail closed.
 
 Native SDK v1 and Guest SDK v2 code are already removed.
-Phase 3 replaces content packages with Lua `content_dir` (alias residual this release).
-Phase 4 replaces the guest v2 hook jobs in Lua.
-Do not ship Lua hooks without a hook test.
+Phase 3 replaces content packages with Luau `content_dir` (alias residual this release).
+Phase 4 replaces the guest v2 hook jobs in Luau.
+Do not ship Luau hooks without a hook test.
 
 ## Risks
 
 | Risk | Why it matters | Mitigation |
 | --- | --- | --- |
-| Lua on a hot function | A replacement of a per-particle or per-draw function can miss the frame time. | Document the cost. Offer `nsmbu.original`. Measure one hot hook before calling the API done. |
+| Luau on a hot function | A replacement of a per-particle or per-draw function can miss the frame time. | Document the cost. Offer `nsmbu.original`. Measure one hot hook before calling the API done. |
 | Sandbox holes | Guest write is a gameplay tool and also a crash tool. | Bound sizes. No FFI. Fault one package. |
 | Address drift | USA v1.3.0 addresses will not match another update. | Keep `game_id` and the RPX check. Generate `nsmbu.fn` from the headers. |
 | European builds | Hook addresses differ. | Keep the build map from SDK v2. Refuse an unmapped target. |
-| Function pointers into mod code | Lua functions have no guest address. | State the limit. Do not revive the guest ELF heap for code. |
+| Function pointers into mod code | Luau functions have no guest address. | State the limit. Do not revive the guest ELF heap for code. |
 | Content and script restart split | A script that expects new files can run before the map updates. | One restart when `content_dir` is set. |
 | Loss of native speed | Some mods want a tight inner loop or a third-party library. | Those mods wait, or they stay out of tree. This proposal does not keep `dlopen`. |
-| Cemu and Lua in one zip | Players will try to combine a shader pack and a script. | Reject the package. Ask for two packages. |
+| Cemu and Luau in one zip | Players will try to combine a shader pack and a script. | Reject the package. Ask for two packages. |
 
 ## Open decisions
 
 - Interpreter: **Luau**.
   LuaJIT is retired.
-- Whether `format_version` 2 is required, or `kind: lua` is enough on version 1.
-- Whether content-only packages show as "Lua" or as "Files" in the Mods list while the manifest kind stays `lua`.
+- Whether `format_version` 2 is required, or `kind: luau` is enough on version 1.
+- Whether content-only packages show as "Luau" or as "Files" in the Mods list while the manifest kind stays `luau`.
 - Whether `nsmbu.guest.alloc` is in the first hook release or a later one.
 - Whether button injection exists at all.
 - Named parameters on hooks, taken from header signatures.
@@ -581,7 +581,7 @@ Do not copy their code without a license review.
 | --- | --- |
 | [mod-sdk-v2.md](../deprecated/mod-sdk-v2.md) and N64Recomp | Hook versus replace, one replacement, many hooks, port hooks stay outside, config schema, dependency order. Drop the MIPS/PPC ELF and the JIT. |
 | Zelda64Recomp mod manager | Install, enable, and options in a menu. Already the model for [mod-manager.md](mod-manager.md). |
-| SM64coopDX / other Lua game mods | A small `hook` table and per-mod script files. Their APIs are game-specific. |
+| SM64coopDX / other Luau game mods | A small `hook` table and per-mod script files. Their APIs are game-specific. |
 | Luau | A locked standard library for untrusted scripts (chosen; the host embeds Luau). |
 
 ## Current code this plan talks about
@@ -590,8 +590,8 @@ Do not copy their code without a license review.
 | --- | --- |
 | Native ABI | Removed (`runtime/include/nsmbu_mod.h`) |
 | Load, kinds, trust, frame tick | `runtime/src/mods/packages.cpp` |
-| Luau embed and `kind: lua` (phase 2) | Runtime Lua package path (embedded Luau under `runtime/third_party/luau/`) |
-| File replacement via Lua `content_dir` (phase 3) | `runtime/src/mods/content.cpp` |
+| Luau embed and `kind: luau` (phase 2) | Runtime Luau package path (embedded Luau under `runtime/third_party/luau/`) |
+| File replacement via Luau `content_dir` (phase 3) | `runtime/src/mods/content.cpp` |
 | Cemu (keep) | `runtime/src/mods/cemu_pack.cpp` |
 | Guest hooks | Removed (`runtime/src/mods/guest_mods.cpp`) |
 | Code-mod rebuild | Removed (`runtime/src/mods/code_mods.cpp`) |

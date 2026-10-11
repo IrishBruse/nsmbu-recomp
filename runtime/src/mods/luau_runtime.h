@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace mods::lua_mod {
+namespace mods::luau_mod {
 
 struct Config {
     json::Value options;

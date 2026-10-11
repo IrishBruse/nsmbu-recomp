@@ -77,7 +77,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
   feature that NSMBU no longer ships.
   Guest Mod SDK v2, the code-mod rebuild UI, and related tooling are removed.
   The design archive is [docs/deprecated/mod-sdk-v2.md](docs/deprecated/mod-sdk-v2.md).
-  The replacement plan is [docs/modding/lua-mods.md](docs/modding/lua-mods.md).
+  The replacement plan is [docs/modding/luau-mods.md](docs/modding/luau-mods.md).
 
 - **Smaller fixes:** `WWHD_SHADOW_FIX` is gone, use `WWHD_SHADOW_SCALE=1` for console-sized shadow maps
   (issue #67: since v0.2.9 both sizes look practically the same); the buffer cache's verify mode no
@@ -311,7 +311,7 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
     that NSMBU no longer ships.
     Native SDK v1, the native trust dialog, and `kind: native` packages are removed.
     The design archive is [docs/deprecated/native-sdk-v1.md](docs/deprecated/native-sdk-v1.md).
-    The replacement plan is [docs/modding/lua-mods.md](docs/modding/lua-mods.md).
+    The replacement plan is [docs/modding/luau-mods.md](docs/modding/luau-mods.md).
   See `docs/modding/mod-manager.md` for the package format that remains.
 
 ### v0.2.2
