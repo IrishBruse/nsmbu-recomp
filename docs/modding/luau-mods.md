@@ -117,9 +117,9 @@ Phase 2 covers this table.
 
 | Native v1 | Luau |
 | --- | --- |
-| `on_frame(logic_step)` once per logic step, not per interpolated draw | `nsmbu.listen("logic_step", ...)` |
-| `on_config_changed` | `nsmbu.listen("config_changed", ...)` |
-| `on_unload` | `nsmbu.listen("unload", ...)` |
+| `on_frame(logic_step)` once per logic step, not per interpolated draw | `nsmbu.on_logic_step(...)` |
+| `on_config_changed` | `nsmbu.on_config_changed(...)` |
+| `on_unload` | `nsmbu.on_unload(...)` |
 | `get_string` / `get_number` / `get_bool` | `nsmbu.config` reads |
 | `log` and `status` | `nsmbu.log` and `nsmbu.status` |
 | `read_guest` / `write_guest`, big-endian, at most 1 MiB | `nsmbu.guest` typed helpers |
@@ -243,7 +243,7 @@ A real mod uses a named field from the generated address table.
 ```luau
 local step = 0
 
-nsmbu.listen("logic_step", function(logic_step)
+nsmbu.on_logic_step(function(logic_step)
   step = step + 1
   if step % 30 ~= 0 then
     return

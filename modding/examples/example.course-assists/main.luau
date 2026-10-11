@@ -80,7 +80,10 @@ local function scale_jumps(): boolean
   return ok
 end
 
-nsmbu.listen("logic_step", function(step: number)
+nsmbu.on_logic_step(function(step: number)
+
+  nsmbu.log("step: "..step)
+
   local parts: { string } = {}
   if nsmbu.config.bool("infinite_time", false) and freeze_timer() then
     parts[#parts + 1] = "time"
@@ -114,7 +117,7 @@ nsmbu.listen("logic_step", function(step: number)
   nsmbu.status(line)
 end)
 
-nsmbu.listen("config_changed", function()
+nsmbu.on_config_changed(function()
   held_mode = {}
   prev_speed_y = {}
   scaled_jump = {}

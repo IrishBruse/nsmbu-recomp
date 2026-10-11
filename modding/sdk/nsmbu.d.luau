@@ -3,13 +3,9 @@ type ListenId = number
 type HookId = number
 
 type HookWhen = "entry" | "return"
-type ListenEvent = "logic_step" | "config_changed" | "unload"
 
 type LogicStepCallback = (step: number) -> ()
 type VoidCallback = () -> ()
-
-type Listen = ((event: "logic_step", callback: LogicStepCallback) -> (ListenId?, string?))
-	& ((event: ListenEvent, callback: VoidCallback) -> (ListenId?, string?))
 
 type Package = {
 	id: string,
@@ -226,7 +222,9 @@ declare nsmbu: {
 	status: (message: string) -> (boolean?, string?),
 	logic_step: () -> number,
 	logic_dt: () -> number,
-	listen: Listen,
+	on_logic_step: (callback: LogicStepCallback) -> (ListenId?, string?),
+	on_config_changed: (callback: VoidCallback) -> (ListenId?, string?),
+	on_unload: (callback: VoidCallback) -> (ListenId?, string?),
 	unlisten: (id: ListenId) -> (boolean?, string?),
 
 	config: Config,

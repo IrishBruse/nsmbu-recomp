@@ -38,7 +38,7 @@ else
   nsmbu.log("dScnPly_Execute or nsmbu.hooks.hook is not in nsmbu")
 end
 
-nsmbu.listen("unload", function()
+nsmbu.on_unload(function()
   if not nsmbu.data.write then
     nsmbu.log("nsmbu.data.write is not in nsmbu.data")
     return

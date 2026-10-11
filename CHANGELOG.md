@@ -12,8 +12,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Change**: The mod package kind is `luau` (manifest `"kind": "luau"` and a `"luau"` block).
 -   **Change**: The mod SDK in `modding/sdk/` is now Luau.
     One definitions file, `modding/sdk/nsmbu.d.luau`, types the whole API.
--   **Change**: Luau lifecycle callbacks register with `nsmbu.listen` / `nsmbu.unlisten` (one `logic_step`, `config_changed`, or `unload` callback per registration).
-    The `nsmbu.on_logic_step`, `nsmbu.on_config_changed`, and `nsmbu.on_unload` fields are gone.
+-   **Change**: Luau lifecycle callbacks register with typed fields `nsmbu.on_logic_step(cb)`, `nsmbu.on_config_changed(cb)`, and `nsmbu.on_unload(cb)` (one callback per registration; `nsmbu.unlisten(id)` removes one).
+    The string-based `nsmbu.listen(event, callback)` form is gone.
 -   **Change**: Luau API exposes one global, `nsmbu`.
     It holds the lifecycle register, the log and status helpers, and one field per module (`nsmbu.config`, `nsmbu.guest`, `nsmbu.fn`, `nsmbu.hooks`, `nsmbu.input`, `nsmbu.data`, `nsmbu.level`, `nsmbu.player`, and the rest).
     `require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables.

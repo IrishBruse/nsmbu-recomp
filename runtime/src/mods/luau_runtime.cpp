@@ -275,19 +275,21 @@ int l_require(lua_State* L) {
     return 1;
 }
 
-int l_listen(lua_State* L) {
+int listen_event(lua_State* L, const char* event) {
     Instance* inst = self(L);
-    const char* event = luaL_checkstring(L, 1);
-    if (std::strcmp(event, "logic_step") && std::strcmp(event, "config_changed") &&
-        std::strcmp(event, "unload"))
-        return fail(L, "unknown event");
-    if (!lua_isfunction(L, 2)) return fail(L, "callback must be a function");
-    int ref = lua_ref(L, 2);
+    if (!lua_isfunction(L, 1)) return fail(L, "callback must be a function");
+    int ref = lua_ref(L, 1);
     int id = inst->next_listener++;
     inst->listeners.push_back({id, ref, event});
     lua_pushinteger(L, id);
     return 1;
 }
+
+int l_on_logic_step(lua_State* L) { return listen_event(L, "logic_step"); }
+
+int l_on_config_changed(lua_State* L) { return listen_event(L, "config_changed"); }
+
+int l_on_unload(lua_State* L) { return listen_event(L, "unload"); }
 
 int l_unlisten(lua_State* L) {
     Instance* inst = self(L);
@@ -578,7 +580,9 @@ void install_global(lua_State* L) {
 void install_host_modules(lua_State* L, Instance* inst) {
     lua_newtable(L);
 
-    bind(L, inst, "listen", l_listen);
+    bind(L, inst, "on_logic_step", l_on_logic_step);
+    bind(L, inst, "on_config_changed", l_on_config_changed);
+    bind(L, inst, "on_unload", l_on_unload);
     bind(L, inst, "unlisten", l_unlisten);
     bind(L, inst, "log", l_log);
     bind(L, inst, "log_int", l_log_int);

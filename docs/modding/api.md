@@ -1,7 +1,7 @@
 # Luau API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle (`listen` / `unlisten` registration for `logic_step`, `config_changed`, and `unload`), package metadata, log and status, time, config, guest memory, and high-level `nsmbu.level` / `nsmbu.player` helpers are implemented with embedded Luau.
+Lifecycle (`on_logic_step`, `on_config_changed`, and `on_unload` registration), package metadata, log and status, time, config, guest memory, and high-level `nsmbu.level` / `nsmbu.player` helpers are implemented with embedded Luau.
 Hooks (`nsmbu.hooks`), `call` / `call_result`, input, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.
@@ -52,31 +52,31 @@ Each package has its own Luau state, so one package cannot replace another packa
 
 Implemented in phase 2.
 
-Register callbacks with `nsmbu.listen`.
-Each registration adds one callback to the event queue; `nsmbu.unlisten` removes it.
+Register callbacks with one typed field per event.
+Each registration adds one callback to the event queue; `nsmbu.unlisten(id)` removes it.
 
 ```luau
-nsmbu.listen("logic_step", function(step)
+nsmbu.on_logic_step(function(step)
 end)
 
-nsmbu.listen("config_changed", function()
+nsmbu.on_config_changed(function()
 end)
 
-nsmbu.listen("unload", function()
+nsmbu.on_unload(function()
 end)
 
-local id = nsmbu.listen("logic_step", function(step)
+local id = nsmbu.on_logic_step(function(step)
 end)
 nsmbu.unlisten(id)
 ```
 
-| Event | Callback | When it runs |
+| Field | Callback | When it runs |
 | --- | --- | --- |
-| `"logic_step"` | `function(step)` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
-| `"config_changed"` | `function()` | After the player edits an option for this package. |
-| `"unload"` | `function()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
+| `on_logic_step` | `function(step)` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
+| `on_config_changed` | `function()` | After the player edits an option for this package. |
+| `on_unload` | `function()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
 
-`listen` returns an integer id, or `nil` and a message.
+Each `on_*` field returns an integer id, or `nil` and a message.
 `unlisten` returns `true`, or `nil` and a message.
 Unknown event names fail.
 
@@ -532,7 +532,7 @@ Prefer no coroutines in hooks.
 A status line from an option and player coins (phase 2):
 
 ```luau
-nsmbu.listen("logic_step", function(step)
+nsmbu.on_logic_step(function(step)
   if step % nsmbu.config.number("every", 30) ~= 0 then
     return
   end
@@ -568,7 +568,7 @@ end)
 Save a counter beside the package (proposal until data files land):
 
 ```luau
-nsmbu.listen("unload", function()
+nsmbu.on_unload(function()
   nsmbu.data.write("calls.txt", tostring(calls))
 end)
 ```

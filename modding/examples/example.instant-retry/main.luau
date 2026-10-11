@@ -75,18 +75,18 @@ else
   nsmbu.log("checkpoint_touched is not in nsmbu.fn")
 end
 
-nsmbu.listen("logic_step", function(step: number)
+nsmbu.on_logic_step(function(step: number)
   death.tick_hold()
   record_safe(step)
 end)
 
-nsmbu.listen("config_changed", function()
+nsmbu.on_config_changed(function()
   if not nsmbu.config.bool("enabled", true) then
     state.mode = "idle"
     state.set_status("Instant retry off")
   end
 end)
 
-nsmbu.listen("unload", function()
+nsmbu.on_unload(function()
   state.save_file()
 end)
