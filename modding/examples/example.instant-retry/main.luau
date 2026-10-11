@@ -1,3 +1,7 @@
+const config = nsmbu.config
+const fn = nsmbu.fn
+const hooks = nsmbu.hooks
+
 local player = require("player")
 local state = require("state")
 local death = require("death")
@@ -6,13 +10,13 @@ state.load_file()
 death.install()
 
 local function record_safe(step: number)
-  if not nsmbu.config.bool("enabled", true) then
+  if not config.bool("enabled", true) then
     return
   end
   if state.mode ~= "idle" then
     return
   end
-  local every = nsmbu.config.number("record_every", 10) or 10
+  local every = config.number("record_every", 10) or 10
   if every < 1 then
     every = 1
   end
@@ -47,21 +51,21 @@ local function on_course_enter()
   state.set_status("Instant retry: waiting for ground")
 end
 
-local enter = nsmbu.fn.course_enter
+local enter = fn.course_enter
 if enter then
-  local id, err = nsmbu.hooks.hook(enter, "return", function()
+  local id, err = hooks.hook(enter, "return", function()
     on_course_enter()
   end)
   if not id then
     nsmbu.log(err or "hook failed")
   end
 else
-  nsmbu.log("course_enter is not in nsmbu.fn")
+  nsmbu.log("course_enter is not in fn")
 end
 
-local checkpoint = nsmbu.fn.checkpoint_touched
+local checkpoint = fn.checkpoint_touched
 if checkpoint then
-  local id, err = nsmbu.hooks.hook(checkpoint, "entry", function()
+  local id, err = hooks.hook(checkpoint, "entry", function()
     local pose = player.read_pose()
     if pose then
       state.safe = pose
@@ -72,7 +76,7 @@ if checkpoint then
     nsmbu.log(err or "hook failed")
   end
 else
-  nsmbu.log("checkpoint_touched is not in nsmbu.fn")
+  nsmbu.log("checkpoint_touched is not in fn")
 end
 
 nsmbu.on_logic_step(function(step: number)
@@ -81,7 +85,7 @@ nsmbu.on_logic_step(function(step: number)
 end)
 
 nsmbu.on_config_changed(function()
-  if not nsmbu.config.bool("enabled", true) then
+  if not config.bool("enabled", true) then
     state.mode = "idle"
     state.set_status("Instant retry off")
   end

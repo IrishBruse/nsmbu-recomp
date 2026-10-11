@@ -1478,7 +1478,6 @@ void perf_window(bool menu_open) {
                           ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoInputs;
     if (ImGui::Begin("##perf", nullptr, fl)) {
         ImGui::Text("%.0f fps   %.1f ms (worst %.1f)", U.fps, sum / 120.0f, worst);
-        ImGui::Text("Session %.1f fps   %.1f logic steps/s", g_average.fps, g_average.logic);
         {
 
             static double t0 = 0; static uint64_t s0 = 0; static double rate = 30;

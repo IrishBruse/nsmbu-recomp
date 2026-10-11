@@ -7,12 +7,15 @@ export type Pose = {
 	powerup: number,
 }
 
+const fn = nsmbu.fn
+const hooks = nsmbu.hooks
+
 local player = {}
 
 local function need(name: string): (number?, string?)
-  local addr = nsmbu.fn[name]
+  local addr = fn[name]
   if not addr then
-    return nil, name .. " is not in nsmbu.fn"
+    return nil, name .. " is not in fn"
   end
   return addr, nil
 end
@@ -101,7 +104,7 @@ function player.restore(pose: Pose, keep_powerup: boolean): (boolean?, string?)
   end
   local clear = need("player_clear_damage")
   if clear then
-    local called, call_err = nsmbu.hooks.call(clear, { r3 = actor })
+    local called, call_err = hooks.call(clear, { r3 = actor })
     if not called then
       return nil, call_err
     end

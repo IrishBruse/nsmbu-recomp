@@ -1,7 +1,10 @@
+const config = nsmbu.config
+const input = nsmbu.input
+
 local last: string = ""
 
 local function every_n(): number
-  local every = nsmbu.config.number("every", 15)
+  local every = config.number("every", 15)
   if not every or every < 1 then
     return 1
   end
@@ -12,14 +15,14 @@ nsmbu.on_logic_step(function(step: number)
   if step % every_n() ~= 0 then
     return
   end
-  local pad = nsmbu.input()
-  local held = nsmbu.input.button.held("A")
+  local pad = input()
+  local held = input.button.held("A")
   if held == nil then
     held = false
   end
   local line = string.format(
     "%s A=%s lx=%.2f",
-    nsmbu.config.string("label", "Pad") or "Pad",
+    config.string("label", "Pad") or "Pad",
     tostring(held),
     pad.lx
   )

@@ -5,6 +5,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: Example mods bind the `nsmbu` module tables once at the top of the script (`const config = nsmbu.config`, `const player = nsmbu.player`, and so on) and call the aliases in the body.
 -   **Change**: Mod scripts run on Luau instead of LuaJIT (embedded under `runtime/third_party/luau/`).
     Scripts keep the Lua 5.1 syntax and gain `utf8`; LuaJIT's `bit` library becomes `bit32`.
 -   **Change**: Luau mod scripts use the `.luau` extension (`main.luau` and sibling modules).

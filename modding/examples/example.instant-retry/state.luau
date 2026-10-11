@@ -19,6 +19,10 @@ type State = {
 	load_file: () -> (),
 }
 
+const log = nsmbu.log
+const status = nsmbu.status
+const data = nsmbu.data
+
 local state = {} :: State
 state.mode = "idle"
 state.safe = nil
@@ -39,18 +43,18 @@ function state.set_status(text: string)
     return
   end
   state.last_status = text
-  nsmbu.status(text)
+  status(text)
 end
 
 function state.save_file()
   if not state.safe then
-    if nsmbu.data.remove then
-      nsmbu.data.remove("softspot.txt")
+    if data.remove then
+      data.remove("softspot.txt")
     end
     return
   end
-  if not nsmbu.data.write then
-    nsmbu.log("nsmbu.data.write is not in nsmbu.data")
+  if not data.write then
+    log("nsmbu.data.write is not in data")
     return
   end
   local text = string.format(
@@ -62,18 +66,18 @@ function state.save_file()
     state.safe.powerup,
     state.retries
   )
-  local wrote, err = nsmbu.data.write("softspot.txt", text)
+  local wrote, err = data.write("softspot.txt", text)
   if not wrote then
-    nsmbu.log(err or "data write failed")
+    log(err or "data write failed")
   end
 end
 
 function state.load_file()
-  if not nsmbu.data.read then
-    nsmbu.log("nsmbu.data.read is not in nsmbu.data")
+  if not data.read then
+    log("nsmbu.data.read is not in data")
     return
   end
-  local text = nsmbu.data.read("softspot.txt")
+  local text = data.read("softspot.txt")
   if not text then
     return
   end
