@@ -176,33 +176,8 @@ bool call_fn(Instance& inst, int nargs) {
     return true;
 }
 
-bool call_field(Instance& inst, const char* field, int nargs_after_fn) {
-    if (inst.fault || !inst.state) return false;
-    refresh_package(inst);
-    lua_State* L = static_cast<lua_State*>(inst.state);
-    int top = lua_gettop(L) - nargs_after_fn;
-    if (!push_loaded(L, "nsmbu")) {
-        lua_settop(L, top);
-        return true;
-    }
-    lua_getfield(L, -1, field);
-    lua_remove(L, -2);
-    if (lua_isnil(L, -1)) {
-        lua_settop(L, top);
-        return true;
-    }
-    if (!lua_isfunction(L, -1)) {
-        lua_settop(L, top);
-        return true;
-    }
-    if (nargs_after_fn > 0) lua_insert(L, -1 - nargs_after_fn);
-    return call_fn(inst, nargs_after_fn);
-}
-
 bool fire_logic(Instance& inst) {
     lua_State* L = static_cast<lua_State*>(inst.state);
-    lua_pushnumber(L, (lua_Number)inst.step);
-    if (!call_field(inst, "on_logic_step", 1)) return false;
     lua_pushnumber(L, (lua_Number)inst.step);
     std::vector<int> refs;
     for (const auto& l : inst.listeners)
@@ -221,7 +196,6 @@ bool fire_logic(Instance& inst) {
 }
 
 bool fire_config(Instance& inst) {
-    if (!call_field(inst, "on_config_changed", 0)) return false;
     lua_State* L = static_cast<lua_State*>(inst.state);
     for (const auto& l : inst.listeners) {
         if (l.event != "config_changed") continue;
@@ -233,7 +207,6 @@ bool fire_config(Instance& inst) {
 }
 
 bool fire_unload(Instance& inst) {
-    if (!call_field(inst, "on_unload", 0)) return false;
     lua_State* L = static_cast<lua_State*>(inst.state);
     for (size_t i = inst.listeners.size(); i > 0; --i) {
         const auto& l = inst.listeners[i - 1];

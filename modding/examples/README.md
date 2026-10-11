@@ -29,7 +29,7 @@ The definitions are editor-only; the runtime builds the same table.
 | --- | --- | --- |
 | `example.play-scene-ticker` | Entry and return hooks, a number option, and a data file written on unload. | Proposal (hooks, data) |
 | `example.smooth-step-replace` | A replacement that calls `hooks.original` on odd calls and edits the guest float on even calls. | Proposal (hooks) |
-| `example.button-watch` | `on_logic_step`, pad input, and the Mods status line. | Partial (logic-step and status work; input is proposal) |
+| `example.button-watch` | A `logic_step` listener, pad input, and the Mods status line. | Partial (logic-step and status work; input is proposal) |
 | `example.course-assists` | Course timer, lives, power-up, and jump assists through high-level APIs. | Phase 2 |
 | `example.instant-retry` | Soft checkpoint retry with state, restore calls, and hold-jump to quit. Inspired by Tsuru instant respawn. | Proposal (hooks, call) |
 

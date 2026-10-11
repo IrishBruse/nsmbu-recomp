@@ -11,10 +11,11 @@ At release, move those notes to a version heading and leave Unreleased empty.
     The manifest `luau.entry` names the `.luau` entry, and `require` resolves `.luau` files.
 -   **Change**: The mod package kind is `luau` (manifest `"kind": "luau"` and a `"luau"` block).
 -   **Change**: The mod SDK in `modding/sdk/` is now Luau.
-    The definitions split into one file per module under `modding/sdk/`; `nsmbu.d.luau` stays the entry and declares the global.
-    Editors can point luau-lsp at the files in load order; the repo pins the language through `.luaurc`, so examples and mods need no per-mod setup.
+    One definitions file, `modding/sdk/nsmbu.d.luau`, types the whole API.
+-   **Change**: Luau lifecycle callbacks register with `nsmbu.listen` / `nsmbu.unlisten` (one `logic_step`, `config_changed`, or `unload` callback per registration).
+    The `nsmbu.on_logic_step`, `nsmbu.on_config_changed`, and `nsmbu.on_unload` fields are gone.
 -   **Change**: Luau API exposes one global, `nsmbu`.
-    It holds the lifecycle fields, the log and status helpers, and one field per module (`nsmbu.config`, `nsmbu.guest`, `nsmbu.fn`, `nsmbu.hooks`, `nsmbu.input`, `nsmbu.data`, `nsmbu.level`, `nsmbu.player`, and the rest).
+    It holds the lifecycle register, the log and status helpers, and one field per module (`nsmbu.config`, `nsmbu.guest`, `nsmbu.fn`, `nsmbu.hooks`, `nsmbu.input`, `nsmbu.data`, `nsmbu.level`, `nsmbu.player`, and the rest).
     `require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables.
 -   **Add**: Mods tab checkbox **Hot reload Luau scripts**.
     When on, enabled script-only Luau packs unload and reload when `.luau` files change (debounced).

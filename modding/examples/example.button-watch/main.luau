@@ -8,7 +8,7 @@ local function every_n(): number
   return every
 end
 
-function nsmbu.on_logic_step(step: number)
+nsmbu.listen("logic_step", function(step: number)
   if step % every_n() ~= 0 then
     return
   end
@@ -28,8 +28,8 @@ function nsmbu.on_logic_step(step: number)
   end
   last = line
   nsmbu.status(line)
-end
+end)
 
-function nsmbu.on_config_changed()
+nsmbu.listen("config_changed", function()
   last = ""
-end
+end)

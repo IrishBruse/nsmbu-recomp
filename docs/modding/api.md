@@ -1,7 +1,7 @@
 # Luau API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle (`on_logic_step`, `on_config_changed`, `on_unload`, `listen` / `unlisten`), package metadata, log and status, time, config, guest memory, and high-level `nsmbu.level` / `nsmbu.player` helpers are implemented with embedded Luau.
+Lifecycle (`listen` / `unlisten` registration for `logic_step`, `config_changed`, and `unload`), package metadata, log and status, time, config, guest memory, and high-level `nsmbu.level` / `nsmbu.player` helpers are implemented with embedded Luau.
 Hooks (`nsmbu.hooks`), `call` / `call_result`, input, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.
@@ -15,9 +15,7 @@ nsmbu.level.set_time(999)
 nsmbu.player(0)
 ```
 
-Luau type definitions for editors live in [../../modding/sdk/](../../modding/sdk/).
-`nsmbu.d.luau` is the entry and declares the global; the other `.d.luau` files hold the types, one file per module.
-Register all of them with luau-lsp in load order (core, guest, hooks, input, data, level, player, then `nsmbu.d.luau` last).
+Luau type definitions for editors live in [../../modding/sdk/nsmbu.d.luau](../../modding/sdk/nsmbu.d.luau).
 The definitions are editor-only; the runtime builds the same table.
 
 `require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables, but new mods use the global.
@@ -26,7 +24,7 @@ Each package has its own Luau state, so one package cannot replace another packa
 
 | Module | Role | Status |
 | --- | --- | --- |
-| `nsmbu` | Lifecycle fields, listen, log, status, time, package | Live |
+| `nsmbu` | Lifecycle register, log, status, time, package | Live |
 | `nsmbu.config` | Package option reads | Live |
 | `nsmbu.guest` | Guest memory read/write (heap alloc later) | Live (R/W) |
 | `nsmbu.level` | Course timer, course coins, score | Live |
@@ -54,41 +52,29 @@ Each package has its own Luau state, so one package cannot replace another packa
 
 Implemented in phase 2.
 
-Assign these fields on the global, or leave them unset.
-The runtime reads the field on each event from the global.
-You can replace the function later.
+Register callbacks with `nsmbu.listen`.
+Each registration adds one callback to the event queue; `nsmbu.unlisten` removes it.
 
 ```luau
-function nsmbu.on_logic_step(step)
-end
+nsmbu.listen("logic_step", function(step)
+end)
 
-function nsmbu.on_config_changed()
-end
+nsmbu.listen("config_changed", function()
+end)
 
-function nsmbu.on_unload()
-end
-```
+nsmbu.listen("unload", function()
+end)
 
-| Field | When it runs |
-| --- | --- |
-| `on_logic_step(step)` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
-| `on_config_changed()` | After the player edits an option for this package. |
-| `on_unload()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
-
-`nsmbu.listen` adds another callback.
-The assigned fields above still run first.
-
-```luau
 local id = nsmbu.listen("logic_step", function(step)
 end)
 nsmbu.unlisten(id)
 ```
 
-| Event | Callback |
-| --- | --- |
-| `"logic_step"` | `function(step)` |
-| `"config_changed"` | `function()` |
-| `"unload"` | `function()` |
+| Event | Callback | When it runs |
+| --- | --- | --- |
+| `"logic_step"` | `function(step)` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
+| `"config_changed"` | `function()` | After the player edits an option for this package. |
+| `"unload"` | `function()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
 
 `listen` returns an integer id, or `nil` and a message.
 `unlisten` returns `true`, or `nil` and a message.
@@ -96,7 +82,7 @@ Unknown event names fail.
 
 Package order follows manifest dependencies.
 Listeners inside one package run in registration order.
-`on_unload` listeners run in reverse order.
+Unload listeners run in reverse order.
 
 ## Package
 
@@ -147,7 +133,7 @@ local seconds = nsmbu.logic_dt()
 
 | Function | Result |
 | --- | --- |
-| `logic_step()` | The same counter passed to `on_logic_step`. |
+| `logic_step()` | The same counter passed to logic-step callbacks. |
 | `logic_dt()` | Length of the current logic step in seconds. True 60 scaling is included. |
 
 ## Config
@@ -174,7 +160,7 @@ local on = nsmbu.config.bool("enabled", true)
 A wrong `fallback` type returns `nil` and a message.
 
 Option edits are visible on the next `nsmbu.config.*` call.
-They also run `on_config_changed`.
+They also fire `config_changed` callbacks.
 A package with `content_dir` still restarts before new files apply.
 The script options themselves do not wait for that restart.
 
@@ -415,7 +401,7 @@ local ok, err = nsmbu.hooks.call(nsmbu.fn.cLib_addCalc2, {
 
 The return registers are not returned as a second table.
 Read them with a return hook, or with `original` inside a replacement.
-`call` is for a script that wants to invoke a game function from `on_logic_step` or from a hook.
+`call` is for a script that wants to invoke a game function from a logic-step callback or from a hook.
 
 ```luau
 local result = nsmbu.hooks.call_result(nsmbu.fn.cLib_addCalc2, { r3 = object, f1 = 1.0 })
@@ -428,7 +414,7 @@ end
 | --- | --- |
 | `call_result(target, args)` | A table `{ r3, r4, f1 }`, or `nil` and a message. |
 
-`call_result` is the form to use from `on_logic_step`.
+`call_result` is the form to use from a logic-step callback.
 Both functions refuse a target that is not a translated game function.
 Both refuse a call that is already on the stack for the same package beyond 8 nested `call` / `call_result` frames.
 
@@ -546,7 +532,7 @@ Prefer no coroutines in hooks.
 A status line from an option and player coins (phase 2):
 
 ```luau
-function nsmbu.on_logic_step(step)
+nsmbu.listen("logic_step", function(step)
   if step % nsmbu.config.number("every", 30) ~= 0 then
     return
   end
@@ -560,7 +546,7 @@ function nsmbu.on_logic_step(step)
     return
   end
   nsmbu.status(nsmbu.config.string("label", "Coins") .. ": " .. coins)
-end
+end)
 ```
 
 Count calls to a play-scene function, then leave the game body unchanged (proposal until phase 4):
@@ -582,9 +568,9 @@ end)
 Save a counter beside the package (proposal until data files land):
 
 ```luau
-function nsmbu.on_unload()
+nsmbu.listen("unload", function()
   nsmbu.data.write("calls.txt", tostring(calls))
-end
+end)
 ```
 
 ## Not in version 1
@@ -611,6 +597,6 @@ end
 | `unknown function` | `nsmbu.fn` name or `call` target is not a game function on this build. |
 | `already replaced` | This function already has a replacement. Enable fails before the script runs when another package owns it. |
 | `original already called` | `original` ran twice in one replacement. |
-| `original outside replacement` | `original` ran from an entry hook, a return hook, or `on_logic_step`. |
+| `original outside replacement` | `original` ran from an entry hook, a return hook, or a logic-step callback. |
 | `bad file name` | Data file name is not one flat segment. |
 | `yield across host call` | A coroutine yielded through a host function. |

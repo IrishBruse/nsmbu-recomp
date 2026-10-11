@@ -117,9 +117,9 @@ Phase 2 covers this table.
 
 | Native v1 | Luau |
 | --- | --- |
-| `on_frame(logic_step)` once per logic step, not per interpolated draw | `nsmbu.on_logic_step` |
-| `on_config_changed` | `nsmbu.on_config_changed()` |
-| `on_unload` | `nsmbu.on_unload()` |
+| `on_frame(logic_step)` once per logic step, not per interpolated draw | `nsmbu.listen("logic_step", ...)` |
+| `on_config_changed` | `nsmbu.listen("config_changed", ...)` |
+| `on_unload` | `nsmbu.listen("unload", ...)` |
 | `get_string` / `get_number` / `get_bool` | `nsmbu.config` reads |
 | `log` and `status` | `nsmbu.log` and `nsmbu.status` |
 | `read_guest` / `write_guest`, big-endian, at most 1 MiB | `nsmbu.guest` typed helpers |
@@ -243,7 +243,7 @@ A real mod uses a named field from the generated address table.
 ```luau
 local step = 0
 
-function nsmbu.on_logic_step(logic_step)
+nsmbu.listen("logic_step", function(logic_step)
   step = step + 1
   if step % 30 ~= 0 then
     return
@@ -251,7 +251,7 @@ function nsmbu.on_logic_step(logic_step)
   local coins = nsmbu.guest.read_u32(nsmbu.fn.example_coin_count)
   local prefix = nsmbu.config.string("label", "Coins")
   nsmbu.status(prefix .. ": " .. tostring(coins))
-end
+end)
 ```
 
 A hook that replaces the guest `cLib_addCalc2` example looks like this.
@@ -303,7 +303,7 @@ Do not abort the process.
 A package with `content_dir` needs a restart so the file map and any script start together.
 A script-only package (no `content_dir`) still loads live on enable.
 With **Hot reload Luau scripts** on in the Mods tab, a script-only package also reloads while enabled when its `.luau` files change.
-Reload runs `on_unload` / unload listeners, then creates a new Luau state and runs the entry script again.
+Reload runs unload listeners, then creates a new Luau state and runs the entry script again.
 A failed reload disables that package the same way a failed first load does.
 
 ### Hooks without a PowerPC toolchain
@@ -497,7 +497,7 @@ Cemu packages load as they do now.
 
 ## Tests to add before deletion
 
-- Load a Luau package, call `on_logic_step`, and read an option.
+- Load a Luau package, run a `logic_step` listener, and read an option.
 - A script error unloads that package only.
 - `require` cannot escape the package directory.
 - `io` and `os` are nil.

@@ -3,7 +3,7 @@ local returns = 0
 
 local function every_n(): number
   local every = nsmbu.config.number("every", 60)
-  if every < 1 then
+  if not every or every < 1 then
     return 1
   end
   return every
@@ -38,7 +38,7 @@ else
   nsmbu.log("dScnPly_Execute or nsmbu.hooks.hook is not in nsmbu")
 end
 
-function nsmbu.on_unload()
+nsmbu.listen("unload", function()
   if not nsmbu.data.write then
     nsmbu.log("nsmbu.data.write is not in nsmbu.data")
     return
@@ -47,4 +47,4 @@ function nsmbu.on_unload()
   if not written then
     nsmbu.log(err)
   end
-end
+end)

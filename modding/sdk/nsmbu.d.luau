@@ -7,7 +7,9 @@ type ListenEvent = "logic_step" | "config_changed" | "unload"
 
 type LogicStepCallback = (step: number) -> ()
 type VoidCallback = () -> ()
-type ListenCallback = LogicStepCallback | VoidCallback
+
+type Listen = ((event: "logic_step", callback: LogicStepCallback) -> (ListenId?, string?))
+	& ((event: ListenEvent, callback: VoidCallback) -> (ListenId?, string?))
 
 type Package = {
 	id: string,
@@ -45,6 +47,7 @@ type Guest = {
 }
 
 type Fn = {
+	[string]: GuestAddr?,
 	dScnPly_Execute: GuestAddr?,
 	cLib_addCalc2: GuestAddr?,
 	example_coin_count: GuestAddr?,
@@ -58,7 +61,7 @@ type Fn = {
 	course_enter: GuestAddr?,
 	checkpoint_touched: GuestAddr?,
 	course_quit_to_map: GuestAddr?,
-} & { [string]: GuestAddr? }
+}
 
 type HookCtx = {
 	address: GuestAddr,
@@ -215,9 +218,6 @@ type Empty = {}
 
 declare nsmbu: {
 	package: Package,
-	on_logic_step: LogicStepCallback?,
-	on_config_changed: VoidCallback?,
-	on_unload: VoidCallback?,
 
 	log: (message: string) -> (boolean?, string?),
 	log_int: (label: string, value: number) -> (boolean?, string?),
@@ -226,7 +226,7 @@ declare nsmbu: {
 	status: (message: string) -> (boolean?, string?),
 	logic_step: () -> number,
 	logic_dt: () -> number,
-	listen: (event: ListenEvent, callback: ListenCallback) -> (ListenId?, string?),
+	listen: Listen,
 	unlisten: (id: ListenId) -> (boolean?, string?),
 
 	config: Config,
