@@ -6,8 +6,23 @@ The runtime exposes one global, `nsmbu`, with the helpers and one field per modu
 Hooks, `nsmbu.fn`, input, and data files are still proposal.
 They contain no game files.
 
-Luau type definitions for the `nsmbu` API live in [../sdk/nsmbu.d.luau](../sdk/nsmbu.d.luau).
-The repository loads them with `luau-lsp.types.definitionFiles` in [`.vscode/settings.json`](../../.vscode/settings.json), so every example type-checks with no per-mod setup.
+Luau type definitions for the `nsmbu` API live in [../sdk/](../sdk/).
+`nsmbu.d.luau` is the entry and declares the global; the other `.d.luau` files hold the types, one file per module.
+Register all of them in load order (core, guest, hooks, input, data, level, player, then `nsmbu.d.luau` last), for example:
+
+```json
+"luau-lsp.types.definitionFiles": {
+    "nsmbu-core": "modding/sdk/core.d.luau",
+    "nsmbu-guest": "modding/sdk/guest.d.luau",
+    "nsmbu-hooks": "modding/sdk/hooks.d.luau",
+    "nsmbu-input": "modding/sdk/input.d.luau",
+    "nsmbu-data": "modding/sdk/data.d.luau",
+    "nsmbu-level": "modding/sdk/level.d.luau",
+    "nsmbu-player": "modding/sdk/player.d.luau",
+    "nsmbu": "modding/sdk/nsmbu.d.luau"
+}
+```
+
 The definitions are editor-only; the runtime builds the same table.
 
 | Mod | What it shows | Phase |

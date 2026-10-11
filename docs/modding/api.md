@@ -15,8 +15,9 @@ nsmbu.level.set_time(999)
 nsmbu.player(0)
 ```
 
-Luau type definitions for editors live in [../../modding/sdk/nsmbu.d.luau](../../modding/sdk/nsmbu.d.luau).
-Point luau-lsp at that file with `luau-lsp.types.definitionFiles`; the repository sets it in [`.vscode/settings.json`](../../.vscode/settings.json).
+Luau type definitions for editors live in [../../modding/sdk/](../../modding/sdk/).
+`nsmbu.d.luau` is the entry and declares the global; the other `.d.luau` files hold the types, one file per module.
+Register all of them with luau-lsp in load order (core, guest, hooks, input, data, level, player, then `nsmbu.d.luau` last).
 The definitions are editor-only; the runtime builds the same table.
 
 `require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables, but new mods use the global.

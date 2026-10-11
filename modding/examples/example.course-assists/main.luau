@@ -53,6 +53,11 @@ local function scale_jumps(): boolean
   local ok = false
   for i = 0, 3 do
     local p = nsmbu.player(i)
+
+    if p ==nil then
+      continue
+    end
+
     local speed = p and p:speed_y()
     if not speed then
       prev_speed_y[i] = nil

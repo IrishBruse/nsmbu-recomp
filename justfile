@@ -41,5 +41,17 @@ run *args:
 profile *args:
     python3 tools/profile.py {{args}}
 
+# Type-check example Luau mods with the SDK definitions. Needs luau-lsp on PATH.
+lint:
+    find modding/examples -type f -name '*.luau' -print0 | xargs -0 luau-lsp analyze \
+        --definitions:@nsmbu-core=modding/sdk/core.d.luau \
+        --definitions:@nsmbu-guest=modding/sdk/guest.d.luau \
+        --definitions:@nsmbu-hooks=modding/sdk/hooks.d.luau \
+        --definitions:@nsmbu-input=modding/sdk/input.d.luau \
+        --definitions:@nsmbu-data=modding/sdk/data.d.luau \
+        --definitions:@nsmbu-level=modding/sdk/level.d.luau \
+        --definitions:@nsmbu-player=modding/sdk/player.d.luau \
+        --definitions:@nsmbu=modding/sdk/nsmbu.d.luau
+
 recomp:
     python3 tools/recomp/recomp.py game/code/red-pro2.rpx build/gen

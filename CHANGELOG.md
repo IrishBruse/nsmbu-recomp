@@ -11,8 +11,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
     The manifest `luau.entry` names the `.luau` entry, and `require` resolves `.luau` files.
 -   **Change**: The mod package kind is `luau` (manifest `"kind": "luau"` and a `"luau"` block).
 -   **Change**: The mod SDK in `modding/sdk/` is now Luau.
-    One definitions file, `modding/sdk/nsmbu.d.luau`, types the whole API.
-    Editors load it through `luau-lsp.types.definitionFiles` in `.vscode/settings.json`, so examples and mods need no per-mod stubs or `.luaurc` aliases.
+    The definitions split into one file per module under `modding/sdk/`; `nsmbu.d.luau` stays the entry and declares the global.
+    Editors can point luau-lsp at the files in load order; the repo pins the language through `.luaurc`, so examples and mods need no per-mod setup.
 -   **Change**: Luau API exposes one global, `nsmbu`.
     It holds the lifecycle fields, the log and status helpers, and one field per module (`nsmbu.config`, `nsmbu.guest`, `nsmbu.fn`, `nsmbu.hooks`, `nsmbu.input`, `nsmbu.data`, `nsmbu.level`, `nsmbu.player`, and the rest).
     `require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables.
