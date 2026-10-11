@@ -6,20 +6,22 @@ Hooks (`nsmbu.hooks`), `call` / `call_result`, input, data files, guest heap all
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.
 
-Luau type definitions for editors live in [../../modding/sdk/nsmbu.luau](../../modding/sdk/nsmbu.luau).
-The SDK ships one `.luau` module per `require` name, and `modding/examples/.luaurc` maps each name to the SDK for Luau tooling.
-
-There is no `nsmbu` global.
-Mods load host and game APIs with `require`.
-Names that start with `nsmbu` are reserved for the runtime.
-Each package has its own Luau state, so one package cannot replace another package's modules.
+The runtime exposes one global, `nsmbu`.
+It holds the lifecycle fields, the log and status helpers, and one field per module.
 
 ```luau
-local nsmbu = require("nsmbu")
-local guest = require("nsmbu.guest")
-local level = require("nsmbu.level")
-local player = require("nsmbu.player")
+nsmbu.guest.read_u32(0x105E2C80)
+nsmbu.level.set_time(999)
+nsmbu.player(0)
 ```
+
+Luau type definitions for editors live in [../../modding/sdk/nsmbu.d.luau](../../modding/sdk/nsmbu.d.luau).
+Point luau-lsp at that file with `luau-lsp.types.definitionFiles`; the repository sets it in [`.vscode/settings.json`](../../.vscode/settings.json).
+The definitions are editor-only; the runtime builds the same table.
+
+`require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables, but new mods use the global.
+Names that start with `nsmbu` are reserved for the runtime.
+Each package has its own Luau state, so one package cannot replace another package's global.
 
 | Module | Role | Status |
 | --- | --- | --- |
@@ -45,19 +47,17 @@ local player = require("nsmbu.player")
 - Guest multi-byte values are big-endian.
 - One guest read or write is at most 1 MiB.
 - Strings passed to the host are copied before the call returns.
-- Do not keep a guest pointer across frames unless you allocated it with `guest.alloc` (proposal).
+- Do not keep a guest pointer across frames unless you allocated it with `nsmbu.guest.alloc` (proposal).
 
 ## Lifecycle
 
 Implemented in phase 2.
 
-Require the core module, assign these fields, or leave them unset.
-The runtime reads the field on each event from `package.loaded["nsmbu"]`.
+Assign these fields on the global, or leave them unset.
+The runtime reads the field on each event from the global.
 You can replace the function later.
 
 ```luau
-local nsmbu = require("nsmbu")
-
 function nsmbu.on_logic_step(step)
 end
 
@@ -157,23 +157,22 @@ Values come from the Mods tab.
 They match the manifest `options` entry.
 
 ```luau
-local config = require("nsmbu.config")
-local name = config.string("label", "Coins")
-local every = config.number("poll_every", 30)
-local on = config.bool("enabled", true)
+local name = nsmbu.config.string("label", "Coins")
+local every = nsmbu.config.number("poll_every", 30)
+local on = nsmbu.config.bool("enabled", true)
 ```
 
 | Function | Result |
 | --- | --- |
-| `config.string(id, fallback)` | The string option, or `fallback` when the id is missing or not a string. Enum options return the selected choice name. |
-| `config.number(id, fallback)` | The number, or `fallback` when the id is missing or not a number. |
-| `config.bool(id, fallback)` | The boolean, or `fallback` when the id is missing or not a boolean. |
+| `nsmbu.config.string(id, fallback)` | The string option, or `fallback` when the id is missing or not a string. Enum options return the selected choice name. |
+| `nsmbu.config.number(id, fallback)` | The number, or `fallback` when the id is missing or not a number. |
+| `nsmbu.config.bool(id, fallback)` | The boolean, or `fallback` when the id is missing or not a boolean. |
 
 `id` is the option id, not the display name.
 `fallback` is required.
 A wrong `fallback` type returns `nil` and a message.
 
-Option edits are visible on the next `config.*` call.
+Option edits are visible on the next `nsmbu.config.*` call.
 They also run `on_config_changed`.
 A package with `content_dir` still restarts before new files apply.
 The script options themselves do not wait for that restart.
@@ -184,20 +183,16 @@ Implemented in phase 2 (reads and writes).
 Guest heap alloc is still proposal.
 
 ```luau
-local guest = require("nsmbu.guest")
+local value = nsmbu.guest.read_u32(0x105E2C80)
+nsmbu.guest.write_u32(0x105E2C80, value + 1)
+
+local bytes = nsmbu.guest.read(0x105E2C80, 16)
+nsmbu.guest.write(0x105E2C80, bytes)
 ```
 
 Reads and writes cover MEM1, MEM2, and the foreground bucket.
 An address outside those ranges returns `nil` and `"address out of range"`.
 A size above 1 MiB returns `nil` and `"size too large"`.
-
-```luau
-local value = guest.read_u32(0x105E2C80)
-guest.write_u32(0x105E2C80, value + 1)
-
-local bytes = guest.read(0x105E2C80, 16)
-guest.write(0x105E2C80, bytes)
-```
 
 | Function | Result |
 | --- | --- |
@@ -228,10 +223,10 @@ Use this only when game code must hold a pointer to bytes you own.
 Luau tables do not need it.
 
 ```luau
-local block = guest.alloc(256)
+local block = nsmbu.guest.alloc(256)
 if block then
-  guest.write_u32(block, 1)
-  guest.free(block)
+  nsmbu.guest.write_u32(block, 1)
+  nsmbu.guest.free(block)
 end
 ```
 
@@ -255,16 +250,13 @@ Prefer them over raw `nsmbu.guest` reads when they cover the job.
 Addresses stay inside the host.
 
 ```luau
-local level = require("nsmbu.level")
-local player = require("nsmbu.player")
-
-if level.active() then
-  level.set_time(999)
-  level.set_coins(0)
-  level.set_score(0)
+if nsmbu.level.active() then
+  nsmbu.level.set_time(999)
+  nsmbu.level.set_coins(0)
+  nsmbu.level.set_score(0)
 end
 
-local p = player(0)
+local p = nsmbu.player(0)
 if p and p:entered() then
   p:set_lives(99)
   p:set_mode(p:mode())
@@ -274,7 +266,7 @@ if p and p:entered() then
   end
 end
 
-for p in player.players() do
+for p in nsmbu.player.players() do
   local lives = p:lives()
 end
 ```
@@ -292,10 +284,10 @@ end
 
 ### `nsmbu.player`
 
-The module is callable: `player(index)` is the same as `player.get(index)`.
-`player.players()` returns an iterator over entered players only.
+The module is callable: `nsmbu.player(index)` is the same as `nsmbu.player.get(index)`.
+`nsmbu.player.players()` returns an iterator over entered players only.
 
-`player(index)` / `player.get(index)` returns a player handle for `index` `0` .. `3`, or `nil` when `FieldGame` is missing or the index is bad.
+`nsmbu.player(index)` / `nsmbu.player.get(index)` returns a player handle for `index` `0` .. `3`, or `nil` when `FieldGame` is missing or the index is bad.
 
 | Method | Result |
 | --- | --- |
@@ -313,15 +305,14 @@ The module is callable: `player(index)` is the same as `player.get(index)`.
 
 `p.index` is the slot number.
 Do not keep a player handle across frames and treat it as a stable guest pointer.
-Call `player` / `player.get` or `player.players` again each logic step.
+Call `nsmbu.player` / `nsmbu.player.get` or `nsmbu.player.players` again each logic step.
 
 ## Function addresses
 
 Proposal (phase 4 with hooks).
 
 ```luau
-local fn = require("nsmbu.fn")
-local addr = fn.dScnPly_Execute
+local addr = nsmbu.fn.dScnPly_Execute
 ```
 
 `nsmbu.fn` is a generated table.
@@ -342,19 +333,15 @@ The game cannot call a Luau function through a function pointer.
 Proposal (phase 4).
 
 ```luau
-local nsmbu = require("nsmbu")
-local fn = require("nsmbu.fn")
-local hooks = require("nsmbu.hooks")
-
-local id = hooks.hook(fn.dScnPly_Execute, "entry", function(ctx)
+local id = nsmbu.hooks.hook(nsmbu.fn.dScnPly_Execute, "entry", function(ctx)
   nsmbu.log_hex("r3", ctx.r3)
 end)
 
-hooks.hook(fn.dScnPly_Execute, "return", function(ctx)
+nsmbu.hooks.hook(nsmbu.fn.dScnPly_Execute, "return", function(ctx)
   ctx.r3 = 0
 end)
 
-hooks.unhook(id)
+nsmbu.hooks.unhook(id)
 ```
 
 | Function | Result |
@@ -395,8 +382,8 @@ An entry hook that only reads `ctx` must not set `skip`.
 ### `original`
 
 ```luau
-hooks.replace(fn.cLib_addCalc2, function(ctx)
-  hooks.original()
+nsmbu.hooks.replace(nsmbu.fn.cLib_addCalc2, function(ctx)
+  nsmbu.hooks.original()
   nsmbu.log_int("result", ctx.r3)
 end)
 ```
@@ -415,7 +402,7 @@ Entry and return hooks cannot call `original`.
 Proposal (phase 4).
 
 ```luau
-local ok, err = hooks.call(fn.cLib_addCalc2, {
+local ok, err = nsmbu.hooks.call(nsmbu.fn.cLib_addCalc2, {
   r3 = object,
   f1 = 1.0,
 })
@@ -430,7 +417,7 @@ Read them with a return hook, or with `original` inside a replacement.
 `call` is for a script that wants to invoke a game function from `on_logic_step` or from a hook.
 
 ```luau
-local result = hooks.call_result(fn.cLib_addCalc2, { r3 = object, f1 = 1.0 })
+local result = nsmbu.hooks.call_result(nsmbu.fn.cLib_addCalc2, { r3 = object, f1 = 1.0 })
 if result then
   nsmbu.log_int("r3", result.r3)
 end
@@ -452,17 +439,14 @@ Replace that function instead.
 Proposal.
 
 ```luau
-local nsmbu = require("nsmbu")
-local input = require("nsmbu.input")
-
-local pad = input()
-if pad.buttons & input.button.A ~= 0 then
+local pad = nsmbu.input()
+if pad.buttons & nsmbu.input.button.A ~= 0 then
   nsmbu.log("A")
 end
 ```
 
 The `nsmbu.input` module is callable.
-`input()` returns this table.
+`nsmbu.input()` returns this table.
 It does not change the pad.
 
 | Field | Type | Meaning |
@@ -473,7 +457,7 @@ It does not change the pad.
 | `touch` | boolean | Touch is down. |
 | `tx`, `ty` | number | Touch position. |
 
-`input.button` holds the mask constants.
+`nsmbu.input.button` holds the mask constants.
 
 | Name | Value |
 | --- | --- |
@@ -496,13 +480,13 @@ It does not change the pad.
 | `StickR` | `0x00020000` |
 
 ```luau
-local down = input.button.held("A")
+local down = nsmbu.input.button.held("A")
 ```
 
 | Function | Result |
 | --- | --- |
-| `button.held(name)` | `true` when that button is down. `name` is a key of `input.button` such as `"A"`. A bad name returns `nil` and a message. |
-| `button.pressed(name)` | `true` when the button is down now and was up on the previous `input()` or `button.pressed` sample in this package. |
+| `nsmbu.input.button.held(name)` | `true` when that button is down. `name` is a key of `nsmbu.input.button` such as `"A"`. A bad name returns `nil` and a message. |
+| `nsmbu.input.button.pressed(name)` | `true` when the button is down now and was up on the previous `nsmbu.input()` or `nsmbu.input.button.pressed` sample in this package. |
 
 This API does not inject buttons.
 It does not rumble the pad.
@@ -511,10 +495,6 @@ It does not rumble the pad.
 
 Proposal.
 
-```luau
-local data = require("nsmbu.data")
-```
-
 Files live in `ModManager/Data/<package id>/`.
 The name is one path segment.
 `/`, `\`, `..`, and an empty name fail.
@@ -522,9 +502,9 @@ The host rejects symlinks and Windows device names.
 One call moves at most 1 MiB.
 
 ```luau
-data.write("counter.txt", "3")
-local text = data.read("counter.txt")
-data.remove("counter.txt")
+nsmbu.data.write("counter.txt", "3")
+local text = nsmbu.data.read("counter.txt")
+nsmbu.data.remove("counter.txt")
 ```
 
 | Function | Result |
@@ -565,15 +545,11 @@ Prefer no coroutines in hooks.
 A status line from an option and player coins (phase 2):
 
 ```luau
-local nsmbu = require("nsmbu")
-local config = require("nsmbu.config")
-local player = require("nsmbu.player")
-
 function nsmbu.on_logic_step(step)
-  if step % config.number("every", 30) ~= 0 then
+  if step % nsmbu.config.number("every", 30) ~= 0 then
     return
   end
-  local p = player(0)
+  local p = nsmbu.player(0)
   if not p or not p:entered() then
     return
   end
@@ -582,23 +558,20 @@ function nsmbu.on_logic_step(step)
     nsmbu.log(err)
     return
   end
-  nsmbu.status(config.string("label", "Coins") .. ": " .. coins)
+  nsmbu.status(nsmbu.config.string("label", "Coins") .. ": " .. coins)
 end
 ```
 
 Count calls to a play-scene function, then leave the game body unchanged (proposal until phase 4):
 
 ```luau
-local nsmbu = require("nsmbu")
-local fn = require("nsmbu.fn")
-local hooks = require("nsmbu.hooks")
 local calls = 0
 
-hooks.hook(fn.dScnPly_Execute, "entry", function(ctx)
+nsmbu.hooks.hook(nsmbu.fn.dScnPly_Execute, "entry", function(ctx)
   calls = calls + 1
 end)
 
-hooks.hook(fn.dScnPly_Execute, "return", function(ctx)
+nsmbu.hooks.hook(nsmbu.fn.dScnPly_Execute, "return", function(ctx)
   if calls % 60 == 0 then
     nsmbu.log_int("play scene calls", calls)
   end
@@ -608,10 +581,8 @@ end)
 Save a counter beside the package (proposal until data files land):
 
 ```luau
-local data = require("nsmbu.data")
-
 function nsmbu.on_unload()
-  data.write("calls.txt", tostring(calls))
+  nsmbu.data.write("calls.txt", tostring(calls))
 end
 ```
 

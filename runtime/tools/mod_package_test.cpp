@@ -44,11 +44,13 @@ int main(int argc, char** argv) {
             return path.string();
         };
         assert(install(luau_pack("luau.status",
-            "local nsmbu=require(\"nsmbu\")\n"
-            "local config=require(\"nsmbu.config\")\n"
-            "assert(rawget(_G,\"nsmbu\")==nil)\n"
+            "assert(type(rawget(_G,\"nsmbu\"))==\"table\")\n"
+            "assert(nsmbu==require(\"nsmbu\"))\n"
+            "assert(nsmbu.config==require(\"nsmbu.config\"))\n"
+            "assert(type(nsmbu.level)==\"table\")\n"
+            "assert(type(nsmbu.player)==\"table\")\n"
             "function nsmbu.on_logic_step(step)\n"
-            "  nsmbu.status(config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
+            "  nsmbu.status(nsmbu.config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
             "end\n",
             ",\"options\":[{\"id\":\"label\",\"name\":\"Label\",\"type\":\"string\",\"default\":\"Hi\"}]"),error));
         assert(enable("luau.status",true,error));frame(1);
@@ -77,7 +79,7 @@ int main(int argc, char** argv) {
             "assert(os==nil)\n"
             "assert(type(coroutine)==\"table\")\n"
             "assert(type(utf8)==\"table\")\n"
-            "assert(rawget(_G,\"nsmbu\")==nil)\n"
+            "assert(type(rawget(_G,\"nsmbu\"))==\"table\")\n"
             "local nsmbu=require(\"nsmbu\")\n"
             "local guest=require(\"nsmbu.guest\")\n"
             "assert(type(guest.read_u32)==\"function\")\n"

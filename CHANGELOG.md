@@ -11,15 +11,17 @@ At release, move those notes to a version heading and leave Unreleased empty.
     The manifest `luau.entry` names the `.luau` entry, and `require` resolves `.luau` files.
 -   **Change**: The mod package kind is `luau` (manifest `"kind": "luau"` and a `"luau"` block).
 -   **Change**: The mod SDK in `modding/sdk/` is now Luau.
-    Each `nsmbu` module is a `.luau` file with `export type` definitions, `.luarc.json` (LuaLS) is replaced by `.luaurc` files, and the example mods gain Luau type annotations.
+    One definitions file, `modding/sdk/nsmbu.d.luau`, types the whole API.
+    Editors load it through `luau-lsp.types.definitionFiles` in `.vscode/settings.json`, so examples and mods need no per-mod stubs or `.luaurc` aliases.
+-   **Change**: Luau API exposes one global, `nsmbu`.
+    It holds the lifecycle fields, the log and status helpers, and one field per module (`nsmbu.config`, `nsmbu.guest`, `nsmbu.fn`, `nsmbu.hooks`, `nsmbu.input`, `nsmbu.data`, `nsmbu.level`, `nsmbu.player`, and the rest).
+    `require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables.
 -   **Add**: Mods tab checkbox **Hot reload Luau scripts**.
     When on, enabled script-only Luau packs unload and reload when `.luau` files change (debounced).
     Preference is stored as `hot_reload` in ModManager `profiles.json`.
     Packs with `content_dir` stay restart-required.
--   **Change**: Luau API has no `nsmbu` global.
-    Mods use `require("nsmbu")` and `require("nsmbu.*")` (config, guest, level, player, and stub modules for fn/hooks/input/data/enemy/boss/blocks/env).
--   **Change**: Luau module `nsmbu.hook` is renamed `nsmbu.hooks`, and option reads move from the `nsmbu.config` field to `require("nsmbu.config")`.
-    Luau type definitions for editors are split one module per file in `modding/sdk/`.
+-   **Change**: Luau module `nsmbu.hook` is renamed `nsmbu.hooks`, and option reads move to `nsmbu.config`.
+    The example mods use the global and gain Luau type annotations.
 -   **Add**: Luau high-level game helpers `nsmbu.level` and `nsmbu.player` (timer, course coins/score, lives, mode, coins, pos, speed, grounded, speed_y).
     Example `course-assists` uses them instead of raw guest offsets.
     Example `instant-retry` uses `pos` / `grounded` / `mode` instead of placeholder actor offsets.

@@ -1,20 +1,15 @@
-local nsmbu = require("nsmbu")
-local config = require("nsmbu.config")
-local level = require("nsmbu.level")
-local player = require("nsmbu.player")
-
 local held_mode: { [number]: number? } = {}
 local prev_speed_y: { [number]: number? } = {}
 local scaled_jump: { [number]: boolean? } = {}
 local last_parts: string = ""
 
 local function freeze_timer(): boolean
-  return level.set_time(500) == true
+  return nsmbu.level.set_time(500) == true
 end
 
 local function keep_lives(): boolean
   local ok = false
-  for p in player.players() do
+  for p in nsmbu.player.players() do
     local lives = p:lives()
     if lives and lives > 0 then
       if lives < 99 then
@@ -29,7 +24,7 @@ end
 local function keep_powerup(): boolean
   local ok = false
   for i = 0, 3 do
-    local p = player(i)
+    local p = nsmbu.player(i)
     if not p or not p:entered() then
       held_mode[i] = nil
     else
@@ -51,13 +46,13 @@ local function keep_powerup(): boolean
 end
 
 local function scale_jumps(): boolean
-  local scale = config.number("jump_scale", 1)
+  local scale = nsmbu.config.number("jump_scale", 1)
   if not scale or scale == 1 then
     return false
   end
   local ok = false
   for i = 0, 3 do
-    local p = player(i)
+    local p = nsmbu.player(i)
     local speed = p and p:speed_y()
     if not speed then
       prev_speed_y[i] = nil
@@ -82,16 +77,16 @@ end
 
 function nsmbu.on_logic_step(step: number)
   local parts: { string } = {}
-  if config.bool("infinite_time", false) and freeze_timer() then
+  if nsmbu.config.bool("infinite_time", false) and freeze_timer() then
     parts[#parts + 1] = "time"
   end
-  if config.bool("infinite_lives", false) and keep_lives() then
+  if nsmbu.config.bool("infinite_lives", false) and keep_lives() then
     parts[#parts + 1] = "lives"
   end
-  if config.bool("keep_powerup", false) and keep_powerup() then
+  if nsmbu.config.bool("keep_powerup", false) and keep_powerup() then
     parts[#parts + 1] = "power-up"
   end
-  local scale = config.number("jump_scale", 1)
+  local scale = nsmbu.config.number("jump_scale", 1)
   if scale and scale ~= 1 and scale_jumps() then
     parts[#parts + 1] = "jump x" .. tostring(scale)
   end

@@ -27,7 +27,7 @@ The work is split across files.
 | --- | --- |
 | `main.luau` | Hooks course enter and checkpoint touch, records safe spots each logic step. |
 | `death.luau` | Death entry hook, restore path, hold-to-quit. |
-| `player.luau` | High-level `require("nsmbu.player")` pose helpers, plus `player_clear_damage` when bound. |
+| `player.luau` | High-level `nsmbu.player` pose helpers, plus `player_clear_damage` when bound. |
 | `state.luau` | Mode machine, status line, data file. |
 
 Pose reads use `pos()`, `speed_y()`, `grounded()`, and `mode()`.

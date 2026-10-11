@@ -577,6 +577,31 @@ void set_empty_module(lua_State* L, const char* name) {
     set_loaded(L, name);
 }
 
+void attach_loaded(lua_State* L, const char* name, const char* field) {
+    if (push_loaded(L, name)) lua_setfield(L, -2, field);
+    else lua_pop(L, 1);
+}
+
+void install_global(lua_State* L) {
+    if (!push_loaded(L, "nsmbu")) {
+        lua_pop(L, 1);
+        return;
+    }
+    attach_loaded(L, "nsmbu.config", "config");
+    attach_loaded(L, "nsmbu.guest", "guest");
+    attach_loaded(L, "nsmbu.fn", "fn");
+    attach_loaded(L, "nsmbu.hooks", "hooks");
+    attach_loaded(L, "nsmbu.input", "input");
+    attach_loaded(L, "nsmbu.data", "data");
+    attach_loaded(L, "nsmbu.enemy", "enemy");
+    attach_loaded(L, "nsmbu.boss", "boss");
+    attach_loaded(L, "nsmbu.blocks", "blocks");
+    attach_loaded(L, "nsmbu.env", "env");
+    attach_loaded(L, "nsmbu.level", "level");
+    attach_loaded(L, "nsmbu.player", "player");
+    lua_setglobal(L, "nsmbu");
+}
+
 void install_host_modules(lua_State* L, Instance* inst) {
     lua_newtable(L);
 
@@ -732,6 +757,7 @@ std::unique_ptr<Instance> load(const LoadInfo& info) {
 
     sandbox(L, inst.get());
     install_host_modules(L, inst.get());
+    install_global(L);
 
     std::string err;
     fs::path entry_path;

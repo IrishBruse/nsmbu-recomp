@@ -1,6 +1,3 @@
-local nsmbu = require("nsmbu")
-local data = require("nsmbu.data")
-
 type Pose = {
 	x: number,
 	y: number,
@@ -10,19 +7,24 @@ type Pose = {
 	powerup: number,
 }
 
-local state: {
+type State = {
 	mode: string,
 	safe: Pose?,
 	retries: number,
 	quit_hold: number,
 	last_status: string,
-} = {
-	mode = "idle",
-	safe = nil,
-	retries = 0,
-	quit_hold = 0,
-	last_status = "",
+	reset_course: (self: State) -> (),
+	set_status: (self: State, text: string) -> (),
+	save_file: (self: State) -> (),
+	load_file: (self: State) -> (),
 }
+
+local state = {} :: State
+state.mode = "idle"
+state.safe = nil
+state.retries = 0
+state.quit_hold = 0
+state.last_status = ""
 
 function state.reset_course()
   state.mode = "idle"
@@ -42,13 +44,13 @@ end
 
 function state.save_file()
   if not state.safe then
-    if data.remove then
-      data.remove("softspot.txt")
+    if nsmbu.data.remove then
+      nsmbu.data.remove("softspot.txt")
     end
     return
   end
-  if not data.write then
-    nsmbu.log("data.write is not in nsmbu.data")
+  if not nsmbu.data.write then
+    nsmbu.log("nsmbu.data.write is not in nsmbu.data")
     return
   end
   local text = string.format(
@@ -60,18 +62,18 @@ function state.save_file()
     state.safe.powerup,
     state.retries
   )
-  local wrote, err = data.write("softspot.txt", text)
+  local wrote, err = nsmbu.data.write("softspot.txt", text)
   if not wrote then
     nsmbu.log(err)
   end
 end
 
 function state.load_file()
-  if not data.read then
-    nsmbu.log("data.read is not in nsmbu.data")
+  if not nsmbu.data.read then
+    nsmbu.log("nsmbu.data.read is not in nsmbu.data")
     return
   end
-  local text = data.read("softspot.txt")
+  local text = nsmbu.data.read("softspot.txt")
   if not text then
     return
   end
@@ -82,12 +84,12 @@ function state.load_file()
     return
   end
   state.safe = {
-    x = tonumber(x),
-    y = tonumber(y),
-    z = tonumber(z),
-    speed_y = tonumber(speed_y),
+    x = tonumber(x) or 0,
+    y = tonumber(y) or 0,
+    z = tonumber(z) or 0,
+    speed_y = tonumber(speed_y) or 0,
     grounded = true,
-    powerup = tonumber(powerup),
+    powerup = tonumber(powerup) or 0,
   }
   state.retries = tonumber(retries) or 0
 end

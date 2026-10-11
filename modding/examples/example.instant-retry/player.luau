@@ -1,7 +1,3 @@
-local fn = require("nsmbu.fn")
-local hooks = require("nsmbu.hooks")
-local api = require("nsmbu.player")
-
 export type Pose = {
 	x: number,
 	y: number,
@@ -14,15 +10,15 @@ export type Pose = {
 local player = {}
 
 local function need(name: string)
-  local addr = fn[name]
+  local addr = nsmbu.fn[name]
   if not addr then
     return nil, name .. " is not in nsmbu.fn"
   end
-  return addr
+  return addr, nil
 end
 
 function player.handle(): (any?, string?)
-  local p, err = api(0)
+  local p, err = nsmbu.player(0)
   if not p then
     return nil, err or "no player"
   end
@@ -105,7 +101,7 @@ function player.restore(pose: Pose, keep_powerup: boolean): (boolean?, string?)
   end
   local clear = need("player_clear_damage")
   if clear then
-    local called, call_err = hooks.call(clear, { r3 = actor })
+    local called, call_err = nsmbu.hooks.call(clear, { r3 = actor })
     if not called then
       return nil, call_err
     end

@@ -2,14 +2,13 @@
 
 These packages follow [docs/modding/api.md](../../docs/modding/api.md).
 Phase 2 loads `kind: luau` with logic-step, config, log, status, and guest memory (embedded Luau).
-There is no `nsmbu` global; scripts `require("nsmbu")` and related modules.
+The runtime exposes one global, `nsmbu`, with the helpers and one field per module.
 Hooks, `nsmbu.fn`, input, and data files are still proposal.
 They contain no game files.
 
-Luau type definitions live in [../sdk/](../sdk/), one `.luau` module per `require` name.
-`.luaurc` in this folder maps every `nsmbu.*` name to that folder for Luau tooling and sets the language mode.
-For typing inside a mod, `require("nsmbu")` is a host module that the editor resolves as `any`.
-The `.luaurc` aliases are for editor tooling only; scripts use the plain `require("nsmbu")` form, which is what the runtime resolves.
+Luau type definitions for the `nsmbu` API live in [../sdk/nsmbu.d.luau](../sdk/nsmbu.d.luau).
+The repository loads them with `luau-lsp.types.definitionFiles` in [`.vscode/settings.json`](../../.vscode/settings.json), so every example type-checks with no per-mod setup.
+The definitions are editor-only; the runtime builds the same table.
 
 | Mod | What it shows | Phase |
 | --- | --- | --- |
@@ -19,7 +18,7 @@ The `.luaurc` aliases are for editor tooling only; scripts use the plain `requir
 | `example.course-assists` | Course timer, lives, power-up, and jump assists through high-level APIs. | Phase 2 |
 | `example.instant-retry` | Soft checkpoint retry with state, restore calls, and hold-jump to quit. Inspired by Tsuru instant respawn. | Proposal (hooks, call) |
 
-`example.play-scene-ticker` and `example.smooth-step-replace` use `fn.dScnPly_Execute` and `fn.cLib_addCalc2` from `require("nsmbu.fn")`.
+`example.play-scene-ticker` and `example.smooth-step-replace` use `nsmbu.fn.dScnPly_Execute` and `nsmbu.fn.cLib_addCalc2`.
 Those names are the two entries in `runtime/guest/include/nsmbu/functions.h`.
 `example.instant-retry` needs more generated names; see that package README.
 

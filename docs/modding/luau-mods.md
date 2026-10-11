@@ -117,13 +117,13 @@ Phase 2 covers this table.
 
 | Native v1 | Luau |
 | --- | --- |
-| `on_frame(logic_step)` once per logic step, not per interpolated draw | `require("nsmbu").on_logic_step` |
-| `on_config_changed` | `nsmbu.on_config_changed()` after `require("nsmbu")` |
+| `on_frame(logic_step)` once per logic step, not per interpolated draw | `nsmbu.on_logic_step` |
+| `on_config_changed` | `nsmbu.on_config_changed()` |
 | `on_unload` | `nsmbu.on_unload()` |
-| `get_string` / `get_number` / `get_bool` | `require("nsmbu.config")` reads |
+| `get_string` / `get_number` / `get_bool` | `nsmbu.config` reads |
 | `log` and `status` | `nsmbu.log` and `nsmbu.status` |
-| `read_guest` / `write_guest`, big-endian, at most 1 MiB | `require("nsmbu.guest")` typed helpers |
-| Common course reads (timer, coins, score, lives, power-up, pos, speed, grounded) | `require("nsmbu.level")` and `require("nsmbu.player")` |
+| `read_guest` / `write_guest`, big-endian, at most 1 MiB | `nsmbu.guest` typed helpers |
+| Common course reads (timer, coins, score, lives, power-up, pos, speed, grounded) | `nsmbu.level` and `nsmbu.player` |
 | Options, dependencies, conflicts in the manifest | Same manifest fields |
 | Runs on the game thread | Same rule |
 
@@ -162,16 +162,16 @@ Phase 4 proposal (hooks and calls).
 
 | Guest v2 | Luau |
 | --- | --- |
-| Entry hook on a game function | `require("nsmbu.hooks").hook(address, "entry", fn)` |
-| Return hook | `hooks.hook(address, "return", fn)` |
-| Replace a function | `hooks.replace(address, fn)` |
-| Call the original body | `hooks.original()` from inside a replacement |
-| Call another game function | `hooks.call(address, args)` |
-| Read config at startup | `require("nsmbu.config")` (live; no restart for script options) |
+| Entry hook on a game function | `nsmbu.hooks.hook(address, "entry", fn)` |
+| Return hook | `nsmbu.hooks.hook(address, "return", fn)` |
+| Replace a function | `nsmbu.hooks.replace(address, fn)` |
+| Call the original body | `nsmbu.hooks.original()` from inside a replacement |
+| Call another game function | `nsmbu.hooks.call(address, args)` |
+| Read config at startup | `nsmbu.config` (live; no restart for script options) |
 | `nsmbu_log` and friends | `nsmbu.log` |
-| Per-mod guest heap | `guest.alloc` / `free`, or a Luau table when the data must not live in guest RAM |
-| `nsmbu_file_read` / `write` under `ModManager/Data/<id>` | `require("nsmbu.data")` |
-| `nsmbu_input_read` | `require("nsmbu.input")` |
+| Per-mod guest heap | `nsmbu.guest.alloc` / `free`, or a Luau table when the data must not live in guest RAM |
+| `nsmbu_file_read` / `write` under `ModManager/Data/<id>` | `nsmbu.data` |
+| `nsmbu_input_read` | `nsmbu.input` |
 | `nsmbu_logic_dt` / `nsmbu_logic_step` | `nsmbu.logic_dt()` and the step argument |
 | One replacement per function, many hooks | Same conflict rule |
 | Port hooks stay outside mod hooks | Same. Interpolation and true 60 run first. |
@@ -183,10 +183,10 @@ Luau can add `nsmbu.hud` later.
 It is not required to retire v2.
 
 Game calls use guest addresses from the public headers (`headers/`, and today `runtime/guest/include/nsmbu/functions.h`).
-The Luau runtime should ship a generated `require("nsmbu.fn")` table of those names.
+The Luau runtime should ship a generated `nsmbu.fn` table of those names.
 A mod can still pass a raw address.
 USA addresses are the authoring target.
-The European build map in SDK v2 (`tools/recomp/builds`) must still translate hook targets and `hooks.call` targets.
+The European build map in SDK v2 (`tools/recomp/builds`) must still translate hook targets and `nsmbu.hooks.call` targets.
 Object field offsets are not translated.
 That limit is the same as in SDK v2.
 
@@ -241,10 +241,6 @@ The address is a placeholder.
 A real mod uses a named field from the generated address table.
 
 ```luau
-local nsmbu = require("nsmbu")
-local config = require("nsmbu.config")
-local guest = require("nsmbu.guest")
-local fn = require("nsmbu.fn")
 local step = 0
 
 function nsmbu.on_logic_step(logic_step)
@@ -252,8 +248,8 @@ function nsmbu.on_logic_step(logic_step)
   if step % 30 ~= 0 then
     return
   end
-  local coins = guest.read_u32(fn.example_coin_count)
-  local prefix = config.string("label", "Coins")
+  local coins = nsmbu.guest.read_u32(nsmbu.fn.example_coin_count)
+  local prefix = nsmbu.config.string("label", "Coins")
   nsmbu.status(prefix .. ": " .. tostring(coins))
 end
 ```
@@ -261,21 +257,18 @@ end
 A hook that replaces the guest `cLib_addCalc2` example looks like this.
 The address is `0200ED84` (`NSMBU_ADDR_cLib_addCalc2`).
 The body is illustrative.
-`fn.cLib_addCalc2` is a generated name.
+`nsmbu.fn.cLib_addCalc2` is a generated name.
 It exists only when the header export includes that function.
 
 ```luau
-local hooks = require("nsmbu.hooks")
-local fn = require("nsmbu.fn")
-
-hooks.replace(fn.cLib_addCalc2, function(ctx)
-  hooks.original()
+nsmbu.hooks.replace(nsmbu.fn.cLib_addCalc2, function(ctx)
+  nsmbu.hooks.original()
 end)
 ```
 
 `ctx` holds r3–r10 and f1–f8.
 A return hook sees those registers after the original function.
-A replacement that does not call `hooks.original` skips the game body.
+A replacement that does not call `nsmbu.hooks.original` skips the game body.
 The port's own hooks in `hooks*.txt` stay outside this call.
 
 ### Files the package may contain
