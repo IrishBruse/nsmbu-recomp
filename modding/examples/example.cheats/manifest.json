@@ -1,10 +1,10 @@
 {
   "format_version": 2,
-  "id": "example.course-assists",
-  "name": "Course assists",
+  "id": "example.cheats",
+  "name": "Cheats",
   "version": "0.1.0",
   "game_id": "nsmbu-usa",
-  "description": "Course assists via guest memory: unlimited time, unlimited lives, a higher jump, and keeping the current power-up.",
+  "description": "Cheats via guest memory: unlimited time, unlimited lives, a higher jump, and keeping the current power-up.",
   "kind": "luau",
   "luau": {
     "api_version": 1,

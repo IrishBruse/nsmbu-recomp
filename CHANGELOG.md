@@ -25,7 +25,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Change**: Luau module `nsmbu.hook` is renamed `nsmbu.hooks`, and option reads move to `nsmbu.config`.
     The example mods use the global and gain Luau type annotations.
 -   **Add**: Luau high-level game helpers `nsmbu.level` and `nsmbu.player` (timer, course coins/score, lives, mode, coins, pos, speed, grounded, speed_y).
-    Example `course-assists` uses them instead of raw guest offsets.
+    Example `cheats` uses them instead of raw guest offsets.
     Example `instant-retry` uses `pos` / `grounded` / `mode` instead of placeholder actor offsets.
 -   **Fix**: The high-level game helpers map their guest data addresses through `GD` so portable builds remap them.
 -   **Fix**: The hot reload scan no longer runs every logic step and no longer canonicalizes each file path.
