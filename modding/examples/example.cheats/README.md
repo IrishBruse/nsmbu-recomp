@@ -1,4 +1,4 @@
-# Course assists
+# Cheats
 
 Phase 2 Luau package for common NSMBU course assists.
 It uses the high-level `nsmbu.level` and `nsmbu.player` APIs each logic step.

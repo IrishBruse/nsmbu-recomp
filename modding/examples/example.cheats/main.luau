@@ -7,7 +7,7 @@ local prev_speed_y: { [number]: number? } = {}
 local scaled_jump: { [number]: boolean? } = {}
 
 local function freeze_timer()
-  level.set_time(400)
+  level.set_time(999)
 end
 
 local function keep_lives()
