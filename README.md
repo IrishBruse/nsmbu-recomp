@@ -13,7 +13,7 @@ You supply the disc image, the keys, and the game files.
 
 ## Status
 
-In 0.2.0 the World 1-1 crash is fixed; World 1-1 through 1-3 are playable with low performance.
+In 0.3.0 World 1 are playable so far not fully tested yet and performance is ~60fps with some drops.
 
 ## Install
 

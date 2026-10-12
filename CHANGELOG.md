@@ -5,102 +5,29 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
--   **Add**: Runtime level editing for Luau mods: `nsmbu.level.actors()` lists the live actor cache with handles for profile id, position, speed, scale, params, and delete, and `nsmbu.level.spawn(profile_id, x, y, z, options?)` builds an `ActorCreateParam` and calls `ActorMgr::createLater` on the game thread, so mods spawn objects next to the player with no restart.
-    New example package `example.level-editor` spawns the selected coin, power-up, goomba, or star and can clear actors of that profile.
--   **Change**: Remove the experimental true 60 fps mode, the key 7 toggle, the menu entry, and `NSMBU_TEST_ORIGIN_LOAD`.
-    The interpolation options stay 60 fps (off), 120 fps, and 240 fps.
--   **Change**: Remove the 30 fps option from `tools/bench/run_bench.py` (`--fps 60|120|240`, default 60) and the medli/regional scenario runs.
--   **Change**: The settings overlay perf HUD draws its secondary text in white instead of disabled gray.
--   **Change**: The settings overlay controller navigation and stick bindings apply the stick dead zone from the Controls settings, like the in-game controller input does.
-    Games and tools: `input_map::deadzone_values` applies it to the raw per-pad values.
+## 0.3.0
 
--   **Change**: Guest texture decode (Vulkan) takes a fast path for `TM_2D_TILED_THIN1` and linear-aligned surfaces, using cachable micro-tile offsets instead of a per-texel address call, and re-uploads only the mip levels whose content hash changed.
-    A stage that rewrote two CPU textures each frame runs at a locked 60 fps now (before: 46-52 swaps/s with a 9.4 ms/frame draw op); render-thread CPU dropped from 9.97 to 6.6 ms/frame.
-    `NSMBU_DECODE_CHECK=1` compares both decoders bit for bit and aborts on a mismatch, and `NSMBU_UPLOAD_PROFILE=1` lists the surfaces that get re-uploaded most.
--   **Change**: Full save states save and restore guest memory in parallel: the capture walk, the restore walk and the load-time decompression share one worker pool, and Linux now runs the same `mincore` page tracking that macOS uses, so untouched backings stay out of the state file.
-    Loading slot 3 drops the restore from 262 ms to 70-85 ms; saves capture without the per-chunk syscall overhead.
-
--   **Change**: The performance overlay has a "Performance overlay detail (lag breakdown)" checkbox next to the overlay switch.
-    With it on, the overlay shows a lag breakdown: bar rows for GPU, renderer CPU, vsync present, game-to-render waits, write-back reads, and renderer idle, sorted by cost, with the main cause highlighted.
--   **Change**: Example mods bind the `nsmbu` module tables once at the top of the script (`const config = nsmbu.config`, `const player = nsmbu.player`, and so on) and call the aliases in the body.
--   **Change**: Mod scripts run on Luau instead of LuaJIT (embedded under `runtime/third_party/luau/`).
-    Scripts keep the Lua 5.1 syntax and gain `utf8`; LuaJIT's `bit` library becomes `bit32`.
--   **Change**: Luau mod scripts use the `.luau` extension (`main.luau` and sibling modules).
-    The manifest `luau.entry` names the `.luau` entry, and `require` resolves `.luau` files.
--   **Change**: The mod package kind is `luau` (manifest `"kind": "luau"` and a `"luau"` block).
--   **Change**: The mod SDK in `modding/sdk/` is now Luau.
-    One definitions file, `modding/sdk/nsmbu.d.luau`, types the whole API.
--   **Change**: Luau lifecycle callbacks register with typed fields `nsmbu.on_logic_step(cb)`, `nsmbu.on_config_changed(cb)`, and `nsmbu.on_unload(cb)` (one callback per registration; `nsmbu.unlisten(id)` removes one).
-    The string-based `nsmbu.listen(event, callback)` form is gone.
--   **Change**: Luau API exposes one global, `nsmbu`.
-    It holds the lifecycle register, the log and status helpers, and one field per module (`nsmbu.config`, `nsmbu.guest`, `nsmbu.fn`, `nsmbu.hooks`, `nsmbu.input`, `nsmbu.data`, `nsmbu.level`, `nsmbu.player`, and the rest).
-    `require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables.
--   **Add**: Mods tab checkbox **Hot reload Luau scripts**.
-    When on, enabled script-only Luau packs unload and reload when `.luau` files change (debounced).
-    Preference is stored as `hot_reload` in ModManager `profiles.json`.
-    Packs with `content_dir` stay restart-required.
--   **Change**: Luau module `nsmbu.hook` is renamed `nsmbu.hooks`, and option reads move to `nsmbu.config`.
-    The example mods use the global and gain Luau type annotations.
--   **Add**: Luau high-level game helpers `nsmbu.level` and `nsmbu.player` (timer, course coins/score, lives, mode, coins, pos, speed, grounded, speed_y).
-    Example `cheats` uses them instead of raw guest offsets.
-    Example `instant-retry` uses `pos` / `grounded` / `mode` instead of placeholder actor offsets.
--   **Fix**: The high-level game helpers map their guest data addresses through `GD` so portable builds remap them.
--   **Fix**: The hot reload scan no longer runs every logic step and no longer canonicalizes each file path.
-    It checks a few times per second, so enabled Luau packs do not cost frame time.
--   **Fix**: Luau examples tolerate the stub `nsmbu.data` and `nsmbu.hooks` modules.
-    `example.instant-retry` and `example.play-scene-ticker` log a missing module instead of raising on load.
--   **Fix**: `release_sdk_package` and the release packager tolerate a missing `tools/recomp/builds` maps directory (USA-only; empty dirs are not in git).
--   **Change**: Settings overlay opens with `` ` `` or F12 (not F1).
-    F1–F5 load save-state slots; Shift+F1–F5 still save.
-    Frame capture stays on P.
--   **Change**: Recompiler codegen passes from [ZeldaWWHDRecomp#83](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/83) by depende3000 (SwitchWakerHD): CR liveness, guest registers in C locals, single-precision `round25` elision, cheaper float compares / mfcr / paired-single paths.
-    Off switches use `NSMBU_RECOMP_*` (`NSMBU_RECOMP_PLAIN=1` restores the plain form).
--   **Fix**: Save-state build identity on Linux reads `/proc/self/exe` (the running image) so a rebuild that replaces `build/nsmbu` no longer drops state compatibility.
--   **Add**: Settings overlay (F1) Audio tab: mute, volume, and TV / GamePad / Auto output.
-    Choices are saved in `settings.ini`.
-    `NSMBU_NO_AUDIO`, `NSMBU_AUDIO_VOLUME`, and `NSMBU_AUDIO_OUTPUT` still override for one start (tools and benches).
--   **Change**: `just run` no longer sets `NSMBU_NO_AUDIO=1`.
-    Mute from the Audio tab instead.
--   **Change**: Every `just` recipe sets `NSMBU_USER_DIR` to gitignored `user/` (settings, states, mods, shader cache).
-    `just launch` / `just run` / `just profile` also pass `--save user/save` (migrating a top-level `save/` once).
-    Portable installer releases still use `data/user` and `data/save` (`portable.txt` wins over `NSMBU_USER_DIR`).
-    Setup can import from `<repo>/user`.
--   **Change**: Example packages are linked into the dev user dir instead of copied.
-    `just launch` / `just run` / `just profile` point `user/ModManager/Mods` at `modding/examples/`.
-    Example folders are named by package id (`example.*`).
-    Skip with `NSMBU_NO_EXAMPLE_MODS=1` or when `NSMBU_MOD_MANAGER_DIR` is set.
-    A non-empty real `Mods` folder keeps the old copy behavior.
--   **Change**: Example Luau packages and Luau type definitions live under `modding/examples/` and `modding/sdk/` (moved from the former `examples/` SDK folder).
--   **Change**: Luau type definitions in `modding/sdk/` drop the `.d` suffix.
--   **Remove**: `just build` no longer links `compile_commands.json` at the repository root.
--   **Fix**: The build registry uses NSMBU USA title `0005000010101d00` (1.3.0 / title version 64) and its RPX SHA-256.
-    Wind Waker HD title ids and hashes are removed.
-    The leftover Europe address map is removed; this port is USA-only for now.
--   **Add**: `just extract` and the installer require the USA 1.3.0 update (title version 64).
-    Source builds use `game/update/`.
-    The installer looks for `update/` next to the disc image (or `--update-dir` / the Keys screen), checks it, applies it after extract, and verifies the merged dump against the known USA SHA-256.
--   **Add**: Luau mod packages (`kind: luau`) with embedded Luau, logic-step callbacks, and the phase-2 host API (config, log, status, guest memory).
-    The mod manager accepts format 1 or 2, scans for forbidden binaries/shaders, and loads script-only Luau packages live each logic step.
-    Package tests cover load, options, fault isolation, sandbox require, guest memory, and hot reload (`mod_package_test --luau`).
--   **Add**: Luau phase 3 content moves: optional `content_dir` on `kind: luau` packages (content-only packages are valid; restart when `content_dir` is set).
-    The importer emits `kind: luau`.
-    `kind: content` remains a one-release read-only alias and migrates to `luau` on scan.
--   **Add**: Example `course-assists` Luau package for unlimited time/lives, keep power-up, and jump scale.
--   **Fix**: Luau mod logic steps run from the GX2 swap path so script packages load without a recomp hook rebuild.
--   **Docs**: The README records the last ZeldaWWHDRecomp merge commit.
-    The upstream-merge skill updates that note.
--   **Remove**: Guest Mod SDK v2 and Native SDK v1 are gone (`examples/guest-mods/`, `tools/guestmod/`, the runtime guest loader, `code_mods`, `--mod-hooks` emission, the `guestmods` CI workflow, and the Native SDK v1 C ABI path).
-    The mod manager rejects guest and native packages.
--   **Docs**: Live modding docs live under `docs/modding/` (manager, content via Luau `content_dir`, cemu, Luau phases 2–3).
--   **Docs**: Remove the deprecated Mod SDK v2 and Native SDK v1 archives and every reference to them.
--   **Docs**: Remove the archived Wind Waker HD readme (`docs/upstream-wwhd-readme.md`) and every reference to it.
--   **Remove**: `kind: settings` packages and the built-in settings manager stub are gone.
--   **Fix**: The overworld path seam is fixed.
--   **Fix**: `hooks.txt` uses USA 1.3.0 entries: frame-allocator wait (`02ACD218`), null-model draw-queue filter (`024D752C`), and DistantViewMgr flicker (`@022A79C4`).
-    Wind Waker HD leftover entry points are removed so `just recomp` accepts `red-pro2.rpx`.
--   **Fix**: Boot no longer dies on `bctr` to `0x10` when the frame allocator grows before its ring at `this+0x4A8` exists.
--   **Fix**: Draw queues skip items with a null model at `node+0x28` so a failed Mii/model setup does not SIGSEGV at guest `0x18`.
-
+-   **Add**: Luau mod packages: mods are Luau scripts (`kind: luau`) with the host API, logic-step callbacks, optional `content_dir` content, and hot reload.
+    The mod SDK, type definitions, and example packages live under `modding/`.
+    The old guest and native SDKs are removed.
+-   **Add**: Runtime level editing for Luau mods: `nsmbu.level.actors()` lists live actors and `nsmbu.level.spawn(...)` spawns them.
+    Example `example.level-editor` shows both.
+-   **Add**: High-level game helpers `nsmbu.level` and `nsmbu.player` for cheats and game state.
+-   **Add**: Settings overlay Audio tab: mute, volume, and TV / GamePad / Auto output, saved in `settings.ini`.
+-   **Add**: Performance overlay detail (lag breakdown) shows bar rows for GPU, renderer CPU, vsync, waits, and idle, sorted by cost.
+-   **Change**: Faster guest texture decode (Vulkan) and parallel save-state memory capture and restore.
+    Loading slot 3 drops from 262 ms to 70-85 ms.
+-   **Change**: Faster recompiler codegen from [ZeldaWWHDRecomp#83](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/83) by depende3000 (SwitchWakerHD).
+    Off switches use `NSMBU_RECOMP_*`.
+-   **Change**: The settings overlay opens with `` ` `` or F12.
+    F1-F5 load save-state slots.
+-   **Change**: Every `just` recipe puts settings, states, mods, and shader cache in gitignored `user/`.
+    Example mods are linked into the dev user dir, not copied.
+    `just run` no longer mutes audio.
+-   **Fix**: The port is USA-only now: build registry, `hooks.txt`, `just extract`, and the installer all use the USA 1.3.0 update.
+    Wind Waker HD leftovers are removed.
+-   **Fix**: Boot and draw-queue crashes are fixed, and the overworld path seam is fixed.
+-   **Docs**: Live modding docs live under `docs/modding/`.
 
 ## 0.2.0
 
