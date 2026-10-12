@@ -329,6 +329,7 @@ void read_controller() {
         return;
     }
     input::host_controller_values(U.values);
+    input_map::deadzone_values(input_map::current(), U.values);
     using namespace input_map;
     const double t = now_s();
 
@@ -1489,6 +1490,7 @@ void perf_window(bool menu_open) {
     ImGuiWindowFlags fl = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
                           ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoInputs;
     if (ImGui::Begin("##perf", nullptr, fl)) {
+        ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
         ImGui::Text("%.0f fps   %.1f ms (worst %.1f)", U.fps, sum / 120.0f, worst);
         {
 
@@ -1536,6 +1538,7 @@ void perf_window(bool menu_open) {
             ImGui::TextDisabled("renders %.2f ops ms/frame, %.1f MiB uploads/frame, %.0f logic steps/s",
                                 b.renderCpuMs, b.uploadMiB, b.logicRate);
         }
+        ImGui::PopStyleColor();
     }
     ImGui::End();
     (void)menu_open;

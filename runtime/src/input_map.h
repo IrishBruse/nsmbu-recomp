@@ -70,6 +70,7 @@ const char* pad_short_label(int p);
 
 input::PadState keyboard_state(const Mapping& m, const bool keys[256]);
 input::PadState controller_state(const Mapping& m, const float values[kPadCount]);
+void deadzone_values(const Mapping& m, float values[kPadCount]);
 
 std::string to_json(const Mapping& m);
 bool from_json(const std::string& text, Mapping& out, std::string* error = nullptr);

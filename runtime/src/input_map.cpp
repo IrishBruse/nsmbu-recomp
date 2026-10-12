@@ -145,7 +145,6 @@ const char* reserved_key(int code) {
     case kVK_ANSI_N: return "Graphics › Anisotropic filtering";
     case kVK_ANSI_R: return "Graphics › Internal resolution";
     case kVK_ANSI_6: return "Graphics › 60 fps: frame interpolation";
-    case kVK_ANSI_7: return "Graphics › 60 fps: true 60";
     case kVK_ANSI_8: return "Graphics › FXAA";
     case kVK_ANSI_9: return "Graphics › Record sound activity";
     case kVK_ANSI_P: return "Graphics › Capture frame";
@@ -320,6 +319,20 @@ input::PadState controller_state(const Mapping& m, const float values[kPadCount]
     apply_deadzone(s.rx, s.ry, dz);
     if (m.invert_camera_y) s.ry = -s.ry;
     return s;
+}
+
+void deadzone_values(const Mapping& m, float values[kPadCount]) {
+    const float dz = std::clamp(m.deadzone, 0.0f, 0.9f);
+    if (dz <= 0) return;
+    auto pair = [&](float x, float y, int up, int down, int left, int right) {
+        apply_deadzone(x, y, dz);
+        values[right] = std::max(x, 0.0f);
+        values[left] = std::max(-x, 0.0f);
+        values[down] = std::max(y, 0.0f);
+        values[up] = std::max(-y, 0.0f);
+    };
+    pair(values[kPadLSRight] - values[kPadLSLeft], values[kPadLSDown] - values[kPadLSUp], kPadLSUp, kPadLSDown, kPadLSLeft, kPadLSRight);
+    pair(values[kPadRSRight] - values[kPadRSLeft], values[kPadRSDown] - values[kPadRSUp], kPadRSUp, kPadRSDown, kPadRSLeft, kPadRSRight);
 }
 
 namespace {
