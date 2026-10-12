@@ -396,8 +396,10 @@ Surface* sampled_texture(const uint32_t* w, bool isDepthSampler) {
     return s && s->gpuWritten && d.mips > 1 && !d.isDepth ? with_mip_chain(s, d) : s;
 }
 
-static void decode_level(Surface* s, uint32_t level, uint32_t base, std::vector<uint8_t>& out, uint32_t& outW,
-                         uint32_t& outH, uint32_t& outSlices) {
+static uint32_t mip_base(Surface* s, uint32_t level);
+
+static void decode_level_slow(Surface* s, uint32_t level, uint32_t base, std::vector<uint8_t>& out, uint32_t& outW,
+                              uint32_t& outH, uint32_t& outSlices) {
     const FormatInfo& f = s->fmt;
     uint32_t w = std::max(s->width >> level, 1u), h = std::max(s->height >> level, 1u);
     uint32_t slices = s->dim == (uint32_t)Latte::E_DIM::DIM_3D ? std::max(s->slices >> level, 1u) : s->slices;
@@ -439,10 +441,151 @@ static void decode_level(Surface* s, uint32_t level, uint32_t base, std::vector<
     }
 }
 
+static bool decode_level_fast(Surface* s, uint32_t level, uint32_t base, uint8_t* out, uint32_t bw, uint32_t bh, uint32_t slices) {
+    const FormatInfo& f = s->fmt;
+    if (!(f.convert == Convert::NONE && f.hostBytesPerBlock == f.bytesPerBlock && f.bytesPerBlock && f.bytesPerBlock <= 8))
+        return false;
+    if (s->isDepth) return false;
+    if (f.compressed) return false;
+    const auto& info = guest_info(s, level);
+    uint32_t pitch = level == 0 && s->pitch ? s->pitch : info.pitch, height = info.height;
+    auto tm = (Latte::E_HWTILEMODE)info.hwTileMode;
+    uint32_t bpp = info.bpp;
+    if (bpp % 8 || bpp > 256 || !bpp) return false;
+    const uint32_t bytes = bpp / 8;
+    uint32_t pipeSwizzle = (s->swizzle >> 8) & 1, bankSwizzle = (s->swizzle >> 9) & 3;
+    const uint32_t host = f.hostBytesPerBlock;
+    if (host != bytes) return false;
+    const uint8_t* src = mem::ptr(base);
+    LatteAddrLib::CachedSurfaceAddrInfo ci;
+    if (tm == Latte::E_HWTILEMODE::TM_2D_TILED_THIN1) {
+        const uint16_t* table = ci.microTilePixelIndexTable;
+        const uint32_t shuffle = bpp > 32;
+        for (uint32_t z = 0; z < slices; z++) {
+            LatteAddrLib::SetupCachedSurfaceAddrInfo(&ci, z, 0, bpp, pitch, height, slices, 1, tm, false, pipeSwizzle, bankSwizzle);
+            uint8_t* dst = out + (size_t)z * bh * bw * host;
+            const uint32_t bxEnd = bw & ~7u, byEnd = bh & ~7u;
+            for (uint32_t by = 0; by < byEnd; by += 8) {
+                for (uint32_t bx = 0; bx < bxEnd; bx += 8) {
+                    uint32_t tileBase = LatteAddrLib::ComputeSurfaceAddrFromCoordMacroTiledCached(bx, by, &ci);
+                    const uint8_t* srcTile = src + tileBase;
+                    for (uint32_t ry = 0; ry < 8; ry++) {
+                        uint8_t* dstRow = dst + ((size_t)(by + ry) * bw + bx) * host;
+                        const uint16_t* pixel = table + (ry << 3) + ((z & 7) << 6);
+                        for (uint32_t rx = 0; rx < 8; rx++) {
+                            uint32_t elem = (uint32_t)pixel[rx] * bytes;
+                            if (shuffle) elem = (elem & 0xFF) | ((elem & ~0xFFu) << 3);
+                            memcpy(dstRow, srcTile + elem, host);
+                            dstRow += host;
+                        }
+                    }
+                }
+                for (uint32_t y = by; y < by + 8; y++) {
+                    uint8_t* dstRow = dst + (size_t)y * bw * host;
+                    for (uint32_t x = bxEnd; x < bw; x++) {
+                        uint32_t off = LatteAddrLib::ComputeSurfaceAddrFromCoordMacroTiledCached(x, y, &ci);
+                        memcpy(dstRow + (size_t)x * host, src + off, host);
+                    }
+                }
+            }
+            for (uint32_t y = byEnd; y < bh; y++) {
+                uint8_t* dstRow = dst + (size_t)y * bw * host;
+                for (uint32_t x = 0; x < bw; x++) {
+                    uint32_t off = LatteAddrLib::ComputeSurfaceAddrFromCoordMacroTiledCached(x, y, &ci);
+                    memcpy(dstRow + (size_t)x * host, src + off, host);
+                }
+            }
+        }
+        return true;
+    }
+    if (tm == Latte::E_HWTILEMODE::TM_LINEAR_ALIGNED) {
+        for (uint32_t z = 0; z < slices; z++) {
+            const uint8_t* srcSlice = src + (uint32_t)(((uint64)z * height * pitch * bpp) / 8);
+            uint8_t* dst = out + (size_t)z * bh * bw * host;
+            for (uint32_t y = 0; y < bh; y++)
+                memcpy(dst + (size_t)y * bw * host, srcSlice + (size_t)y * pitch * host, (size_t)bw * host);
+        }
+        return true;
+    }
+    return false;
+}
+
+static void decode_level(Surface* s, uint32_t level, uint32_t base, std::vector<uint8_t>& out, uint32_t& outW,
+                         uint32_t& outH, uint32_t& outSlices) {
+    const FormatInfo& f = s->fmt;
+    uint32_t w = std::max(s->width >> level, 1u), h = std::max(s->height >> level, 1u);
+    uint32_t slices = s->dim == (uint32_t)Latte::E_DIM::DIM_3D ? std::max(s->slices >> level, 1u) : s->slices;
+    uint32_t bw = f.compressed ? (w + 3) / 4 : w, bh = f.compressed ? (h + 3) / 4 : h;
+    outW = w;
+    outH = h;
+    outSlices = slices;
+    out.assign((size_t)bw * bh * slices * f.hostBytesPerBlock, 0);
+    static const bool checkLevel = [] { const char* e = getenv("NSMBU_DECODE_CHECK"); return e && *e == '1'; }();
+    if (!checkLevel) {
+        if (decode_level_fast(s, level, base, out.data(), bw, bh, slices)) return;
+        decode_level_slow(s, level, base, out, outW, outH, outSlices);
+        return;
+    }
+    std::vector<uint8_t> slow;
+    bool fast = decode_level_fast(s, level, base, out.data(), bw, bh, slices);
+    if (!fast) {
+        decode_level_slow(s, level, base, out, outW, outH, outSlices);
+        return;
+    }
+    uint32_t sw0=0,sh0=0,ss0=0;
+    decode_level_slow(s, level, base, slow, sw0, sh0, ss0);
+    if (slow != out) {
+        size_t diffs = 0, first = SIZE_MAX;
+        for (size_t i = 0; i < slow.size() && i < out.size(); i++)
+            if (slow[i] != out[i]) { diffs++; if (first == SIZE_MAX) first = i; }
+        char dump[280];
+        int kd = 0;
+        for (size_t i = first; i < slow.size() && kd < 120; i++) {
+            if (slow[i] != out[i]) kd += snprintf(dump + kd, sizeof dump - kd, " %zu(S%02X/F%02X)", i, slow[i], out[i]);
+        }
+        dump[kd] = 0;
+        LOG("[decode check] MISMATCH %08X level %u %ux%u fmt %02X tile %u: fast %d, %zu bytes differ, first at %zu:%s",
+            s->addr, level, w, h, s->format, s->tileMode, (int)fast, diffs, first, dump);
+        throw std::runtime_error("fast texture decode differs from the slow decoder");
+    }
+}
+
+
+
 static uint32_t mip_base(Surface* s, uint32_t level);
 
 static SparseHashStats sparseStats;
 SparseHashStats sparse_hash_stats() { return sparseStats; }
+
+namespace {
+			struct UploadProbe {
+  uint64_t uploads = 0;
+  std::unordered_map<uint32_t, std::pair<uint64_t, uint64_t>> count;
+  std::unordered_map<uint32_t, bool> seen;
+  static bool enabled() { static const bool on = getenv("NSMBU_UPLOAD_PROFILE") != nullptr; return on; }
+  void record(const Surface* s, size_t bytes) {
+    ++uploads;
+    auto& e = count[s->addr & ~0x7FFull];
+    e.first++, e.second += bytes;
+    if (seen.emplace(s->addr, true).second) {
+      LOG("[upload profile] surface %08X %ux%ux%u mips %u fmt %02X tile %u size %.2f MiB gpuWritten %u",
+          s->addr, s->width, s->height, s->slices, s->mips, s->format, s->tileMode, bytes / 1048576.0, s->gpuWritten);
+    }
+    if (uploads % 300) return;
+    std::vector<std::pair<uint32_t, std::pair<uint64_t, uint64_t>>> v;
+    for (auto& [a, c] : count) v.push_back({a, c});
+    std::sort(v.begin(), v.end(), [](auto& a, auto& b) { return a.second.second > b.second.second; });
+    size_t n = std::min<size_t>(8, v.size());
+    std::string line;
+    for (size_t i = 0; i < n; i++)
+      line += std::to_string(v[i].first) + ": x" + std::to_string(v[i].second.first) + " "
+          + std::to_string(v[i].second.second / 1048576) + "MiB  ";
+    LOG("[upload profile] %u surfaces: %s", (unsigned)count.size(), line.c_str());
+  }
+};
+UploadProbe g_uploadProbe;
+}
+
 static uint64_t sparse_hash(Surface* s) {
     static const bool enabled = [] {
         const char* value = getenv("NSMBU_VK_SPARSE_HASH_MEMO");
@@ -1055,9 +1198,12 @@ void upload_surface(Surface* s) {
     }
     s->watched = true;
     ++g_stat_full_checks;
+    uint64_t hashes[16]{};
     uint64_t hash=1469598103934665603ull;
-    for(uint32_t level=0;level<levels;++level)
-        hash=(hash^content_hash(mem::ptr(ranges[level].first),size_t(ranges[level].second)))*1099511628211ull;
+    for(uint32_t level=0;level<levels;++level) {
+        hashes[level]=content_hash(mem::ptr(ranges[level].first),size_t(ranges[level].second));
+        hash=(hash^hashes[level])*1099511628211ull;
+    }
     if(!s->dirty&&hash==s->contentHash)return;
     const bool scaleGuest=s->imageType==VK_IMAGE_TYPE_2D&&s->mips==1&&(s->extent.width!=s->width||s->extent.height!=s->height);
     Surface guest;
@@ -1068,11 +1214,16 @@ void upload_surface(Surface* s) {
         create_surface_image(&guest,false);
         dst=&guest;
     }
+    size_t uploaded = 0;
     try {
         end_encoder();transition_image(dst,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_ACCESS_TRANSFER_WRITE_BIT);
         for(uint32_t level=0;level<s->mips;++level) {
+            const uint32_t hashBit=1u<<level;
+            bool hashMatched=!s->dirty&&s->mips<=16&&(s->levelHashValid&hashBit)&&s->levelHash[level]==hashes[level];
+            if(hashMatched)continue;
+            s->levelHash[level]=hashes[level];s->levelHashValid|=hashBit;
             std::vector<uint8_t> data;uint32_t w,h,slices;decode_level(s,level,mip_base(s,level),data,w,h,slices);
-            if (s->bcDecoded) { bc_decode_upload(dst,level,data,w,h,slices); continue; }
+            if (s->bcDecoded) { bc_decode_upload(dst,level,data,w,h,slices); uploaded+=data.size(); continue; }
             std::vector<VkBufferImageCopy> copies;std::vector<uint8_t> packed;
             bool threeD=dst->imageType==VK_IMAGE_TYPE_3D;
             uint32_t layers=threeD?1:slices;
@@ -1084,6 +1235,7 @@ void upload_surface(Surface* s) {
                 copies.push_back(depth);auto stencil=depth;stencil.bufferOffset=count*4;stencil.imageSubresource.aspectMask=VK_IMAGE_ASPECT_STENCIL_BIT;copies.push_back(stencil);
             } else {
                 packed=std::move(data);
+                uploaded+=packed.size();
                 VkBufferImageCopy copy{};copy.imageSubresource={dst->aspect,level,0,layers};copy.imageExtent={w,h,threeD?slices:1};copies.push_back(copy);
             }
             Buffer staging=create_buffer(packed.size(),VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -1101,6 +1253,7 @@ void upload_surface(Surface* s) {
     }
     if(scaleGuest) destroy_surface_image(&guest);
     s->contentHash=hash;s->writeSeq=next_write_seq();s->dirty=false;++g_stat_uploads;
+    if (g_uploadProbe.enabled()) g_uploadProbe.record(s, uploaded);
 }
 void clear_color(const uint32_t*,uint32_t cb,const float rgba[4]) {
     uint32_t first,num;auto* s=surface_from_color_buffer(cb,&first,&num);if(!s)return;

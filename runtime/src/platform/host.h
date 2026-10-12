@@ -117,14 +117,33 @@ inline bool memory_touched(void* p,size_t bytes) {
  ULONG_PTR count=n; DWORD granularity=0;
  if(GetWriteWatch(0,p,bytes,pages.data(),&count,&granularity)!=0)return true;
  return count!=0;
-#elif defined(__APPLE__)
+#else
  std::vector<char> pages((bytes+page_size()-1)/page_size());
- if(mincore(p,bytes,pages.data()))return true;
+#ifdef __APPLE__
+ char* vec=pages.data();
+#else
+ unsigned char* vec=reinterpret_cast<unsigned char*>(pages.data());
+#endif
+ if(mincore(p,bytes,vec))return true;
  for(auto page:pages)if(page!=0)return true;
  return false;
+#endif
+}
+inline bool memory_resident_supported() {
+#ifdef _WIN32
+ return false;
 #else
-
- (void)p;(void)bytes;return true;
+ static const bool on=getenv("NSMBU_STATE_RESIDENT_OFF")==nullptr;
+ return on;
+#endif
+}
+inline int memory_resident(void* p,size_t bytes,unsigned char* out) {
+#ifdef _WIN32
+ (void)p;(void)bytes;(void)out;return -1;
+#elif defined(__APPLE__)
+ return mincore(p,bytes,(char*)out);
+#else
+ return mincore(p,bytes,out);
 #endif
 }
 inline bool replace_file(const std::string& from,const std::string& to) {

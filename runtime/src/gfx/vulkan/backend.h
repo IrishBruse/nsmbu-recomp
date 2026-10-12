@@ -34,6 +34,7 @@ struct Surface {
  uint64_t writeSeq=0,contentHash=0,lastCheckedFrame=~0ull,sparseHash=0;
  bool formatViews=false;
  uint64_t writtenBackSeq=0;
+ uint64_t levelHash[16]{}; uint32_t levelHashValid=0;
 
  uint64_t watchStamp=0; bool watched=false;
  uint32_t dataSize=0; FormatInfo fmt;

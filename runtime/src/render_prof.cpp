@@ -108,10 +108,8 @@ void mark_slow(Phase p) {
 uint64_t op_begin(Op op) {
     if (!enabled()) return 0;
     W.opCount[op]++;
-    if ((op == kOpDraw || op == kOpRegs) && (++sampleCounter[op] & kSampleMask)) {
-        if (op == kOpDraw) g_draw_sampled = false;
-        return 0;
-    }
+    bool sampled = op == kOpDraw || !(++sampleCounter[op] & kSampleMask);
+    if (!sampled) return 0;
     uint64_t t = now_ns();
     if (op == kOpDraw) {
         g_draw_sampled = true;
@@ -299,8 +297,9 @@ void frame_end(bool hold) {
             ph += line;
             sum += ms;
         }
-        add("[prof] draw phases ms/frame (1 draw in %u sampled):%s; untracked %.2f; %.2f us/draw", kSampleMask + 1,
-            ph.c_str(), std::max(0.0, opMs(kOpDraw) - sum), opMs(kOpDraw) * 1e3 * frames / std::max<uint64_t>(1, W.opCount[kOpDraw]));
+        const unsigned long long opTotal = W.opCount[kOpDraw];
+        add("[prof] draw phases ms/frame (%llu of %llu draws sampled):%s; untracked %.2f; %.2f us/draw", opTotal,
+            opTotal, ph.c_str(), std::max(0.0, opMs(kOpDraw) - sum), opMs(kOpDraw) * 1e3 * frames / std::max<uint64_t>(1, W.opCount[kOpDraw]));
     }
     static const char* syncNames[kSyncs] = {"DrawDone", "CopySurface", "flip", "other"};
     double syncMs[kSyncs] = {}, syncPer[kSyncs] = {};

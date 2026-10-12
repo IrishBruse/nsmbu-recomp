@@ -33,6 +33,7 @@ extern "C" uint64_t g_shader_state_gen;
 using namespace Latte;
 namespace gfxvk {
 namespace {
+
 bool preparation_stats_enabled() {
   static const bool enabled=std::getenv("NSMBU_VK_STATS")!=nullptr;
   return enabled;

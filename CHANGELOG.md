@@ -5,6 +5,12 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: Guest texture decode (Vulkan) takes a fast path for `TM_2D_TILED_THIN1` and linear-aligned surfaces, using cachable micro-tile offsets instead of a per-texel address call, and re-uploads only the mip levels whose content hash changed.
+    A stage that rewrote two CPU textures each frame runs at a locked 60 fps now (before: 46-52 swaps/s with a 9.4 ms/frame draw op); render-thread CPU dropped from 9.97 to 6.6 ms/frame.
+    `NSMBU_DECODE_CHECK=1` compares both decoders bit for bit and aborts on a mismatch, and `NSMBU_UPLOAD_PROFILE=1` lists the surfaces that get re-uploaded most.
+-   **Change**: Full save states save and restore guest memory in parallel: the capture walk, the restore walk and the load-time decompression share one worker pool, and Linux now runs the same `mincore` page tracking that macOS uses, so untouched backings stay out of the state file.
+    Loading slot 3 drops the restore from 262 ms to 70-85 ms; saves capture without the per-chunk syscall overhead.
+
 -   **Change**: The performance overlay has a "Performance overlay detail (lag breakdown)" checkbox next to the overlay switch.
     With it on, the overlay shows a lag breakdown: bar rows for GPU, renderer CPU, vsync present, game-to-render waits, write-back reads, and renderer idle, sorted by cost, with the main cause highlighted.
 -   **Change**: Example mods bind the `nsmbu` module tables once at the top of the script (`const config = nsmbu.config`, `const player = nsmbu.player`, and so on) and call the aliases in the body.

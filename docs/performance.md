@@ -376,6 +376,34 @@ Ranked by expected payoff. Sample counts are from the 20 s run above.
    function call; compiling the trace check out of release builds saves a little. Keep
    `-ffp-contract=off` and the exact rounding: they are what makes the results correct.
 
+## CPU texture decode fast path and parallel save states (2026-10-12)
+
+`perf` (Linux, after `sysctl kernel.perf_event_paranoid=1`) on the slot 3 stage with all-draw phase
+sampling (`render_prof.cpp` now samples every draw op; regs keep the 1-in-64 mask) showed the GX2
+render thread burning ~45% of its samples in
+`LatteAddrLib::ComputeSurfaceAddrFromCoordMacroTiledCached` with ~13% in `gfxvk::upload_surface`
+plus xxHash and page faults. `NSMBU_UPLOAD_PROFILE=1` traced it to two CPU-written surfaces that the
+game rewrites every frame (2048x512 RGBA8, 4.0 MiB, and a 2048x512, 1.33 MiB mip chain,
+`TM_2D_TILED_THIN1`), so `decode_level` re-swizzled ~5.4 MiB per frame through the per-texel address
+math and the game paced at 46-52 logic steps/s.
+
+The Vulkan decode now has two fast paths in `decode_level_fast` (surfaces.cpp), ported from Cemu's
+`AddrLibFastDecode.h` pattern. `TM_2D_TILED_THIN1` maps each 8x8 micro tile with one cached
+`ComputeSurfaceAddrFromCoordMacroTiledCached` call for the tile base and the precomputed
+`microTilePixelIndexTable` for the in-tile permutation (with the >> 3 in-tile scramble for bpp > 32);
+`TM_LINEAR_ALIGNED` walks rows directly. mip levels whose xxHash matches the stored per-level hash are
+not re-uploaded, so a mip chain that only changes its top level skips the other eleven levels.
+`NSMBU_DECODE_CHECK=1` runs both decoders and aborts on any difference; it stayed silent over a full
+21 s in-stage run, and `--renderer-smoke` plus the 49 ctest suites pass.
+
+Slot 3 in stage (Linux, 16 cores, RelWithDebInfo): lock 60.0 logic steps/s (was 46-52), frame
+16.68 ms (was 20.4-21.7), render-thread CPU 6.6 ms/frame (was 9.9-10.0), draw op 6.0 ms/frame
+(was 9.4), texture phase 5.2 ms/frame (was 8.6), game-thread `DrawDone` wait 5.7 ms/frame
+(was 12.9). Save states now win from the parallel capture/restore/memory walk and Linux `mincore`
+page tracking in `state_memory.h`/`platform/host.h`: restore 262 to 70-85 ms, capture inside the
+440-790 ms range with the game frozen. `NSMBU_STATE_RESIDENT_OFF=1` keeps the old per-call
+`memory_touched` behavior for comparison.
+
 ## Texture change detection (2026-10-06)
 
 The renderers used to re-hash a CPU texture in full only when it was new, invalidated by an exact
