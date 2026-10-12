@@ -19,8 +19,6 @@ namespace gfx { int plusPresses=0; void display_plus_pressed(){++plusPresses;} }
 namespace mods { double game_time(){return 0;} }
 namespace interp { void set_mode(int){} uint64_t logic_steps(){return 0;} }
 namespace timebase { uint64_t now(){return 0;} }
-namespace true60 { uint64_t link_steps(){return 0;} bool state_loaded(){return false;} }
-namespace true60_test { void set_origin_step(uint64_t){} void tick(double,bool){} }
 void log_msg(const char*,...){}
 
 static bool promptShown=false;static int promptKeys=0;static std::string promptText;

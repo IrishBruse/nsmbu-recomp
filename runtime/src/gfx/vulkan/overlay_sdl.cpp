@@ -162,9 +162,9 @@ void graphics_changed() {
     put("fxaa", {"NSMBU_FXAA"}, gfxvk::fxaa_enabled() ? "1" : "0");
 #ifdef __ANDROID__
 
-    put("fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"}, interp::mode() == 2 ? "2" : perf_hint::fps60_chosen() ? "1" : "0");
+    put("fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"}, interp::mode() == 1 || perf_hint::fps60_chosen() ? "1" : "0");
 #else
-    put("fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"}, std::to_string(interp::mode()));
+    put("fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"}, std::to_string(interp::mode()));
 #endif
 
     put("interpFps", {"NSMBU_INTERP_FPS"}, std::to_string(interp::fps()));
@@ -194,7 +194,7 @@ void load_saved_options() {
     if (saved("bloomStrength", {"NSMBU_BLOOM_STRENGTH"})) render::set_bloom_strength((float)num("bloomStrength"));
     if (saved("fxaa", {"NSMBU_FXAA"})) gfxvk::set_fxaa(num("fxaa") != 0);
     if (saved("interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps((int)num("interpFps"));
-    if (saved("fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"})) interp::set_mode((int)num("fps60"));
+    if (saved("fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"})) interp::set_mode((int)num("fps60"));
     if (saved("fps60Paced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(60, num("fps60Paced") != 0);
     if (saved("fpsHighPaced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(120, num("fpsHighPaced") != 0);
     if (saved("scaleFilter", {"NSMBU_SCALE_FILTER"})) gfxvk::set_scale_filter((int)num("scaleFilter"));

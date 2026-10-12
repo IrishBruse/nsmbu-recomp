@@ -17,10 +17,10 @@ baseline limitation separate and do not report the full emulator smoke as passin
    scripted input/state-load switches. Use private shader caches, copied saves and a verified state
    load. Do not distribute an APK containing game code.
 2. First enable Khronos synchronization validation (`NSMBU_VK_VALIDATION=1`, with the Android
-   validation layer packaged/enabled) and capture the six desktop scenes at 30 and interpolated
-   60 fps. Set `NSMBU_TEST_ORIGIN_LOAD=n` for inputs relative to the completed load. For 60 fps,
-   start with `NSMBU_INTERP=0` and use `NSMBU_TEST_MODE=1@0` so interpolation switches at that same
-   origin; avoid an absolute startup-step mode switch. Use
+   validation layer packaged/enabled) and capture the six desktop scenes at interpolated
+   60 fps. For 60 fps,
+   start with `NSMBU_INTERP=0` and use `NSMBU_TEST_MODE=1@0` so interpolation switches at the origin;
+   avoid an absolute startup-step mode switch. Use
    `NSMBU_TEST_CAPTURE_LOAD_COUNTER=n` for a queued full-pass TV/GamePad/present capture at the
    restored game counter plus n. Paused menus freeze that counter: use
    `NSMBU_TEST_CAPTURE_LOAD_STEP=n` there. Keep offsets identical between modes. Require zero sync

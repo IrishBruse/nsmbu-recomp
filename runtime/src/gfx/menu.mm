@@ -90,7 +90,7 @@ static void load_prefs() {
     if (saved(@"fxaa", {"NSMBU_FXAA"})) render::set_fxaa([pref(@"fxaa") boolValue]);
 
     if (saved(@"interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps([pref(@"interpFps") intValue]);
-    if (saved(@"fps60", {"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"})) interp::set_mode([pref(@"fps60") intValue]);
+    if (saved(@"fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"})) interp::set_mode([pref(@"fps60") intValue]);
     if (saved(@"fps60Paced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(60, [pref(@"fps60Paced") boolValue]);
     if (saved(@"fpsHighPaced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(120, [pref(@"fpsHighPaced") boolValue]);
 #ifdef NSMBU_HAS_VULKAN
@@ -105,7 +105,7 @@ static void save_prefs() {
     if (!env_set({"NSMBU_ANISO"})) set_pref(@"aniso", @(render::aniso()));
     if (!env_set({"NSMBU_BLOOM_STRENGTH"})) set_pref(@"bloomStrength", @(render::bloom_strength()));
     if (!env_set({"NSMBU_FXAA"})) set_pref(@"fxaa", @(render::fxaa()));
-    if (!env_set({"NSMBU_INTERP", "NSMBU_TRUE60", "NSMBU_INTERP_FPS"})) set_pref(@"fps60", @(interp::mode()));
+    if (!env_set({"NSMBU_INTERP", "NSMBU_INTERP_FPS"})) set_pref(@"fps60", @(interp::mode()));
     if (!env_set({"NSMBU_INTERP_FPS"})) set_pref(@"interpFps", @(interp::fps()));
     if (!env_set({"NSMBU_INTERP_PACED"})) {
         set_pref(@"fps60Paced", @(interp::paced_interpolation_at(60)));
@@ -256,7 +256,6 @@ static WWStateMenu* g_state_menu;
     input_map::apply_face_layout(m, item.tag == 1 ? input_map::FaceLayout::kLabels : input_map::FaceLayout::kPosition);
     input_map::set_current(m);
 }
-- (void)toggleInterp:(NSMenuItem*)item { interp::set_mode(interp::mode() == item.tag ? 0 : (int)item.tag); update_title(); }
 - (void)toggleInterpFps:(NSMenuItem*)item { interp::toggle_fps((int)item.tag); update_title(); }
 - (void)toggleDrcWindow:(NSMenuItem*)item { gfx::show_drc_window(!gfx::drc_window_shown()); }
 - (void)toggleFxaa:(NSMenuItem*)item { render::set_fxaa(!render::fxaa()); update_title(); }
@@ -286,7 +285,6 @@ static WWStateMenu* g_state_menu;
         bool on = fl == (item.tag == 1 ? input_map::FaceLayout::kLabels : input_map::FaceLayout::kPosition);
         item.state = on ? NSControlStateValueOn : NSControlStateValueOff;
     }
-    if (item.action == @selector(toggleInterp:)) item.state = interp::mode() == item.tag ? NSControlStateValueOn : NSControlStateValueOff;
     if (item.action == @selector(toggleInterpFps:))
         item.state = interp::mode() == 1 && interp::fps() == item.tag ? NSControlStateValueOn : NSControlStateValueOff;
     if (item.action == @selector(toggleDrcWindow:)) {
@@ -394,7 +392,6 @@ void install_menu(NSWindow* tv) {
     add(g, @"60 fps: frame interpolation (6)", @selector(toggleInterpFps:), @"6", 60);
     add(g, @"120 fps: frame interpolation", @selector(toggleInterpFps:), @"", 120);
     add(g, @"240 fps: frame interpolation", @selector(toggleInterpFps:), @"", 240);
-    add(g, @"60 fps: true 60, game logic at 60 steps/s (7, experimental)", @selector(toggleInterp:), @"7", 2);
     [g addItem:[NSMenuItem separatorItem]];
     add(g, @"Take Screenshot (F10)", @selector(screenshot:), @"").toolTip =
         @"Saves the TV picture as a PNG (internal resolution, without the settings overlay) in the screenshots folder. "
@@ -474,7 +471,6 @@ bool menu_hotkey(uint16_t code) {
     case kVK_ANSI_N: if (render::feature_available(render::kFeatureAniso)) render::set_aniso(!render::aniso()); break;
     case kVK_ANSI_M: if (render::feature_available(render::kFeatureAOHires)) render::set_ao_hires(!render::ao_hires()); break;
     case kVK_ANSI_6: interp::toggle_fps(60); break;
-    case kVK_ANSI_7: interp::set_mode(interp::mode() == 2 ? 0 : 2); break;
     case kVK_ANSI_8: if (render::feature_available(render::kFeatureFXAA)) render::set_fxaa(!render::fxaa()); break;
     case kVK_ANSI_R: cycle_res(); break;
     case kVK_ANSI_P: render::request_capture(); return true;

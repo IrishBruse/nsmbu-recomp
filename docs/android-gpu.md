@@ -39,7 +39,7 @@ Debug switches:
 | Mali/PowerVR device execution | Untested: no physical device available |
 
 The Windfall frames in this section are records from the Wind Waker port.
-Scripted MoltenVK comparison uses the same restored Windfall state, 30 fps, no inputs, private
+Scripted MoltenVK comparison uses the same restored Windfall state, no inputs, private
 caches, copied saves, headless/no audio. Preselected tolerance: RGB mean absolute error ≤1/255,
 and ≥99% of pixels with maximum RGB channel error ≤3/255. Endpoint rounding can differ from
 native compressed filtering, and nonlinear material/edge operations amplify a small number of

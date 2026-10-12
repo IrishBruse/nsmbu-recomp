@@ -17,7 +17,6 @@
 #include "render_prof.h"
 #include "runtime.h"
 #include "savestate.h"
-#include "true60.h"
 
 extern "C" {
 void f_025F172C_orig(Cpu* c);
@@ -61,8 +60,6 @@ void f_027F5018_orig(Cpu* c);
 
 }
 
-namespace true60_test { void logic_step(uint64_t step); }
-
 namespace interp {
 
 using pacing::valid_fps;
@@ -70,11 +67,11 @@ static const int g_env_fps = [] { const char* e = getenv("NSMBU_INTERP_FPS"); re
 static std::atomic<int> g_fps{g_env_fps ? g_env_fps : 60};
 static std::atomic<bool> g_on{[] {
     const char* e = getenv("NSMBU_INTERP");
-    return (e ? atoi(e) != 0 : g_env_fps != 0) && !true60::enabled();
+    return (e ? atoi(e) != 0 : g_env_fps != 0);
 }()};
 bool interp_on() { return g_on.load(std::memory_order_relaxed); }
 
-bool enabled() { return interp_on() || true60::enabled(); }
+bool enabled() { return interp_on(); }
 int fps() { return g_fps.load(std::memory_order_relaxed); }
 
 static const int g_env_hz = getenv("NSMBU_DISPLAY_HZ") ? atoi(getenv("NSMBU_DISPLAY_HZ")) : -1;
@@ -105,7 +102,6 @@ int frames_per_step() { return in_between() + 1; }
 static const char* fps_name(int f) { return f >= 240 ? "240 fps" : f >= 165 ? "165 fps" : f >= 120 ? "120 fps" : "60 fps"; }
 void set_enabled(bool v) {
     if (v && fps() <= 60) v = false;
-    if (v) true60::set_enabled(false);
     g_on = v;
     LOG("[interp] frame interpolation %s", v ? fps_name(fps()) : "off");
 }
@@ -116,7 +112,6 @@ void set_fps(int f) {
 int mode() { return interp_on() && fps() > 60 ? 1 : 0; }
 void set_mode(int m) {
     g_on = false;
-    true60::set_enabled(false);
     if (m == 1) set_enabled(true);
 }
 
@@ -304,7 +299,7 @@ extern "C" void hook_024FFC40(Cpu* c) {
     using namespace interp;
     uint32_t cam = c->r[3];
     Prev* p = prev_for(cam);
-    if (g_blend_draw && !true60::runs_60(cam)) {
+    if (g_blend_draw) {
         CamState cur = read_cam(cam);
         if (p->valid) {
             if (!g_hold) {
@@ -328,39 +323,6 @@ extern "C" void hook_024FFC40(Cpu* c) {
     p->drawn = p->s;
     p->drawn_pass = g_passes;
     cam_trace(cam, "exact");
-    if (g_hold && true60::enabled()) {
-        p->drawn_pass = ~0ull;
-        true60::camera_draw_preview(true);
-        f_024FFC40_orig(c);
-        true60::camera_draw_preview(false);
-        return;
-    }
-    static const bool dbg = getenv("NSMBU_T60_CAMDRAWLOG") != nullptr;
-    if (dbg && g_hold) {
-        static std::vector<uint32_t> before;
-        static std::unordered_map<uint32_t, int> cnt;
-        static int n = 0;
-        const uint32_t lo = GD(0x10100000), hi = 0x10500000;
-        before.assign((uint32_t*)ppc_ptr(lo), (uint32_t*)ppc_ptr(hi));
-        f_024FFC40_orig(c);
-        const uint32_t* cur = (const uint32_t*)ppc_ptr(lo);
-        for (size_t i = 0; i < before.size(); i++)
-            if (cur[i] != before[i]) cnt[lo + 4 * (uint32_t)i]++;
-        if (++n % 200 == 0) {
-            std::vector<std::pair<uint32_t, int>> v(cnt.begin(), cnt.end());
-            std::sort(v.begin(), v.end());
-            std::string o;
-            uint32_t start = 0, last = 0; int c0 = 0;
-            for (auto& [a, k] : v) {
-                if (start && a == last + 4) { last = a; continue; }
-                if (start) { char t[48]; snprintf(t, sizeof t, " %08X-%08X:%d", start, last + 3, c0); o += t; }
-                start = last = a; c0 = k;
-            }
-            if (start) { char t[48]; snprintf(t, sizeof t, " %08X-%08X:%d", start, last + 3, c0); o += t; }
-            LOG("[camdrawlog]%s", o.c_str());
-        }
-        return;
-    }
     f_024FFC40_orig(c);
 }
 
@@ -455,7 +417,7 @@ void blend_mtx(const float* a, const float* b, float* out, float t) {
 extern "C" void hook_027F55FC(Cpu* c) {
     using namespace interp;
     static const bool off = getenv("NSMBU_INTERP_MODELS") && !atoi(getenv("NSMBU_INTERP_MODELS"));
-    if (!enabled() || off || (!g_hold && (true60::drawing_60() || g_exact_step))) {
+    if (!enabled() || off || (!g_hold && g_exact_step)) {
         f_027F55FC_orig(c);
         return;
     }
@@ -559,7 +521,6 @@ void ss_reset() {
     g_phase = 0;
     g_step_n = 1;
     fx_ss_reset();
-    true60::ss_reset();
 }
 
 static const char* const g_env_paced = getenv("NSMBU_INTERP_PACED");
@@ -747,15 +708,9 @@ extern "C" void hook_0203593C(Cpu* c) {
     static uint64_t passes = 0;
     static const uint64_t at = getenv("NSMBU_INTERP_AT_STEP") ? strtoull(getenv("NSMBU_INTERP_AT_STEP"), nullptr, 10) : 0;
     if (at && ++passes == at) set_enabled(true);
-    static uint64_t at60 = getenv("NSMBU_TRUE60_AT_STEP") ? strtoull(getenv("NSMBU_TRUE60_AT_STEP"), nullptr, 10) : 0;
-    static uint64_t passes60 = 0;
-    if (at60 && ++passes60 == at60) set_mode(2);
     paced_pass_start();
-    true60::new_pass();
-    true60::pass_begin(!enabled() || !g_hold_next);
     if (!enabled() || !g_hold_next) {
         g_logic_steps++;
-        true60_test::logic_step(g_logic_steps);
     }
     if (!enabled()) {
         g_hold_next = false;
@@ -778,7 +733,6 @@ extern "C" void hook_0203593C(Cpu* c) {
     if (g_hold_next) {
 
         g_phase++;
-        if (true60::enabled()) g_step_n = 1;
         g_hold = true;
         g_hold_frame = true;
         PassTimer timer(record_pass() ? 2 : 1);
@@ -877,24 +831,7 @@ extern "C" void hook_0255E854(Cpu* c) {
         }
     }
 
-    static SetLightState after_logic;
-    if (true60::enabled() && called_from_frame_function() && !interp::g_hold_frame && after_logic.step + 1 == interp::g_logic_steps) {
-        uint32_t st2 = ld32(kLightStatusPt);
-        if (after_logic.status == st2) {
-            st32(kSetLightTarget, after_logic.target);
-            st32(kSetLightEfTarget, after_logic.ef_target);
-            for (int i = 0; i < 3 && st2; i++) st32(st2 + 4 * i, after_logic.pos[i]);
-        }
-    }
     f_0255E854_orig(c);
-    if (true60::enabled() && called_from_frame_function() && !interp::g_hold_frame) {
-        uint32_t st2 = ld32(kLightStatusPt);
-        after_logic.step = interp::g_logic_steps;
-        after_logic.target = ld32(kSetLightTarget);
-        after_logic.ef_target = ld32(kSetLightEfTarget);
-        after_logic.status = st2;
-        for (int i = 0; i < 3; i++) after_logic.pos[i] = st2 ? ld32(st2 + 4 * i) : 0;
-    }
     uint32_t st = ld32(GD(0x101E8CC8));
     interp::light_trace_add(" setLight t%.2f r%u p(%.1f,%.1f,%.1f)", ldf32(GD(0x101E8EC8)), st ? ld8(st + 0x18) : 0, st ? ldf32(st) : 0.0,
                             st ? ldf32(st + 4) : 0.0, st ? ldf32(st + 8) : 0.0);
@@ -918,7 +855,7 @@ static bool skip(int bit) {
 }
 static bool g_in_execute = false;
 extern "C" void hook_025DE788(Cpu* c) {
-    if (skip(1) && !true60::enabled()) return;
+    if (skip(1)) return;
     interp::record_executed_step();
     g_in_execute = true;
     f_025DE788_orig(c);
@@ -966,7 +903,6 @@ uint64_t hold_pass_count() { return g_record_passes; }
 uint64_t pass_count() { return g_passes; }
 const char* phase_name() { return !enabled() ? "interp off" : g_hold ? "IN-BETWEEN" : g_logic_pass ? "logic" : "other"; }
 
-bool fresh_sticks() { return true60::enabled(); }
 bool repeat_input() {
     static const bool off = getenv("NSMBU_INTERP_NO_REPEAT") != nullptr;
     return enabled() && g_hold_next && !off;

@@ -174,7 +174,7 @@ Phase 4 proposal (hooks and calls).
 | `nsmbu_input_read` | `nsmbu.input` |
 | `nsmbu_logic_dt` / `nsmbu_logic_step` | `nsmbu.logic_dt()` and the step argument |
 | One replacement per function, many hooks | Same conflict rule |
-| Port hooks stay outside mod hooks | Same. Interpolation and true 60 run first. |
+| Port hooks stay outside mod hooks | Same. Frame interpolation runs first. |
 | Save-state identity of enabled mods | Luau package id and version, not a guest ELF region |
 
 Guest v2 also planned a HUD service.

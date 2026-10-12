@@ -14,7 +14,6 @@
 #include "guest_addr.h"
 #include "interp_pacing.h"
 #include "runtime.h"
-#include "true60.h"
 
 namespace interp {
 bool enabled();
@@ -54,7 +53,6 @@ void f_0256DDF8_orig(Cpu* c);
 void f_0256A388_orig(Cpu* c);
 void f_0251D864_orig(Cpu* c);
 void f_0281FE40_orig(Cpu* c);
-void f_024EC1C8_orig(Cpu* c);
 }
 
 namespace {
@@ -786,7 +784,7 @@ extern "C" void hook_0281FE40(Cpu* c) {
 }
 
 extern "C" void hook_027DF40C(Cpu* c) {
-    if (!on(4) || true60::drawing_60()) {
+    if (!on(4)) {
         f_027DF40C_orig(c);
         return;
     }
@@ -958,13 +956,7 @@ static void rnd_call(Cpu* c, char fn, void (*orig)(Cpu*)) {
             return;
         }
 
-        uint32_t seeds[3];
-        bool keep = true60::enabled();
-        if (keep)
-            for (int k = 0; k < 3; k++) seeds[k] = ld32(GD(0x101FF9D4) + 4 * k);
         orig(c);
-        if (keep)
-            for (int k = 0; k < 3; k++) st32(GD(0x101FF9D4) + 4 * k, seeds[k]);
         return;
     }
     RndRec& r = g_rnd_logic;
@@ -1074,61 +1066,6 @@ void fx_step_stats() {
 }
 }
 
-namespace {
-constexpr uint32_t kMorfFrameCtrl = 0x98;
-struct AttRec {
-    float pos[3], frame;
-    uint64_t pass;
-};
-std::unordered_map<uint32_t, AttRec> g_att;
-}
-extern "C" void hook_024EC1C8(Cpu* c) {
-    uint32_t self = c->r[3], pos = c->r[4];
-    uint32_t morf = ld32(self);
-    if (!true60::enabled() || !interp::enabled() || !on(16) || morf < 0x10000000 || morf >= 0x50000000) {
-        f_024EC1C8_orig(c);
-        return;
-    }
-    const uint32_t fc = morf + kMorfFrameCtrl;
-    if (interp::record_pass()) {
-        AttRec& r = g_att[self];
-        for (int i = 0; i < 3; i++) r.pos[i] = (float)ldf32(pos + 4 * i);
-        r.frame = (float)ldf32(fc + 4);
-        r.pass = interp::hold_pass_count();
-        f_024EC1C8_orig(c);
-        return;
-    }
-    if (!halfway()) {
-        f_024EC1C8_orig(c);
-        return;
-    }
-    const uint32_t mid_pos = mem::fixed_slot(mem::kFixFxMidPos);
-    auto it = g_att.find(self);
-    bool valid = it != g_att.end() && it->second.pass == interp::hold_pass_count();
-    float d2 = 0, mp[3];
-    for (int i = 0; i < 3; i++) {
-        float cur = (float)ldf32(pos + 4 * i);
-        mp[i] = valid ? lerp_f(it->second.pos[i], cur, interp::pass_t()) : cur;
-        d2 += (mp[i] - cur) * (mp[i] - cur);
-    }
-    if (!(d2 < 200.0f * 200.0f)) for (int i = 0; i < 3; i++) mp[i] = (float)ldf32(pos + 4 * i);
-    for (int i = 0; i < 3; i++) stf32(mid_pos + 4 * i, mp[i]);
-    float frame = (float)ldf32(fc + 4);
-    float mf = valid ? anm_mid(it->second.frame, frame, (float)(int16_t)ld16(fc + 8), (float)(int16_t)ld16(fc + 0xA), true, interp::pass_t()) : frame;
-    static int tr = trace_left(6);
-    if (tr) {
-        tr--;
-        LOG("[interp-fx] attention arrow (true 60, full pass): target %.2f %.2f %.2f -> drawn at %.2f %.2f %.2f, frame %.2f -> %.2f",
-            ldf32(pos), ldf32(pos + 4), ldf32(pos + 8), mp[0], mp[1], mp[2], frame, mf);
-    }
-    stf32(fc + 4, mf);
-    c->r[4] = mid_pos;
-    true60::force_draw_60(true);
-    f_024EC1C8_orig(c);
-    true60::force_draw_60(false);
-    stf32(fc + 4, frame);
-}
-
 namespace interp {
 void fx_ss_reset() {
     g_ptcl_before.clear();
@@ -1142,7 +1079,6 @@ void fx_ss_reset() {
     g_wave_keep = 0;
     g_wave_pkt = 0;
     g_cloth_cur.clear();
-    g_att.clear();
     for (auto& s : g_sway) s = SwayRec{};
     g_wood = WoodRec{};
     g_sea.packet = 0;

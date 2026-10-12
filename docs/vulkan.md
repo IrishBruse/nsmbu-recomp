@@ -27,7 +27,7 @@ rendering. `NSMBU_VK_FORCE_INIT_FAIL=1` forces this path for testing.
 Both renderers use the same AppKit host (`gfx/display.mm`, `menu.mm`, `input.mm`,
 `controls_ui.mm`, `mods/mouse.mm`): TV and GamePad windows, full screen, GamePad screen modes
 (separate window, picture-in-picture, automatic), scaling filters, aspect ratio, the Controls window,
-save states, 60 fps / true 60. Vulkan presents into
+save states. Vulkan presents into
 the windows' views through a `CAMetalLayer` and `VK_EXT_metal_surface`; `display_plan()` gives it the
 same layout as the Metal composition (picture rectangle, GamePad overlay with frame and opacity,
 filter), and `gfx/vulkan/present.cpp` draws it. The TV window title starts with the renderer in use.
@@ -38,7 +38,7 @@ filter), and `gfx/vulkan/present.cpp` draws it. The TV window title starts with 
 | Scaling smooth / sharp / integer, FXAA | yes | yes |
 | Internal resolution, AO modes, full-size AO depth, 16x AF | yes | yes |
 | Aspect ratio (16:10, 21:9, 32:9, match window) | yes | yes |
-| 60 fps interpolation, true 60 | yes | yes |
+| 60 fps interpolation | yes | yes |
 | Save states (menu, Shift+F1..F5 / F1..F5) | yes | yes (a state loads with either renderer) |
 | Controls window, keyboard, game controllers, mods | yes | yes |
 | Frame dumps `NSMBU_DUMP_FRAMES`, `NSMBU_DUMP_PRESENT` | yes | yes |
@@ -53,8 +53,7 @@ the default on Windows/Linux). Test runs: `NSMBU_HIDDEN_WINDOWS=1` keeps the win
 `NSMBU_TEST_RENDERER_SWITCH=frame:metal|vulkan` does what "Restart Now" does, `NSMBU_LOG_TITLE=1`
 logs the window title.
 
-For macOS Vulkan save-state comparisons, use `NSMBU_TEST_ORIGIN_LOAD=n` to start
-scenario inputs after n post-load Link steps, and `NSMBU_DUMP_LOAD_FRAMES=n,...` to dump TV,
+For macOS Vulkan save-state comparisons, use `NSMBU_DUMP_LOAD_FRAMES=n,...` to dump TV,
 GamePad and optional presented images at renderer-frame offsets from the completed load
 (`load_frame_<n>.png`, `_drc.png`, `_present.png`). A requested load frame can complete a frame
 later in another run; fixed-frame inputs and captures can therefore compare different game states.
@@ -390,8 +389,6 @@ Measured 2026-10-07 on an Apple M3 Max (Vulkan via MoltenVK), against the then-n
 
 | Scene, mode | Render-thread CPU ms/frame off → on | Swaps/s off → on | Uploads MiB/frame off → on |
 | --- | --- | --- | --- |
-| Outset, 30 fps uncapped | 5.05 → 4.65 | 190.5 → 197.1 | 18.1 → 10.3 |
-| Windfall, 30 fps uncapped | 5.32 → 4.41 | 187.5 → 210.2 | 25.7 → 9.2 |
 | Outset, 60 fps paced | 5.32 → 4.98 | 59.7 → 59.7 | 18.2 → 10.3 (hold frames too) |
 | Windfall, 60 fps paced | 5.48 → 4.75 | 59.7 → 59.7 | 25.9 → 9.3 (hold frames too) |
 
@@ -421,8 +418,7 @@ controls remain disabled until the renderer reports support.
 | `M` | Toggle full-size AO depth. A private 1.5× replay of the game's depth-downsample pass supplies the AO pass without changing guest surface metadata. |
 | `N` | Toggle anisotropic filtering up to 16×, bounded by device support, for eligible mipmapped asset textures. |
 | `8` | Toggle FXAA in final screen presentation. This is post-process antialiasing; it does not enable multisampled guest surfaces. |
-| `6` | Toggle 60 FPS interpolation mode. |
-| `7` | Toggle true 60 FPS mode. Selecting either mode does not guarantee its target frame rate. |
+| `6` | Toggle 60 FPS interpolation mode. Selecting it does not guarantee its target frame rate. |
 | Graphics menu: Scaling | Select smooth, sharp, or integer scaling for presentation. |
 
 Startup overrides match Metal: `NSMBU_RES_SCALE` selects the initial internal scale
@@ -575,13 +571,6 @@ samples over 30 seconds. Its 99th-percentile ready time was 13.558 ms and maximu
 draws per frame; this is not an exact reproduction of the earlier user view of
 roughly 6,600 draws. Character checks are complete.
 
-A separate default-only warm heavy-view run in true 60 FPS mode averaged roughly
-6,230 draws per frame. Over 30 seconds it covered 1,799 flip intervals across
-1,800 nominal display ticks (99.94% coverage, one missed tick). Its 99th-percentile
-ready time was 15.488 ms and maximum 18.894 ms; every warmed 120-frame reporting
-window measured approximately 59.4–60 FPS. This verifies the selected macOS defaults
-for that tested scene, while retaining the occasional missed deadline.
-
 These results apply to the benchmarked scenes and configuration, not every area
 or device. First-use shader/pipeline warmup can still hitch. Selected 60 FPS mode
 and the live FPS title alone do not establish performance acceptance.
@@ -608,13 +597,12 @@ interior mip invalidation, asynchronous slot wrap, and dynamic-UBO binding order
 and reuse after pool reset. Actual Outset Island gameplay and scripted keyboard
 movement render correctly on an Apple M3 Max through MoltenVK. Earlier warm gameplay builds
 ran approximately 29.4–30.0 FPS, with median frame intervals near 33.4 ms and
-95th percentiles around 36–37 ms; occasional longer frames remain. Enabling
-true 60 FPS mode alone does not guarantee sustained 60 FPS. A bounded
+95th percentiles around 36–37 ms; occasional longer frames remain. A bounded
 20-frame trace measured a median 17.53 ms from vsync wake to the next swap,
 missing the 16.68 ms deadline with one vsync wait per frame in that earlier build.
 At an earlier optimization checkpoint, descriptor/state deduplication, asynchronous
 flush slots, word-based shader and texture hashing, and direct Mac bindings produced
-a 60-second true-60 dock run that
+a 60-second dock run that
 measured 39.13 FPS across warmed frames 720–1920 (31.13–55.77 FPS in
 120-frame intervals). The comparable argument-buffer run was about 30 FPS.
 The subsequent historical checkpoint with dynamic uniforms and the consecutive

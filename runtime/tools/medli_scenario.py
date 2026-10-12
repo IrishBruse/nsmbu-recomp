@@ -9,7 +9,7 @@ The optional sword cheat exercises the production cheat service before this rout
 Player saves, states, actor dumps and screenshots stay in WORK, never in Git.
 
 usage: medli_scenario.py BINARY GAME SAVE WORK --cache-dir DIR
-       [--renderer metal|vulkan] [--mode 30|60|120|true60] [--cheat]
+       [--renderer metal|vulkan] [--mode 60|120] [--cheat]
        [--expect absent|present] [--portable STATE] [--turbo]
 SAVE is cking.sav or a folder with user/cking.sav. Its Quest Log 1 must be early,
 before Quill's Dragon Roost conversation. WORK must not already exist.
@@ -64,7 +64,7 @@ def main():
         ap.add_argument(name, type=Path)
     ap.add_argument("--cache-dir", required=True, type=Path)
     ap.add_argument("--renderer", choices=("metal", "vulkan"), default="metal")
-    ap.add_argument("--mode", choices=("30", "60", "120", "true60"), default="30")
+    ap.add_argument("--mode", choices=("60", "120"), default="60")
     ap.add_argument("--expect", choices=("absent", "present"), default="present")
     ap.add_argument("--cheat", action="store_true")
     ap.add_argument("--turbo", action="store_true")
@@ -77,8 +77,7 @@ def main():
     resource_gate(a.work.parent)
     d = Path(scenario.prepare(str(a.work.parent), a.work.name, str(a.save)))
     a.cache_dir.mkdir(parents=True, exist_ok=True)
-    mode = 2 if a.mode == "true60" else 0 if a.mode == "30" else 1
-    fps = 60 if a.mode == "true60" else int(a.mode)
+    fps = int(a.mode)
     checkpoints = [QUILL_CHECK, CHIEF_CHECK, UPPER_CHECK, END - 2]
     pulse_times = list(range(12, 75)) + list(range(CHIEF_ENTER + 8, CHIEF_CHECK - 4))
     warp = lambda point, room, name: name.encode().hex().ljust(16, "0") + f"{point:04x}{room:02x}ff0100"
@@ -94,8 +93,8 @@ def main():
     pokes += restart(UPPER_ENTER, "Atorizk", 0, (1350,700,-1146), -16384)
     env = {
         "NSMBU_PRESS": scenario.presses(), "NSMBU_TEST_ORIGIN": str(ORIGIN),
-        "NSMBU_INTERP": "0", "NSMBU_INTERP_FPS": str(max(60, fps)), "NSMBU_DISPLAY_HZ": "0",
-        "NSMBU_TEST_MODE": f"{mode}@0", "NSMBU_TEST_END": str(END),
+        "NSMBU_INTERP": "0", "NSMBU_INTERP_FPS": str(fps), "NSMBU_DISPLAY_HZ": "0",
+        "NSMBU_TEST_MODE": "1@0", "NSMBU_TEST_END": str(END),
         "NSMBU_TEST_PRESS": ",".join(f"{t}-{t+.15}:8000" for t in pulse_times),
         "NSMBU_TEST_POKE": ",".join(pokes),
         "NSMBU_TEST_STICK": f"{CHIEF_ENTER+7}-{CHIEF_ENTER+11}:0:1",

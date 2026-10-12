@@ -5,6 +5,13 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: Remove the experimental true 60 fps mode, the key 7 toggle, the menu entry, and `NSMBU_TEST_ORIGIN_LOAD`.
+    The interpolation options stay 60 fps (off), 120 fps, and 240 fps.
+-   **Change**: Remove the 30 fps option from `tools/bench/run_bench.py` (`--fps 60|120|240`, default 60) and the medli/regional scenario runs.
+-   **Change**: The settings overlay perf HUD draws its secondary text in white instead of disabled gray.
+-   **Change**: The settings overlay controller navigation and stick bindings apply the stick dead zone from the Controls settings, like the in-game controller input does.
+    Games and tools: `input_map::deadzone_values` applies it to the raw per-pad values.
+
 -   **Change**: Guest texture decode (Vulkan) takes a fast path for `TM_2D_TILED_THIN1` and linear-aligned surfaces, using cachable micro-tile offsets instead of a per-texel address call, and re-uploads only the mip levels whose content hash changed.
     A stage that rewrote two CPU textures each frame runs at a locked 60 fps now (before: 46-52 swaps/s with a 9.4 ms/frame draw op); render-thread CPU dropped from 9.97 to 6.6 ms/frame.
     `NSMBU_DECODE_CHECK=1` compares both decoders bit for bit and aborts on a mismatch, and `NSMBU_UPLOAD_PROFILE=1` lists the surfaces that get re-uploaded most.

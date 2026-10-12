@@ -336,7 +336,7 @@ void frame_end(bool hold) {
         upHold += line;
     }
     b.uploadMiB = upTotal;
-    add("[prof] uploads MiB/frame %.2f; logic/30 fps frames:%s%s%s", upTotal, up.c_str(),
+    add("[prof] uploads MiB/frame %.2f; logic frames:%s%s%s", upTotal, up.c_str(),
         W.holdFrames ? "; hold frames:" : "", W.holdFrames ? upHold.c_str() : "");
     if (W.uniqueFrames) {
         const double uf = (double)W.uniqueFrames;

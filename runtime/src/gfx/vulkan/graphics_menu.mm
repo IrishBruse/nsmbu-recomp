@@ -69,7 +69,7 @@ static constexpr float scales[]={1,1.5f,2,3};
 - (void)fxaa:(NSMenuItem*)i { gfxvk::set_fxaa(!gfxvk::fxaa_enabled()); }
 - (void)filter:(NSMenuItem*)i { gfxvk::set_scale_filter((int)i.tag); }
 
-- (void)interpolation:(NSMenuItem*)i { if(i.tag==2) interp::set_mode(interp::mode()==2?0:2); else interp::toggle_fps((int)i.tag); }
+- (void)interpolation:(NSMenuItem*)i { interp::toggle_fps((int)i.tag); }
 - (BOOL)validateMenuItem:(NSMenuItem*)i {
     BOOL on=NO; bool available=true;
     if(i.action==@selector(resolution:))on=std::fabs(gfxvk::requested_res_scale()-scales[i.tag])<0.01f;
@@ -78,7 +78,7 @@ static constexpr float scales[]={1,1.5f,2,3};
     if(i.action==@selector(aniso:)){on=gfxvk::aniso_enabled();available=gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::Anisotropy);}
     if(i.action==@selector(fxaa:)){on=gfxvk::fxaa_enabled();available=gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::FXAA);}
     if(i.action==@selector(filter:)){on=gfxvk::scale_filter()==i.tag;available=gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::ScaleFilter);}
-    if(i.action==@selector(interpolation:))on=i.tag==2?interp::mode()==2:interp::mode()==1&&interp::fps()==i.tag;
+    if(i.action==@selector(interpolation:))on=interp::mode()==1&&interp::fps()==i.tag;
     i.state=available&&on?NSControlStateValueOn:NSControlStateValueOff;
     return available;
 }
@@ -114,7 +114,6 @@ void install_graphics_menu(SDL_Window* window) {
     add(@"60 FPS interpolation — 6",@selector(interpolation:),60);
     add(@"120 FPS interpolation",@selector(interpolation:),120);
     add(@"240 FPS interpolation",@selector(interpolation:),240);
-    add(@"True 60 FPS — 7",@selector(interpolation:),2);
     static WWVulkanStateMenu* stateTarget=[WWVulkanStateMenu new];
     NSMenuItem* stateRoot=[[NSMenuItem alloc]initWithTitle:@"Save States" action:nil keyEquivalent:@""];
     NSMenu* stateMenu=[[NSMenu alloc]initWithTitle:@"Save States"];

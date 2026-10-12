@@ -12,8 +12,8 @@ Example (two variants, interleaved A B B A ..., 6 runs each, 60 fps interpolatio
       --fps 60 --renderer vulkan --runs 6 --out bench/sync \\
       --variant base:NSMBU_VK_LAZY_DRAW_DONE=0,NSMBU_VK_ASYNC_PRESENT=0 --variant new:
 
-Scenes (input is timed in game seconds from TV frame --origin, so 30 and 60 fps runs see the same
-input; --origin-load-steps instead anchors both input and interpolation to the completed load):
+Scenes (input is timed in game seconds from TV frame --origin, so the fps options see the same
+input):
 outset = walk and look around on Outset Island (state slot 3 by default), windfall = walk
 through Windfall town (slot 2), still = no input (any slot). The state file must be
 <state-dir>/slot<N>.bin, made with the game's own save-state keys.
@@ -192,7 +192,7 @@ def parse_prof(lines):
         elif body.startswith("uploads MiB/frame"):
             m = re.match(r"uploads MiB/frame " + NUM, body)
             cur["upload_mib"] = float(m.group(1))
-            logic = body.split("logic/30 fps frames:")[1].split(";")[0]
+            logic = body.split("logic frames:")[1].split(";")[0]
             for name, v in re.findall(r" ([a-z]+) " + NUM, logic):
                 cur["upload_" + name + "_mib"] = float(v)
             if "hold frames:" in body:
@@ -297,22 +297,12 @@ def run_once(args, variant, env_extra, index, out_dir):
         env["NSMBU_TEST_RSTICK"] = rstick
     if args.renderer == "vulkan":
         env["NSMBU_VK_CPU_ONLY_STATS"] = "1"
-    origin_load_steps = getattr(args, "origin_load_steps", None)
-    if origin_load_steps is not None:
-        env["NSMBU_TEST_ORIGIN_LOAD"] = str(origin_load_steps)
-    if args.fps in ("60", "120", "240"):
-        if origin_load_steps is not None:
-
-            env["NSMBU_INTERP"] = "0"
-            env["NSMBU_TEST_MODE"] = "1@0"
-        else:
-            env["NSMBU_INTERP_AT_STEP"] = str(load_at + 60)
-        if args.fps != "60":
-            env["NSMBU_INTERP"], env["NSMBU_INTERP_FPS"] = "0", args.fps
+    env["NSMBU_INTERP"] = "0"
+    env["NSMBU_INTERP_AT_STEP"] = str(load_at + 60)
+    if args.fps != "60":
+        env["NSMBU_INTERP_FPS"] = args.fps
     if args.display_hz is not None:
         env["NSMBU_DISPLAY_HZ"] = str(args.display_hz)
-    elif args.fps == "true60":
-        env["NSMBU_TRUE60_AT_STEP"] = str(load_at + 60)
     if args.uncapped:
         env["NSMBU_UNCAPPED"] = "1"
         env["NSMBU_VK_UNCAPPED"] = "1"
@@ -425,7 +415,7 @@ def main():
     p.add_argument("--state-dir", required=True, help="folder with slot<N>.bin save states (read only)")
     p.add_argument("--scene", choices=sorted(SCENES), default="outset")
     p.add_argument("--slot", type=int, default=0, help="state slot (default: the scene's)")
-    p.add_argument("--fps", choices=["30", "60", "120", "240", "true60"], default="30",
+    p.add_argument("--fps", choices=["60", "120", "240"], default="60",
                    help="60, 120, 240 = frame interpolation (120/240: paced unless NSMBU_INTERP_PACED=0)")
     p.add_argument("--display-hz", type=int, help="NSMBU_DISPLAY_HZ: the display refresh rate frame interpolation is "
                    "capped to (0: no cap; default: the detected one, e.g. 120 on a ProMotion Mac)")
@@ -437,8 +427,6 @@ def main():
 
     p.add_argument("--load-frame", type=int, default=450, help="TV frame of the state load")
     p.add_argument("--origin", type=int, default=650, help="TV frame where the scripted input starts")
-    p.add_argument("--origin-load-steps", type=int,
-                   help="start inputs and interpolation after this many post-load Link steps (overrides --origin)")
     p.add_argument("--press-from", type=int, default=120,
                    help="first TV frame of the A presses through the intro and title (-1: load frame - 300)")
     p.add_argument("--press-every", type=int, default=30, help="frames between A presses")
@@ -465,8 +453,6 @@ def main():
         p.error("--quiet-load-max must be positive")
     if args.min_free_gb < 0:
         p.error("--min-free-gb must be nonnegative")
-    if args.origin_load_steps is not None and args.origin_load_steps < 0:
-        p.error("--origin-load-steps must be non-negative")
     if not os.path.exists(os.path.join(args.state_dir, "slot%d.bin" % (args.slot or SCENES[args.scene][0]))):
         p.error("no slot%d.bin in %s" % (args.slot or SCENES[args.scene][0], args.state_dir))
     variants = []

@@ -122,11 +122,11 @@ tools/bench/run_bench.py --binary build/cmake/nsmbu --state-dir my_states --scen
 ```
 
 `--state-dir` holds `slot<N>.bin` files made with the game's save-state keys (outset: slot 3,
-windfall: slot 2, or `--slot`). `--fps 30|60|120|240|true60`, `--display-hz n` (the refresh rate
+windfall: slot 2, or `--slot`). `--fps 60|120|240`, `--display-hz n` (the refresh rate
 120/240 fps are capped to; 0: no cap, for hidden-window runs), `--uncapped` (throughput),
 `--renderer metal`.
 The state is loaded at TV frame 450 (A presses from frame 120 skip the intro), the input starts 200
-frames later and is timed in game seconds, so 30 and 60 fps runs see the same input. Each run's
+frames later and is timed in game seconds, so the fps options see the same input. Each run's
 `[prof]` reports (render-thread profiler, `docs/vulkan.md`) after two warm-up windows are averaged;
 `summary.json` / `summary.csv` hold the per-variant median, min, max and spread of frame time,
 swaps/s, logic steps/s, render-thread CPU and per-phase ms, GPU waits, game-thread waits, uploads by
@@ -153,7 +153,6 @@ in-between frames drawn (paced), frames per step is interpolation's own count.
 | 240 fps, visible, Metal (drawn at 120) | 111.66 | 29.57 | 92.7% | 3.78 |
 | 240 fps, uncapped, paced | 198.51 | 29.36 | 82.3% | 6.75 |
 | 240 fps, uncapped, not paced | 206.64 | 25.84 | - | 8.00 |
-| 30 fps, uncapped | 190.78 | 190.78 | - | 1 |
 
 - 240 fps is limited by the render thread on this machine: it needs 4.4–4.7 ms of CPU per frame,
   more than one 4.17 ms tick, so an in-between pass takes two ticks and the pacer plans 3–5 of the
@@ -200,7 +199,6 @@ uncapped Outset 105.5 -> 144.1 swaps/s, GPU wait 2.96 -> 0.43 ms.
 |---|---|---|
 | Outset 60 fps | 6.23 -> 5.56 ms (-10.8%) | 22.4 -> 18.6 |
 | Windfall 60 fps | 5.83 -> 5.36 ms (-8.0%) | 28.2 -> 26.3 |
-| Outset 30 fps | 7.56 -> 6.76 ms (-10.5%) | 22.5 -> 18.7 |
 | Outset uncapped | 6.37 -> 5.46 ms (-14.3%), 150 -> 166 swaps/s | 21.9 -> 18.4 |
 
 Leaving one path out (Outset 60, 2 runs each, run spread about 0.4 ms) costs: specialized index

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MPL-2.0
-"""Native language, Outset gameplay, interpolation and true60 regression.
+"""Native language, Outset gameplay and interpolation regression.
 
 Uses copied saves and private output paths. Run once per renderer/language with
 BINARY GAME SAVE WORK --language 3 (German), 4 (Italian), or 1 (English).
@@ -26,8 +26,7 @@ def main():
         "NSMBU_LANGUAGE": str(args.language), "NSMBU_RENDERER_RUNTIME": args.renderer,
         "NSMBU_INTERP": "0", "NSMBU_INTERP_FPS": "120", "NSMBU_DISPLAY_HZ": "0",
         "NSMBU_INTERP_PACED": "0", "NSMBU_TEST_ORIGIN": "600",
-        "NSMBU_TEST_MODE": "1@28", "NSMBU_TEST_MODES": "2@38,0@48",
-        "NSMBU_TEST_END": "52", "NSMBU_TEST_DEBUG": "1",
+        "NSMBU_TEST_MODE": "1@28", "NSMBU_TEST_END": "52", "NSMBU_TEST_DEBUG": "1",
         "NSMBU_TEST_PRESS": ",".join(f"{t}-{t + .15}:8000" for t in (5, 8, 11, 14, 17, 20)),
         "NSMBU_TEST_STICK": "29-31:0:1,39-41:0:1",
 
@@ -39,8 +38,6 @@ def main():
     checks = {
         "language": f"console language {args.language} (NSMBU_LANGUAGE)" in log,
         "interpolation": "60 fps mode 1" in log,
-        "true60": "60 fps mode 2" in log,
-        "return_to_30": "60 fps mode 0" in log,
         "outset_state": state.exists() and scenario.parse_state(state)["stage"] == "sea",
         "finished": done(log),
     }

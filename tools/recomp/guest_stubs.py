@@ -17,7 +17,6 @@ import sys
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.normpath(os.path.join(here, "..", ".."))
 pat = re.compile(r"\bf_([0-9A-F]{8})(_orig)?\b")
-fence = re.compile(r"\bT60_FENCE_(?:LINK|ANY)\(([0-9A-F]{8})")
 hook_def = re.compile(r"\bhook_([0-9A-F]{8})\s*\(")
 site_def = re.compile(r"\bsite_([0-9A-F]{8})\s*\(")
 
@@ -34,8 +33,6 @@ def symbols():
     for text in runtime_texts():
         for addr, orig in pat.findall(text):
             found.add("f_%s%s" % (addr, orig))
-        for addr in fence.findall(text):
-            found.add("f_%s_orig" % addr)
     return sorted(found)
 
 def hook_lists():

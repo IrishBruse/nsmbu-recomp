@@ -308,7 +308,7 @@ int main(int argc, char** argv) {
 
         setenv("NSMBU_VK_DRAW_BATCH", "2048", 0);
 
-        if (!getenv("NSMBU_INTERP") && !getenv("NSMBU_TRUE60")) interp::set_mode(1);
+        if (!getenv("NSMBU_INTERP")) interp::set_mode(1);
 
         if (FILE* f = fopen("env.txt", "r")) {
             char line[512];

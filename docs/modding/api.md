@@ -134,7 +134,7 @@ local seconds = nsmbu.logic_dt()
 | Function | Result |
 | --- | --- |
 | `logic_step()` | The same counter passed to logic-step callbacks. |
-| `logic_dt()` | Length of the current logic step in seconds. True 60 scaling is included. |
+| `logic_dt()` | Length of the current logic step in seconds. |
 
 ## Config
 
@@ -346,7 +346,7 @@ The replacement runs after the entry hooks, or the game body runs when there is 
 Return hooks then run in reverse order.
 
 The port hooks in `hooks*.txt` stay outside this sequence.
-Interpolation and true 60 decide whether the function runs at all.
+Frame interpolation decides whether the function runs at all.
 
 ### `ctx`
 

@@ -6,7 +6,7 @@
 #include "../rumble.h"
 #include "../motion/motion.h"
 
-namespace interp { bool repeat_input(); bool fresh_sticks(); void trace_read(const char*); uint64_t logic_steps(); }
+namespace interp { bool repeat_input(); void trace_read(const char*); uint64_t logic_steps(); }
 
 static constexpr uint32_t kResultOk = 0;
 static constexpr uint32_t kResultFail = 0xA0000000;
@@ -112,10 +112,6 @@ HLE(vpad, VPADRead) {
     static input::PadState last_p;
     const bool repeat = interp::repeat_input();
     input::PadState p = repeat ? last_p : crashrec::read(0);
-    if (repeat && interp::fresh_sticks()) {
-        input::PadState f = input::read();
-        p.lx = f.lx; p.ly = f.ly; p.rx = f.rx; p.ry = f.ry;
-    }
     last_p = p;
     if (input::pro_controller()) {
         p.buttons = 0;

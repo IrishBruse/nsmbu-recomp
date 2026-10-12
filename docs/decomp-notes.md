@@ -63,9 +63,3 @@ by pinning all threads to one core: with one core the render thread runs late ev
   - `NSMBU_GX2_DELAY_COPY=ms` (gx2_core.cpp): the regression repro.
   - `NSMBU_COPYDBG=1`: logs each GX2CopySurface issue (thread, lr, images) and each CPU-path execution (range,
     time).
-  - In true60_test.cpp:
-    - `NSMBU_BOOTDBG=1` (02786520 / 027B8904 / 027B82B8 logs);
-    - `NSMBU_BOOTDBG_SLOW=ms`;
-    - `NSMBU_BOOTDBG_PROT=1` (write-protect the first program array's page and log the writing thread with a
-      backtrace);
-    - `NSMBU_HEAPLOG=1`.
