@@ -269,7 +269,7 @@ void initialize(){
                     item.script_mtimes=scan_luau_mtimes(record.path);
                     live.emplace(id,std::move(item));live_order.push_back(id);
                     fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());
-                }catch(const std::exception& e){if(item.luau)mods::luau_mod::unload(*item.luau);record.error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}}}
+                }catch(const std::exception& e){if(item.luau)mods::luau_mod::unload(*item.luau);record.error=e.what();fprintf(stderr,"[mod-manager] luau fail %s: %s\n",id.c_str(),e.what());profile()["enabled"][id]=false;try{save();}catch(...){}}}
             running=!live.empty();
         } catch(const std::exception& e) {last_problem=e.what();}
         dirty=true;

@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Add**: Runtime level editing for Luau mods: `nsmbu.level.actors()` lists the live actor cache with handles for profile id, position, speed, scale, params, and delete, and `nsmbu.level.spawn(profile_id, x, y, z, options?)` builds an `ActorCreateParam` and calls `ActorMgr::createLater` on the game thread, so mods spawn objects next to the player with no restart.
+    New example package `example.level-editor` spawns the selected coin, power-up, goomba, or star and can clear actors of that profile.
 -   **Change**: Remove the experimental true 60 fps mode, the key 7 toggle, the menu entry, and `NSMBU_TEST_ORIGIN_LOAD`.
     The interpolation options stay 60 fps (off), 120 fps, and 240 fps.
 -   **Change**: Remove the 30 fps option from `tools/bench/run_bench.py` (`--fps 60|120|240`, default 60) and the medli/regional scenario runs.

@@ -166,6 +166,12 @@ type Data = {
 	remove: (name: string) -> (boolean?, string?),
 }
 
+type SpawnOptions = {
+	param0: number?,
+	param1: number?,
+	layer: number?,
+}
+
 type Level = {
 	active: () -> boolean,
 	time: () -> (number?, string?),
@@ -175,12 +181,37 @@ type Level = {
 	set_coins: (coins: number) -> (boolean?, string?),
 	score: () -> (number?, string?),
 	set_score: (score: number) -> (boolean?, string?),
+	actors: () -> { Actor },
+	count: (profile_id: number?) -> (number?, string?),
+	spawn: (profile_id: number, x: number, y: number, z: number, options: SpawnOptions?) -> (boolean?, string?),
 }
 
 type Vec3 = {
 	x: number,
 	y: number,
 	z: number,
+}
+
+type Actor = {
+	addr: number,
+
+	address: (self: Actor) -> (number?, string?),
+	id: (self: Actor) -> (number?, string?),
+	profile_id: (self: Actor) -> (number?, string?),
+	is_actor: (self: Actor) -> (boolean?, string?),
+	is_map_actor: (self: Actor) -> (boolean?, string?),
+	active: (self: Actor) -> (boolean?, string?),
+	layer: (self: Actor) -> (number?, string?),
+	player_no: (self: Actor) -> (number?, string?),
+	param0: (self: Actor) -> (number?, string?),
+	param1: (self: Actor) -> (number?, string?),
+	pos: (self: Actor) -> (Vec3?, string?),
+	set_pos: (self: Actor, x: number | Vec3, y: number?, z: number?) -> (boolean?, string?),
+	speed: (self: Actor) -> (Vec3?, string?),
+	set_speed: (self: Actor, x: number | Vec3, y: number?, z: number?) -> (boolean?, string?),
+	scale: (self: Actor) -> (Vec3?, string?),
+	set_scale: (self: Actor, x: number | Vec3, y: number?, z: number?) -> (boolean?, string?),
+	delete: (self: Actor) -> (boolean?, string?),
 }
 
 type Player = {

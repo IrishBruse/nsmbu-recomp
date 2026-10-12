@@ -1,7 +1,7 @@
 # Luau API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle (`on_logic_step`, `on_config_changed`, and `on_unload` registration), package metadata, log and status, time, config, guest memory, and high-level `nsmbu.level` / `nsmbu.player` helpers are implemented with embedded Luau.
+Lifecycle (`on_logic_step`, `on_config_changed`, and `on_unload` registration), package metadata, log and status, time, config, guest memory, high-level `nsmbu.level` / `nsmbu.player` helpers, and level actor reads / spawns are implemented with embedded Luau.
 Hooks (`nsmbu.hooks`), `call` / `call_result`, input, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.
@@ -27,7 +27,7 @@ Each package has its own Luau state, so one package cannot replace another packa
 | `nsmbu` | Lifecycle register, log, status, time, package | Live |
 | `nsmbu.config` | Package option reads | Live |
 | `nsmbu.guest` | Guest memory read/write (heap alloc later) | Live (R/W) |
-| `nsmbu.level` | Course timer, course coins, score | Live |
+| `nsmbu.level` | Course timer, course coins, score, live actors, spawn | Live |
 | `nsmbu.player` | Player handles and iterator | Live |
 | `nsmbu.fn` | Generated function addresses | Proposal (empty table) |
 | `nsmbu.hooks` | Hooks, replace, original, call | Proposal (empty table) |
@@ -293,6 +293,55 @@ The module is callable: `nsmbu.player(index)` is the same as `nsmbu.player.get(i
 `p.index` is the slot number.
 Do not keep a player handle across frames and treat it as a stable guest pointer.
 Call `nsmbu.player` / `nsmbu.player.get` or `nsmbu.player.players` again each logic step.
+
+### Level actors and spawn
+
+Live course actors, actor handles, and spawning.
+These wrap `ActorMgr`, `ActorBase`, and `Profile` from the USA v1.3.0 layout.
+
+```luau
+for _, a in nsmbu.level.actors() do
+  local pid = a:profile_id()
+  if pid == 467 then
+    local pos = a:pos()
+  end
+end
+
+nsmbu.level.spawn(467, 100, 0, 0, { layer = 0, param0 = 0 })
+```
+
+| Function | Result |
+| --- | --- |
+| `actors()` | Array of actor handles for the live actor cache. The array holds every live actor, including menu actors outside `pos` use. |
+| `count(profile_id?)` | Number of live actors, or of one profile when passed. |
+| `spawn(profile_id, x, y, z, options?)` | Writes an `ActorCreateParam` and calls `ActorMgr::createLater`. Returns `true`. The actor appears on the next logic step, not in the same step. `options` may set `param0`, `param1` (both `0`), and `layer` (`0`) |
+
+Spawns run on the game thread only.
+A course must be running; otherwise the call fails.
+An unknown or unregistered profile id fails with `"unknown profile"`.
+Profile numbers come from the game's profile list:
+coin `395`, goomba `467`, mushroom `591`, fire flower `592`, one-up `597`, star `853`.
+`param0` / `param1` are the level designer nybbles ("spritedata").
+
+Each handle is a table with `addr` (the guest address) and these methods:
+
+| Method | Result |
+| --- | --- |
+| `address()` | Guest address of the `ActorBase`. |
+| `id()` | `ActorUniqueID` value. |
+| `profile_id()` | Profile id of the actor. |
+| `is_actor()` | `true` when the runtime type derives from `Actor` (a course actor with position, speed, and scale). Menu and background actors report `false`. |
+| `is_map_actor()` | `true` when the actor was spawned from level data. |
+| `active()` | `true` when the create phase completed. |
+| `layer()` / `param0()` / `param1()` / `player_no()` | Raw actor fields. |
+| `pos()` / `set_pos(x, y, z)` | Position. You may pass one table `{ x, y, z }`. Requires `is_actor()`. |
+| `speed()` / `set_speed(x, y, z)` | Speed. Same actor requirement as `pos`. |
+| `scale()` / `set_scale(x, y, z)` | Scale. Same actor requirement as `pos`. |
+| `delete()` | Sets the game's delete request flag. The game removes the actor on its next delete pass. Works on every actor handle. |
+
+Do not keep an actor handle across logic steps.
+The game reuses actor slots and memory, so a stale handle can point at a different actor.
+Re-read `nsmbu.level.actors()` each step, and call `profile_id()` before you edit or delete a handle.
 
 ## Function addresses
 

@@ -1,5 +1,6 @@
 #include "interp.h"
 #include "mods/packages.h"
+#include "mods/luau_game.h"
 
 #include <algorithm>
 #include <atomic>
@@ -859,7 +860,10 @@ extern "C" void hook_025DE788(Cpu* c) {
     interp::record_executed_step();
     g_in_execute = true;
     f_025DE788_orig(c);
-    if (!interp::g_hold_frame) mods::packages::frame(interp::g_logic_steps);
+    if (!interp::g_hold_frame) {
+        mods::luau_game::set_cpu(c);
+        mods::packages::frame(interp::g_logic_steps);
+    }
     g_in_execute = false;
 }
 extern "C" void hook_025DE024(Cpu* c) { if (!skip(2)) f_025DE024_orig(c); }

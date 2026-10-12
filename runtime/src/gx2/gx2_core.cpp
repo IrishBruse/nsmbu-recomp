@@ -24,6 +24,7 @@
 #endif
 #include "runtime.h"
 #include "savestate.h"
+#include "mods/luau_game.h"
 #include "guest_addr.h"
 #include "../aspect.h"
 #include "gfx/renderer.h"
@@ -744,7 +745,10 @@ HLE(gx2, GX2SwapScanBuffers) {
     const uint64_t steps = interp::logic_steps();
     const bool hold = steps == lastSteps;
     lastSteps = steps;
-    if (!hold) mods::packages::frame(steps);
+    if (!hold) {
+        mods::luau_game::set_cpu(c);
+        mods::packages::frame(steps);
+    }
 
     static const char* captureCounter = getenv("NSMBU_TEST_CAPTURE_LOAD_COUNTER");
     static const char* captureStep = getenv("NSMBU_TEST_CAPTURE_LOAD_STEP");

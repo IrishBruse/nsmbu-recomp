@@ -1,0 +1,17 @@
+#include "runtime.h"
+
+__attribute__((weak)) uint32_t guest_call(Cpu* c, uint32_t fn,
+                                          std::initializer_list<uint32_t> args) {
+    (void)c;
+    (void)fn;
+    (void)args;
+    return 0;
+}
+
+namespace mem {
+__attribute__((weak)) uint32_t host_alloc(uint32_t size, uint32_t align) {
+    (void)size;
+    (void)align;
+    return 0;
+}
+}
