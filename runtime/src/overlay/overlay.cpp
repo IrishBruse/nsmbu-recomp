@@ -62,6 +62,7 @@ double now_s() { return std::chrono::duration<double>(clock::now().time_since_ep
 
 std::atomic<bool> g_open{false};
 std::atomic<bool> g_perf{false};
+std::atomic<bool> g_perf_detail{false};
 PerfAverage g_average;
 std::atomic<float> g_density{1.0f};
 std::atomic<bool> g_wait_release{false};
@@ -713,6 +714,8 @@ void tab_graphics() {
 #endif
     heading("Overlay");
     if (check("Performance overlay (FPS, frame time)", perf_shown(), &v)) set_perf_shown(v);
+    if (check("Performance overlay detail (lag breakdown)", perf_detail_shown(), &v, perf_shown())) set_perf_detail_shown(v);
+    if (!perf_shown()) help("Needs the performance overlay on");
     if (ImGui::Button("Reset performance averages")) g_average.reset();
 
     static double copiedAt = -10;
@@ -1461,6 +1464,15 @@ void tab_about() {
     note("Built with Dear ImGui %s (MIT License, Omar Cornut and contributors).", IMGUI_VERSION);
 }
 
+static void lag_row(const char* name, double ms, double frameMs, const ImVec4& color) {
+    if (ms < 0.1) return;
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, color);
+    ImGui::ProgressBar((float)(frameMs > 0 ? std::min(ms / frameMs, 1.0) : 0), ImVec2(120, 13), "");
+    ImGui::PopStyleColor();
+    ImGui::SameLine();
+    ImGui::Text("%.1f ms %s", ms, name);
+}
+
 void perf_window(bool menu_open) {
     const double t = now_s();
     if (U.fps_t0 == 0) { U.fps_t0 = t; U.fps_n0 = gx2::flips_presented(); }
@@ -1498,6 +1510,32 @@ void perf_window(bool menu_open) {
         ImGui::TextDisabled("%s  %gx  %s", render::api_name(render::active()), hostui::res_scale(), interp::mode_name());
         if (float share = interp::paced_drawn_share(); share >= 0)
             ImGui::TextDisabled("in-between frames drawn: %.0f%%", share * 100.0f);
+        rprof::Breakdown b;
+        if (perf_detail_shown() && rprof::latest_breakdown(b)) {
+            ImGui::SeparatorText("Lag breakdown");
+            const ImVec4 red(0.9f, 0.35f, 0.35f, 1.0f), orange(0.95f, 0.65f, 0.2f, 1.0f), yellow(0.95f, 0.9f, 0.35f, 1.0f),
+                         blue(0.45f, 0.65f, 1.0f, 1.0f), grey(0.55f, 0.55f, 0.6f, 1.0f);
+            struct Row {
+                const char* name;
+                double ms;
+                ImVec4 color;
+            };
+            Row rows[] = {
+                {"GPU", b.gpuWaitMs, red},
+                {"renderer CPU", b.renderCpuMs, orange},
+                {"vsync present", b.acquireMs + b.presentMs, blue},
+                {"game waits for renderer", b.gameSyncMs, yellow},
+                {"write-back read", b.wbReadMs, yellow},
+                {"renderer idle (waiting for the game)", b.renderIdleMs, grey},
+            };
+            std::sort(std::begin(rows), std::end(rows), [](const Row& a, const Row& r) { return a.ms > r.ms; });
+            for (const Row& r : rows) lag_row(r.name, r.ms, b.ms, r.color);
+            const Row& top = rows[0];
+            if (top.ms > b.ms * 0.5)
+                ImGui::TextColored(top.color, "main cause: %s", top.name);
+            ImGui::TextDisabled("renders %.2f ops ms/frame, %.1f MiB uploads/frame, %.0f logic steps/s",
+                                b.renderCpuMs, b.uploadMiB, b.logicRate);
+        }
     }
     ImGui::End();
     (void)menu_open;
@@ -1577,6 +1615,11 @@ void set_perf_shown(bool on) {
     g_perf = on;
     hostui::post([on] { hostui::set("perfOverlay", on ? "1" : "0"); });
 }
+bool perf_detail_shown() { return g_perf_detail.load(std::memory_order_relaxed); }
+void set_perf_detail_shown(bool on) {
+    g_perf_detail = on;
+    hostui::post([on] { hostui::set("perfDetail", on ? "1" : "0"); });
+}
 
 bool key(int code, bool down, bool repeat, int mods) {
     if (g_no_host_keys) return false;
@@ -1638,6 +1681,7 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         prefs_read = true;
         std::string v;
         if (hostui::get("perfOverlay", v)) g_perf = v == "1";
+        if (hostui::get("perfDetail", v)) g_perf_detail = v == "1";
 
         if (!getenv("NSMBU_PRO_CONTROLLER") && hostui::get("proController", v))
             hostui::post([pro = v == "1"] { hostui::set_pro_controller(pro); });

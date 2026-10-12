@@ -63,4 +63,14 @@ void add_write_back(uint64_t walkNs, uint32_t surfaces, uint64_t bytes, uint64_t
 
 std::string latest_report();
 
+struct Breakdown {
+    double ms = 0, fps = 0, logicRate = 0;
+    double renderCpuMs = 0, renderIdleMs = 0;
+    double gpuWaitMs = 0, acquireMs = 0, presentMs = 0, gameSyncMs = 0;
+    double opMs[kOps] = {};
+    double phaseMs[kDrawPhases] = {};
+    double uploadMiB = 0, wbReadMs = 0;
+};
+bool latest_breakdown(Breakdown& out);
+
 }

@@ -95,6 +95,8 @@ ShaderStats shaderStats;
 std::atomic<uint64_t> syncNs[kSyncs], syncCount[kSyncs];
 std::mutex reportMutex;
 std::string report;
+Breakdown breakdown;
+bool haveBreakdown = false;
 }
 
 void mark_slow(Phase p) {
@@ -193,6 +195,13 @@ std::string latest_report() {
     return report;
 }
 
+bool latest_breakdown(Breakdown& out) {
+    std::lock_guard<std::mutex> lk(reportMutex);
+    if (!haveBreakdown) return false;
+    out = breakdown;
+    return true;
+}
+
 static std::string reg_name(uint32_t r) {
     struct Range { uint32_t first, count; const char* name; };
     static const Range ranges[] = {
@@ -255,6 +264,16 @@ void frame_end(bool hold) {
     };
     double busy = 0;
     for (int op = 0; op < kOps; op++) busy += opMs(op);
+    Breakdown b;
+    b.ms = wallMs / frames;
+    b.fps = frames / (wallMs / 1e3);
+    b.logicRate = (steps - stepsStart) / (wallMs / 1e3);
+    for (int op = 0; op < kOps; op++) b.opMs[op] = opMs(op);
+    b.renderCpuMs = busy;
+    b.renderIdleMs = W.idleNs / 1e6 / frames;
+    b.gpuWaitMs = W.waitNs[kWaitGpu] / 1e6 / frames;
+    b.acquireMs = W.waitNs[kWaitAcquire] / 1e6 / frames;
+    b.presentMs = W.waitNs[kWaitPresent] / 1e6 / frames;
     add("[prof] frame %llu: %.0f frames (%.0f hold), %.2f ms/frame, %.1f swaps/s, %.1f logic steps/s; render thread "
         "CPU %.2f ms/frame, in ops %.2f ms/frame, idle (waiting for commands) %.2f ms/frame",
         (unsigned long long)frameCounter, frames, (double)W.holdFrames, wallMs / frames, frames / (wallMs / 1e3),
@@ -274,21 +293,27 @@ void frame_end(bool hold) {
         std::string ph;
         double sum = 0;
         for (int p = 0; p < kDrawPhases; p++) {
-            snprintf(line, sizeof line, " %s %.2f", phaseNames[p], W.phaseNs[p] * scale);
+            const double ms = W.phaseNs[p] * scale;
+            b.phaseMs[p] = ms;
+            snprintf(line, sizeof line, " %s %.2f", phaseNames[p], ms);
             ph += line;
-            sum += W.phaseNs[p] * scale;
+            sum += ms;
         }
         add("[prof] draw phases ms/frame (1 draw in %u sampled):%s; untracked %.2f; %.2f us/draw", kSampleMask + 1,
             ph.c_str(), std::max(0.0, opMs(kOpDraw) - sum), opMs(kOpDraw) * 1e3 * frames / std::max<uint64_t>(1, W.opCount[kOpDraw]));
     }
     static const char* syncNames[kSyncs] = {"DrawDone", "CopySurface", "flip", "other"};
+    double syncMs[kSyncs] = {}, syncPer[kSyncs] = {};
     std::string syncs;
     for (int s = 0; s < kSyncs; s++) {
         uint64_t n = syncCount[s].exchange(0), ns = syncNs[s].exchange(0);
+        syncMs[s] = ns / 1e6 / frames;
+        syncPer[s] = n / frames;
         if (!n) continue;
-        snprintf(line, sizeof line, " %s %.2f ms (%.2f/frame)", syncNames[s], ns / 1e6 / frames, n / frames);
+        snprintf(line, sizeof line, " %s %.2f ms (%.2f/frame)", syncNames[s], syncMs[s], syncPer[s]);
         syncs += line;
     }
+    for (int s = 0; s < kSyncs; s++) b.gameSyncMs += syncMs[s];
     add("[prof] render thread waits ms/frame: GPU %.2f (%.2f/frame) acquire %.2f present %.2f; game thread waits for the "
         "render thread:%s",
         W.waitNs[kWaitGpu] / 1e6 / frames, W.waitCount[kWaitGpu] / frames, W.waitNs[kWaitAcquire] / 1e6 / frames,
@@ -296,8 +321,9 @@ void frame_end(bool hold) {
     {
         uint64_t walks = wbWalks.exchange(0), walkNs = wbWalkNs.exchange(0), n = wbCount.exchange(0), bytes = wbBytes.exchange(0),
                  readNs = wbReadNs.exchange(0);
+        b.wbReadMs = readNs / 1e6 / frames;
         add("[prof] write-back to guest memory: %llu surfaces, %.1f KiB, read %.3f ms; DrawDone checks %.2f/frame, %.2f us each",
-            (unsigned long long)n, bytes / 1024.0, readNs / 1e6, walks / frames, walks ? walkNs / 1e3 / walks : 0.0);
+            (unsigned long long)n, bytes / 1024.0, b.wbReadMs, walks / frames, walks ? walkNs / 1e3 / walks : 0.0);
     }
     static const char* upNames[kUploadKinds] = {"other", "vertex", "index", "ubo", "uniforms", "texture"};
     const double logicFrames = std::max(1.0, frames - W.holdFrames), holdFrames = std::max(1.0, (double)W.holdFrames);
@@ -310,6 +336,7 @@ void frame_end(bool hold) {
         snprintf(line, sizeof line, " %s %.2f", upNames[k], W.uploadHold[k] / holdFrames / 1048576.0);
         upHold += line;
     }
+    b.uploadMiB = upTotal;
     add("[prof] uploads MiB/frame %.2f; logic/30 fps frames:%s%s%s", upTotal, up.c_str(),
         W.holdFrames ? "; hold frames:" : "", W.holdFrames ? upHold.c_str() : "");
     if (W.uniqueFrames) {
@@ -361,6 +388,8 @@ void frame_end(bool hold) {
     {
         std::lock_guard<std::mutex> lk(reportMutex);
         report = out;
+        breakdown = b;
+        haveBreakdown = true;
     }
     W = Window{};
     std::fill(otherRegs.begin(), otherRegs.end(), 0);

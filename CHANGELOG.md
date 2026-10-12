@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: The performance overlay has a "Performance overlay detail (lag breakdown)" checkbox next to the overlay switch.
+    With it on, the overlay shows a lag breakdown: bar rows for GPU, renderer CPU, vsync present, game-to-render waits, write-back reads, and renderer idle, sorted by cost, with the main cause highlighted.
 -   **Change**: Example mods bind the `nsmbu` module tables once at the top of the script (`const config = nsmbu.config`, `const player = nsmbu.player`, and so on) and call the aliases in the body.
 -   **Change**: Mod scripts run on Luau instead of LuaJIT (embedded under `runtime/third_party/luau/`).
     Scripts keep the Lua 5.1 syntax and gain `utf8`; LuaJIT's `bit` library becomes `bit32`.
