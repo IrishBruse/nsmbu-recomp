@@ -11,7 +11,7 @@ local function freeze_timer()
 end
 
 local function keep_lives()
-  for p in player.players() do
+  for _, p in player.get_players() do
     local lives = p:lives()
     if lives and lives > 0 and lives < 99 then
       p:set_lives(99)
@@ -21,7 +21,7 @@ end
 
 local function keep_powerup()
   for i = 0, 3 do
-    local p = player(i)
+    local p = player.get_player(i)
     if not p or not p:entered() then
       held_mode[i] = nil
       continue
@@ -41,28 +41,33 @@ local function keep_powerup()
   end
 end
 
+local function scale_jump(p: any, i: number ,scale: number)
+  local speed = p:speed_y()
+  if not speed then
+    prev_speed_y[i] = nil
+    scaled_jump[i] = false
+    return
+  end
+  local prev = prev_speed_y[i] or 0
+  if speed > 1.5 and prev <= 1.5 then
+    scaled_jump[i] = false
+  elseif speed <= 0 then
+    scaled_jump[i] = false
+  elseif not scaled_jump[i] and speed > 1.5 then
+    p:set_speed_y(speed * scale)
+    scaled_jump[i] = true
+  end
+  prev_speed_y[i] = speed
+end
+
 local function scale_jumps(scale: number)
   for i = 0, 3 do
-    local p = player(i)
+    local p = player.get_player(i)
     if not p then
       continue
     end
-    local speed = p:speed_y()
-    if not speed then
-      prev_speed_y[i] = nil
-      scaled_jump[i] = false
-      continue
-    end
-    local prev = prev_speed_y[i] or 0
-    if speed > 1.5 and prev <= 1.5 then
-      scaled_jump[i] = false
-    elseif speed <= 0 then
-      scaled_jump[i] = false
-    elseif not scaled_jump[i] and speed > 1.5 then
-      p:set_speed_y(speed * scale)
-      scaled_jump[i] = true
-    end
-    prev_speed_y[i] = speed
+
+    scale_jump(p, i, scale)
   end
 end
 

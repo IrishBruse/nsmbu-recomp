@@ -289,25 +289,16 @@ int l_player(lua_State* L) {
     return 1;
 }
 
-int l_players_next(lua_State* L) {
-    int i = (int)lua_tointeger(L, lua_upvalueindex(1));
+int l_players(lua_State* L) {
+    lua_newtable(L);
     std::string err;
-    while (i + 1 < kPlayerCount) {
-        i += 1;
-        lua_pushinteger(L, i);
-        lua_replace(L, lua_upvalueindex(1));
+    for (int i = 0; i < kPlayerCount; ++i) {
         bool entered = false;
         if (!player_entered(i, entered, err)) continue;
         if (!entered) continue;
         push_player(L, i);
-        return 1;
+        lua_rawseti(L, -2, (int)lua_objlen(L, -2) + 1);
     }
-    return 0;
-}
-
-int l_players(lua_State* L) {
-    lua_pushinteger(L, -1);
-    lua_pushcclosure(L, l_players_next, "players_next", 1);
     return 1;
 }
 
@@ -567,12 +558,8 @@ void install(lua_State* L) {
     set_loaded(L, "nsmbu.level");
 
     lua_newtable(L);
-    bind(L, "get", l_player);
-    bind(L, "players", l_players);
-    lua_newtable(L);
-    lua_pushcfunction(L, l_player_call, "__call");
-    lua_setfield(L, -2, "__call");
-    lua_setmetatable(L, -2);
+    bind(L, "get_player", l_player);
+    bind(L, "get_players", l_players);
     set_loaded(L, "nsmbu.player");
 }
 

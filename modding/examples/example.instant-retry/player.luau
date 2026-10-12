@@ -21,7 +21,7 @@ local function need(name: string): (number?, string?)
 end
 
 function player.handle(): (any?, string?)
-  local p, err = nsmbu.player(0)
+  local p, err = nsmbu.player.get_player(0)
   if not p then
     return nil, err or "no player"
   end
