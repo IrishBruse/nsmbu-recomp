@@ -18,6 +18,8 @@ const uint32_t kActorMgrSingleton = GD(0x101C30C8);
 const uint32_t kProfileList = GD(0x101ED8DC);
 const uint32_t kActorMgrCreateLater = GC(0x02009954);
 const uint32_t kTypeInfoActor = GD(0x101E9CC0);
+const uint32_t kCourseSelectInstance = GD(0x101CC96C);
+const uint32_t kCourseTaskInstance = GD(0x101D15F0);
 
 constexpr uint32_t kActorMgrPtrCache = 0x6A20u;
 constexpr uint32_t kActorIdxToPtr = 0x4u;
@@ -963,6 +965,18 @@ void install_actor_meta(lua_State* L) {
 
 }
 
+int l_scene_installed(lua_State* L, uint32_t where) {
+    uint32_t inst;
+    std::string err;
+    if (!luau_guest::read_u32(where, inst, err)) return fail(L, err.c_str());
+    lua_pushboolean(L, inst != 0);
+    return 1;
+}
+
+int l_scene_world_map(lua_State* L) { return l_scene_installed(L, kCourseSelectInstance); }
+
+int l_scene_course(lua_State* L) { return l_scene_installed(L, kCourseTaskInstance); }
+
 void install(lua_State* L) {
     install_player_meta(L);
     install_actor_meta(L);
@@ -985,6 +999,11 @@ void install(lua_State* L) {
     bind(L, "get_player", l_player);
     bind(L, "get_players", l_players);
     set_loaded(L, "nsmbu.player");
+
+    lua_newtable(L);
+    bind(L, "world_map", l_scene_world_map);
+    bind(L, "course", l_scene_course);
+    set_loaded(L, "nsmbu.scene");
 }
 
 void set_cpu(Cpu* c) {

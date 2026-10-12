@@ -5,8 +5,9 @@
 #include "../input.h"
 #include "../motion/motion.h"
 #include "../rumble.h"
+#include "../mods/luau_press.h"
 
-namespace interp { bool repeat_input(); }
+namespace interp { bool repeat_input(); uint64_t logic_steps(); }
 
 namespace {
 constexpr int32_t kWpadErrNone = 0, kWpadErrNoController = -1;
@@ -72,6 +73,7 @@ HLE(padscore, KPADReadEx) {
     static input::PadState last_p;
     const bool repeat = interp::repeat_input();
     input::PadState p = repeat ? last_p : crashrec::read(1);
+    if (!repeat) p.buttons |= mods::luau_press::active(interp::logic_steps());
     last_p = p;
     if (!repeat) motion::right_stick(p.rx, p.ry);
     uint32_t hold = pro_buttons(p.buttons);

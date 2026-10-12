@@ -1,0 +1,52 @@
+{
+  "format_version": 2,
+  "id": "example.intro-skip",
+  "name": "Intro skip",
+  "version": "0.1.0",
+  "game_id": "nsmbu-usa",
+  "description": "Presses through the boot logos, the title screen, and file select so the world map loads without input.",
+  "kind": "luau",
+  "luau": {
+    "api_version": 1,
+    "entry": "main.luau"
+  },
+  "options": [
+    {
+      "id": "enabled",
+      "name": "Enabled",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "id": "slot",
+      "name": "Save slot",
+      "type": "string",
+      "default": "1",
+      "choices": ["1", "2", "3"]
+    },
+    {
+      "id": "press_every",
+      "name": "Steps between presses",
+      "type": "number",
+      "default": 20,
+      "min": 10,
+      "max": 90,
+      "step": 1
+    },
+    {
+      "id": "press_hold",
+      "name": "Press hold steps",
+      "type": "number",
+      "default": 3,
+      "min": 1,
+      "max": 20,
+      "step": 1
+    },
+    {
+      "id": "debug",
+      "name": "Log scene probes",
+      "type": "bool",
+      "default": false
+    }
+  ]
+}

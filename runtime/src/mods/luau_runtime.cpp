@@ -1,6 +1,8 @@
 #include "luau_runtime.h"
 #include "luau_game.h"
 #include "luau_guest.h"
+#include "luau_press.h"
+#include "input.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -364,6 +366,58 @@ int l_logic_dt(lua_State* L) {
     return 1;
 }
 
+bool button_bit(const char* name, uint32_t& bit) {
+    static const struct { const char* name; uint32_t bit; } kTable[] = {
+        {"A", input::kA},       {"B", input::kB},       {"X", input::kX},
+        {"Y", input::kY},       {"L", input::kL},       {"R", input::kR},
+        {"ZL", input::kZL},     {"ZR", input::kZR},     {"Plus", input::kPlus},
+        {"Minus", input::kMinus}, {"Home", input::kHome},
+        {"Up", input::kUp},     {"Down", input::kDown},
+        {"Left", input::kLeft}, {"Right", input::kRight},
+        {"StickL", input::kStickL}, {"StickR", input::kStickR},
+    };
+    for (const auto& entry : kTable) {
+        if (std::strcmp(entry.name, name) != 0) continue;
+        bit = entry.bit;
+        return true;
+    }
+    return false;
+}
+
+bool button_mask(lua_State* L, int arg, uint32_t& mask) {
+    if (lua_type(L, arg) == LUA_TSTRING) {
+        uint32_t bit = 0;
+        if (!button_bit(lua_tostring(L, arg), bit)) return false;
+        mask |= bit;
+        return true;
+    }
+    if (lua_type(L, arg) != LUA_TTABLE) return false;
+    lua_pushnil(L);
+    while (lua_next(L, arg) != 0) {
+        uint32_t bit = 0;
+        if (lua_type(L, -1) != LUA_TSTRING || !button_bit(lua_tostring(L, -1), bit)) {
+            lua_pop(L, 2);
+            return false;
+        }
+        mask |= bit;
+        lua_pop(L, 1);
+    }
+    return true;
+}
+
+int l_input_press(lua_State* L) {
+    Instance* inst = self(L);
+    uint32_t mask = 0;
+    if (!button_mask(L, 1, mask)) return fail(L, "bad type");
+    if (!lua_isnumber(L, 2)) return fail(L, "steps must be a number");
+    double steps = lua_tonumber(L, 2);
+    if (steps < 1) steps = 1;
+    if (steps > 600) steps = 600;
+    luau_press::press(inst, mask, (uint64_t)steps, inst->step);
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
 int l_config_string(lua_State* L) {
     Instance* inst = self(L);
     const char* id = luaL_checkstring(L, 1);
@@ -574,6 +628,7 @@ void install_global(lua_State* L) {
     attach_loaded(L, "nsmbu.env", "env");
     attach_loaded(L, "nsmbu.level", "level");
     attach_loaded(L, "nsmbu.player", "player");
+    attach_loaded(L, "nsmbu.scene", "scene");
     lua_setglobal(L, "nsmbu");
 }
 
@@ -632,7 +687,9 @@ void install_host_modules(lua_State* L, Instance* inst) {
 
     set_empty_module(L, "nsmbu.fn");
     set_empty_module(L, "nsmbu.hooks");
-    set_empty_module(L, "nsmbu.input");
+    lua_newtable(L);
+    bind(L, inst, "press", l_input_press);
+    set_loaded(L, "nsmbu.input");
     set_empty_module(L, "nsmbu.data");
     set_empty_module(L, "nsmbu.enemy");
     set_empty_module(L, "nsmbu.boss");
@@ -696,6 +753,7 @@ Instance::Instance(Instance&& o) noexcept
       fault_msg(std::move(o.fault_msg)), fault(o.fault), step(o.step), state(o.state),
       listeners(std::move(o.listeners)), next_listener(o.next_listener) {
     o.state = nullptr;
+    luau_press::drop(&o);
 }
 Instance& Instance::operator=(Instance&& o) noexcept {
     if (this == &o) return *this;
@@ -713,6 +771,7 @@ Instance& Instance::operator=(Instance&& o) noexcept {
     listeners = std::move(o.listeners);
     next_listener = o.next_listener;
     o.state = nullptr;
+    luau_press::drop(&o);
     return *this;
 }
 
@@ -753,6 +812,7 @@ std::unique_ptr<Instance> load(const LoadInfo& info) {
 void unload(Instance& inst) {
     if (!inst.state) return;
     fire_unload(inst);
+    luau_press::drop(&inst);
     close_state(inst);
 }
 
