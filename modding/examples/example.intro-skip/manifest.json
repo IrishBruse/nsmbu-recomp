@@ -10,18 +10,5 @@
     "api_version": 1,
     "entry": "main.luau"
   },
-  "options": [
-    {
-      "id": "enabled",
-      "name": "Enabled",
-      "type": "bool",
-      "default": true
-    },
-    {
-      "id": "debug",
-      "name": "Log progress",
-      "type": "bool",
-      "default": false
-    }
-  ]
+  "options": []
 }
