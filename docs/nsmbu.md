@@ -34,9 +34,10 @@ The executable name in the runtime is `red-pro2.rpx`.
 
 That file is `code/red-pro2.rpx` in the NSMBU filesystem.
 
-The public headers in `headers/` match NSMBU v1.3.0.
+The public headers in `references/headers` match NSMBU v1.3.0.
 
 Each function comment in those headers has a guest address.
+[names.md](names.md) maps those names and addresses to the names the port uses.
 
 ## Fork leftovers
 
@@ -118,7 +119,7 @@ The headers match the USA v1.3.0 executable (title `0005000010101d00`, title ver
 
 A disc image without that update has a different `red-pro2.rpx`.
 
-Addresses in `headers/` will not match that older file.
+Addresses in `references/headers` will not match that older file.
 
 `game/` and `*.rpx` are gitignored.
 

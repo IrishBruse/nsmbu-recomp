@@ -9,6 +9,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Add**: Mod API `nsmbu.on_loaded` fires once right after a package is loaded, as soon as the game can be called into.
     `nsmbu.input.press(...)` injects buttons for N logic steps.
     Example `example.intro-skip` loads to the world map without input: from `on_loaded` it calls `nsmbu.scene.open_file_select`, `confirm_file`, and `open_course_select` in order, so it never presses buttons or reads guest memory.
+-   **Docs**: `docs/names.md` maps the function names in `references/headers` and `references/decomp` to the guest addresses and the port names (`f_…`, `hook_…`, `GC`/`GD`, `kName`).
+    The reference notes now point at `references/headers` instead of the old `headers/` path.
 
 ## 0.3.0
 

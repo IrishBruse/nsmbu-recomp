@@ -182,7 +182,7 @@ That service was not in phase 1.
 Luau can add `nsmbu.hud` later.
 It is not required to retire v2.
 
-Game calls use guest addresses from the public headers (`headers/`, and today `runtime/guest/include/nsmbu/functions.h`).
+Game calls use guest addresses from the public headers (`references/headers`, see [names.md](../names.md)).
 The Luau runtime should ship a generated `nsmbu.fn` table of those names.
 A mod can still pass a raw address.
 USA addresses are the authoring target.

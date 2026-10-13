@@ -1,0 +1,138 @@
+# Names for game functions
+
+Every address in this repository is an address in USA v1.3.0 `red-pro2.rpx`.
+An address is the canonical id of a function, a global, or an instruction site ([builds.md](builds.md)).
+A name is easier to read and easier to talk about.
+Add the name next to the address.
+Do not replace the address with the name: the address stays the key in the hooks files and in the runtime.
+
+## Where the names come from
+
+| Tree | What it gives | Has addresses? |
+| --- | --- | --- |
+| `references/headers` | Class and function names for USA v1.3.0 ([nsmbu/headers](https://github.com/nsmbu/headers)) | Yes, an `Address:` value on each symbol |
+| `references/decomp` | C++ source for part of the game ([REDPRO2](https://github.com/aboood40091/REDPRO2)) | No |
+| `references/Cemu` | Emulator source for Cafe OS and GX2 | No |
+
+Use `references/headers` first.
+It is the only tree that ties a name to an address.
+Use `references/decomp` for the body of a function, the member order, and the layout, when the header has only a declaration.
+`references/decomp` uses the same class names as `references/headers`.
+Use `references/Cemu` for HLE behaviour, not for names.
+
+## Read a name out of a header
+
+A header gives the class in the file name or in the enclosing `class`, and the name from the declaration.
+The address is in a comment next to the symbol.
+The comment has three shapes.
+
+| Shape | Where it appears |
+| --- | --- |
+| `Address: 0xADDR` on its own line, before the declaration | members and non-virtual methods |
+| the symbol and `Address: 0xADDR` on one line | statics, and the singleton disposer block |
+| `@par Address: 0xADDR` in a doxygen block | virtuals |
+
+```cpp
+// Address: 0x024BBF18
+void incCoin(s32 num, s32 player_no);
+```
+
+So `0x024BBF18` is `CoinBattleScoreMgr::incCoin`.
+The header also writes `Address: Deleted` for a symbol the linker removed.
+That value is not an address.
+
+The file gives the qualified name: `references/headers/scene/Scene.h` is the class `Scene`.
+A nested `class` in the file adds to the scope: in `references/headers/scene/Scene.h`, the address `0x02994164` on the line before `bool setNextScene(...)` is `Scene::setNextScene`.
+
+## The shapes we use
+
+| Site | Shape | Example | Source of the shape |
+| --- | --- | --- | --- |
+| Generated C | `f_XXXXXXXX`, 8 uppercase hex digits | `f_02994164` | `tools/recomp/recomp.py` names every function by its canonical address |
+| `tools/recomp/hooks.txt` | `XXXXXXXX` for a function entry, `@XXXXXXXX` for an instruction site | `@022A79C4` | the recompiler reads this file |
+| A hooked function | `hook_XXXXXXXX` in the runtime, `f_XXXXXXXX_orig` for the game code | `hook_02994164` | `f_` plus the same digits |
+| Runtime code and data | `GC(0xXXXXXXXX)` for code, `GD(0xXXXXXXXX)` for data | `GC(0x02994164)` | [runtime/include/guest_addr.h](../runtime/include/guest_addr.h) |
+| A runtime constant | a `kName` constant that holds the address | `kSetNextScene = GC(0x02994164)` | [runtime/src/mods/sdk/nsmbu.cpp](../runtime/src/mods/sdk/nsmbu.cpp) |
+| Mod API (proposal) | `nsmbu.fn.<name>`, generated from the headers | `nsmbu.fn.dScnPly_Execute` | [modding/api.md](modding/api.md) |
+
+`GC` and `GD` are the identity for the USA build.
+They stay in the code so a later regional build can shift the address through that build's map.
+Keep the canonical USA address inside `GC` and `GD`, and give the constant a name.
+
+## Name an address
+
+1. Take the digits of `f_XXXXXXXX`, `hook_XXXXXXXX`, or `XXXXXXXX`, and search the headers:
+
+   ```sh
+   grep -rn "0x02994164" references/headers
+   ```
+
+2. Read the class and the symbol from the hit.
+   `0x02994164` is `Scene::setNextScene`.
+3. Write the name next to the address:
+   - in a hooks file, after `#`:
+
+     ```
+     02994164  # Scene::setNextScene: log every scene transition with args
+     ```
+
+   - in the runtime, as the name of the `GC`/`GD` constant, or as a comment on the hook.
+4. Search `references/decomp` for the same class when the header has a declaration only:
+
+   ```sh
+   grep -rn "Scene::setNextScene" references/decomp/src
+   ```
+
+5. When no tree has the symbol, keep the address and write what the site does.
+   A guessed name is worse than an address.
+
+## Name to address
+
+`references/headers` also works in the other direction.
+Search the name and read the `Address:` value:
+
+```sh
+grep -rn "setNextScene" references/headers
+```
+
+## Addresses used in this repository that have a header name
+
+| Address | Name | Used as |
+| --- | --- | --- |
+| `0x02009954` | `ActorMgr::createLater` | `kActorMgrCreateLater`, mod API |
+| `0x022656E0` | `CourseSelectTask::CourseSelectTask` (ctor) | `hook_022656E0`, intro-skip probe |
+| `0x022A7760` | `DistantViewMgr::calcView_` | the site `@022A79C4` sits inside it |
+| `0x024BBE40` | `CoinBattleScoreMgr::createInstance` | not used here; shape example |
+| `0x02994164` | `Scene::setNextScene` | `hook_02994164`, `kSetNextScene`, mod API |
+| `0x029941D0` | `Scene::setCourse_Story` | `kSetCourseStory`, mod API |
+| `0x101C30C8` | `ActorMgr::sInstance` | `kActorMgrSingleton`, mod API |
+| `0x101CC96C` | `CourseSelectTask::sInstance` | `kCourseSelectInstance`, mod API |
+| `0x101D15F0` | `CourseTask::sInstance` | `kCourseTaskInstance`, mod API |
+| `0x101D15F4` | `CourseTimer::sInstance` | `kCourseTimerSingleton`, mod API |
+| `0x101D1604` | `FieldGame::sInstance` | `kFieldGameSingleton`, mod API |
+| `0x101E6994` | `PlayerMgr::sInstance` | `kPlayerMgrSingleton`, mod API |
+| `0x101E7B28` | `Scene::sInstance` | `kSceneSingleton`, mod API |
+| `0x101E9CC0` | `Actor::getRuntimeTypeInfoStatic()::typeInfo` | `kTypeInfoActor`, mod API |
+| `0x101ED8DC` | `Profile::sProfileList` | `kProfileList`, mod API |
+
+The headers do not name every address this repository uses.
+The remaining hooks are `02ACD218`, `024D752C`, and `@022A79C4`, and the remaining runtime addresses are the save state functions and the interpolation probes.
+Give those a name when a tree gains the symbol.
+
+## Offsets
+
+An offset constant in the runtime comes from a class layout, not from an address.
+Take the member order from `references/headers` or `references/decomp` and add the base class size.
+`CourseTimer` has a `SEAD_SINGLETON_DISPOSER` base of 0x10 bytes, then these members:
+
+| Offset | Member |
+| --- | --- |
+| `0x10` | `mFreezeTime` |
+| `0x14` | `mTime` |
+| `0x18` | `mBeginTime` |
+| `0x1C` | `mIsHurryUp` |
+| `0x1D` | `mStopTimerInfo` |
+| `0x1E` | `mBonusTime` |
+
+So `kTimerTime = 0x14` is `CourseTimer::mTime`.
+A `static_assert(sizeof(X) == 0xNN)` in the header confirms the layout.
