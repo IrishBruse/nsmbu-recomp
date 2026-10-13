@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""Class and function names for guest addresses, from references/headers.
+"""Class and function names for guest addresses.
 
-usage (from recomp.py): names.load() -> {address: qualified name}
+The names come from the [nsmbu/headers](https://github.com/nsmbu/headers) project (USA v1.3.0):
+`python3 tools/recomp/names.py` walks a `references/headers` checkout and writes the extracted
+`{address: name}` table to `tools/recomp/headers_names.txt`, which is in git. `recomp.py` and
+`stubgen.py` read that file, so they need no checkout of the headers.
 
-The headers tie a name to an address in three shapes (docs/names.md):
+usage:
+    names.py path/to/headers...     extract into headers_names.txt
+    names.py                        show the committed count
+
+The headers tie a name to an address in three shapes:
 
     // Address: 0xADDR          before a declaration: members and methods
     // symbol   Address: 0xADDR  on one line: statics and the disposer block
@@ -16,9 +23,12 @@ namespace and is not prefixed with the class.
 """
 import os
 import re
+import subprocess
+import sys
 
 here = os.path.dirname(os.path.abspath(__file__))
 headers_dir = os.path.normpath(os.path.join(here, "..", "..", "references", "headers"))
+DATA_FILE = os.path.join(here, "headers_names.txt")
 
 ADDRESS = re.compile(r"Address:\s*(0x[0-9A-Fa-f]{8})\b")
 CLASS = re.compile(r"^\s*(?:class|struct)\s+(\w+)")
@@ -110,8 +120,8 @@ class Parser:
                 self.put(addr, qualify(self.scope(stack, pending), symbol, from_decl=True))
             return
 
-    def load_tree(self):
-        for root, dirs, files in os.walk(headers_dir):
+    def load_tree(self, root_dir):
+        for root, dirs, files in os.walk(root_dir):
             dirs[:] = [d for d in sorted(dirs) if d != ".git"]
             for fn in sorted(files):
                 if fn.endswith(".h"):
@@ -119,14 +129,61 @@ class Parser:
                         self.parse(f.read())
 
 
-def load():
-    """{address int: name} for every `Address:` value in references/headers."""
+def source_commit(root_dir):
+    try:
+        out = subprocess.run(["git", "-C", root_dir, "rev-parse", "--short", "HEAD"],
+                             capture_output=True, text=True, timeout=10)
+        return out.stdout.strip() if out.returncode == 0 else None
+    except OSError:
+        return None
+
+
+def extract(argv_paths):
+    """Walk one or more references/headers checkouts and write headers_names.txt."""
+    if not argv_paths:
+        argv_paths = [headers_dir]
     parser = Parser()
-    parser.load_tree()
+    for d in argv_paths:
+        if not os.path.isdir(d):
+            sys.exit("no headers checkout: %s" % d)
+        parser.load_tree(d)
+    lines = ["# Function and global addresses with their class and symbol names.",
+             "# Source: https://github.com/nsmbu/headers (USA v1.3.0), extracted by tools/recomp/names.py."]
+    commit = source_commit(argv_paths[0])
+    if commit:
+        lines[1] += " Checkout: %s." % commit
+    lines.append("#")
+    for addr, name in sorted(parser.names.items()):
+        lines.append("%08X %s" % (addr, name))
+    with open(DATA_FILE, "w") as f:
+        f.write("\n".join(lines) + "\n")
     if parser.conflicts:
-        print("names.py: %d addresses with two names" % parser.conflicts)
-    return parser.names
+        print("names.py: %d addresses with two names" % parser.conflicts, file=sys.stderr)
+    print("wrote %s: %d names from %s" % (DATA_FILE, len(parser.names), " ".join(argv_paths)))
+
+
+def load():
+    """{address int: name} from the committed headers_names.txt."""
+    names = {}
+    try:
+        with open(DATA_FILE) as f:
+            for line in f:
+                if line.startswith("#"):
+                    continue
+                addr, _, name = line.rstrip("\n").partition(" ")
+                if addr and name:
+                    names[int(addr, 16)] = name
+    except OSError:
+        sys.exit("%s is missing; extract it from a references/headers checkout: "
+                 "python3 tools/recomp/names.py references/headers" % DATA_FILE)
+    return names
 
 
 if __name__ == "__main__":
-    print("%d names" % len(load()))
+    if any(a.startswith("-") for a in sys.argv[1:]):
+        print(__doc__.strip())
+        sys.exit(0)
+    if sys.argv[1:]:
+        extract(sys.argv[1:])
+    else:
+        print("%d committed names" % len(load()))

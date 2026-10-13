@@ -20,6 +20,12 @@ Use `references/decomp` for the body of a function, the member order, and the la
 `references/decomp` uses the same class names as `references/headers`.
 Use `references/Cemu` for HLE behaviour, not for names.
 
+The repository does not carry the headers.
+`tools/recomp/names.py` extracts the addresses and names from a local `references/headers` checkout into `tools/recomp/headers_names.txt`, and that file is in git.
+`recomp.py` and `stubgen.py` read the file, so the gen needs no checkout of the headers.
+Credit the names to [nsmbu/headers](https://github.com/nsmbu/headers).
+Refresh the file after a headers update with `python3 tools/recomp/names.py references/headers`.
+
 ## Read a name out of a header
 
 A header gives the class in the file name or in the enclosing `class`, and the name from the declaration.
@@ -66,6 +72,12 @@ Keep the canonical USA address inside `GC` and `GD`, and give the constant a nam
 
    ```sh
    grep -rn "0x02994164" references/headers
+   ```
+
+   Without a checkout, search the extracted file:
+
+   ```sh
+   grep "02994164" tools/recomp/headers_names.txt
    ```
 
 2. Read the class and the symbol from the hit.

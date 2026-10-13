@@ -240,7 +240,7 @@ class Recompiler:
         return self.canon_of.get(addr) or self.build.canon_code(addr)
 
     def callee(self, addr):
-        """The comment for a call site: the callee's name from references/headers."""
+        """The comment for a call site: the callee's name from headers_names.txt."""
         label = self.names.get(self.sym(addr))
         return " /* %s */" % label if label else ""
 
@@ -560,7 +560,7 @@ class Recompiler:
                 f.write("hook on a function this build compiled differently: %08X (here %08X, %s)\n" % (
                     canon, addr, where))
             f.write("functions: %d\nfiles: %d\nfixpoint rounds: %d\n" % (len(self.sorted_entries), nfiles, self.fixpoint_rounds))
-            f.write("functions with a name from references/headers: %d of %d\n" % (
+            f.write("functions with a name from nsmbu/headers: %d of %d\n" % (
                 sum(1 for e in self.sorted_entries if self.names.get(self.sym(e))), len(self.sorted_entries)))
             f.write("imports used: %d of %d\n" % (len(self.used_imports), len(self.imports)))
             f.write("CR writers: %d, %d with no live bit (liveness %s%s)\n" % (
