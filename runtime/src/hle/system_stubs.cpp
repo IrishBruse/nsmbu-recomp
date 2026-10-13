@@ -66,6 +66,22 @@ HLE(nn_olv, Initialize__Q2_2nn3olvFPCQ3_2nn3olv15InitializeParam) { ret(c, kResu
 HLE(nn_olv, IsInitialized__Q2_2nn3olvFv) { ret(c, 0); }
 HLE(nn_olv, Finalize__Q2_2nn3olvFv) { ret(c, kResultOk); }
 
+// Stubs, not implementations. Miiverse (nn_olv) is offline here, so the post objects get
+// constructed empty and reports go nowhere. These replace the generated "unimplemented"
+// fallback, so they no longer log to [hle].
+HLE(nn_olv, __ct__Q3_2nn3olv18DownloadedPostDataFv) { ret(c, arg(c, 0)); }
+HLE(nn_olv, SetReportTypes__Q3_2nn3olv6ReportFUi) {}
+
+// Stubs, not implementations. They report "no DLC installed", which is correct offline.
+// Return values match Cemu's nn_aoc (0x80 + min(count, 256) * 0x61 work buffer, 0 titles).
+HLE(nn_aoc, AOC_Initialize) { ret(c, kResultOk); }
+HLE(nn_aoc, AOC_CalculateWorkBufferSize) { ret(c, 0x80 + std::min<uint32_t>(arg(c, 0), 256) * 0x61); }
+HLE(nn_aoc, AOC_ListTitle) {
+    if (arg(c, 0)) st32(arg(c, 0), 0);
+    ret(c, kResultOk);
+}
+HLE(nn_aoc, AOC_OpenTitle) { ret(c, kResultOk); }
+
 extern "C" void f_0203DEEC_orig(Cpu* c);
 extern "C" void hook_0203DEEC(Cpu* c) {
     threads::park_sleep_until(std::chrono::steady_clock::now() + std::chrono::milliseconds(1));
