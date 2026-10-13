@@ -1,7 +1,7 @@
 # Luau API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle (`on_logic_step`, `on_config_changed`, and `on_unload` registration), package metadata, log and status, time, config, guest memory, high-level `nsmbu.level` / `nsmbu.player` helpers, level actor reads / spawns, and `nsmbu.scene` flow probes and transitions are implemented with embedded Luau.
+Lifecycle (`on_loaded`, `on_logic_step`, `on_config_changed`, and `on_unload` registration), package metadata, log and status, time, config, guest memory, high-level `nsmbu.level` / `nsmbu.player` helpers, level actor reads / spawns, and `nsmbu.scene` flow probes and transitions are implemented with embedded Luau.
 Hooks (`nsmbu.hooks`), input pad reads, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.

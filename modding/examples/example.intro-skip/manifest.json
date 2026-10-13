@@ -4,7 +4,7 @@
   "name": "Intro skip",
   "version": "0.1.0",
   "game_id": "nsmbu-usa",
-  "description": "Loads to the world map without input: direct mode opens the course select from the idle map phase, press mode drives the menus with injected presses.",
+  "description": "Loads to the world map without input: it drives the boot flow with the same scene calls a button press would make.",
   "kind": "luau",
   "luau": {
     "api_version": 1,
@@ -16,49 +16,6 @@
       "name": "Enabled",
       "type": "bool",
       "default": true
-    },
-    {
-      "id": "mode",
-      "name": "Mode",
-      "type": "string",
-      "default": "direct",
-      "choices": ["direct", "press"]
-    },
-    {
-      "id": "slot",
-      "name": "Save slot (press mode)",
-      "type": "number",
-      "default": 1,
-      "min": 1,
-      "max": 3,
-      "step": 1
-    },
-    {
-      "id": "skip_at",
-      "name": "Skip logic step",
-      "type": "number",
-      "default": 300,
-      "min": 10,
-      "max": 18000,
-      "step": 10
-    },
-    {
-      "id": "press_every",
-      "name": "Steps between presses (press mode)",
-      "type": "number",
-      "default": 20,
-      "min": 2,
-      "max": 900,
-      "step": 1
-    },
-    {
-      "id": "press_hold",
-      "name": "Press hold steps (press mode)",
-      "type": "number",
-      "default": 3,
-      "min": 1,
-      "max": 900,
-      "step": 1
     },
     {
       "id": "debug",

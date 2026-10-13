@@ -207,6 +207,7 @@ declare nsmbu: {
 	logic_dt: () -> number,
 	on_logic_step: (callback: LogicStepCallback) -> (ListenId?, string?),
 	on_config_changed: (callback: VoidCallback) -> (ListenId?, string?),
+	on_loaded: (callback: VoidCallback) -> (ListenId?, string?),
 	on_unload: (callback: VoidCallback) -> (ListenId?, string?),
 	unlisten: (id: ListenId) -> (boolean?, string?),
 

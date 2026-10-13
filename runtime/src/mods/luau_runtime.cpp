@@ -145,6 +145,17 @@ bool fire_config(Instance& inst) {
     return true;
 }
 
+bool fire_loaded(Instance& inst) {
+    lua_State* L = static_cast<lua_State*>(inst.state);
+    for (const auto& l : inst.listeners) {
+        if (l.event != "loaded") continue;
+        if (inst.fault) return false;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, l.ref);
+        if (!call_fn(inst, 0)) return false;
+    }
+    return true;
+}
+
 bool fire_unload(Instance& inst) {
     lua_State* L = static_cast<lua_State*>(inst.state);
     for (size_t i = inst.listeners.size(); i > 0; --i) {
@@ -320,6 +331,7 @@ std::unique_ptr<Instance> load(const LoadInfo& info) {
         std::string msg = lua_tostring(L, -1) ? lua_tostring(L, -1) : "entry failed";
         throw std::runtime_error(msg);
     }
+    fire_loaded(*inst);
     return inst;
 }
 

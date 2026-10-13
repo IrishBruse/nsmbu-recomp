@@ -2,26 +2,19 @@
 
 Loads to the world map without input.
 
-Direct mode is the default.
-It waits for the boot flow to settle, then calls `nsmbu.scene.open_course_select()`
-once the map phase has been idle for a while.
-If the flow still stalls, it calls `nsmbu.scene.confirm_file()` to finish the load.
+`nsmbu.on_loaded` starts the skip once the package is live.
+It then calls three scene transitions in order:
 
-Press mode drives the boot the old way.
-It presses A across the title and save select, then stops once the world map
-select task is alive.
-The `slot` option navigates the save select: while the save select phase is seen,
-it presses Down per slot and then A, so slot 2 or 3 still loads that save.
+1. `nsmbu.scene.open_file_select()`, the call pressing A on the title makes.
+2. `nsmbu.scene.confirm_file()`, the call pressing A on the save select makes.
+3. `nsmbu.scene.open_course_select()`, the call that opens the world map.
+
+No buttons are pressed and no guest memory is read.
+The scene calls already do the work the button presses would do.
 
 Options:
 
 | Option | Meaning |
 | --- | --- |
-| Mode | `direct` opens the course select from the map phase (default), `press` drives the menus with injected presses. |
-| Save slot | Which save the save-select plan picks (press mode). |
-| Skip logic step | Earliest step direct mode opens the course select (default 120). |
-| Steps between presses / Press hold steps | Pacing for injected presses (press mode). |
-| Log progress | Prints phase changes and transitions to the game log. |
-
-The slot navigation timing is tuned for the dev save layout; if a different
-system loads the save select at a different speed, raise the press spacing.
+| Enabled | Turn the skip on or off. |
+| Log progress | Print each successful transition to the game log. |

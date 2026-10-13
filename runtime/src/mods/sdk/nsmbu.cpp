@@ -119,6 +119,8 @@ int l_on_logic_step(lua_State* L) { return listen_event(L, "logic_step"); }
 
 int l_on_config_changed(lua_State* L) { return listen_event(L, "config_changed"); }
 
+int l_on_loaded(lua_State* L) { return listen_event(L, "loaded"); }
+
 int l_on_unload(lua_State* L) { return listen_event(L, "unload"); }
 
 int l_unlisten(lua_State* L) {
@@ -442,7 +444,7 @@ constexpr uint32_t kCreatorFlow = 0x0297B9F8u;
 constexpr uint32_t kCreatorFileSelect = 0x0298AD3Cu;
 constexpr uint32_t kCreatorTitle = 0x0202B51Cu;
 constexpr uint32_t kCreatorMap = 0x020292B8u;
-constexpr uint32_t kCreatorCourseSelect = 0x0202B6C4u;
+constexpr uint32_t kCreatorCourseSelect = 0x0202B86Cu;
 constexpr uint32_t kClassIdTask = 0x00000002u;
 
 constexpr uint32_t kActorMgrPtrCache = 0x6A20u;
@@ -1446,12 +1448,14 @@ bool scene_transition(uint32_t creator, uint32_t fader, std::string& err) {
         err = "no guest cpu";
         return false;
     }
+    uint32_t scene = 0;
     uint32_t app = 0;
+    if (!scene_object(scene, err)) return false;
     if (!scene_app_object(app, err)) return false;
     uint32_t pair = mem::host_alloc(8, 4);
     st32(pair, kClassIdTask);
     st32(pair + 4, creator);
-    guest_call(t_guest_cpu, kSetNextScene, {app, 0, pair, fader, 0});
+    guest_call(t_guest_cpu, kSetNextScene, {scene, app, pair, fader, 0});
     return true;
 }
 
@@ -1571,6 +1575,7 @@ void install_modules(lua_State* L, Instance* inst) {
 
     bind(L, inst, "on_logic_step", l_on_logic_step);
     bind(L, inst, "on_config_changed", l_on_config_changed);
+    bind(L, inst, "on_loaded", l_on_loaded);
     bind(L, inst, "on_unload", l_on_unload);
     bind(L, inst, "unlisten", l_unlisten);
     bind(L, inst, "log", l_log);

@@ -59,6 +59,15 @@ int main(int argc, char** argv) {
         {auto v=view("luau.status");assert(v.active&&v.status.find("Yo")!=std::string::npos&&v.status.find("Hi")==std::string::npos);}
         assert(enable("luau.status",false,error));frame(3);assert(remove("luau.status",error));
 
+        assert(install(luau_pack("luau.loaded",
+            "local nsmbu=require(\"nsmbu\")\n"
+            "nsmbu.on_loaded(function()\n"
+            "  nsmbu.status(\"loaded\")\n"
+            "end)\n",""),error));
+        assert(enable("luau.loaded",true,error));
+        {auto v=view("luau.loaded");assert(v.active&&v.status=="loaded");}
+        frame(4);assert(remove("luau.loaded",error));
+
         assert(install(luau_pack("luau.boom",
             "local nsmbu=require(\"nsmbu\")\n"
             "nsmbu.on_logic_step(function(step)\n"

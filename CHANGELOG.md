@@ -6,8 +6,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
 ## Unreleased
 
 -   **Add**: Mod API `nsmbu.scene`: boot-flow phase probes (`title`, `file_select`, `map_phase`, `course`, `course_select`, `phase`) and transitions (`open_title`, `open_file_select`, `open_course_select`, `confirm_file`, `load_story`) that call `Scene::setNextScene` / `Scene::setCourse_Story` inside the port.
+-   **Add**: Mod API `nsmbu.on_loaded` fires once right after a package is loaded, as soon as the game can be called into.
     `nsmbu.input.press(...)` injects buttons for N logic steps.
-    Example `example.intro-skip` loads to the world map without input: direct mode opens the course select once the map phase idles, and only the opt-in press mode runs button presses.
+    Example `example.intro-skip` loads to the world map without input: from `on_loaded` it calls `nsmbu.scene.open_file_select`, `confirm_file`, and `open_course_select` in order, so it never presses buttons or reads guest memory.
 
 ## 0.3.0
 
