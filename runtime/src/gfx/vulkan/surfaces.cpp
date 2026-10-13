@@ -441,6 +441,89 @@ static void decode_level_slow(Surface* s, uint32_t level, uint32_t base, std::ve
     }
 }
 
+template<typename T>
+struct CopyPod {
+    T value;
+} __attribute__((packed, may_alias));
+template<typename T>
+static T load_pod(const uint8_t* p) { return reinterpret_cast<const CopyPod<T>*>(p)->value; }
+template<typename T>
+static void store_pod(uint8_t* p, T value) { reinterpret_cast<CopyPod<T>*>(p)->value = value; }
+template<uint32_t B>
+static uint32_t thin1_elem(uint32_t index) {
+    uint32_t elem = index * B;
+    if constexpr (B > 4) elem = (elem & 0xFF) | ((elem & ~0xFFu) << 3);
+    return elem;
+}
+template<uint32_t B>
+static bool thin1_row_packed(const uint16_t* pixel) {
+    if constexpr (B != 1 && B != 4 && B != 8) return false;
+    const uint32_t base = thin1_elem<B>(pixel[0]);
+    for (uint32_t rx = 0; rx < 8; rx++) {
+        uint32_t step = rx;
+        if constexpr (B == 8) {
+            constexpr uint8_t step8[8] = {0, 1, 4, 5, 8, 9, 12, 13};
+            step = step8[rx];
+        } else if constexpr (B == 4) {
+            constexpr uint8_t step4[8] = {0, 1, 2, 3, 8, 9, 10, 11};
+            step = step4[rx];
+        }
+        if (thin1_elem<B>(pixel[rx]) != base + step * B) return false;
+    }
+    return true;
+}
+static bool thin1_row_packed_n(const uint16_t* pixel, uint32_t bytes) {
+    if (bytes == 8) return thin1_row_packed<8>(pixel);
+    if (bytes == 4) return thin1_row_packed<4>(pixel);
+    if (bytes == 1) return thin1_row_packed<1>(pixel);
+    return false;
+}
+template<uint32_t B>
+static void copy_thin1_row(uint8_t* dst, const uint8_t* srcTile, const uint16_t* pixel, bool packed) {
+    if (packed) {
+        if constexpr (B == 8) {
+            const uint8_t* src = srcTile + thin1_elem<8>(pixel[0]);
+            store_pod<uint64_t>(dst + 0, load_pod<uint64_t>(src + 0));
+            store_pod<uint64_t>(dst + 8, load_pod<uint64_t>(src + 8));
+            store_pod<uint64_t>(dst + 16, load_pod<uint64_t>(src + 32));
+            store_pod<uint64_t>(dst + 24, load_pod<uint64_t>(src + 40));
+            store_pod<uint64_t>(dst + 32, load_pod<uint64_t>(src + 64));
+            store_pod<uint64_t>(dst + 40, load_pod<uint64_t>(src + 72));
+            store_pod<uint64_t>(dst + 48, load_pod<uint64_t>(src + 96));
+            store_pod<uint64_t>(dst + 56, load_pod<uint64_t>(src + 104));
+            return;
+        } else if constexpr (B == 4) {
+            const uint8_t* src = srcTile + thin1_elem<4>(pixel[0]);
+            store_pod<uint64_t>(dst + 0, load_pod<uint64_t>(src + 0));
+            store_pod<uint64_t>(dst + 8, load_pod<uint64_t>(src + 8));
+            store_pod<uint64_t>(dst + 16, load_pod<uint64_t>(src + 32));
+            store_pod<uint64_t>(dst + 24, load_pod<uint64_t>(src + 40));
+            return;
+        } else if constexpr (B == 1) {
+            store_pod<uint64_t>(dst, load_pod<uint64_t>(srcTile + thin1_elem<1>(pixel[0])));
+            return;
+        }
+    }
+    for (uint32_t rx = 0; rx < 8; rx++) {
+        const uint8_t* src = srcTile + thin1_elem<B>(pixel[rx]);
+        if constexpr (B == 1) *dst = *src;
+        else if constexpr (B == 2) store_pod<uint16_t>(dst, load_pod<uint16_t>(src));
+        else if constexpr (B == 4) store_pod<uint32_t>(dst, load_pod<uint32_t>(src));
+        else store_pod<uint64_t>(dst, load_pod<uint64_t>(src));
+        dst += B;
+    }
+}
+template<uint32_t B>
+static void copy_thin1_tiles(uint8_t* dst, const uint8_t* src, const uint16_t* sliceRows, const bool* packedRow,
+                             LatteAddrLib::CachedSurfaceAddrInfo* ci, uint32_t bw, uint32_t bxEnd, uint32_t byEnd) {
+    for (uint32_t by = 0; by < byEnd; by += 8) {
+        for (uint32_t bx = 0; bx < bxEnd; bx += 8) {
+            const uint8_t* srcTile = src + LatteAddrLib::ComputeSurfaceAddrFromCoordMacroTiledCached(bx, by, ci);
+            for (uint32_t ry = 0; ry < 8; ry++)
+                copy_thin1_row<B>(dst + ((size_t)(by + ry) * bw + bx) * B, srcTile, sliceRows + (ry << 3), packedRow[ry]);
+        }
+    }
+}
 static bool decode_level_fast(Surface* s, uint32_t level, uint32_t base, uint8_t* out, uint32_t bw, uint32_t bh, uint32_t slices) {
     const FormatInfo& f = s->fmt;
     if (!(f.convert == Convert::NONE && f.hostBytesPerBlock == f.bytesPerBlock && f.bytesPerBlock && f.bytesPerBlock <= 8))
@@ -465,21 +548,33 @@ static bool decode_level_fast(Surface* s, uint32_t level, uint32_t base, uint8_t
             LatteAddrLib::SetupCachedSurfaceAddrInfo(&ci, z, 0, bpp, pitch, height, slices, 1, tm, false, pipeSwizzle, bankSwizzle);
             uint8_t* dst = out + (size_t)z * bh * bw * host;
             const uint32_t bxEnd = bw & ~7u, byEnd = bh & ~7u;
-            for (uint32_t by = 0; by < byEnd; by += 8) {
-                for (uint32_t bx = 0; bx < bxEnd; bx += 8) {
-                    uint32_t tileBase = LatteAddrLib::ComputeSurfaceAddrFromCoordMacroTiledCached(bx, by, &ci);
-                    const uint8_t* srcTile = src + tileBase;
-                    for (uint32_t ry = 0; ry < 8; ry++) {
-                        uint8_t* dstRow = dst + ((size_t)(by + ry) * bw + bx) * host;
-                        const uint16_t* pixel = table + (ry << 3) + ((z & 7) << 6);
-                        for (uint32_t rx = 0; rx < 8; rx++) {
-                            uint32_t elem = (uint32_t)pixel[rx] * bytes;
-                            if (shuffle) elem = (elem & 0xFF) | ((elem & ~0xFFu) << 3);
-                            memcpy(dstRow, srcTile + elem, host);
-                            dstRow += host;
+            const uint16_t* sliceRows = table + ((z & 7) << 6);
+            bool packedRow[8];
+            for (uint32_t ry = 0; ry < 8; ry++) packedRow[ry] = thin1_row_packed_n(sliceRows + (ry << 3), bytes);
+            switch (bytes) {
+            case 8: copy_thin1_tiles<8>(dst, src, sliceRows, packedRow, &ci, bw, bxEnd, byEnd); break;
+            case 4: copy_thin1_tiles<4>(dst, src, sliceRows, packedRow, &ci, bw, bxEnd, byEnd); break;
+            case 2: copy_thin1_tiles<2>(dst, src, sliceRows, packedRow, &ci, bw, bxEnd, byEnd); break;
+            case 1: copy_thin1_tiles<1>(dst, src, sliceRows, packedRow, &ci, bw, bxEnd, byEnd); break;
+            default:
+                for (uint32_t by = 0; by < byEnd; by += 8) {
+                    for (uint32_t bx = 0; bx < bxEnd; bx += 8) {
+                        const uint8_t* srcTile = src + LatteAddrLib::ComputeSurfaceAddrFromCoordMacroTiledCached(bx, by, &ci);
+                        for (uint32_t ry = 0; ry < 8; ry++) {
+                            uint8_t* dstRow = dst + ((size_t)(by + ry) * bw + bx) * host;
+                            const uint16_t* pixel = sliceRows + (ry << 3);
+                            for (uint32_t rx = 0; rx < 8; rx++) {
+                                uint32_t elem = (uint32_t)pixel[rx] * bytes;
+                                if (shuffle) elem = (elem & 0xFF) | ((elem & ~0xFFu) << 3);
+                                memcpy(dstRow, srcTile + elem, host);
+                                dstRow += host;
+                            }
                         }
                     }
                 }
+                break;
+            }
+            for (uint32_t by = 0; by < byEnd; by += 8) {
                 for (uint32_t y = by; y < by + 8; y++) {
                     uint8_t* dstRow = dst + (size_t)y * bw * host;
                     for (uint32_t x = bxEnd; x < bw; x++) {
