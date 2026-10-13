@@ -63,18 +63,25 @@ static void crash_raw(int fd, const char* s, size_t n) {
 static void crash_log_raw(int fd, const char* s, size_t n) {
     if (fd >= 0 && write(fd, s, n) < 0) {}
 }
+static char g_crash_log_dir[512];
+static void init_crash_log_dir() {
+    host::ensure_log_dir();
+    std::snprintf(g_crash_log_dir, sizeof g_crash_log_dir, "%s", host::log_dir().c_str());
+}
 static void crash_out(int fd, const char* s, size_t n) { crash_context::redact(fd, {s,n}, crash_raw); }
 static void crash_log_only(int fd, const char* s, size_t n) { crash_context::redact(fd, {s,n}, crash_log_raw); }
 static void crash_handler(int sig, siginfo_t* si, void* uctx) {
     uintptr_t a = (uintptr_t)si->si_addr;
     uintptr_t base = (uintptr_t)PPC_MEM_BASE;
-    char path[96];
+    char path[640];
     {
-        mkdir("captures", 0755);
+        if (g_crash_log_dir[0]) mkdir(g_crash_log_dir, 0755);
         time_t t = time(nullptr);
         struct tm tmv;
         localtime_r(&t, &tmv);
-        strftime(path, sizeof path, "captures/crash-%Y%m%d-%H%M%S.log", &tmv);
+        char name[64];
+        strftime(name, sizeof name, "crash-%Y%m%d-%H%M%S.log", &tmv);
+        std::snprintf(path, sizeof path, "%s/%s", g_crash_log_dir[0] ? g_crash_log_dir : "logs", name);
         g_crash_fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     }
     const int fd = g_crash_fd;
@@ -141,6 +148,7 @@ static void crash_handler(int sig, siginfo_t* si, void* uctx) {
 }
 
 static void install_crash_handler() {
+    init_crash_log_dir();
     static char altstack[1 << 16];
     stack_t ss{};
     ss.ss_sp = altstack;
@@ -164,11 +172,21 @@ static void win_crash_raw(int fd, const char* s, size_t n) {
 static void win_crash_log_raw(int fd, const char* s, size_t n) { if (fd >= 0) _write(fd, s, (unsigned)n); }
 static void win_crash_out(int fd, const char* s, size_t n) { crash_context::redact(fd, {s,n}, win_crash_raw); }
 static void win_crash_log_only(int fd, const char* s, size_t n) { crash_context::redact(fd, {s,n}, win_crash_log_raw); }
+static char g_crash_log_dir[512];
+static void init_crash_log_dir() {
+    host::ensure_log_dir();
+    std::snprintf(g_crash_log_dir, sizeof g_crash_log_dir, "%s", host::log_dir().c_str());
+}
 static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
     auto code=ex->ExceptionRecord->ExceptionCode;
-    std::error_code ec; std::filesystem::create_directories("captures",ec);
-    char path[96]; time_t t=time(nullptr); struct tm tmv; localtime_s(&tmv,&t);
-    strftime(path,sizeof path,"captures/crash-%Y%m%d-%H%M%S.log",&tmv);
+    if (g_crash_log_dir[0]) {
+        std::error_code ec;
+        std::filesystem::create_directories(g_crash_log_dir, ec);
+    }
+    char path[640]; time_t t=time(nullptr); struct tm tmv; localtime_s(&tmv,&t);
+    char name[64];
+    strftime(name,sizeof name,"crash-%Y%m%d-%H%M%S.log",&tmv);
+    std::snprintf(path,sizeof path,"%s/%s", g_crash_log_dir[0] ? g_crash_log_dir : "logs", name);
     int fd=_open(path,_O_WRONLY|_O_CREAT|_O_TRUNC|_O_BINARY,_S_IREAD|_S_IWRITE);
     char buf[256]; int n;
 
@@ -199,7 +217,11 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
     input::stop_rumble_now();
     return EXCEPTION_EXECUTE_HANDLER;
 }
-static void install_crash_handler() { SetUnhandledExceptionFilter(crash_handler); crash_addr::prime(); }
+static void install_crash_handler() {
+    init_crash_log_dir();
+    SetUnhandledExceptionFilter(crash_handler);
+    crash_addr::prime();
+}
 #endif
 static void init_data_imports() {
     uint32_t alloc = 0, alloc_ex = 0, free_ = 0;
@@ -275,12 +297,13 @@ static void start_log_file() {
 #ifdef __ANDROID__
     if (!e || !*e) return;
 #endif
-    std::string path = e && *e ? e : "captures/nsmbu.log";
+    host::ensure_log_dir();
+    const std::string dir = host::log_dir();
+    std::string path = e && *e ? e : dir + "/nsmbu.log";
     std::error_code ec;
     if (!(e && *e)) {
-        std::filesystem::create_directories("captures", ec);
-        std::filesystem::remove("captures/nsmbu-previous.log", ec);
-        std::filesystem::rename(path, "captures/nsmbu-previous.log", ec);
+        std::filesystem::remove(dir + "/nsmbu-previous.log", ec);
+        std::filesystem::rename(path, dir + "/nsmbu-previous.log", ec);
     }
 #ifdef _WIN32
     g_log_fd = _open(path.c_str(), _O_WRONLY | _O_CREAT | _O_TRUNC | _O_BINARY, _S_IREAD | _S_IWRITE);

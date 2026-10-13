@@ -18,6 +18,7 @@ extern "C" uint64_t g_shader_state_gen;
 #include "gx2/gx2_cmd.h"
 #include "write_watch.h"
 #include "metal.h"
+#include "platform/host.h"
 #include "runtime.h"
 #include "util/helpers/StringBuf.h"
 
@@ -71,15 +72,15 @@ const char* capture_begin_frame() {
     if (g_capture_log) { fclose(g_capture_log); g_capture_log = nullptr; }
     static uint64_t envFrame = getenv("NSMBU_CAPTURE") ? strtoull(getenv("NSMBU_CAPTURE"), nullptr, 10) : ~0ull;
     if (!g_capture_requested.exchange(false) && R.frame != envFrame) return nullptr;
-    char dir[64];
+    char stamp[32];
     time_t t = time(nullptr);
-    strftime(dir, sizeof dir, "captures/%Y%m%d-%H%M%S", localtime(&t));
-    mkdir("captures", 0755);
-    mkdir(dir, 0755);
-    g_capture_dir = dir;
+    strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", localtime(&t));
+    host::ensure_log_dir();
+    g_capture_dir = host::log_dir() + "/" + stamp;
+    mkdir(g_capture_dir.c_str(), 0755);
     g_capture_frame = R.frame;
     g_capture_log = fopen((g_capture_dir + "/draws.log").c_str(), "w");
-    LOG("[gfx] capturing frame %llu to %s", (unsigned long long)R.frame, dir);
+    LOG("[gfx] capturing frame %llu to %s", (unsigned long long)R.frame, g_capture_dir.c_str());
     return g_capture_dir.c_str();
 }
 

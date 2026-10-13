@@ -1,18 +1,19 @@
 # CTest crash_log_module: the crash log names the module that holds a host crash address.
 # Runs the game executable with NSMBU_TEST_HOST_CRASH=1 (main.cpp: strlen of a bad pointer, right
-# after the crash handler is installed; no game files needed) and checks captures/crash-*.log.
+# after the crash handler is installed; no game files needed) and checks nsmbu/logs/crash-*.log.
 # cmake -DNSMBU=<nsmbu executable> -DWORK=<empty work folder> -P crash_log_test.cmake
 file(REMOVE_RECURSE "${WORK}")
 file(MAKE_DIRECTORY "${WORK}")
-execute_process(COMMAND "${CMAKE_COMMAND}" -E env NSMBU_TEST_HOST_CRASH=1 NSMBU_NO_AUDIO=1 "NSMBU_TEST_CONTEXT_PATH=$ENV{HOME}/crash-test" "${NSMBU}"
+set(USER_DIR "${WORK}/nsmbu")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env NSMBU_TEST_HOST_CRASH=1 NSMBU_NO_AUDIO=1 "NSMBU_USER_DIR=${USER_DIR}" "NSMBU_TEST_CONTEXT_PATH=$ENV{HOME}/crash-test" "${NSMBU}"
                 WORKING_DIRECTORY "${WORK}" RESULT_VARIABLE rc OUTPUT_VARIABLE out ERROR_VARIABLE err TIMEOUT 120)
 if(rc EQUAL 0)
   message(FATAL_ERROR "the executable did not crash:\n${out}\n${err}")
 endif()
-file(GLOB logs "${WORK}/captures/crash-*.log")
+file(GLOB logs "${USER_DIR}/logs/crash-*.log")
 list(LENGTH logs nlogs)
 if(NOT nlogs EQUAL 1)
-  message(FATAL_ERROR "expected one crash log in ${WORK}/captures, found ${nlogs} (exit ${rc}):\n${err}")
+  message(FATAL_ERROR "expected one crash log in ${USER_DIR}/logs, found ${nlogs} (exit ${rc}):\n${err}")
 endif()
 file(READ "${logs}" log)
 message(STATUS "crash log:\n${log}")

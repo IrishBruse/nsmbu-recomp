@@ -1363,15 +1363,17 @@ static void frame_dumps(uint64_t frame) {
   static const uint64_t scripted = getenv("NSMBU_CAPTURE") && !getenv("NSMBU_CAPTURE_PATH")
                                        ? strtoull(getenv("NSMBU_CAPTURE"), nullptr, 10) : ~0ull;
   if (captureRequested.exchange(false) || frame == scripted) {
-    char dir[64];
+    char stamp[32];
     time_t t = time(nullptr);
-    strftime(dir, sizeof dir, "captures/%Y%m%d-%H%M%S", localtime(&t));
+    strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", localtime(&t));
+    host::ensure_log_dir();
+    const std::string dir = host::log_dir() + "/" + stamp;
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
-    dump_scan(R.tv, std::string(dir) + "/tv.png");
-    dump_scan(R.drc, std::string(dir) + "/gamepad.png");
-    request_present_dump(std::string(dir) + "/present.png");
-    LOG("[gfx] capture of frame %llu written to %s", (unsigned long long)frame, dir);
+    dump_scan(R.tv, dir + "/tv.png");
+    dump_scan(R.drc, dir + "/gamepad.png");
+    request_present_dump(dir + "/present.png");
+    LOG("[gfx] capture of frame %llu written to %s", (unsigned long long)frame, dir.c_str());
   }
 }
 

@@ -217,7 +217,7 @@ static void choose_renderer(render::Api a) {
     cr.target = self;
     cr.state = crashrec::enabled() ? NSControlStateValueOn : NSControlStateValueOff;
     cr.toolTip = @"Saves the game into automatic states in the background and records the controller input since the "
-                 @"latest one. After a crash, the crash log in captures/ says how to load it and replay the input. "
+                 @"latest one. After a crash, the crash log in nsmbu/logs/ says how to load it and replay the input. "
                  @"Saving freezes the game for a moment.";
     for (int i = 1; i <= crashrec::kAutoSlots; i++) {
         crashrec::AutoInfo a = crashrec::auto_info(i);
@@ -482,11 +482,12 @@ bool menu_hotkey(uint16_t code) {
     }
     case kVK_ANSI_9: {
 
-        char path[96];
+        char name[64];
         time_t t = time(nullptr);
-        mkdir("captures", 0755);
-        strftime(path, sizeof path, "captures/%Y%m%d-%H%M%S-sound.log", localtime(&t));
-        ax::start_sound_trace(path, 3.0);
+        host::ensure_log_dir();
+        strftime(name, sizeof name, "%Y%m%d-%H%M%S-sound.log", localtime(&t));
+        const std::string path = host::log_dir() + "/" + name;
+        ax::start_sound_trace(path.c_str(), 3.0);
         return true;
     }
     default: return false;

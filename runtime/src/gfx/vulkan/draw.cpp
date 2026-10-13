@@ -9,6 +9,7 @@
 #include "backend.h"
 #include "buffer_cache.h"
 #include "render_prof.h"
+#include "platform/host.h"
 #include "runtime.h"
 #include "shaders.h"
 #include "settings.h"
@@ -1064,11 +1065,11 @@ Pipeline &pipeline(const uint32_t *r, vk::Shader *vs, vk::Shader *ps,
     p.pipeline = VK_NULL_HANDLE;
     LOG("[vulkan] graphics pipeline failed (Vulkan result %d): vs %016llX ps %016llX; its draws are skipped",
         int(result), (unsigned long long)vs->key, (unsigned long long)ps->key);
-    std::error_code captureDirError;
-    std::filesystem::create_directories("captures", captureDirError);
+    host::ensure_log_dir();
+    const std::string log = host::log_dir();
     for (auto *shader : shaders) {
-      char name[96];
-      snprintf(name, sizeof name, "captures/pipeline-failed-%s-%016llX",
+      char name[160];
+      snprintf(name, sizeof name, "%s/pipeline-failed-%s-%016llX", log.c_str(),
                shader->vertex ? "vs" : "ps", (unsigned long long)shader->key);
       if (FILE *f = fopen((std::string(name) + ".glsl").c_str(), "wb")) {
         fwrite(shader->glsl.data(), 1, shader->glsl.size(), f);

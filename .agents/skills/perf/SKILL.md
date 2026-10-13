@@ -15,7 +15,7 @@ Canonical addresses are USA v1.3.0 `red-pro2.rpx` (see `docs/names.md`).
 | --- | --- | --- |
 | Turn on | `NSMBU_GAME_SAMPLE=120`; `SIGUSR2` prints a report | `just perf` |
 | Get | per-PC histogram + per-thread table, in the game log | full stacks over every thread |
-| Ends up in | `captures/*.log` or `.tmp/repro/nsmbu.log` | `.tmp/perf/` |
+| Ends up in | `nsmbu/logs/*.log` or `.tmp/repro/nsmbu.log` | `.tmp/perf/` |
 
 - `just profile`: fixed 1-1 scene (slot 2 at TV frame 700, exit at 1100), log `.tmp/repro/nsmbu.log`. The methods are in `docs/performance.md`.
 - `just perf`: same scene under `perf record`. Writes `.tmp/perf/nsmbu.data`, `game.log`, `report.txt`, `report_flat.txt`.

@@ -3,6 +3,7 @@
 #include "../overlay/hostui.h"
 #include "../crashrec.h"
 #include "../game_languages.h"
+#include "../platform/host.h"
 #include <cstdlib>
 #include <filesystem>
 #include <ctime>
@@ -186,10 +187,11 @@ static void write_crash_log(Cpu* c, const std::string& file, uint32_t line, cons
         snprintf(b, sizeof b, "+0x%X", pc - s0);
         return pc - s0 < 0x4000 ? names[s0] + b : "?";
     };
-    std::error_code ec; std::filesystem::create_directories("captures",ec);
+    host::ensure_log_dir();
     time_t t = time(nullptr);
-    char path[96];
-    strftime(path, sizeof path, "captures/crash-%Y%m%d-%H%M%S.log", localtime(&t));
+    char stamp[64];
+    strftime(stamp, sizeof stamp, "crash-%Y%m%d-%H%M%S.log", localtime(&t));
+    const std::string path = host::log_dir() + "/" + stamp;
     FILE* f = tmpfile();
     if (!f) return;
     fprintf(f, "halt at %s:%u: %s\n", file.c_str(), line, msg.c_str());
@@ -214,9 +216,9 @@ static void write_crash_log(Cpu* c, const std::string& file, uint32_t line, cons
     char chunk[4096];
     while (size_t n = fread(chunk, 1, sizeof chunk, f)) report.append(chunk, n);
     fclose(f);
-    out_file = fopen(path, "w");
+    out_file = fopen(path.c_str(), "w");
     if (out_file) { out(0, report.data(), report.size()); fclose(out_file); }
-    fprintf(stderr, "[crash] wrote %s\n", path);
+    fprintf(stderr, "[crash] wrote %s\n", path.c_str());
 }
 
 HLE(coreinit, OSPanic) {

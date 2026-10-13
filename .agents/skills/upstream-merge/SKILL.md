@@ -67,4 +67,4 @@ The Android package is `org.nsmbrecomp.nsmbu`.
 
 Leave the GitHub path `GreenNaugahyde/ZeldaWWHDRecompAndroid`.
 
-Names already in this tree: executable `nsmbu`, Windows `NSMBU.exe`, launcher `nsmbu-launcher`, RPX `red-pro2.rpx`, XDG dir `nsmbu`, log `captures/nsmbu.log`, setup log `nsmbu-setup-log.log`.
+Names already in this tree: executable `nsmbu`, Windows `NSMBU.exe`, launcher `nsmbu-launcher`, RPX `red-pro2.rpx`, XDG dir `nsmbu`, log `nsmbu/logs/nsmbu.log`, setup log `nsmbu-setup-log.log`.

@@ -198,4 +198,9 @@ inline std::string config_dir() {
  const char* home=getenv("HOME");return std::string(home?home:".")+"/.config/nsmbu";
 #endif
 }
+inline std::string log_dir() { return config_dir() + "/logs"; }
+inline void ensure_log_dir() {
+ std::error_code ec;
+ std::filesystem::create_directories(log_dir(), ec);
+}
 }

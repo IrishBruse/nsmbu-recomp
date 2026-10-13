@@ -59,7 +59,7 @@ GamePad and optional presented images at renderer-frame offsets from the complet
 later in another run; fixed-frame inputs and captures can therefore compare different game states.
 Renderer offsets alone do not align interpolation phase at 60 fps. For a phase-aligned capture,
 `NSMBU_TEST_CAPTURE_LOAD_COUNTER=n` selects a full-pass swap at the restored game counter plus n,
-on the guest thread before the render queue. It uses the ordinary `captures/<time>/` TV, GamePad
+on the guest thread before the render queue. It uses the ordinary `nsmbu/logs/<time>/` TV, GamePad
 and presented capture files. Keep the selected counter and scenario origin identical between
 barrier modes and retain the load/capture logs. Paused menus freeze the game counter; use
 `NSMBU_TEST_CAPTURE_LOAD_STEP=n` instead to select a full-pass swap n logic steps after load.
