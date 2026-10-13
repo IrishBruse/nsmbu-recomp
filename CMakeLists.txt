@@ -110,7 +110,7 @@ else()
   set(NSMBU_STRIP_RELEASE "")
 endif()
 
-file(GLOB RUNTIME_SOURCES CONFIGURE_DEPENDS runtime/src/*.cpp runtime/src/*.c runtime/src/hle/*.cpp runtime/src/mods/*.cpp runtime/src/motion/*.cpp
+file(GLOB RUNTIME_SOURCES CONFIGURE_DEPENDS runtime/src/*.cpp runtime/src/*.c runtime/src/hle/*.cpp runtime/src/mods/*.cpp runtime/src/mods/sdk/*.cpp runtime/src/motion/*.cpp
                                             runtime/src/overlay/*.cpp)
 list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "nsmbu_guest_stubs\\.c$")
 list(APPEND RUNTIME_SOURCES runtime/src/platform/perf_hint.cpp)
@@ -242,7 +242,7 @@ if(NSMBU_SETUP_GUI)
   include(cmake/SetupGui.cmake)
 endif()
 
-add_executable(mod_package_test runtime/tools/mod_package_test.cpp runtime/src/mods/packages.cpp runtime/src/mods/mod_archive.cpp runtime/src/mods/content.cpp runtime/src/mods/cemu_pack.cpp runtime/src/mods/luau_runtime.cpp runtime/src/mods/luau_guest.cpp runtime/src/mods/luau_game.cpp runtime/src/mods/luau_press.cpp runtime/src/mod_luau_test_stubs.cpp runtime/src/guest_addr_identity.c)
+add_executable(mod_package_test runtime/tools/mod_package_test.cpp runtime/src/mods/packages.cpp runtime/src/mods/mod_archive.cpp runtime/src/mods/content.cpp runtime/src/mods/cemu_pack.cpp runtime/src/mods/luau_runtime.cpp runtime/src/mods/luau_guest.cpp runtime/src/mods/sdk/nsmbu.cpp runtime/src/mods/luau_press.cpp runtime/src/mod_luau_test_stubs.cpp runtime/src/guest_addr_identity.c)
 target_include_directories(mod_package_test PRIVATE runtime/src runtime/include)
 target_compile_options(mod_package_test PRIVATE -UNDEBUG)
 target_link_libraries(mod_package_test PRIVATE nsmbu_luau ZLIB::ZLIB Threads::Threads)

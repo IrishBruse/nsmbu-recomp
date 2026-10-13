@@ -1,8 +1,8 @@
 # Luau API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle (`on_logic_step`, `on_config_changed`, and `on_unload` registration), package metadata, log and status, time, config, guest memory, high-level `nsmbu.level` / `nsmbu.player` helpers, and level actor reads / spawns are implemented with embedded Luau.
-Hooks (`nsmbu.hooks`), `call` / `call_result`, input, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
+Lifecycle (`on_logic_step`, `on_config_changed`, and `on_unload` registration), package metadata, log and status, time, config, guest memory, high-level `nsmbu.level` / `nsmbu.player` helpers, level actor reads / spawns, and `nsmbu.scene` flow probes and transitions are implemented with embedded Luau.
+Hooks (`nsmbu.hooks`), input pad reads, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.
 
@@ -17,6 +17,7 @@ nsmbu.player(0)
 
 Luau type definitions for editors live in [../../modding/sdk/nsmbu.d.luau](../../modding/sdk/nsmbu.d.luau).
 The definitions are editor-only; the runtime builds the same table.
+The runtime wiring that builds that table lives in [../../runtime/src/mods/sdk/nsmbu.cpp](../../runtime/src/mods/sdk/nsmbu.cpp) and mirrors the declaration module by module.
 
 `require("nsmbu")` and `require("nsmbu.*")` still resolve to the same tables, but new mods use the global.
 Names that start with `nsmbu` are reserved for the runtime.
@@ -29,9 +30,10 @@ Each package has its own Luau state, so one package cannot replace another packa
 | `nsmbu.guest` | Guest memory read/write (heap alloc later) | Live (R/W) |
 | `nsmbu.level` | Course timer, course coins, score, live actors, spawn | Live |
 | `nsmbu.player` | Player handles and iterator | Live |
+| `nsmbu.scene` | Boot flow phase probes and scene transitions | Live |
 | `nsmbu.fn` | Generated function addresses | Proposal (empty table) |
 | `nsmbu.hooks` | Hooks, replace, original, call | Proposal (empty table) |
-| `nsmbu.input` | Pad snapshot and button helpers | Proposal (empty table) |
+| `nsmbu.input` | Pad snapshot, button helpers | Proposal (`press` injection is live) |
 | `nsmbu.data` | Per-package data files | Proposal (empty table) |
 | `nsmbu.enemy` / `nsmbu.boss` / `nsmbu.blocks` / `nsmbu.env` | Future game domains | Stub empty tables |
 
@@ -343,6 +345,33 @@ Do not keep an actor handle across logic steps.
 The game reuses actor slots and memory, so a stale handle can point at a different actor.
 Re-read `nsmbu.level.actors()` each step, and call `profile_id()` before you edit or delete a handle.
 
+## Scene flow
+
+Implemented in phase 2 extended with the title-skip groundwork.
+
+The boot flow runs the menus, the save select, and the world map as sead tasks.
+`nsmbu.scene` reads the current phase and requests transitions the same way the
+game's own menus do.
+
+| Function | Result |
+| --- | --- |
+| `phase()` | The current boot-flow task class id, or `nil` and a message before the scene exists. |
+| `title()` | `true` when the title layout phase is current. |
+| `file_select()` | `true` when the save-select phase is current. |
+| `flow_phase()` | `true` when the application flow phase is current. |
+| `map_phase()` | `true` when the world map gamescene phase is current. |
+| `course()` | `true` when the game scene task (the animated map behind the menus, the world map, and course scenes) is alive. |
+| `course_select()` | `true` when the world map select task is alive; the world map is up and interactive. |
+| `open_title()` | Requests a scene change into the title task. The game continues its own flow. |
+| `open_file_select()` | Requests a scene change into the save select. |
+| `confirm_file()` | Confirms the save select. The routine sets the file and story gates on the flow object and tells the app to confirm, the way the save select does after a file is chosen. |
+| `load_story(world_no, course_no)` | Sets the next story location on `CourseInfo` and requests the game scene task, the way the save select does. `world_no` is 0-indexed (world 1 = 0). |
+
+The transitions call `Scene::setNextScene` and `Scene::setCourse_Story` inside the
+port; mods never pass guest registers or addresses.
+A request only moves the flow it lands on, so call transitions from the matching
+phase or after the flow has reached the map.
+
 ## Function addresses
 
 Proposal (phase 4 with hooks).
@@ -472,7 +501,17 @@ Replace that function instead.
 
 ## Input
 
-Proposal.
+`press` is live. The pad snapshot and button read helpers stay proposal.
+
+```luau
+nsmbu.input.press("A", 3)
+nsmbu.input.press({ "Down", "Down" }, 2)
+```
+
+| Function | Result |
+| --- | --- |
+| `press(buttons, steps)` | Injects those buttons into the pad for the next `steps` logic steps. `buttons` is one name or a mixed list of names (`"A"`, `"Down"`, `"Plus"`, ...). Returns `true`, or `nil` and a message for a bad type. Presses stack with host input; they end on their own. |
+
 
 ```luau
 local pad = nsmbu.input()

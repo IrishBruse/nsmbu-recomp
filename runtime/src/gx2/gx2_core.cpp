@@ -24,7 +24,7 @@
 #endif
 #include "runtime.h"
 #include "savestate.h"
-#include "mods/luau_game.h"
+#include "mods/sdk/nsmbu.h"
 #include "guest_addr.h"
 #include "../aspect.h"
 #include "gfx/renderer.h"
@@ -746,7 +746,7 @@ HLE(gx2, GX2SwapScanBuffers) {
     const bool hold = steps == lastSteps;
     lastSteps = steps;
     if (!hold) {
-        mods::luau_game::set_cpu(c);
+        mods::luau_sdk::set_cpu(c);
         mods::packages::frame(steps);
     }
 

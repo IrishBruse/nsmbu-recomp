@@ -1,8 +1,5 @@
 type GuestAddr = number
 type ListenId = number
-type HookId = number
-
-type HookWhen = "entry" | "return"
 
 type LogicStepCallback = (step: number) -> ()
 type VoidCallback = () -> ()
@@ -38,8 +35,6 @@ type Guest = {
 	write_f64: (addr: GuestAddr, value: number) -> (boolean?, string?),
 	read: (addr: GuestAddr, size: number) -> (string?, string?),
 	write: (addr: GuestAddr, data: string) -> (boolean?, string?),
-	alloc: (size: number) -> (GuestAddr?, string?),
-	free: (addr: GuestAddr) -> (boolean?, string?),
 }
 
 type Fn = {
@@ -59,61 +54,19 @@ type Fn = {
 	course_quit_to_map: GuestAddr?,
 }
 
-type HookCtx = {
-	address: GuestAddr,
-	r3: number,
-	r4: number,
-	r5: number,
-	r6: number,
-	r7: number,
-	r8: number,
-	r9: number,
-	r10: number,
-	f1: number,
-	f2: number,
-	f3: number,
-	f4: number,
-	f5: number,
-	f6: number,
-	f7: number,
-	f8: number,
-	skip: boolean?,
-}
-
-type HookCallback = (ctx: HookCtx) -> ()
-
-type CallArgs = {
-	r3: number?,
-	r4: number?,
-	r5: number?,
-	r6: number?,
-	r7: number?,
-	r8: number?,
-	r9: number?,
-	r10: number?,
-	f1: number?,
-	f2: number?,
-	f3: number?,
-	f4: number?,
-	f5: number?,
-	f6: number?,
-	f7: number?,
-	f8: number?,
-}
-
-type CallResult = {
-	r3: number,
-	r4: number,
-	f1: number,
-}
-
-type Hooks = {
-	hook: (target: GuestAddr, when: HookWhen, callback: HookCallback) -> (HookId?, string?),
-	replace: (target: GuestAddr, callback: HookCallback) -> (HookId?, string?),
-	unhook: (id: HookId) -> (boolean?, string?),
-	original: () -> (boolean?, string?),
-	call: (target: GuestAddr, args: CallArgs?) -> (boolean?, string?),
-	call_result: (target: GuestAddr, args: CallArgs?) -> (CallResult?, string?),
+type Scene = {
+	title: () -> boolean,
+	file_select: () -> boolean,
+	flow_phase: () -> boolean,
+	map_phase: () -> boolean,
+	phase: () -> (number?, string?),
+	course_select: () -> boolean,
+	course: () -> boolean,
+	open_title: () -> (boolean?, string?),
+	open_file_select: () -> (boolean?, string?),
+	open_course_select: () -> (boolean?, string?),
+	confirm_file: () -> (boolean?, string?),
+	load_story: (world_no: number, course_no: number) -> (boolean?, string?),
 }
 
 type ButtonName = "A" | "B" | "X" | "Y"
@@ -158,6 +111,7 @@ type Button = {
 
 type Input = (() -> Pad) & {
 	button: Button,
+	press: (buttons: string | { string }, steps: number) -> (boolean?, string?),
 }
 
 type Data = {
@@ -259,7 +213,7 @@ declare nsmbu: {
 	config: Config,
 	guest: Guest,
 	fn: Fn,
-	hooks: Hooks,
+	hooks: Empty,
 	input: Input,
 	data: Data,
 	enemy: Empty,
@@ -268,4 +222,5 @@ declare nsmbu: {
 	env: Empty,
 	level: Level,
 	player: Players,
+	scene: Scene,
 }

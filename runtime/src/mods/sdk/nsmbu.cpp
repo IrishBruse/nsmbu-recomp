@@ -1,15 +1,422 @@
-#include "luau_game.h"
-#include "luau_guest.h"
+#include "nsmbu.h"
+#include "mods/luau_runtime.h"
+#include "mods/luau_guest.h"
+#include "mods/luau_press.h"
 #include "guest_addr.h"
+#include "input.h"
 #include "runtime.h"
-#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <string>
+#include <vector>
 
 #include "lua.h"
 #include "lualib.h"
 
-namespace mods::luau_game {
+namespace mods::luau_sdk {
 namespace {
+using luau_mod::Instance;
+using json::Value;
+
+Instance* self(lua_State* L) {
+    return static_cast<Instance*>(lua_touserdata(L, lua_upvalueindex(1)));
+}
+
+int fail(lua_State* L, const char* msg) {
+    lua_pushnil(L);
+    lua_pushstring(L, msg);
+    return 2;
+}
+
+bool push_loaded(lua_State* L, const char* name) {
+    lua_getglobal(L, "package");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        return false;
+    }
+    lua_getfield(L, -1, "loaded");
+    lua_remove(L, -2);
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        return false;
+    }
+    lua_getfield(L, -1, name);
+    lua_remove(L, -2);
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        return false;
+    }
+    return true;
+}
+
+void set_loaded(lua_State* L, const char* name) {
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "loaded");
+    lua_pushvalue(L, -3);
+    lua_setfield(L, -2, name);
+    lua_pop(L, 3);
+}
+
+void refresh_package(Instance& inst) {
+    lua_State* L = static_cast<lua_State*>(inst.state);
+    if (!L) return;
+    if (!push_loaded(L, "nsmbu")) {
+        lua_pop(L, 1);
+        return;
+    }
+    lua_getfield(L, -1, "package");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        lua_newtable(L);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, -3, "package");
+    }
+    lua_pushlstring(L, inst.id.data(), inst.id.size());
+    lua_setfield(L, -2, "id");
+    lua_pushlstring(L, inst.version.data(), inst.version.size());
+    lua_setfield(L, -2, "version");
+    lua_pushlstring(L, inst.path.data(), inst.path.size());
+    lua_setfield(L, -2, "path");
+    lua_pop(L, 2);
+}
+
+void bind(lua_State* L, Instance* inst, const char* name, lua_CFunction fn) {
+    lua_pushlightuserdata(L, inst);
+    lua_pushcclosure(L, fn, name, 1);
+    lua_setfield(L, -2, name);
+}
+
+void bind_guest(lua_State* L, const char* name, lua_CFunction fn) {
+    lua_pushcfunction(L, fn, name);
+    lua_setfield(L, -2, name);
+}
+
+void set_empty_module(lua_State* L, const char* name) {
+    lua_newtable(L);
+    set_loaded(L, name);
+}
+
+void attach_loaded(lua_State* L, const char* name, const char* field) {
+    if (push_loaded(L, name)) lua_setfield(L, -2, field);
+    else lua_pop(L, 1);
+}
+
+int listen_event(lua_State* L, const char* event) {
+    Instance* inst = self(L);
+    if (!lua_isfunction(L, 1)) return fail(L, "callback must be a function");
+    int ref = lua_ref(L, 1);
+    int id = inst->next_listener++;
+    inst->listeners.push_back({id, ref, event});
+    lua_pushinteger(L, id);
+    return 1;
+}
+
+int l_on_logic_step(lua_State* L) { return listen_event(L, "logic_step"); }
+
+int l_on_config_changed(lua_State* L) { return listen_event(L, "config_changed"); }
+
+int l_on_unload(lua_State* L) { return listen_event(L, "unload"); }
+
+int l_unlisten(lua_State* L) {
+    Instance* inst = self(L);
+    int id = (int)luaL_checkinteger(L, 1);
+    for (auto it = inst->listeners.begin(); it != inst->listeners.end(); ++it) {
+        if (it->id != id) continue;
+        lua_unref(L, it->ref);
+        inst->listeners.erase(it);
+        lua_pushboolean(L, 1);
+        return 1;
+    }
+    return fail(L, "unknown listener");
+}
+
+int l_log(lua_State* L) {
+    Instance* inst = self(L);
+    if (!lua_isstring(L, 1)) return fail(L, "message must be a string");
+    fprintf(stderr, "[mod:%s] %s\n", inst->id.c_str(), lua_tostring(L, 1));
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_log_int(lua_State* L) {
+    Instance* inst = self(L);
+    if (!lua_isstring(L, 1)) return fail(L, "label must be a string");
+    if (!lua_isnumber(L, 2)) return fail(L, "value must be a number");
+    fprintf(stderr, "[mod:%s] %s %lld\n", inst->id.c_str(), lua_tostring(L, 1),
+            (long long)lua_tointeger(L, 2));
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_log_hex(lua_State* L) {
+    Instance* inst = self(L);
+    if (!lua_isstring(L, 1)) return fail(L, "label must be a string");
+    if (!lua_isnumber(L, 2)) return fail(L, "value must be a number");
+    fprintf(stderr, "[mod:%s] %s %08X\n", inst->id.c_str(), lua_tostring(L, 1),
+            (unsigned)(uint32_t)lua_tointeger(L, 2));
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_log_float(lua_State* L) {
+    Instance* inst = self(L);
+    if (!lua_isstring(L, 1)) return fail(L, "label must be a string");
+    if (!lua_isnumber(L, 2)) return fail(L, "value must be a number");
+    fprintf(stderr, "[mod:%s] %s %.17g\n", inst->id.c_str(), lua_tostring(L, 1),
+            (double)lua_tonumber(L, 2));
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_status(lua_State* L) {
+    Instance* inst = self(L);
+    if (!lua_isstring(L, 1)) return fail(L, "message must be a string");
+    size_t len = 0;
+    const char* msg = lua_tolstring(L, 1, &len);
+    if (len > 1024) len = 1024;
+    inst->status_line.assign(msg, len);
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_logic_step(lua_State* L) {
+    Instance* inst = self(L);
+    lua_pushnumber(L, (lua_Number)inst->step);
+    return 1;
+}
+
+int l_logic_dt(lua_State* L) {
+    lua_pushnumber(L, 1.0 / 60.0);
+    return 1;
+}
+
+int l_config_string(lua_State* L) {
+    Instance* inst = self(L);
+    const char* id = luaL_checkstring(L, 1);
+    if (!lua_isstring(L, 2)) return fail(L, "fallback must be a string");
+    const auto& v = inst->config.get(id);
+    if (v.type == Value::Null || v.type != Value::String) {
+        lua_pushvalue(L, 2);
+        return 1;
+    }
+    lua_pushlstring(L, v.text.data(), v.text.size());
+    return 1;
+}
+
+int l_config_number(lua_State* L) {
+    Instance* inst = self(L);
+    const char* id = luaL_checkstring(L, 1);
+    if (!lua_isnumber(L, 2)) return fail(L, "fallback must be a number");
+    const auto& v = inst->config.get(id);
+    if (v.type == Value::Null || v.type != Value::Number) {
+        lua_pushvalue(L, 2);
+        return 1;
+    }
+    lua_pushnumber(L, v.number);
+    return 1;
+}
+
+int l_config_bool(lua_State* L) {
+    Instance* inst = self(L);
+    const char* id = luaL_checkstring(L, 1);
+    if (!lua_isboolean(L, 2)) return fail(L, "fallback must be a boolean");
+    const auto& v = inst->config.get(id);
+    if (v.type == Value::Null || v.type != Value::Bool) {
+        lua_pushvalue(L, 2);
+        return 1;
+    }
+    lua_pushboolean(L, v.boolean);
+    return 1;
+}
+
+uint32_t addr_arg(lua_State* L, int idx) { return (uint32_t)(int64_t)luaL_checknumber(L, idx); }
+
+int guest_read_u8(lua_State* L) {
+    std::string err;
+    uint8_t v;
+    if (!luau_guest::read_u8(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    lua_pushinteger(L, v);
+    return 1;
+}
+int guest_read_s8(lua_State* L) {
+    std::string err;
+    int8_t v;
+    if (!luau_guest::read_s8(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    lua_pushinteger(L, v);
+    return 1;
+}
+int guest_read_u16(lua_State* L) {
+    std::string err;
+    uint16_t v;
+    if (!luau_guest::read_u16(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    lua_pushinteger(L, v);
+    return 1;
+}
+int guest_read_s16(lua_State* L) {
+    std::string err;
+    int16_t v;
+    if (!luau_guest::read_s16(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    lua_pushinteger(L, v);
+    return 1;
+}
+int guest_read_u32(lua_State* L) {
+    std::string err;
+    uint32_t v;
+    if (!luau_guest::read_u32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    lua_pushnumber(L, (lua_Number)v);
+    return 1;
+}
+int guest_read_s32(lua_State* L) {
+    std::string err;
+    int32_t v;
+    if (!luau_guest::read_s32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    lua_pushnumber(L, (lua_Number)v);
+    return 1;
+}
+int guest_read_f32(lua_State* L) {
+    std::string err;
+    float v;
+    if (!luau_guest::read_f32(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    lua_pushnumber(L, v);
+    return 1;
+}
+int guest_read_f64(lua_State* L) {
+    std::string err;
+    double v;
+    if (!luau_guest::read_f64(addr_arg(L, 1), v, err)) return fail(L, err.c_str());
+    lua_pushnumber(L, v);
+    return 1;
+}
+int guest_read(lua_State* L) {
+    uint32_t addr = addr_arg(L, 1);
+    size_t size = (size_t)luaL_checkinteger(L, 2);
+    std::string err, out;
+    if (!luau_guest::read_bytes(addr, size, out, err)) return fail(L, err.c_str());
+    lua_pushlstring(L, out.data(), out.size());
+    return 1;
+}
+
+int guest_write_u8(lua_State* L) {
+    std::string err;
+    if (!luau_guest::write_u8(addr_arg(L, 1), (uint8_t)(uint32_t)luaL_checknumber(L, 2), err))
+        return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+int guest_write_s8(lua_State* L) {
+    std::string err;
+    if (!luau_guest::write_s8(addr_arg(L, 1), (int8_t)(int32_t)luaL_checknumber(L, 2), err))
+        return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+int guest_write_u16(lua_State* L) {
+    std::string err;
+    if (!luau_guest::write_u16(addr_arg(L, 1), (uint16_t)(uint32_t)luaL_checknumber(L, 2), err))
+        return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+int guest_write_s16(lua_State* L) {
+    std::string err;
+    if (!luau_guest::write_s16(addr_arg(L, 1), (int16_t)(int32_t)luaL_checknumber(L, 2), err))
+        return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+int guest_write_u32(lua_State* L) {
+    std::string err;
+    if (!luau_guest::write_u32(addr_arg(L, 1), (uint32_t)(int64_t)luaL_checknumber(L, 2), err))
+        return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+int guest_write_s32(lua_State* L) {
+    std::string err;
+    if (!luau_guest::write_s32(addr_arg(L, 1), (int32_t)(int64_t)luaL_checknumber(L, 2), err))
+        return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+int guest_write_f32(lua_State* L) {
+    std::string err;
+    if (!luau_guest::write_f32(addr_arg(L, 1), (float)luaL_checknumber(L, 2), err))
+        return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+int guest_write_f64(lua_State* L) {
+    std::string err;
+    if (!luau_guest::write_f64(addr_arg(L, 1), (double)luaL_checknumber(L, 2), err))
+        return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+int guest_write(lua_State* L) {
+    uint32_t addr = addr_arg(L, 1);
+    size_t len = 0;
+    const char* data = luaL_checklstring(L, 2, &len);
+    std::string err;
+    if (!luau_guest::write_bytes(addr, data, len, err)) return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+bool button_bit(const char* name, uint32_t& bit) {
+    static const struct { const char* name; uint32_t bit; } kTable[] = {
+        {"A", input::kA},       {"B", input::kB},       {"X", input::kX},
+        {"Y", input::kY},       {"L", input::kL},       {"R", input::kR},
+        {"ZL", input::kZL},     {"ZR", input::kZR},     {"Plus", input::kPlus},
+        {"Minus", input::kMinus}, {"Home", input::kHome},
+        {"Up", input::kUp},     {"Down", input::kDown},
+        {"Left", input::kLeft}, {"Right", input::kRight},
+        {"StickL", input::kStickL}, {"StickR", input::kStickR},
+    };
+    for (const auto& entry : kTable) {
+        if (std::strcmp(entry.name, name) != 0) continue;
+        bit = entry.bit;
+        return true;
+    }
+    return false;
+}
+
+bool button_mask(lua_State* L, int arg, uint32_t& mask) {
+    if (lua_type(L, arg) == LUA_TSTRING) {
+        uint32_t bit = 0;
+        if (!button_bit(lua_tostring(L, arg), bit)) return false;
+        mask |= bit;
+        return true;
+    }
+    if (lua_type(L, arg) != LUA_TTABLE) return false;
+    lua_pushnil(L);
+    while (lua_next(L, arg) != 0) {
+        uint32_t bit = 0;
+        if (lua_type(L, -1) != LUA_TSTRING || !button_bit(lua_tostring(L, -1), bit)) {
+            lua_pop(L, 2);
+            return false;
+        }
+        mask |= bit;
+        lua_pop(L, 1);
+    }
+    return true;
+}
+
+int l_input_press(lua_State* L) {
+    Instance* inst = self(L);
+    uint32_t mask = 0;
+    if (!button_mask(L, 1, mask)) return fail(L, "bad type");
+    if (!lua_isnumber(L, 2)) return fail(L, "steps must be a number");
+    double steps = lua_tonumber(L, 2);
+    if (steps < 1) steps = 1;
+    if (steps > 600) steps = 600;
+    luau_press::press(inst, mask, (uint64_t)steps, inst->step);
+    lua_pushboolean(L, 1);
+    return 1;
+}
 
 const uint32_t kCourseTimerSingleton = GD(0x101D15F4);
 const uint32_t kFieldGameSingleton = GD(0x101D1604);
@@ -20,6 +427,23 @@ const uint32_t kActorMgrCreateLater = GC(0x02009954);
 const uint32_t kTypeInfoActor = GD(0x101E9CC0);
 const uint32_t kCourseSelectInstance = GD(0x101CC96C);
 const uint32_t kCourseTaskInstance = GD(0x101D15F0);
+const uint32_t kSceneSingleton = GD(0x101E7B28);
+const uint32_t kSetNextScene = GC(0x02994164);
+const uint32_t kSetCourseStory = GC(0x029941D0);
+const uint32_t kAppOpenFileSelect = GC(0x0297D5A8);
+const uint32_t kAppConfirmFile = GC(0x0297EC3C);
+
+constexpr uint32_t kSceneNowCreatorOff = 0x58u;
+constexpr uint32_t kSceneFlowOff = 0x14u;
+constexpr uint32_t kAppGateSelect = 0xDB1u;
+constexpr uint32_t kAppGateStory = 0xDB2u;
+constexpr uint32_t kCreatorBoot = 0x0202930Cu;
+constexpr uint32_t kCreatorFlow = 0x0297B9F8u;
+constexpr uint32_t kCreatorFileSelect = 0x0298AD3Cu;
+constexpr uint32_t kCreatorTitle = 0x0202B51Cu;
+constexpr uint32_t kCreatorMap = 0x020292B8u;
+constexpr uint32_t kCreatorCourseSelect = 0x0202B6C4u;
+constexpr uint32_t kClassIdTask = 0x00000002u;
 
 constexpr uint32_t kActorMgrPtrCache = 0x6A20u;
 constexpr uint32_t kActorIdxToPtr = 0x4u;
@@ -67,12 +491,6 @@ constexpr const char* kActorMeta = "nsmbu.level.actor";
 
 thread_local Cpu* t_guest_cpu = nullptr;
 bool g_actor_shape_warned = false;
-
-int fail(lua_State* L, const char* msg) {
-    lua_pushnil(L);
-    lua_pushstring(L, msg);
-    return 2;
-}
 
 bool guest_ok(uint32_t addr, size_t size, std::string& err) {
     return luau_guest::check(addr, size, err);
@@ -897,19 +1315,6 @@ int l_actor_delete(lua_State* L) {
     return 1;
 }
 
-void bind(lua_State* L, const char* name, lua_CFunction fn) {
-    lua_pushcfunction(L, fn, name);
-    lua_setfield(L, -2, name);
-}
-
-void set_loaded(lua_State* L, const char* name) {
-    lua_getglobal(L, "package");
-    lua_getfield(L, -1, "loaded");
-    lua_pushvalue(L, -3);
-    lua_setfield(L, -2, name);
-    lua_pop(L, 3);
-}
-
 int l_player_call(lua_State* L) {
     lua_remove(L, 1);
     return l_player(L);
@@ -918,21 +1323,21 @@ int l_player_call(lua_State* L) {
 void install_player_meta(lua_State* L) {
     if (luaL_newmetatable(L, kPlayerMeta)) {
         lua_newtable(L);
-        bind(L, "entered", l_player_entered);
-        bind(L, "lives", l_player_lives);
-        bind(L, "set_lives", l_player_set_lives);
-        bind(L, "mode", l_player_mode);
-        bind(L, "set_mode", l_player_set_mode);
-        bind(L, "coins", l_player_coins);
-        bind(L, "set_coins", l_player_set_coins);
-        bind(L, "speed_y", l_player_speed_y);
-        bind(L, "set_speed_y", l_player_set_speed_y);
-        bind(L, "pos", l_player_pos);
-        bind(L, "set_pos", l_player_set_pos);
-        bind(L, "speed", l_player_speed);
-        bind(L, "set_speed", l_player_set_speed);
-        bind(L, "grounded", l_player_grounded);
-        bind(L, "actor", l_player_actor);
+        bind_guest(L, "entered", l_player_entered);
+        bind_guest(L, "lives", l_player_lives);
+        bind_guest(L, "set_lives", l_player_set_lives);
+        bind_guest(L, "mode", l_player_mode);
+        bind_guest(L, "set_mode", l_player_set_mode);
+        bind_guest(L, "coins", l_player_coins);
+        bind_guest(L, "set_coins", l_player_set_coins);
+        bind_guest(L, "speed_y", l_player_speed_y);
+        bind_guest(L, "set_speed_y", l_player_set_speed_y);
+        bind_guest(L, "pos", l_player_pos);
+        bind_guest(L, "set_pos", l_player_set_pos);
+        bind_guest(L, "speed", l_player_speed);
+        bind_guest(L, "set_speed", l_player_set_speed);
+        bind_guest(L, "grounded", l_player_grounded);
+        bind_guest(L, "actor", l_player_actor);
         lua_setfield(L, -2, "__index");
     }
     lua_pop(L, 1);
@@ -941,28 +1346,26 @@ void install_player_meta(lua_State* L) {
 void install_actor_meta(lua_State* L) {
     if (luaL_newmetatable(L, kActorMeta)) {
         lua_newtable(L);
-        bind(L, "address", l_actor_address);
-        bind(L, "id", l_actor_id);
-        bind(L, "profile_id", l_actor_profile_id);
-        bind(L, "is_actor", l_actor_is_actor);
-        bind(L, "is_map_actor", l_actor_is_map);
-        bind(L, "active", l_actor_active);
-        bind(L, "layer", l_actor_layer);
-        bind(L, "player_no", l_actor_player_no);
-        bind(L, "param0", l_actor_param0);
-        bind(L, "param1", l_actor_param1);
-        bind(L, "pos", l_actor_pos);
-        bind(L, "set_pos", l_actor_set_pos);
-        bind(L, "speed", l_actor_speed);
-        bind(L, "set_speed", l_actor_set_speed);
-        bind(L, "scale", l_actor_scale);
-        bind(L, "set_scale", l_actor_set_scale);
-        bind(L, "delete", l_actor_delete);
+        bind_guest(L, "address", l_actor_address);
+        bind_guest(L, "id", l_actor_id);
+        bind_guest(L, "profile_id", l_actor_profile_id);
+        bind_guest(L, "is_actor", l_actor_is_actor);
+        bind_guest(L, "is_map_actor", l_actor_is_map);
+        bind_guest(L, "active", l_actor_active);
+        bind_guest(L, "layer", l_actor_layer);
+        bind_guest(L, "player_no", l_actor_player_no);
+        bind_guest(L, "param0", l_actor_param0);
+        bind_guest(L, "param1", l_actor_param1);
+        bind_guest(L, "pos", l_actor_pos);
+        bind_guest(L, "set_pos", l_actor_set_pos);
+        bind_guest(L, "speed", l_actor_speed);
+        bind_guest(L, "set_speed", l_actor_set_speed);
+        bind_guest(L, "scale", l_actor_scale);
+        bind_guest(L, "set_scale", l_actor_set_scale);
+        bind_guest(L, "delete", l_actor_delete);
         lua_setfield(L, -2, "__index");
     }
     lua_pop(L, 1);
-}
-
 }
 
 int l_scene_installed(lua_State* L, uint32_t where) {
@@ -973,41 +1376,275 @@ int l_scene_installed(lua_State* L, uint32_t where) {
     return 1;
 }
 
-int l_scene_world_map(lua_State* L) { return l_scene_installed(L, kCourseSelectInstance); }
+bool scene_object(uint32_t& out, std::string& err) {
+    uint32_t scene = 0;
+    if (!luau_guest::read_u32(kSceneSingleton, scene, err)) return false;
+    if (scene == 0) {
+        err = "scene not ready";
+        return false;
+    }
+    out = scene;
+    return true;
+}
+
+bool scene_now_creator(uint32_t& out, std::string& err) {
+    uint32_t scene = 0;
+    if (!scene_object(scene, err)) return false;
+    uint32_t creator = 0;
+    if (!luau_guest::read_u32(scene + kSceneNowCreatorOff, creator, err)) return false;
+    if (creator == 0) {
+        err = "scene not ready";
+        return false;
+    }
+    out = creator;
+    return true;
+}
+
+bool scene_state_is(lua_State* L, uint32_t creator) {
+    uint32_t now = 0;
+    std::string err;
+    if (!scene_now_creator(now, err)) return fail(L, err.c_str());
+    lua_pushboolean(L, now == creator);
+    return 1;
+}
+
+int l_scene_title(lua_State* L) { return scene_state_is(L, kCreatorTitle); }
+
+int l_scene_file_select(lua_State* L) { return scene_state_is(L, kCreatorFileSelect); }
+
+int l_scene_flow(lua_State* L) { return scene_state_is(L, kCreatorFlow); }
+
+int l_scene_map_phase(lua_State* L) { return scene_state_is(L, kCreatorMap); }
+
+int l_scene_phase(lua_State* L) {
+    uint32_t now = 0;
+    std::string err;
+    if (!scene_now_creator(now, err)) return fail(L, err.c_str());
+    lua_pushnumber(L, (lua_Number)now);
+    return 1;
+}
+
+int l_scene_course_select(lua_State* L) { return l_scene_installed(L, kCourseSelectInstance); }
 
 int l_scene_course(lua_State* L) { return l_scene_installed(L, kCourseTaskInstance); }
 
-void install(lua_State* L) {
+bool scene_app_object(uint32_t& out, std::string& err) {
+    uint32_t scene = 0;
+    if (!scene_object(scene, err)) return false;
+    uint32_t ref = 0;
+    if (!luau_guest::read_u32(scene + kSceneFlowOff, ref, err)) return false;
+    if (ref == 0) {
+        err = "scene not ready";
+        return false;
+    }
+    out = ref - 4;
+    return true;
+}
+
+bool scene_transition(uint32_t creator, uint32_t fader, std::string& err) {
+    if (!t_guest_cpu) {
+        err = "no guest cpu";
+        return false;
+    }
+    uint32_t app = 0;
+    if (!scene_app_object(app, err)) return false;
+    uint32_t pair = mem::host_alloc(8, 4);
+    st32(pair, kClassIdTask);
+    st32(pair + 4, creator);
+    guest_call(t_guest_cpu, kSetNextScene, {app, 0, pair, fader, 0});
+    return true;
+}
+
+int l_scene_open_title(lua_State* L) {
+    std::string err;
+    if (!scene_transition(kCreatorTitle, 0, err)) return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_scene_open_file_select(lua_State* L) {
+    if (!t_guest_cpu) return fail(L, "no guest cpu");
+    uint32_t app = 0;
+    std::string err;
+    if (!scene_app_object(app, err)) return fail(L, err.c_str());
+    guest_call(t_guest_cpu, kAppOpenFileSelect, {app});
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_scene_open_course_select(lua_State* L) {
+    std::string err;
+    if (!scene_transition(kCreatorCourseSelect, 0x000A000Au, err)) return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_scene_confirm_file(lua_State* L) {
+    if (!t_guest_cpu) return fail(L, "no guest cpu");
+    uint32_t app = 0;
+    std::string err;
+    if (!scene_app_object(app, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u8(app + kAppGateSelect, 1, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u8(app + kAppGateStory, 1, err)) return fail(L, err.c_str());
+    guest_call(t_guest_cpu, kAppConfirmFile, {app});
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_scene_load_story(lua_State* L) {
+    if (!t_guest_cpu) return fail(L, "no guest cpu");
+    if (!lua_isnumber(L, 1) || !lua_isnumber(L, 2)) return fail(L, "bad type");
+    int32_t world = (int32_t)lua_tonumber(L, 1);
+    int32_t course = (int32_t)lua_tonumber(L, 2);
+    if (world < 0 || world > 8) return fail(L, "bad world");
+    if (course < 0 || course > 11) return fail(L, "bad course");
+    uint32_t scene = 0;
+    std::string err;
+    if (!scene_object(scene, err)) return fail(L, err.c_str());
+    guest_call(t_guest_cpu, kSetCourseStory, {scene, 0, (uint32_t)world, (uint32_t)course});
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+void install_game(lua_State* L) {
     install_player_meta(L);
     install_actor_meta(L);
 
     lua_newtable(L);
-    bind(L, "active", l_course_active);
-    bind(L, "time", l_course_time);
-    bind(L, "set_time", l_course_set_time);
-    bind(L, "add_time", l_course_add_time);
-    bind(L, "coins", l_course_coins);
-    bind(L, "set_coins", l_course_set_coins);
-    bind(L, "score", l_course_score);
-    bind(L, "set_score", l_course_set_score);
-    bind(L, "actors", l_level_actors);
-    bind(L, "count", l_level_count);
-    bind(L, "spawn", l_level_spawn);
+    bind_guest(L, "active", l_course_active);
+    bind_guest(L, "time", l_course_time);
+    bind_guest(L, "set_time", l_course_set_time);
+    bind_guest(L, "add_time", l_course_add_time);
+    bind_guest(L, "coins", l_course_coins);
+    bind_guest(L, "set_coins", l_course_set_coins);
+    bind_guest(L, "score", l_course_score);
+    bind_guest(L, "set_score", l_course_set_score);
+    bind_guest(L, "actors", l_level_actors);
+    bind_guest(L, "count", l_level_count);
+    bind_guest(L, "spawn", l_level_spawn);
     set_loaded(L, "nsmbu.level");
 
     lua_newtable(L);
-    bind(L, "get_player", l_player);
-    bind(L, "get_players", l_players);
+    bind_guest(L, "get_player", l_player);
+    bind_guest(L, "get_players", l_players);
     set_loaded(L, "nsmbu.player");
 
     lua_newtable(L);
-    bind(L, "world_map", l_scene_world_map);
-    bind(L, "course", l_scene_course);
+    bind_guest(L, "title", l_scene_title);
+    bind_guest(L, "file_select", l_scene_file_select);
+    bind_guest(L, "flow_phase", l_scene_flow);
+    bind_guest(L, "map_phase", l_scene_map_phase);
+    bind_guest(L, "phase", l_scene_phase);
+    bind_guest(L, "course_select", l_scene_course_select);
+    bind_guest(L, "course", l_scene_course);
+    bind_guest(L, "open_title", l_scene_open_title);
+    bind_guest(L, "open_file_select", l_scene_open_file_select);
+    bind_guest(L, "open_course_select", l_scene_open_course_select);
+    bind_guest(L, "confirm_file", l_scene_confirm_file);
+    bind_guest(L, "load_story", l_scene_load_story);
     set_loaded(L, "nsmbu.scene");
+}
+
+void install_global(lua_State* L) {
+    if (!push_loaded(L, "nsmbu")) {
+        lua_pop(L, 1);
+        return;
+    }
+    attach_loaded(L, "nsmbu.config", "config");
+    attach_loaded(L, "nsmbu.guest", "guest");
+    attach_loaded(L, "nsmbu.fn", "fn");
+    attach_loaded(L, "nsmbu.hooks", "hooks");
+    attach_loaded(L, "nsmbu.input", "input");
+    attach_loaded(L, "nsmbu.data", "data");
+    attach_loaded(L, "nsmbu.enemy", "enemy");
+    attach_loaded(L, "nsmbu.boss", "boss");
+    attach_loaded(L, "nsmbu.blocks", "blocks");
+    attach_loaded(L, "nsmbu.env", "env");
+    attach_loaded(L, "nsmbu.level", "level");
+    attach_loaded(L, "nsmbu.player", "player");
+    attach_loaded(L, "nsmbu.scene", "scene");
+    lua_setglobal(L, "nsmbu");
+}
+
+void install_modules(lua_State* L, Instance* inst) {
+    lua_newtable(L);
+
+    bind(L, inst, "on_logic_step", l_on_logic_step);
+    bind(L, inst, "on_config_changed", l_on_config_changed);
+    bind(L, inst, "on_unload", l_on_unload);
+    bind(L, inst, "unlisten", l_unlisten);
+    bind(L, inst, "log", l_log);
+    bind(L, inst, "log_int", l_log_int);
+    bind(L, inst, "log_hex", l_log_hex);
+    bind(L, inst, "log_float", l_log_float);
+    bind(L, inst, "status", l_status);
+    bind(L, inst, "logic_step", l_logic_step);
+    bind(L, inst, "logic_dt", l_logic_dt);
+
+    lua_newtable(L);
+    lua_pushlstring(L, inst->id.data(), inst->id.size());
+    lua_setfield(L, -2, "id");
+    lua_pushlstring(L, inst->version.data(), inst->version.size());
+    lua_setfield(L, -2, "version");
+    lua_pushlstring(L, inst->path.data(), inst->path.size());
+    lua_setfield(L, -2, "path");
+    lua_setfield(L, -2, "package");
+
+    set_loaded(L, "nsmbu");
+
+    lua_newtable(L);
+    bind(L, inst, "string", l_config_string);
+    bind(L, inst, "number", l_config_number);
+    bind(L, inst, "bool", l_config_bool);
+    set_loaded(L, "nsmbu.config");
+
+    lua_newtable(L);
+    bind_guest(L, "read_u8", guest_read_u8);
+    bind_guest(L, "read_s8", guest_read_s8);
+    bind_guest(L, "read_u16", guest_read_u16);
+    bind_guest(L, "read_s16", guest_read_s16);
+    bind_guest(L, "read_u32", guest_read_u32);
+    bind_guest(L, "read_s32", guest_read_s32);
+    bind_guest(L, "read_f32", guest_read_f32);
+    bind_guest(L, "read_f64", guest_read_f64);
+    bind_guest(L, "read", guest_read);
+    bind_guest(L, "write_u8", guest_write_u8);
+    bind_guest(L, "write_s8", guest_write_s8);
+    bind_guest(L, "write_u16", guest_write_u16);
+    bind_guest(L, "write_s16", guest_write_s16);
+    bind_guest(L, "write_u32", guest_write_u32);
+    bind_guest(L, "write_s32", guest_write_s32);
+    bind_guest(L, "write_f32", guest_write_f32);
+    bind_guest(L, "write_f64", guest_write_f64);
+    bind_guest(L, "write", guest_write);
+    set_loaded(L, "nsmbu.guest");
+
+    set_empty_module(L, "nsmbu.fn");
+    set_empty_module(L, "nsmbu.hooks");
+    lua_newtable(L);
+    bind(L, inst, "press", l_input_press);
+    set_loaded(L, "nsmbu.input");
+    set_empty_module(L, "nsmbu.data");
+    set_empty_module(L, "nsmbu.enemy");
+    set_empty_module(L, "nsmbu.boss");
+    set_empty_module(L, "nsmbu.blocks");
+    set_empty_module(L, "nsmbu.env");
+
+    install_game(L);
+}
+}
+
+void install(lua_State* L, Instance* inst) {
+    install_modules(L, inst);
+    install_global(L);
 }
 
 void set_cpu(Cpu* c) {
     t_guest_cpu = c;
+}
+
+Cpu* cpu() {
+    return t_guest_cpu;
 }
 
 }

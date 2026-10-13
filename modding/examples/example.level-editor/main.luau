@@ -23,11 +23,8 @@ local function spawn_id(): number?
 end
 
 local function spawn_countdown(step: number): boolean
-	local every = config.number("spawn_every", 2)
-	if not every or every < 1 then
-		every = 1
-	end
-	return step % math.floor(every * 30) == 0
+	local every = config.number("spawn_every", 2) or 1
+	return step % math.floor(math.max(every, 1) * 30) == 0
 end
 
 local function spawn_near_player()

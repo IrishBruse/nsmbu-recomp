@@ -5,6 +5,10 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Add**: Mod API `nsmbu.scene`: boot-flow phase probes (`title`, `file_select`, `map_phase`, `course`, `course_select`, `phase`) and transitions (`open_title`, `open_file_select`, `open_course_select`, `confirm_file`, `load_story`) that call `Scene::setNextScene` / `Scene::setCourse_Story` inside the port.
+    `nsmbu.input.press(...)` injects buttons for N logic steps.
+    Example `example.intro-skip` loads to the world map without input: direct mode opens the course select once the map phase idles, and only the opt-in press mode runs button presses.
+
 ## 0.3.0
 
 -   **Add**: Luau mod packages: mods are Luau scripts (`kind: luau`) with the host API, logic-step callbacks, optional `content_dir` content, and hot reload.
