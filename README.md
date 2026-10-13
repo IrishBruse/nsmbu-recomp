@@ -1,5 +1,12 @@
 # New Super Mario Bros. U — native port
 
+> [!IMPORTANT]
+> This repository contains no Nintendo property.
+> It has no game code, no game assets, and no keys from Nintendo.
+
+> [!NOTE]
+> This project is made with the use of AI agents.
+
 This is a native port of the Wii U game.
 The port supports the USA version only.
 The installer translates the PowerPC code to C on your computer.
