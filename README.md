@@ -1,4 +1,4 @@
-# New Super Mario Bros. U — native port
+# New Super Mario Bros. U: Native Port / Recompilation
 
 > [!IMPORTANT]
 > This repository contains no Nintendo property.
