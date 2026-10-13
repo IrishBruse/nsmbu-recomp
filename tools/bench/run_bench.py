@@ -411,7 +411,8 @@ def main():
     p.add_argument("--variant-binary", action="append", default=[], metavar="NAME=PATH",
                    help="executable for a named variant (keeps cross-build A/B runs interleaved)")
     p.add_argument("--game", default=os.path.join(REPO, "game"), help="extracted game folder (default: <repo>/game)")
-    p.add_argument("--save", default=os.path.join(REPO, "save"), help="save folder, copied for every run (default: <repo>/save)")
+    p.add_argument("--save", default=os.path.join(REPO, "nsmbu", "save"),
+                   help="save folder, copied for every run (default: <repo>/nsmbu/save)")
     p.add_argument("--state-dir", required=True, help="folder with slot<N>.bin save states (read only)")
     p.add_argument("--scene", choices=sorted(SCENES), default="outset")
     p.add_argument("--slot", type=int, default=0, help="state slot (default: the scene's)")

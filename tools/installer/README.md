@@ -14,9 +14,9 @@ A release folder contains `portable.txt`. Then everything stays in `<release>/da
 |---|---|
 | `data/bin/nsmbu` (`.exe`) | the built game; `data/bin/portable.txt` puts the runtime in portable mode |
 | `data/game/` | game files extracted from a disc image or Cemu archive (an extracted folder chosen by the player is used where it is) |
-| `data/save/` | saves |
+| `data/nsmbu/save/` | saves |
 | `data/nsmbu/` | settings, controls, graphics options, save states, shader caches (`host::portable_user_dir()`) |
-| `data/captures/` | crash logs (the game runs in `data/`) |
+| `data/nsmbu/logs/` | crash logs and run logs (the game runs in `data/`) |
 | `data/install.json`, `data/setup.log` | what was prepared (paths inside `data/` relative, so the folder can move), and the setup log |
 | `data/toolchain/`, `data/python/` | the downloaded compiler (Windows, Linux; kept by default for repair) and Python (Linux without Python 3; the Windows release ships its Python in `tools/python`) |
 
@@ -38,7 +38,7 @@ no-op without the marker).
 
 Source builds via `just` set `NSMBU_USER_DIR` to the gitignored `<repo>/nsmbu` folder (settings,
 states, Mod Manager, shader cache) and pass `--save nsmbu/save`.
-Portable releases keep using `data/nsmbu` and `data/save` through `portable.txt` next to the binary
+Portable releases keep using `data/nsmbu` (settings and `save/`) through `portable.txt` next to the binary
 (`portable.txt` wins if `NSMBU_USER_DIR` is also set).
 The setup importer also reads `<repo>/nsmbu` when this tree is a source checkout.
 
@@ -161,7 +161,7 @@ Requests on stdin: `{"cmd": ..., "id": n, ...}`
 | `probe` | `path` | `kind` (`image`/`archive`/`folder`), `disc_key` (found next to the image), `common_key` (where one was found); for a folder `in_place`, `bytes`; for an archive `title`, `folder`, `bytes`, `message` (which title is used and why); problem `wrong_title` when the archive has no usable game |
 | `check_keys` | `image`, optional `disc_key_file`, `common_key_file` or `common_key_hex` | `title_id`, `files`, `bytes`; problems `disc_key_wrong`, `common_key_wrong`, `wrong_title`, ... |
 | `install` | `source` (`image`/`archive`/`folder`/`installed`), `path`, optional `jobs` | streams `plan`/`step`/`progress`/`log`, then `app`, `exe`, `data_dir`, `game_dir`, `toolchain_bytes` |
-| `import_save` | `kind` (`hd`/`gc`), `path`, optional `replace` | `message`; problem `exists` when a save is installed and `replace` is not set (with `replace`, the old save is moved to `save/user.backup-<time>` first) |
+| `import_save` | `kind` (`hd`/`gc`), `path`, optional `replace` | `message`; problem `exists` when a save is installed and `replace` is not set (with `replace`, the old save is moved to `nsmbu/save/user.backup-<time>` first) |
 | `import_existing` | optional `path` (another release folder; none: the earlier per-user installation), `replace` | `message` (saves and settings copied, never moved; problem `exists` as above) |
 | `language_sources` | | `sources`: `[{region (EU/JP), title_id, source, packs: [{file, language, bytes, sha256}]}]` (experimental, [docs/language-packs.md](../../docs/language-packs.md)) |
 | `add_language_source` | `path` (a European or Japanese `.wux`/`.wud`, `.wua` or extracted folder), for an image optional `disc_key_file`, `common_key_file` or `common_key_hex` | `sources` (the added ones); only `content/Common/Pack/permanent_2d_*.pack` and `meta/meta.xml` are taken, into `data/game-lang/<EU\|JP>`; problem `language_source` (e.g. the USA game, an update, no packs) or a key problem as for `check_keys` |

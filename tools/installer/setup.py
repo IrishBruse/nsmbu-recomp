@@ -1290,7 +1290,7 @@ def mac_app(app_path, exe_src, data_dir, version):
     launcher = os.path.join(macos, "launch")
     with open(launcher, "w") as f:
         f.write('#!/bin/sh\n# written by the NSMBU setup\ncd "%s" || exit 1\nexec "$(dirname "$0")/nsmbu" '
-                '--game game --save save "$@"\n' % data_dir.replace('"', '\\"'))
+                '--game game --save nsmbu/save "$@"\n' % data_dir.replace('"', '\\"'))
     os.chmod(launcher, 0o755)
     plist = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1356,7 +1356,7 @@ def write_game_icon(data_dir, ico):
 def linux_launchers(data_dir, exe):
     play = os.path.join(data_dir, "play.sh")
     with open(play, "w") as f:
-        f.write('#!/bin/sh\n# written by the NSMBU setup\ncd "%s" || exit 1\nexec "%s" --game game --save save "$@"\n'
+        f.write('#!/bin/sh\n# written by the NSMBU setup\ncd "%s" || exit 1\nexec "%s" --game game --save nsmbu/save "$@"\n'
                 % (data_dir, exe))
     os.chmod(play, 0o755)
     apps = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "applications")
@@ -1374,7 +1374,7 @@ def windows_shortcuts(data_dir, exe):
     icon = write_game_icon(data_dir, ico=True)
     for csidl in (0x02, 0x10):
         try:
-            win_shortcut(os.path.join(win_known_folder(csidl), APP_NAME + ".lnk"), exe, "--game game --save save",
+            win_shortcut(os.path.join(win_known_folder(csidl), APP_NAME + ".lnk"), exe, "--game game --save nsmbu/save",
                          data_dir, icon or "")
         except (OSError, AttributeError, ValueError) as e:
             LOG.write("shortcut not created (folder 0x%x): %s" % (csidl, e))
@@ -1386,7 +1386,8 @@ def launch(state, data_dir):
         subprocess.Popen(["open", state["app"]])
         return
     exe = state["exe"]
-    args = [exe, "--game", state.get("game_dir") or os.path.join(data_dir, "game"), "--save", os.path.join(data_dir, "save")]
+    args = [exe, "--game", state.get("game_dir") or os.path.join(data_dir, "game"),
+            "--save", save_dir(data_dir)]
     if IS_WIN:
         subprocess.Popen(args, cwd=data_dir, creationflags=0x00000008 | 0x00000200)
     else:
@@ -1434,16 +1435,19 @@ def remove_toolchain(data_dir):
     say("  Removed the downloaded compiler (%s)" % human(n))
     return n
 
+def save_dir(data_dir):
+    return os.path.join(data_dir, "nsmbu", "save")
+
 def save_user_dir(data_dir):
-    return os.path.join(data_dir, "save", "user")
+    return os.path.join(save_dir(data_dir), "user")
 
 def have_save(data_dir):
     user = save_user_dir(data_dir)
     return os.path.isfile(os.path.join(user, "cking.sav"))
 
 def import_save(kind, path, data_dir, replace=False):
-    """Copies a Wii U save (a folder with cking.sav, or cking.sav itself) into save/user/. An existing
-    save is only replaced when asked, and then first moved to save/user.backup-<time>. Returns a message."""
+    """Copies a Wii U save (a folder with cking.sav, or cking.sav itself) into nsmbu/save/user/. An existing
+    save is only replaced when asked, and then first moved to nsmbu/save/user.backup-<time>. Returns a message."""
     user = save_user_dir(data_dir)
     if have_save(data_dir) and not replace:
         raise SetupError("a save already exists in %s" % user)
@@ -1507,17 +1511,28 @@ def import_sources(path=None):
     items = []
     if path:
         root = os.path.join(path, "data") if os.path.isdir(os.path.join(path, "data")) else path
-        save = os.path.join(root, "save", "user")
+        save = None
+        for rel in (("nsmbu", "save", "user"), ("save", "user")):
+            candidate = os.path.join(root, *rel)
+            if os.path.isfile(os.path.join(candidate, "cking.sav")):
+                save = candidate
+                break
+        if save is None:
+            save = os.path.join(root, "nsmbu", "save", "user")
         cfg = [os.path.join(root, name) for name in ("nsmbu", "user") if os.path.isdir(os.path.join(root, name))]
         if not cfg:
             cfg = [os.path.join(root, "nsmbu")]
     else:
         checkout_save = os.path.join(source_checkout_user_dir(), "save", "user")
-        legacy_save = os.path.join(legacy_data_dir(), "save", "user")
+        legacy_candidates = [
+            os.path.join(legacy_data_dir(), "nsmbu", "save", "user"),
+            os.path.join(legacy_data_dir(), "save", "user"),
+        ]
         if os.path.isfile(os.path.join(checkout_save, "cking.sav")):
             save = checkout_save
         else:
-            save = legacy_save
+            save = next((c for c in legacy_candidates if os.path.isfile(os.path.join(c, "cking.sav"))),
+                        legacy_candidates[0])
         cfg = legacy_config_dirs()
     seen = set()
     for d in cfg:
@@ -1838,7 +1853,7 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
     if not args.keep_work:
         shutil.rmtree(work, ignore_errors=True)
     if kind != "gen":
-        os.makedirs(os.path.join(data_dir, "save"), exist_ok=True)
+        os.makedirs(save_dir(data_dir), exist_ok=True)
     write_state(data_dir, state)
     return state
 
@@ -2020,7 +2035,7 @@ def run(args, ui):
                                             "run setup again to restore it." % human(folder_size(tdir)), False):
             remove_toolchain(data_dir)
     say("")
-    say("Done. Saves are in %s" % os.path.join(data_dir, "save"))
+    say("Done. Saves are in %s" % save_dir(data_dir))
     if source[0] == "gen":
         say("(built with placeholder code: this executable cannot run the game)")
         return 0

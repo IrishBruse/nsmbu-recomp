@@ -18,11 +18,7 @@ def ensure(root):
     if os.path.isdir(legacy) and not os.path.isdir(user):
         shutil.move(legacy, user)
     os.makedirs(user, exist_ok=True)
-    old_save = os.path.join(root, "save")
-    if os.path.isdir(old_save) and not os.path.exists(save):
-        shutil.move(old_save, save)
-    else:
-        os.makedirs(save, exist_ok=True)
+    os.makedirs(save, exist_ok=True)
     return user, save
 
 

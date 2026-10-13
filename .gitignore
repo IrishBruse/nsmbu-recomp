@@ -16,8 +16,8 @@ extract.log
 .DS_Store
 /ref/
 trace_dump.txt
-/save/
 /nsmbu/
+/save/
 compile_commands.json
 .cache/
 frame_*.png
@@ -41,8 +41,6 @@ headstart.bin
 *.log
 *.metal
 *.tsv
-# verified decompiled source (derived from the game): never published
-/nsmbu_src/
 # local coordination board
 /task.md
 /.tmp/

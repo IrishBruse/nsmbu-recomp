@@ -60,7 +60,7 @@ The game imports a few hundred system functions. The ones it uses are reimplemen
   The game relies on this. Letting same-core threads run truly in parallel corrupted shared data.
 - **Synchronization and services.** Mutexes, events, message queues and alarms are host objects keyed
   by their guest address. Memory heaps run on host-side allocators, and the file system maps to the
-  extracted game files and a local `save/` folder.
+  extracted game files and a local `nsmbu/save/` folder.
 - **Audio.** AX voices are decoded and mixed natively (ADPCM/PCM, resampling, filters, the game's own
   final-mix callbacks) and played through CoreAudio.
 - **System applets.** The on-screen keyboard is a macOS text field, and the error viewer logs errors

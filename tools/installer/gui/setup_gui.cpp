@@ -310,7 +310,7 @@ static bool run_quick(const std::vector<std::string>& args) {
 static std::string g_exe, g_game_dir, g_data_dir;
 
 static bool launch_game() {
-    std::string save = g_data_dir + "/save";
+    std::string save = g_data_dir + "/nsmbu/save";
 #ifdef _WIN32
     auto wide = [](const std::string& u) {
         int n = MultiByteToWideChar(CP_UTF8, 0, u.c_str(), -1, nullptr, 0);

@@ -28,7 +28,7 @@
 bool g_trace_hle = false;
 namespace config {
 std::string game_dir = "game";
-std::string save_dir = "save";
+std::string save_dir = "nsmbu/save";
 }
 
 static std::mutex g_log_mutex;
