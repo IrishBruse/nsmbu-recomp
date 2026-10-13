@@ -45,6 +45,7 @@ import ppc2c
 import singleflow
 import crlive
 import leaflocal
+import names
 import time
 
 CRLIVE = ppc2c.pass_on("NSMBU_RECOMP_CRLIVE")
@@ -196,7 +197,7 @@ class Recompiler:
                 return "PPC_LOOP(); goto L_%08X;" % tgt
             return "goto L_%08X;" % tgt
         if tgt in self.entries:
-            return "MUSTTAIL return f_%08X(c);" % self.sym(tgt)
+            return "MUSTTAIL return f_%08X(c);%s" % (self.sym(tgt), self.callee(tgt))
         return "c->pc = 0x%08Xu; MUSTTAIL return ppc_dispatch(c);" % tgt
 
     def call(self, addr, tgt):
@@ -207,7 +208,7 @@ class Recompiler:
         if addr in self.p.undef_calls:
             return "ppc_unimplemented(c, 0x%08Xu, 0); /* call to undefined symbol */" % addr
         if tgt in self.entries:
-            return "f_%08X(c);" % self.sym(tgt)
+            return "f_%08X(c);%s" % (self.sym(tgt), self.callee(tgt))
         return "c->pc = 0x%08Xu; ppc_dispatch(c);" % tgt
 
     def ret(self):
@@ -225,8 +226,8 @@ class Recompiler:
                     self.labels.add(slot)
                     cases.append("case 0x%08Xu: goto L_%08X;" % (slot, slot))
                 elif fn is not None:
-                    cases.append("case 0x%08Xu: c->pc = 0x%08Xu; MUSTTAIL return f_%08X(c);" % (
-                        slot, slot, self.sym(fn)))
+                    cases.append("case 0x%08Xu: c->pc = 0x%08Xu; MUSTTAIL return f_%08X(c);%s" % (
+                        slot, slot, self.sym(fn), self.callee(fn)))
             back = any(self.cur_start <= base + 4 * i <= addr for i in range(count))
             return "%sswitch (c->ctr) { %s } c->pc = c->ctr; MUSTTAIL return ppc_dispatch(c);" % (
                 "PPC_LOOP(); " if back else "", " ".join(cases))
@@ -237,6 +238,11 @@ class Recompiler:
         function's canonical address for any other. Generated symbols use it so that the runtime's
         f_XXXXXXXX, hook_XXXXXXXX and site_XXXXXXXX never change with the build."""
         return self.canon_of.get(addr) or self.build.canon_code(addr)
+
+    def callee(self, addr):
+        """The comment for a call site: the callee's name from references/headers."""
+        label = self.names.get(self.sym(addr))
+        return " /* %s */" % label if label else ""
 
     def imp_name(self, slot):
         lib, name, kind = self.imports[slot]
@@ -382,11 +388,14 @@ class Recompiler:
             self.cr_stats[0] += sum(1 for f in fields if f is not None)
             self.cr_stats[1] += sum(1 for i, f in enumerate(fields) if f is not None and (live_after[i] >> (4 * f)) & 0xF == 0)
         hooked = start in self.hooks
-        name = self.sym(start)
-        fname = "f_%08X_orig" % name if hooked else "f_%08X" % name
+        canon = self.sym(start)
+        fname = "f_%08X_orig" % canon if hooked else "f_%08X" % canon
         out = []
+        label = self.names.get(canon)
+        if label:
+            out.append("/* %s */" % label)
         if hooked:
-            out.append("void f_%08X(Cpu* __restrict c) { hook_%08X(c); }\n" % (name, name))
+            out.append("void f_%08X(Cpu* __restrict c) { hook_%08X(c); }\n" % (canon, canon))
         out += ["void %s(Cpu* __restrict c) {" % fname, "    PPC_ENTER(0x%08Xu);" % start]
         interior = self.interior_dispatch.get(start, [])
         if interior:
@@ -421,8 +430,10 @@ class Recompiler:
                 out.append("    site_%08X(c);" % self.sym(a))
             out.append("    %s /* %08X: %08X */" % (s, a, w))
         if self.cur_end < self.p.text_hi:
-            nxt = ("f_%08X_orig" if self.cur_end in self.hooks else "f_%08X") % self.sym(self.cur_end)
-            out.append("    %sMUSTTAIL return %s(c);" % (tail_wb + " " if tail_wb else "", nxt))
+            nxt = self.sym(self.cur_end)
+            fname_nxt = "f_%08X_orig" if self.cur_end in self.hooks else "f_%08X"
+            out.append("    %sMUSTTAIL return %s(c);%s" % (
+                tail_wb + " " if tail_wb else "", fname_nxt % nxt, self.callee(self.cur_end)))
         else:
             out.append("    ppc_unimplemented(c, 0x%08Xu, 0); /* fell off end of text */" % self.cur_end)
         out.append("}")
@@ -430,6 +441,7 @@ class Recompiler:
 
     def run(self, outdir, per_file):
         os.makedirs(outdir, exist_ok=True)
+        self.names = names.load()
         self.unhandled = collections.Counter()
         self.cr_stats = [0, 0]
         self.leaf_count = 0
@@ -475,14 +487,20 @@ class Recompiler:
 
     def write_headers(self, outdir):
         func_slots = sorted(s for s, (lib, name, kind) in self.imports.items() if kind == "f")
+
+        def comment(canon):
+            label = self.names.get(canon)
+            return " /* %s */" % label if label else ""
+
         with open(os.path.join(outdir, "funcs.h"), "w") as f:
             gqr = "#define PPC_GQR_STATIC_FLOAT 0x%02X\n" % self.static_float_gqrs() if GQR_STATIC else ""
             f.write('#pragma once\n%s%s#include "ppc.h"\n\n' % ("#define PPC_CR_CHECK 1\n" if CR_CHECK else "", gqr))
             for e in self.sorted_entries:
-                f.write("void f_%08X(Cpu* __restrict c);\n" % self.sym(e))
+                canon = self.sym(e)
+                f.write("void f_%08X(Cpu* __restrict c);%s\n" % (canon, comment(canon)))
             f.write("\n/* hooked functions: hook_X is implemented in the runtime, f_X_orig is the game's code */\n")
             for e in sorted(self.sym(a) for a in self.hooks):
-                f.write("void f_%08X_orig(Cpu* __restrict c);\nvoid hook_%08X(Cpu* c);\n" % (e, e))
+                f.write("void f_%08X_orig(Cpu* __restrict c);%s\nvoid hook_%08X(Cpu* c);\n" % (e, comment(e), e))
             f.write("\n/* instruction-level hooks (\"@ADDR\" in hooks.txt), run before the instruction at ADDR */\n")
             for e in sorted(self.sym(a) for a in self.sites):
                 f.write("void site_%08X(Cpu* c);\n" % e)
@@ -542,6 +560,8 @@ class Recompiler:
                 f.write("hook on a function this build compiled differently: %08X (here %08X, %s)\n" % (
                     canon, addr, where))
             f.write("functions: %d\nfiles: %d\nfixpoint rounds: %d\n" % (len(self.sorted_entries), nfiles, self.fixpoint_rounds))
+            f.write("functions with a name from references/headers: %d of %d\n" % (
+                sum(1 for e in self.sorted_entries if self.names.get(self.sym(e))), len(self.sorted_entries)))
             f.write("imports used: %d of %d\n" % (len(self.used_imports), len(self.imports)))
             f.write("CR writers: %d, %d with no live bit (liveness %s%s)\n" % (
                 self.cr_stats[0], self.cr_stats[1], "on" if CRLIVE else "off", ", check build" if CR_CHECK else ""))

@@ -49,6 +49,7 @@ A nested `class` in the file adds to the scope: in `references/headers/scene/Sce
 | Site | Shape | Example | Source of the shape |
 | --- | --- | --- | --- |
 | Generated C | `f_XXXXXXXX`, 8 uppercase hex digits | `f_02994164` | `tools/recomp/recomp.py` names every function by its canonical address |
+| Generated C comments | the header name in a `/* ... */` comment | `/* Scene::setNextScene */` | `tools/recomp/names.py` reads `references/headers` and `recomp.py` writes the name above the definition, next to the prototype in `funcs.h`, and at every call site of a named function |
 | `tools/recomp/hooks.txt` | `XXXXXXXX` for a function entry, `@XXXXXXXX` for an instruction site | `@022A79C4` | the recompiler reads this file |
 | A hooked function | `hook_XXXXXXXX` in the runtime, `f_XXXXXXXX_orig` for the game code | `hook_02994164` | `f_` plus the same digits |
 | Runtime code and data | `GC(0xXXXXXXXX)` for code, `GD(0xXXXXXXXX)` for data | `GC(0x02994164)` | [runtime/include/guest_addr.h](../runtime/include/guest_addr.h) |
@@ -100,6 +101,8 @@ grep -rn "setNextScene" references/headers
 | Address | Name | Used as |
 | --- | --- | --- |
 | `0x02009954` | `ActorMgr::createLater` | `kActorMgrCreateLater`, mod API |
+| `0x0202B51C` | `sead::TTaskFactory<TitleScene>` | `kCreatorTitle`, scene phase probe |
+| `0x0202B86C` | `sead::TTaskFactory<CourseSelectTask>` | `kCreatorCourseSelect`, scene phase probe |
 | `0x022656E0` | `CourseSelectTask::CourseSelectTask` (ctor) | `hook_022656E0`, intro-skip probe |
 | `0x022A7760` | `DistantViewMgr::calcView_` | the site `@022A79C4` sits inside it |
 | `0x024BBE40` | `CoinBattleScoreMgr::createInstance` | not used here; shape example |
@@ -116,7 +119,8 @@ grep -rn "setNextScene" references/headers
 | `0x101ED8DC` | `Profile::sProfileList` | `kProfileList`, mod API |
 
 The headers do not name every address this repository uses.
-The remaining hooks are `02ACD218`, `024D752C`, and `@022A79C4`, and the remaining runtime addresses are the save state functions and the interpolation probes.
+The remaining hooks are `02ACD218`, `024D752C`, and `@022A79C4`.
+The remaining runtime addresses are `kCreatorBoot`, `kCreatorFlow`, `kCreatorFileSelect`, `kCreatorMap`, `kAppOpenFileSelect`, `kAppConfirmFile`, the save state functions, and the interpolation probes.
 Give those a name when a tree gains the symbol.
 
 ## Offsets

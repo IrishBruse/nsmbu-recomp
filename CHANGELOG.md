@@ -11,6 +11,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
     Example `example.intro-skip` loads to the world map without input: from `on_loaded` it calls `nsmbu.scene.open_file_select`, `confirm_file`, and `open_course_select` in order, so it never presses buttons or reads guest memory.
 -   **Docs**: `docs/names.md` maps the function names in `references/headers` and `references/decomp` to the guest addresses and the port names (`f_…`, `hook_…`, `GC`/`GD`, `kName`).
     The reference notes now point at `references/headers` instead of the old `headers/` path.
+    The scene phase constants in the mod SDK now read the canonical address through `GC`, and the doc table gains `sead::TTaskFactory<TitleScene>` and `sead::TTaskFactory<CourseSelectTask>`.
+-   **Add**: The generated C names its functions: `tools/recomp/names.py` reads `references/headers`, and `recomp.py` writes the header name in a comment above the definition, next to the prototype in `funcs.h`, and at every call site of a named function. `stubgen.py` writes the prototype comments. The `f_XXXXXXXX` symbol stays the key.
 
 ## 0.3.0
 

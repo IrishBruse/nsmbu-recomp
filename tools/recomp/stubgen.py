@@ -15,6 +15,8 @@ import re
 import sys
 
 here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, here)
+import names
 root = os.path.normpath(os.path.join(here, "..", ".."))
 
 def hook_lists():
@@ -43,22 +45,28 @@ def main(outdir):
     os.makedirs(outdir, exist_ok=True)
     hooks, sites = hook_lists()
     funcs = sorted(runtime_refs() | hooks)
+    labels = names.load()
+
+    def comment(e):
+        label = labels.get(e)
+        return " /* %s */" % label if label else ""
+
     with open(os.path.join(outdir, "funcs.h"), "w") as f:
         f.write('#pragma once\n#include "ppc.h"\n\n')
         for e in funcs:
-            f.write("void f_%08X(Cpu* __restrict c);\n" % e)
+            f.write("void f_%08X(Cpu* __restrict c);%s\n" % (e, comment(e)))
         for e in sorted(hooks):
-            f.write("void f_%08X_orig(Cpu* __restrict c);\nvoid hook_%08X(Cpu* c);\n" % (e, e))
+            f.write("void f_%08X_orig(Cpu* __restrict c);%s\nvoid hook_%08X(Cpu* c);\n" % (e, comment(e), e))
         for e in sorted(sites):
             f.write("void site_%08X(Cpu* c);\n" % e)
     with open(os.path.join(outdir, "code_000.c"), "w") as f:
         f.write('#include "funcs.h"\n\n/* placeholder: written by tools/recomp/stubgen.py, not game code */\n')
         for e in funcs:
             if e in hooks:
-                f.write("void f_%08X(Cpu* __restrict c) { hook_%08X(c); }\n" % (e, e))
-                f.write("void f_%08X_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x%08Xu, 0); }\n" % (e, e))
+                f.write("void f_%08X(Cpu* __restrict c) { hook_%08X(c); }%s\n" % (e, e, comment(e)))
+                f.write("void f_%08X_orig(Cpu* __restrict c) { ppc_unimplemented(c, 0x%08Xu, 0); }%s\n" % (e, e, comment(e)))
             else:
-                f.write("void f_%08X(Cpu* __restrict c) { ppc_unimplemented(c, 0x%08Xu, 0); }\n" % (e, e))
+                f.write("void f_%08X(Cpu* __restrict c) { ppc_unimplemented(c, 0x%08Xu, 0); }%s\n" % (e, e, comment(e)))
 
         f.write("\nvoid stubgen_sites(Cpu* c) {\n")
         for e in sorted(sites):
