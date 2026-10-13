@@ -64,9 +64,9 @@ int main(int argc, char** argv) {
             "nsmbu.on_loaded(function()\n"
             "  nsmbu.status(\"loaded\")\n"
             "end)\n",""),error));
-        assert(enable("luau.loaded",true,error));
+        assert(enable("luau.loaded",true,error));frame(4);
         {auto v=view("luau.loaded");assert(v.active&&v.status=="loaded");}
-        frame(4);assert(remove("luau.loaded",error));
+        assert(enable("luau.loaded",false,error));frame(5);assert(remove("luau.loaded",error));
 
         assert(install(luau_pack("luau.boom",
             "local nsmbu=require(\"nsmbu\")\n"

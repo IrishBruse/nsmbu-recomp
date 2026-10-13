@@ -73,7 +73,8 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(skipped, [])
         self.assertEqual(
             [(site, canon) for site, canon, _, _ in entries],
-            [(False, 0x02ACD218), (False, 0x024D752C), (True, 0x022A79C4)],
+            [(False, 0x02ACD218), (False, 0x024D752C), (True, 0x022A79C4),
+             (False, 0x02994164), (False, 0x022656E0)],
         )
         for site, canon, native, where in entries:
             self.assertEqual(canon, native, where)

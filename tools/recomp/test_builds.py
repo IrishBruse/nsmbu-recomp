@@ -59,7 +59,8 @@ class Hooks(unittest.TestCase):
         self.assertEqual(skipped, [])
         self.assertEqual(
             [(site, addr) for site, _, addr, _ in entries],
-            [(False, 0x02ACD218), (False, 0x024D752C), (True, 0x022A79C4)],
+            [(False, 0x02ACD218), (False, 0x024D752C), (True, 0x022A79C4),
+             (False, 0x02994164), (False, 0x022656E0)],
         )
         for site, canon, addr, where in entries:
             self.assertEqual(canon, addr, where)
