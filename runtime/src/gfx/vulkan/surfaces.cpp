@@ -1183,8 +1183,9 @@ void upload_surface(Surface* s) {
     }
     s->dataSize=ranges[0].second;
     bool full = s->dirty || !s->watched;
+    const uint64_t priorStamp=s->watchStamp;
     if (wwatch::active()) {
-        for(uint32_t level=0;level<levels&&!full;++level)full=wwatch::written_since(ranges[level].first,ranges[level].second,s->watchStamp);
+        for(uint32_t level=0;level<levels&&!full;++level)full=wwatch::written_since(ranges[level].first,ranges[level].second,priorStamp);
         if (!full) return;
 
         uint64_t stamp=~0ull;
@@ -1201,7 +1202,10 @@ void upload_surface(Surface* s) {
     uint64_t hashes[16]{};
     uint64_t hash=1469598103934665603ull;
     for(uint32_t level=0;level<levels;++level) {
-        hashes[level]=content_hash(mem::ptr(ranges[level].first),size_t(ranges[level].second));
+        const uint32_t hashBit=1u<<level;
+        bool reuse=!s->dirty&&level<16&&(s->levelHashValid&hashBit)&&wwatch::active()&&
+            !wwatch::written_since(ranges[level].first,ranges[level].second,priorStamp);
+        hashes[level]=reuse?s->levelHash[level]:content_hash(mem::ptr(ranges[level].first),size_t(ranges[level].second));
         hash=(hash^hashes[level])*1099511628211ull;
     }
     if(!s->dirty&&hash==s->contentHash)return;

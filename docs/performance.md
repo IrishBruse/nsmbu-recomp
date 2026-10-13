@@ -402,6 +402,19 @@ page tracking in `state_memory.h`/`platform/host.h`: restore 262 to 70-85 ms, ca
 440-790 ms range with the game frozen. `NSMBU_STATE_RESIDENT_OFF=1` keeps the old per-call
 `memory_touched` behavior for comparison.
 
+## Per-mip xxHash reuse on full checks (2026-10-13)
+
+After the register-path work, `just perf` on 1-1 still spent most GX2 render draw time in the
+**textures** phase (`XXH3_hashLong_64b_default`, `decode_level_fast`, memcpy, upload).
+Decode already skipped mips whose per-level hash matched; a dirty full check still **re-hashed every
+level** before that decision.
+
+Vulkan `upload_surface` (`surfaces.cpp`) now reuses stored `levelHash[level]` when write-watch is
+active, the surface is not `dirty`, the level already has a valid hash, and no guest page in that
+level was written since the prior `watchStamp` (captured before `arm()`). The combined `contentHash`
+is still the same FNV mix over per-level hashes; only xxHash work is skipped on stable mips.
+Single-level surfaces that rewrite every frame still hash in full. `ctest` `write_watch` passes.
+
 ## Register-state memo and write-watch clock (2026-10-13)
 
 Linux, Intel Arc B580, i5-12600KF (Alder Lake hybrid).
