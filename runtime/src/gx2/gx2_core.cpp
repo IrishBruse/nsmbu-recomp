@@ -28,6 +28,7 @@
 #include "guest_addr.h"
 #include "../aspect.h"
 #include "gfx/renderer.h"
+#include "overlay/hostui.h"
 #include "platform/perf_hint.h"
 #include "render_prof.h"
 #include "mods/packages.h"
@@ -814,6 +815,11 @@ HLE(gx2, GX2GetSwapStatus) {
 }
 HLE(gx2, GX2SetSwapInterval) { g_swap_interval = std::max<uint32>(arg(c, 0), 1); }
 HLE(gx2, GX2WaitForVsync) {
+    if (!hostui::run_in_background()) {
+        while (!hostui::app_focused()) {
+            threads::park_sleep_until(std::chrono::steady_clock::now() + std::chrono::milliseconds(50));
+        }
+    }
     if(uncapped_benchmark()) {
         BlockingScope b;
 

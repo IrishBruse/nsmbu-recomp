@@ -12,6 +12,7 @@
 #include "runtime.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -28,6 +29,16 @@ std::mutex g_mu;
 std::vector<std::function<void()>> g_posted;
 std::map<std::string, std::string> g_values;
 bool g_loaded = false;
+std::atomic<bool> g_run_in_background{true};
+std::atomic<bool> g_app_focused{true};
+
+void apply_background_hint(bool on) {
+#ifndef __ANDROID__
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, on ? "1" : "0");
+#else
+    (void)on;
+#endif
+}
 
 std::string path() {
     if (const char* e = getenv("NSMBU_SETTINGS")) return e;
@@ -217,6 +228,11 @@ void load_saved_options() {
     g_shown = !input::pro_controller();
     apply_drc_window();
     LOG("[display] GamePad screen mode: %s%s", kModeNames[g_mode], g_shown ? "" : " (hidden)");
+    if (saved("runInBackground", {"NSMBU_RUN_IN_BACKGROUND"}))
+        g_run_in_background.store(num("runInBackground") != 0, std::memory_order_relaxed);
+    else if (const char* e = getenv("NSMBU_RUN_IN_BACKGROUND"))
+        g_run_in_background.store(atoi(e) != 0, std::memory_order_relaxed);
+    apply_background_hint(g_run_in_background.load(std::memory_order_relaxed));
 #ifndef __ANDROID__
 
     SDL_Window* tv = gfxvk::R.tv.window;
@@ -238,6 +254,16 @@ void set_fullscreen(bool on) {
     if (!SDL_SetWindowFullscreen(gfxvk::R.tv.window, on)) LOG("[display] TV window: full screen %s failed: %s", on ? "on" : "off", SDL_GetError());
     tv_fullscreen_changed();
 }
+
+bool run_in_background() { return g_run_in_background.load(std::memory_order_relaxed); }
+void set_run_in_background(bool on) {
+    g_run_in_background.store(on, std::memory_order_relaxed);
+    apply_background_hint(on);
+    set("runInBackground", on ? "1" : "0");
+    LOG("[display] run in background %s", on ? "on" : "off");
+}
+bool app_focused() { return g_app_focused.load(std::memory_order_relaxed); }
+void set_app_focused(bool on) { g_app_focused.store(on, std::memory_order_relaxed); }
 
 void tv_fullscreen_changed() {
 #ifndef __ANDROID__

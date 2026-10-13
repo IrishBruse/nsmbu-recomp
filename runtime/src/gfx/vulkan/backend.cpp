@@ -1056,9 +1056,11 @@ static void recreate_surface(Screen &s) {
 
 static bool SDLCALL lifecycle_watch(void *, SDL_Event *event) {
   if (event->type == SDL_EVENT_WILL_ENTER_BACKGROUND || event->type == SDL_EVENT_DID_ENTER_BACKGROUND) {
+    ::hostui::set_app_focused(false);
     if (!surfaceLost.exchange(true))
       LOG("[vulkan] app in the background: presentation paused");
   } else if (event->type == SDL_EVENT_DID_ENTER_FOREGROUND) {
+    ::hostui::set_app_focused(true);
     LOG("[vulkan] app in the foreground: new presentation surface");
     R.tv.visible = true;
     surfaceRecreate = true;
@@ -1103,6 +1105,15 @@ static void present(Screen &s) {
     make_swapchain(s);
   if (!s.window || !s.visible || s.width <= 0 || s.height <= 0 || !s.scan ||
       !s.scan->image)
+    return;
+#ifdef NSMBU_SDL_HOST
+  {
+    const Uint64 flags = SDL_GetWindowFlags(s.window);
+    if (flags & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED | SDL_WINDOW_HIDDEN))
+      return;
+  }
+#endif
+  if (!::hostui::run_in_background() && !::hostui::app_focused())
     return;
   VkFormatProperties sourceFormat;
   vkGetPhysicalDeviceFormatProperties(R.physicalDevice, s.scan->fmt.pixel,
@@ -2519,11 +2530,26 @@ void run_main_loop() {
           if (s == &R.tv && (event.type == SDL_EVENT_WINDOW_ENTER_FULLSCREEN ||
                              event.type == SDL_EVENT_WINDOW_LEAVE_FULLSCREEN))
             ::hostui::tv_fullscreen_changed();
-          if (event.type == SDL_EVENT_WINDOW_MINIMIZED)
+          if (event.type == SDL_EVENT_WINDOW_MINIMIZED ||
+              event.type == SDL_EVENT_WINDOW_OCCLUDED ||
+              event.type == SDL_EVENT_WINDOW_HIDDEN)
             s->visible = false;
           if (event.type == SDL_EVENT_WINDOW_RESTORED ||
-              event.type == SDL_EVENT_WINDOW_SHOWN)
-            s->visible = true;
+              event.type == SDL_EVENT_WINDOW_SHOWN ||
+              event.type == SDL_EVENT_WINDOW_EXPOSED) {
+            const Uint64 flags = SDL_GetWindowFlags(s->window);
+            s->visible = !(flags & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED |
+                                    SDL_WINDOW_HIDDEN));
+          }
+          if (event.type == SDL_EVENT_WINDOW_FOCUS_GAINED ||
+              event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+            bool focused = false;
+            for (Screen *w : {&R.tv, &R.drc})
+              if (w->window &&
+                  (SDL_GetWindowFlags(w->window) & SDL_WINDOW_INPUT_FOCUS))
+                focused = true;
+            ::hostui::set_app_focused(focused);
+          }
         }
     }
     input::update();

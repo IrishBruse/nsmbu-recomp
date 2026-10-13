@@ -7,6 +7,8 @@
 #include "../overlay/overlay.h"
 #include "../runtime.h"
 #include "display_modes.h"
+#include <atomic>
+#include <cstdlib>
 
 namespace gfx {
 
@@ -30,6 +32,10 @@ void show_drc_window(bool on);
 }
 
 namespace hostui {
+namespace {
+std::atomic<bool> g_run_in_background{true};
+std::atomic<bool> g_app_focused{true};
+}
 
 void post(std::function<void()> fn) {
     dispatch_async(dispatch_get_main_queue(), ^{ fn(); });
@@ -56,6 +62,14 @@ void set_scale_filter(int f) { gfx::display_set_filter(f); }
 bool scale_filter_available() { return true; }
 bool fullscreen() { return gfx::tv_fullscreen(); }
 void set_fullscreen(bool on) { gfx::display_set_tv_fullscreen(on); }
+bool run_in_background() { return g_run_in_background.load(std::memory_order_relaxed); }
+void set_run_in_background(bool on) {
+    g_run_in_background.store(on, std::memory_order_relaxed);
+    gfx::set_host_setting("runInBackground", on ? "1" : "0");
+    LOG("[display] run in background %s", on ? "on" : "off");
+}
+bool app_focused() { return g_app_focused.load(std::memory_order_relaxed); }
+void set_app_focused(bool on) { g_app_focused.store(on, std::memory_order_relaxed); }
 int drc_modes() { return gfx::kDrcModeCount; }
 bool drc_mode_offered(int m) { return m >= 0 && m < gfx::kDrcModeCount; }
 int drc_mode() { return gfx::display_drc_mode(); }
@@ -85,7 +99,13 @@ void open_folder(const std::string& path) {
     [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:[NSString stringWithUTF8String:path.c_str()] isDirectory:YES]];
 }
 void run_posted() {}
-void load_saved_options() {}
+void load_saved_options() {
+    std::string v;
+    if (const char* e = getenv("NSMBU_RUN_IN_BACKGROUND"))
+        g_run_in_background.store(atoi(e) != 0, std::memory_order_relaxed);
+    else if (gfx::host_setting("runInBackground", v))
+        g_run_in_background.store(v != "0", std::memory_order_relaxed);
+}
 
 }
 

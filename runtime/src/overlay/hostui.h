@@ -21,6 +21,10 @@ bool scale_filter_available();
 
 bool fullscreen();
 void set_fullscreen(bool on);
+bool run_in_background();
+void set_run_in_background(bool on);
+bool app_focused();
+void set_app_focused(bool on);
 int drc_modes();
 
 bool drc_mode_offered(int m);

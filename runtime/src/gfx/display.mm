@@ -25,6 +25,7 @@
 #endif
 #include "imgui.h"
 #include "backends/imgui_impl_metal.h"
+#include "../overlay/hostui.h"
 #include "../overlay/overlay.h"
 #include "../screenshot.h"
 
@@ -194,6 +195,11 @@ static void update_drawable_size(CAMetalLayer* layer, NSWindow* win) {
 static CAMetalLayer* g_layers[2];
 static NSWindow* g_windows[2];
 static bool screen_visible(NSWindow* win) { return (win.occlusionState & NSWindowOcclusionStateVisible) != 0; }
+static void update_app_focus() {
+    const bool focused = NSApp.active &&
+                         ((g_windows[0] && g_windows[0].keyWindow) || (g_windows[1] && g_windows[1].keyWindow));
+    hostui::set_app_focused(focused);
+}
 
 static void report_refresh_rate(NSWindow* win) {
     NSScreen* sc = win.screen ?: NSScreen.mainScreen;
@@ -236,6 +242,9 @@ static NSWindow* make_window(int index, NSString* title, NSView* view, int w, in
         [[NSNotificationCenter defaultCenter] addObserverForName:n object:win queue:nil usingBlock:^(NSNotification*) {
             screen_changed(index);
         }];
+    for (NSNotificationName n in @[ NSWindowDidBecomeKeyNotification, NSWindowDidResignKeyNotification ])
+        [[NSNotificationCenter defaultCenter] addObserverForName:n object:win queue:nil
+                                                      usingBlock:^(NSNotification*) { update_app_focus(); }];
     return win;
 }
 
@@ -349,6 +358,10 @@ static void create_windows() {
     [NSApp setActivationPolicy:test ? NSApplicationActivationPolicyAccessory : NSApplicationActivationPolicyRegular];
     load_settings();
     load_options();
+    hostui::load_saved_options();
+    for (NSNotificationName n in @[ NSApplicationDidBecomeActiveNotification, NSApplicationDidResignActiveNotification ])
+        [[NSNotificationCenter defaultCenter] addObserverForName:n object:NSApp queue:nil
+                                                      usingBlock:^(NSNotification*) { update_app_focus(); }];
     NSWindow* tv = make_window(0, @"New Super Mario Bros. U (recompiled)",
                                [[WWTvView alloc] initWithFrame:NSMakeRect(0, 0, 1280, 720)], 1280, 720, NSMakePoint(0, 0));
     g_tv_window = tv;
@@ -818,6 +831,7 @@ static void present_to_layer(Screen& scr, void (^draw)(id<MTLTexture>)) {
         scr.layer.displaySyncEnabled = sync;
         if (&scr == &R.tv) interp::set_present_vsync(sync);
     }
+    if (!hostui::run_in_background() && !hostui::app_focused()) return;
     id<CAMetalDrawable> drawable = scr.visible ? [scr.layer nextDrawable] : nil;
     if (!drawable) return;
     draw(drawable.texture);

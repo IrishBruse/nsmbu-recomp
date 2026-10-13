@@ -810,6 +810,10 @@ void tab_display() {
     help(!strcmp(hostui::name(), "AppKit") ? "The TV window (Cmd+F); remembered for the next start"
                                            : "The TV window (F11 or Alt+Enter); remembered for the next start");
 #endif
+    if (check("Run in background", hostui::run_in_background(), &v))
+        hostui::post([v] { hostui::set_run_in_background(v); });
+    help("Keeps the game at full speed when another window is in front.\n"
+         "Turn this off to pause the game when the window loses focus.");
     heading("Picture scaling");
     static const char* const f[] = {"Smooth", "Sharp", "Integer scale (pixel exact)"};
     const bool fok = hostui::scale_filter_available();
