@@ -45,6 +45,10 @@ run-release *args:
 profile *args:
     python3 tools/profile.py {{args}}
 
+# perf CPU profile of the fixed 1-1 scene into .tmp/perf/ (attach: just perf --attach PID --seconds 30)
+perf *args:
+    python3 tools/perf.py {{args}}
+
 # Type-check example Luau mods with the SDK definitions. Needs luau-lsp on PATH.
 lint:
     find modding/examples -type f -name '*.luau' -print0 | xargs -0 luau-lsp analyze \
