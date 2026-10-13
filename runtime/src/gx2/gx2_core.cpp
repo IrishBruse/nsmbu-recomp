@@ -46,7 +46,7 @@ uint32* regs() { return g_regs; }
 
 extern "C" { uint64_t g_shader_state_gen = 1; }
 
-static bool shader_irrelevant(uint32 reg) {
+static bool raw_shader_irrelevant(uint32 reg) {
 #ifdef NSMBU_HAS_VULKAN
 
     static const bool addressMemo = [] {
@@ -70,6 +70,16 @@ static bool shader_irrelevant(uint32 reg) {
         return w != 2;
     }
     return false;
+}
+static bool shader_irrelevant(uint32 reg) {
+    static bool memo[kNumRegs];
+    static const bool filled = [] {
+        for (uint32 r = 0; r < kNumRegs; r++) memo[r] = raw_shader_irrelevant(r);
+        return true;
+    }();
+    (void)filled;
+    if (reg >= kNumRegs) return false;
+    return memo[reg];
 }
 static ShaderKeyDirtyStats shaderKeyDirtyStats;
 ShaderKeyDirtyStats shader_key_dirty_stats() { return shaderKeyDirtyStats; }

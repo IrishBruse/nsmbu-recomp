@@ -402,6 +402,56 @@ page tracking in `state_memory.h`/`platform/host.h`: restore 262 to 70-85 ms, ca
 440-790 ms range with the game frozen. `NSMBU_STATE_RESIDENT_OFF=1` keeps the old per-call
 `memory_touched` behavior for comparison.
 
+## Register-state memo and write-watch clock (2026-10-13)
+
+Linux, Intel Arc B580, i5-12600KF (Alder Lake hybrid).
+`just perf` on the fixed 1-1 scene (`user/states/slot1.bin`, TV frame 700, exit 1100, 25 s
+`perf record` at 997 Hz, `-e cycles:u`, DWARF stacks).
+Artifacts: `.tmp/perf/before/` (pre-change) and `.tmp/perf/after/` (with the fixes below);
+`build/nsmbu` was unchanged between each record and `perf report`.
+
+`perf` on hybrid Intel CPUs records both `cpu_atom/cycles/u` and `cpu_core/cycles/u`.
+The cycle table uses the **P-core** column (`cpu_core`) from `perf report --group` with
+`--no-children`, summing every row for that symbol (all threads).
+
+Two changes in the per-frame register stream:
+
+- **`gx2::shader_irrelevant`** (`gx2_core.cpp`) answers from a 64 KiB bool table built once on
+  first use from the unchanged predicate (`raw_shader_irrelevant`), instead of three range walks
+  and a modulo per register word. Indices past `kNumRegs` still return false.
+- **Write-watch sequence** (`write_watch.cpp`): `g_seq` always advanced in lockstep with `g_clock`
+  (one bump per write fault, host write, or hint), so `write_seq()` now returns `g_clock - 1` and
+  each hint, fault, and host write does one atomic RMW instead of two. Page stamping is unchanged.
+
+`tools/perf.py` passes `--call-graph none` for the flat report (perf 7.0 removed
+`--no-callchains`).
+
+| Symbol (P-core sample periods, ~6.9 s / ~5.8 s windows) | before | after |
+| --- | ---: | ---: |
+| `gx2::shader_irrelevant` | 86.2 M | (below report threshold) |
+| `gx2::apply_small_regs` | 230.5 M | (below report threshold) |
+| `wwatch::hint` | 23.7 M | 18.2 M |
+| `gx2::execute` | 98.5 M | (below report threshold) |
+
+After the memo, `shader_irrelevant` and `apply_small_regs` no longer accumulate enough samples to
+name in the flat report; cost moves out of those symbols rather than disappearing from the frame.
+
+Matched `[prof]` window at TV frame 1080 (120 frames, 59.9 swaps/s, 13,004 register writes/frame,
+195 draws/frame):
+
+| | before | after |
+| --- | ---: | ---: |
+| `regs` op ms/frame | 0.72 | 0.37 |
+| regs ms per 1000 writes | 0.055 | 0.028 |
+| render-thread CPU ms/frame | 9.82 | 5.20 |
+| render-thread in ops ms/frame | 9.97 | 5.32 |
+| game-thread `DrawDone` wait ms/frame | 8.71 | 4.29 |
+
+At similar register volumes earlier in the run (~8.3–12.5k writes/frame), regs ms per 1000 writes
+fell about 45–50% (for example 0.42 ms at 8,348 writes to 0.21 ms at 8,348).
+Frame time stayed at the vsync ceiling; the gain is lower render-thread op time and more
+`DrawDone` headroom, not higher swaps/s on this scene.
+
 ## Texture change detection (2026-10-06)
 
 The renderers used to re-hash a CPU texture in full only when it was new, invalidated by an exact

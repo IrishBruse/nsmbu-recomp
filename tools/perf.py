@@ -124,7 +124,7 @@ def write_reports():
                     "--call-graph", "fractal,5", "--percent-limit", "0.05"],
                    stdout=open(os.path.join(OUT, "report.txt"), "w"), check=False)
     flat = subprocess.run(["perf", "report", "-i", DATA, "--stdio", "--no-children",
-                           "--no-callchains", "--sort", "comm,dso,symbol"],
+                           "--call-graph", "none", "--sort", "comm,dso,symbol"],
                           capture_output=True, text=True, check=False).stdout
     with open(os.path.join(OUT, "report_flat.txt"), "w") as f:
         f.write(flat)

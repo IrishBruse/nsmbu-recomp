@@ -107,7 +107,7 @@ Slots are 1 through 5.
 The load starts at TV frame 200 and waits until the boot threads exist.
 
 `just profile` runs `build/nsmbu` with the fixed-scene profile env (`NSMBU_NO_AUDIO`, profile and Vulkan stats, slow-swap log, log file under `.tmp/repro/`).
-Default load is slot 1 at TV frame 700; the run stops at TV frame 1100.
+Default load is slot 2 at TV frame 700; the run stops at TV frame 1100.
 Pass a slot number, or `--exit-at`, `--load-at`, or `--log`.
 Use a Release binary (`just build-release`) for hitch checks.
 

@@ -30,7 +30,6 @@ std::atomic<uint8_t>* g_flags = nullptr;
 std::atomic<uint64_t> g_clock{1};
 std::atomic<bool> g_active{false};
 std::atomic<uint64_t> g_faults{0}, g_protected{0};
-std::atomic<uint64_t> g_seq{0};
 std::atomic<uint64_t>* g_hint = nullptr;
 std::atomic<bool> g_hints{false};
 std::atomic<uint64_t> g_hint_calls{0}, g_hint_bytes{0};
@@ -65,7 +64,6 @@ bool on_write_fault(uintptr_t a) {
     if (!set_rw(page, 1, true)) return false;
     g_flags[page].fetch_and((uint8_t)~kProt, std::memory_order_acq_rel);
     stamp_page(page, g_clock.fetch_add(1, std::memory_order_acq_rel) + 1);
-    g_seq.fetch_add(1, std::memory_order_acq_rel);
     g_faults.fetch_add(1, std::memory_order_relaxed);
     return true;
 }
@@ -159,7 +157,6 @@ uint64_t arm(uint32_t addr, uint32_t size) {
                 g_flags[q].fetch_and((uint8_t)~kProt, std::memory_order_acq_rel);
                 stamp_page(q, v);
             }
-            g_seq.fetch_add(1, std::memory_order_acq_rel);
             g_protect_failures.fetch_add(run, std::memory_order_relaxed);
         }
         run = 0;
@@ -195,7 +192,6 @@ void host_write_begin(uint32_t addr, uint32_t size) {
         }
     uint64_t v = g_clock.fetch_add(1, std::memory_order_acq_rel) + 1;
     for (uint64_t p = first; p <= last; p++) stamp_page(p, v);
-    g_seq.fetch_add(1, std::memory_order_acq_rel);
 }
 
 void host_write_end(uint32_t addr, uint32_t size) {
@@ -207,7 +203,6 @@ void host_write_end(uint32_t addr, uint32_t size) {
 
     uint64_t v = g_clock.fetch_add(1, std::memory_order_acq_rel) + 1;
     for (uint64_t p = first; p <= last; p++) stamp_page(p, v);
-    g_seq.fetch_add(1, std::memory_order_acq_rel);
 }
 
 bool changed_since(uint32_t addr, uint32_t size, uint64_t stamp) {
@@ -221,7 +216,7 @@ bool changed_since(uint32_t addr, uint32_t size, uint64_t stamp) {
     return false;
 }
 
-uint64_t write_seq() { return g_seq.load(std::memory_order_acquire); }
+uint64_t write_seq() { return g_clock.load(std::memory_order_acquire) - 1; }
 
 void enable_hints() {
     static std::once_flag once;
@@ -242,7 +237,6 @@ void hint(uint32_t addr, uint32_t size) {
         uint64_t cur = g_hint[p].load(std::memory_order_relaxed);
         while (cur < v && !g_hint[p].compare_exchange_weak(cur, v, std::memory_order_release, std::memory_order_relaxed)) {}
     }
-    g_seq.fetch_add(1, std::memory_order_acq_rel);
     g_hint_calls.fetch_add(1, std::memory_order_relaxed);
     g_hint_bytes.fetch_add(size, std::memory_order_relaxed);
 }
