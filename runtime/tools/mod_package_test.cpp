@@ -49,9 +49,9 @@ int main(int argc, char** argv) {
             "assert(nsmbu.config==require(\"nsmbu.config\"))\n"
             "assert(type(nsmbu.level)==\"table\")\n"
             "assert(type(nsmbu.player)==\"table\")\n"
-            "nsmbu.on_logic_step(function(step)\n"
+            "function nsmbu.hooks.on_logic_step(step)\n"
             "  nsmbu.status(nsmbu.config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
-            "end)\n",
+            "end\n",
             ",\"options\":[{\"id\":\"label\",\"name\":\"Label\",\"type\":\"string\",\"default\":\"Hi\"}]"),error));
         assert(enable("luau.status",true,error));frame(1);
         {auto v=view("luau.status");assert(v.active&&v.enabled&&!v.restart_required&&v.status.find("Hi")!=std::string::npos);}
@@ -61,23 +61,23 @@ int main(int argc, char** argv) {
 
         assert(install(luau_pack("luau.loaded",
             "local nsmbu=require(\"nsmbu\")\n"
-            "nsmbu.on_loaded(function()\n"
+            "function nsmbu.hooks.on_loaded()\n"
             "  nsmbu.status(\"loaded\")\n"
-            "end)\n",""),error));
+            "end\n",""),error));
         assert(enable("luau.loaded",true,error));frame(4);
         {auto v=view("luau.loaded");assert(v.active&&v.status=="loaded");}
         assert(enable("luau.loaded",false,error));frame(5);assert(remove("luau.loaded",error));
 
         assert(install(luau_pack("luau.boom",
             "local nsmbu=require(\"nsmbu\")\n"
-            "nsmbu.on_logic_step(function(step)\n"
+            "function nsmbu.hooks.on_logic_step(step)\n"
             "  error(\"boom\")\n"
-            "end)\n",""),error));
+            "end\n",""),error));
         assert(install(luau_pack("luau.ok",
             "local nsmbu=require(\"nsmbu\")\n"
-            "nsmbu.on_logic_step(function(step)\n"
+            "function nsmbu.hooks.on_logic_step(step)\n"
             "  nsmbu.status(\"ok\")\n"
-            "end)\n",""),error));
+            "end\n",""),error));
         assert(enable("luau.boom",true,error));assert(enable("luau.ok",true,error));frame(10);
         {auto a=view("luau.boom");assert(!a.active&&!a.enabled&&a.reason.find("boom")!=std::string::npos);}
         {auto b=view("luau.ok");assert(b.active&&b.enabled&&b.status=="ok");}
@@ -93,9 +93,9 @@ int main(int argc, char** argv) {
             "local guest=require(\"nsmbu.guest\")\n"
             "assert(type(guest.read_u32)==\"function\")\n"
             "local sib=require(\"sib\")\n"
-            "nsmbu.on_logic_step(function(step)\n"
+            "function nsmbu.hooks.on_logic_step(step)\n"
             "  nsmbu.status(sib.tag)\n"
-            "end)\n","",
+            "end\n","",
             "return {tag=\"sib-ok\"}\n"),error));
         assert(enable("luau.sandbox",true,error));frame(20);
         {auto v=view("luau.sandbox");assert(v.active&&v.status=="sib-ok");}
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
         assert(install(luau_pack("luau.guest",
             "local nsmbu=require(\"nsmbu\")\n"
             "local guest=require(\"nsmbu.guest\")\n"
-            "nsmbu.on_logic_step(function(step)\n"
+            "function nsmbu.hooks.on_logic_step(step)\n"
             "  local addr=0x10000000\n"
             "  local ok=guest.write_u32(addr,0x11223344)\n"
             "  local v=guest.read_u32(addr)\n"
@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
             "  else\n"
             "    nsmbu.status(\"mem-fail\")\n"
             "  end\n"
-            "end)\n",""),error));
+            "end\n",""),error));
         assert(enable("luau.guest",true,error));frame(30);
         {auto v=view("luau.guest");assert(v.active&&v.status=="mem-ok");}
         assert(slab[0]==0x11&&slab[1]==0x22&&slab[2]==0x33&&slab[3]==0x44);
@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
             "local nsmbu=require(\"nsmbu\")\n"
             "local level=require(\"nsmbu.level\")\n"
             "local player=require(\"nsmbu.player\")\n"
-            "nsmbu.on_logic_step(function(step)\n"
+            "function nsmbu.hooks.on_logic_step(step)\n"
             "  if not level.active() then nsmbu.status('no-course') return end\n"
             "  level.set_time(999)\n"
             "  level.set_coins(88)\n"
@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
             "  else\n"
             "    nsmbu.status('game-fail')\n"
             "  end\n"
-            "end)\n",""),error));
+            "end\n",""),error));
         assert(enable("luau.game",true,error));frame(32);
         {auto v=view("luau.game");assert(v.active&&v.status=="game-ok");}
         {
@@ -237,7 +237,7 @@ int main(int argc, char** argv) {
 
         auto both=root/"luau.both";fs::create_directories(both/"content"/"Common");
         std::ofstream(both/"content"/"Common"/"b.bin")<<"x";
-        std::ofstream(both/"main.luau")<<"nsmbu.on_logic_step(function(step) nsmbu.status(\"both\") end)\n";
+        std::ofstream(both/"main.luau")<<"function nsmbu.hooks.on_logic_step(step) nsmbu.status(\"both\") end\n";
         std::ofstream(both/"manifest.json")<<R"({"format_version":2,"id":"luau.both","name":"Both","version":"1.0.0","game_id":"nsmbu-usa","kind":"luau","luau":{"api_version":1,"entry":"main.luau"},"content_dir":"content"})";
         assert(install(both.string(),error));
         assert(enable("luau.both",true,error));frame(42);
@@ -247,9 +247,9 @@ int main(int argc, char** argv) {
         assert(!hot_reload());
         assert(install(luau_pack("luau.reload",
             "local nsmbu=require(\"nsmbu\")\n"
-            "nsmbu.on_logic_step(function(step)\n"
+            "function nsmbu.hooks.on_logic_step(step)\n"
             "  nsmbu.status(\"before\")\n"
-            "end)\n",""),error));
+            "end\n",""),error));
         assert(enable("luau.reload",true,error));frame(50);
         {auto v=view("luau.reload");assert(v.active&&v.status=="before");}
         assert(set_hot_reload(true,error));assert(hot_reload());
@@ -258,9 +258,9 @@ int main(int argc, char** argv) {
             auto script=storage/"Mods"/"luau.reload"/"main.luau";
             std::ofstream(script)
                 <<"local nsmbu=require(\"nsmbu\")\n"
-                <<"nsmbu.on_logic_step(function(step)\n"
+                <<"function nsmbu.hooks.on_logic_step(step)\n"
                 <<"  nsmbu.status(\"after\")\n"
-                <<"end)\n";
+                <<"end\n";
             auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(2);
             fs::last_write_time(script,stamp);
         }
@@ -285,9 +285,9 @@ int main(int argc, char** argv) {
             auto script=storage/"Mods"/"luau.both"/"main.luau";
             std::ofstream(script)
                 <<"local nsmbu=require(\"nsmbu\")\n"
-                <<"nsmbu.on_logic_step(function(step)\n"
+                <<"function nsmbu.hooks.on_logic_step(step)\n"
                 <<"  nsmbu.status(\"hot-both\")\n"
-                <<"end)\n";
+                <<"end\n";
             auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(2);
             fs::last_write_time(script,stamp);
         }

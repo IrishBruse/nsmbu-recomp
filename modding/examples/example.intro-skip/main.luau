@@ -1,4 +1,5 @@
 const scene = nsmbu.scene
+const hooks = nsmbu.hooks
 
 local stage = 0
 local hold = 0
@@ -12,7 +13,7 @@ local function settled(steps: number)
   return true
 end
 
-nsmbu.on_logic_step(function(step: number)
+function hooks.on_logic_step(step: number)
   if stage == 0 then
     if scene.title() then
       scene.open_file_select()
@@ -39,9 +40,9 @@ nsmbu.on_logic_step(function(step: number)
       nsmbu.log(string.format("world map at step %d", step))
     end
   end
-end)
+end
 
-nsmbu.on_unload(function()
+function hooks.on_unload()
   stage = 0
   hold = 0
-end)
+end

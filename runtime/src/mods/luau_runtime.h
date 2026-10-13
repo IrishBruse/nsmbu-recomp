@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace mods::luau_mod {
 
@@ -17,12 +16,6 @@ struct LoadInfo {
     json::Value config;
 };
 
-struct Listener {
-    int id = 0;
-    int ref = 0;
-    std::string event;
-};
-
 struct Instance {
     std::string id, version, path, entry;
     json::Value config;
@@ -31,8 +24,6 @@ struct Instance {
     bool fault = false;
     uint64_t step = 0;
     void* state = nullptr;
-    std::vector<Listener> listeners;
-    int next_listener = 1;
 
     Instance();
     ~Instance();

@@ -1,6 +1,7 @@
 const level = nsmbu.level
 const player = nsmbu.player
 const config = nsmbu.config
+const hooks = nsmbu.hooks
 
 local held_mode: { [number]: number? } = {}
 local prev_speed_y: { [number]: number? } = {}
@@ -71,7 +72,11 @@ local function scale_jumps(scale: number)
   end
 end
 
-nsmbu.on_logic_step(function(step: number)
+function hooks.on_loaded()
+
+end
+
+function hooks.on_logic_step(_step: number)
   if config.bool("infinite_time", false) then
     freeze_timer()
   end
@@ -85,4 +90,4 @@ nsmbu.on_logic_step(function(step: number)
   if scale and scale ~= 1 then
     scale_jumps(scale)
   end
-end)
+end

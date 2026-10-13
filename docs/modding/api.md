@@ -1,8 +1,8 @@
 # Luau API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle (`on_loaded`, `on_logic_step`, `on_config_changed`, and `on_unload` registration), package metadata, log and status, time, config, guest memory, high-level `nsmbu.level` / `nsmbu.player` helpers, level actor reads / spawns, and `nsmbu.scene` flow probes and transitions are implemented with embedded Luau.
-Hooks (`nsmbu.hooks`), input pad reads, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
+Lifecycle fields on `nsmbu.hooks` (`on_loaded`, `on_logic_step`, `on_config_changed`, and `on_unload`), package metadata, log and status, time, config, guest memory, high-level `nsmbu.level` / `nsmbu.player` helpers, level actor reads / spawns, and `nsmbu.scene` flow probes and transitions are implemented with embedded Luau.
+Function hooks (`hook` / `replace` / `call` on `nsmbu.hooks`), input pad reads, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.
 
@@ -25,14 +25,14 @@ Each package has its own Luau state, so one package cannot replace another packa
 
 | Module | Role | Status |
 | --- | --- | --- |
-| `nsmbu` | Lifecycle register, log, status, time, package | Live |
+| `nsmbu` | Log, status, time, package | Live |
 | `nsmbu.config` | Package option reads | Live |
 | `nsmbu.guest` | Guest memory read/write (heap alloc later) | Live (R/W) |
 | `nsmbu.level` | Course timer, course coins, score, live actors, spawn | Live |
 | `nsmbu.player` | Player handles and iterator | Live |
 | `nsmbu.scene` | Boot flow phase probes and scene transitions | Live |
 | `nsmbu.fn` | Generated function addresses | Proposal (empty table) |
-| `nsmbu.hooks` | Hooks, replace, original, call | Proposal (empty table) |
+| `nsmbu.hooks` | Lifecycle callbacks (live); hook, replace, original, call (proposal) | Partial |
 | `nsmbu.input` | Pad snapshot, button helpers | Proposal (`press` injection is live) |
 | `nsmbu.data` | Per-package data files | Proposal (empty table) |
 | `nsmbu.enemy` / `nsmbu.boss` / `nsmbu.blocks` / `nsmbu.env` | Future game domains | Stub empty tables |
@@ -54,37 +54,31 @@ Each package has its own Luau state, so one package cannot replace another packa
 
 Implemented in phase 2.
 
-Register callbacks with one typed field per event.
-Each registration adds one callback to the event queue; `nsmbu.unlisten(id)` removes it.
+Assign one function per event on `nsmbu.hooks`.
+Omit a field when the package does not need that event.
 
 ```luau
-nsmbu.on_logic_step(function(step)
-end)
+function nsmbu.hooks.on_logic_step(step)
+end
 
-nsmbu.on_config_changed(function()
-end)
+function nsmbu.hooks.on_config_changed()
+end
 
-nsmbu.on_unload(function()
-end)
+function nsmbu.hooks.on_loaded()
+end
 
-local id = nsmbu.on_logic_step(function(step)
-end)
-nsmbu.unlisten(id)
+function nsmbu.hooks.on_unload()
+end
 ```
 
-| Field | Callback | When it runs |
+| Field | Type | When it runs |
 | --- | --- | --- |
-| `on_logic_step` | `function(step)` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
-| `on_config_changed` | `function()` | After the player edits an option for this package. |
-| `on_unload` | `function()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
-
-Each `on_*` field returns an integer id, or `nil` and a message.
-`unlisten` returns `true`, or `nil` and a message.
-Unknown event names fail.
+| `on_logic_step` | `(step: number) -> ()` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
+| `on_config_changed` | `() -> ()` | After the player edits an option for this package. |
+| `on_loaded` | `() -> ()` | Once right after the entry script returns, before the first logic step. |
+| `on_unload` | `() -> ()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
 
 Package order follows manifest dependencies.
-Listeners inside one package run in registration order.
-Unload listeners run in reverse order.
 
 ## Package
 
@@ -620,7 +614,7 @@ Prefer no coroutines in hooks.
 A status line from an option and player coins (phase 2):
 
 ```luau
-nsmbu.on_logic_step(function(step)
+function nsmbu.hooks.on_logic_step(step)
   if step % nsmbu.config.number("every", 30) ~= 0 then
     return
   end
@@ -634,7 +628,7 @@ nsmbu.on_logic_step(function(step)
     return
   end
   nsmbu.status(nsmbu.config.string("label", "Coins") .. ": " .. coins)
-end)
+end
 ```
 
 Count calls to a play-scene function, then leave the game body unchanged (proposal until phase 4):
@@ -656,9 +650,9 @@ end)
 Save a counter beside the package (proposal until data files land):
 
 ```luau
-nsmbu.on_unload(function()
+function nsmbu.hooks.on_unload()
   nsmbu.data.write("calls.txt", tostring(calls))
-end)
+end
 ```
 
 ## Not in version 1

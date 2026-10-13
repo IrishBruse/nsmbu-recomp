@@ -1,6 +1,7 @@
 const level = nsmbu.level
 const player = nsmbu.player
 const config = nsmbu.config
+const hooks = nsmbu.hooks
 
 local PROFILE_IDS: { [string]: number } = {
 	["coin"] = 395,
@@ -67,7 +68,7 @@ local function clear_kind_actors()
 	end
 end
 
-nsmbu.on_logic_step(function(step: number)
+function hooks.on_logic_step(step: number)
 	if not level.active() then
 		return
 	end
@@ -78,8 +79,8 @@ nsmbu.on_logic_step(function(step: number)
 		spawn_near_player()
 		nsmbu.status(("spawned %d, live %d"):format(spawned, level.count() or 0))
 	end
-end)
+end
 
-nsmbu.on_unload(function()
+function hooks.on_unload()
 	nsmbu.log_int("spawned", spawned)
-end)
+end

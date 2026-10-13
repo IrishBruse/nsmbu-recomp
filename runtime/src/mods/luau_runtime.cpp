@@ -115,58 +115,48 @@ bool call_fn(Instance& inst, int nargs) {
     return true;
 }
 
+bool push_hook(lua_State* L, const char* name) {
+    lua_getglobal(L, "nsmbu");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        return false;
+    }
+    lua_getfield(L, -1, "hooks");
+    lua_remove(L, -2);
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
+        return false;
+    }
+    lua_getfield(L, -1, name);
+    lua_remove(L, -2);
+    if (!lua_isfunction(L, -1)) {
+        lua_pop(L, 1);
+        return false;
+    }
+    return true;
+}
+
+bool fire_hook(Instance& inst, const char* name, int nargs) {
+    lua_State* L = static_cast<lua_State*>(inst.state);
+    if (!push_hook(L, name)) {
+        if (nargs) lua_pop(L, nargs);
+        return true;
+    }
+    if (nargs) lua_insert(L, -1 - nargs);
+    return call_fn(inst, nargs);
+}
+
 bool fire_logic(Instance& inst) {
     lua_State* L = static_cast<lua_State*>(inst.state);
     lua_pushnumber(L, (lua_Number)inst.step);
-    std::vector<int> refs;
-    for (const auto& l : inst.listeners)
-        if (l.event == "logic_step") refs.push_back(l.ref);
-    for (int ref : refs) {
-        if (inst.fault) return false;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
-        lua_pushvalue(L, -2);
-        if (!call_fn(inst, 1)) {
-            lua_pop(L, 1);
-            return false;
-        }
-    }
-    lua_pop(L, 1);
-    return true;
+    return fire_hook(inst, "on_logic_step", 1);
 }
 
-bool fire_config(Instance& inst) {
-    lua_State* L = static_cast<lua_State*>(inst.state);
-    for (const auto& l : inst.listeners) {
-        if (l.event != "config_changed") continue;
-        if (inst.fault) return false;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, l.ref);
-        if (!call_fn(inst, 0)) return false;
-    }
-    return true;
-}
+bool fire_config(Instance& inst) { return fire_hook(inst, "on_config_changed", 0); }
 
-bool fire_loaded(Instance& inst) {
-    lua_State* L = static_cast<lua_State*>(inst.state);
-    for (const auto& l : inst.listeners) {
-        if (l.event != "loaded") continue;
-        if (inst.fault) return false;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, l.ref);
-        if (!call_fn(inst, 0)) return false;
-    }
-    return true;
-}
+bool fire_loaded(Instance& inst) { return fire_hook(inst, "on_loaded", 0); }
 
-bool fire_unload(Instance& inst) {
-    lua_State* L = static_cast<lua_State*>(inst.state);
-    for (size_t i = inst.listeners.size(); i > 0; --i) {
-        const auto& l = inst.listeners[i - 1];
-        if (l.event != "unload") continue;
-        if (inst.fault) return false;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, l.ref);
-        if (!call_fn(inst, 0)) return false;
-    }
-    return true;
-}
+bool fire_unload(Instance& inst) { return fire_hook(inst, "on_unload", 0); }
 
 int l_require(lua_State* L) {
     Instance* inst = self(L);
@@ -264,8 +254,6 @@ void sandbox(lua_State* L, Instance* inst) {
 void close_state(Instance& inst) {
     if (!inst.state) return;
     lua_State* L = static_cast<lua_State*>(inst.state);
-    for (auto& l : inst.listeners) lua_unref(L, l.ref);
-    inst.listeners.clear();
     lua_close(L);
     inst.state = nullptr;
 }
@@ -276,8 +264,7 @@ Instance::~Instance() { close_state(*this); }
 Instance::Instance(Instance&& o) noexcept
     : id(std::move(o.id)), version(std::move(o.version)), path(std::move(o.path)),
       entry(std::move(o.entry)), config(std::move(o.config)), status_line(std::move(o.status_line)),
-      fault_msg(std::move(o.fault_msg)), fault(o.fault), step(o.step), state(o.state),
-      listeners(std::move(o.listeners)), next_listener(o.next_listener) {
+      fault_msg(std::move(o.fault_msg)), fault(o.fault), step(o.step), state(o.state) {
     o.state = nullptr;
     luau_press::drop(&o);
 }
@@ -294,8 +281,6 @@ Instance& Instance::operator=(Instance&& o) noexcept {
     fault = o.fault;
     step = o.step;
     state = o.state;
-    listeners = std::move(o.listeners);
-    next_listener = o.next_listener;
     o.state = nullptr;
     luau_press::drop(&o);
     return *this;

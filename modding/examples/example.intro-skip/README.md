@@ -2,7 +2,7 @@
 
 Loads to the world map without input.
 
-`nsmbu.on_loaded` starts the skip once the package is live.
+`hooks.on_logic_step` drives the skip while the boot flow runs.
 It then calls three scene transitions in order:
 
 1. `nsmbu.scene.open_file_select()`, the call pressing A on the title makes.

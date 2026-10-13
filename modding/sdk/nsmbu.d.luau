@@ -1,8 +1,14 @@
 type GuestAddr = number
-type ListenId = number
 
 type LogicStepCallback = (step: number) -> ()
 type VoidCallback = () -> ()
+
+type Hooks = {
+	on_logic_step: LogicStepCallback,
+	on_config_changed: VoidCallback,
+	on_loaded: VoidCallback,
+	on_unload: VoidCallback,
+}
 
 type Package = {
 	id: string,
@@ -203,18 +209,14 @@ declare nsmbu: {
 	log_hex: (label: string, value: number) -> (boolean?, string?),
 	log_float: (label: string, value: number) -> (boolean?, string?),
 	status: (message: string) -> (boolean?, string?),
+
 	logic_step: () -> number,
 	logic_dt: () -> number,
-	on_logic_step: (callback: LogicStepCallback) -> (ListenId?, string?),
-	on_config_changed: (callback: VoidCallback) -> (ListenId?, string?),
-	on_loaded: (callback: VoidCallback) -> (ListenId?, string?),
-	on_unload: (callback: VoidCallback) -> (ListenId?, string?),
-	unlisten: (id: ListenId) -> (boolean?, string?),
 
 	config: Config,
 	guest: Guest,
 	fn: Fn,
-	hooks: Empty,
+	hooks: Hooks,
 	input: Input,
 	data: Data,
 	enemy: Empty,

@@ -105,37 +105,6 @@ void attach_loaded(lua_State* L, const char* name, const char* field) {
     else lua_pop(L, 1);
 }
 
-int listen_event(lua_State* L, const char* event) {
-    Instance* inst = self(L);
-    if (!lua_isfunction(L, 1)) return fail(L, "callback must be a function");
-    int ref = lua_ref(L, 1);
-    int id = inst->next_listener++;
-    inst->listeners.push_back({id, ref, event});
-    lua_pushinteger(L, id);
-    return 1;
-}
-
-int l_on_logic_step(lua_State* L) { return listen_event(L, "logic_step"); }
-
-int l_on_config_changed(lua_State* L) { return listen_event(L, "config_changed"); }
-
-int l_on_loaded(lua_State* L) { return listen_event(L, "loaded"); }
-
-int l_on_unload(lua_State* L) { return listen_event(L, "unload"); }
-
-int l_unlisten(lua_State* L) {
-    Instance* inst = self(L);
-    int id = (int)luaL_checkinteger(L, 1);
-    for (auto it = inst->listeners.begin(); it != inst->listeners.end(); ++it) {
-        if (it->id != id) continue;
-        lua_unref(L, it->ref);
-        inst->listeners.erase(it);
-        lua_pushboolean(L, 1);
-        return 1;
-    }
-    return fail(L, "unknown listener");
-}
-
 int l_log(lua_State* L) {
     Instance* inst = self(L);
     if (!lua_isstring(L, 1)) return fail(L, "message must be a string");
@@ -1573,11 +1542,6 @@ void install_global(lua_State* L) {
 void install_modules(lua_State* L, Instance* inst) {
     lua_newtable(L);
 
-    bind(L, inst, "on_logic_step", l_on_logic_step);
-    bind(L, inst, "on_config_changed", l_on_config_changed);
-    bind(L, inst, "on_loaded", l_on_loaded);
-    bind(L, inst, "on_unload", l_on_unload);
-    bind(L, inst, "unlisten", l_unlisten);
     bind(L, inst, "log", l_log);
     bind(L, inst, "log_int", l_log_int);
     bind(L, inst, "log_hex", l_log_hex);
