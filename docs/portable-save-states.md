@@ -15,8 +15,8 @@ Save states come in two kinds that share the five slots:
 | Loads into | any session of the same game, any build | only the same build, exactly where it was saved |
 | Exact | no (see below) | yes |
 
-Both live in the states folder (its path is shown in the Saves tab; releases keep it in `data/user`, builds from source
-use `user/states/` with `just launch` / `just run`, or `~/Library/Application Support/nsmbu/states/` on macOS and the configuration folder elsewhere; `NSMBU_STATE_DIR` overrides it). Loading a slot loads whichever kind it holds (the newer file if it
+Both live in the states folder (its path is shown in the Saves tab; releases keep it in `data/nsmbu`, builds from source
+use `nsmbu/states/` with `just launch` / `just run`, or `~/Library/Application Support/nsmbu/states/` on macOS and the configuration folder elsewhere; `NSMBU_STATE_DIR` overrides it). Loading a slot loads whichever kind it holds (the newer file if it
 holds both). Crash Recovery's automatic states are always full states.
 
 ## Choosing the kind

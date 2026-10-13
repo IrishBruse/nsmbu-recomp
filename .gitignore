@@ -17,7 +17,7 @@ extract.log
 /ref/
 trace_dump.txt
 /save/
-/user/
+/nsmbu/
 compile_commands.json
 .cache/
 frame_*.png

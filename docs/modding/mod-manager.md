@@ -56,7 +56,7 @@ Explicit startup environment values, including zero, override saved choices at s
 Storage is `<host config directory>/ModManager`: `Mods/<id>/manifest.json` plus package files, and `profiles.json`.
 `NSMBU_MOD_MANAGER_DIR` selects isolated storage.
 `NSMBU_NO_HOST_INPUT` skips user preferences and package storage unless an explicit manager directory is supplied for a test.
-Source `just launch` / `just run` links `user/ModManager/Mods` to `modding/examples/` first.
+Source `just launch` / `just run` links `nsmbu/ModManager/Mods` to `modding/examples/` first.
 Set `NSMBU_NO_EXAMPLE_MODS=1` to skip that link.
 Content files are copied locally into manager storage; the original game files are preserved.
 Game assets and saves are never committed, uploaded, or redistributed.

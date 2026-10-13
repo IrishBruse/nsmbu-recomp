@@ -104,7 +104,7 @@ Press `` ` `` or **F12** to open the settings overlay.
 Open **Audio** for mute, volume, and TV / GamePad output.
 Open **Controls** to change keys and controller buttons.
 
-A release stores the mapping in `data/user/controls.json`.
+A release stores the mapping in `data/nsmbu/controls.json`.
 A build from source stores it in the port config directory.
 That directory is `~/.config/nsmbu` on Linux, `%APPDATA%\NSMBU` on Windows, and `~/Library/Application Support/NSMBU` on macOS.
 Set `NSMBU_CONTROLS` to use another file.

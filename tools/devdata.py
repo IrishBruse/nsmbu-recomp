@@ -2,7 +2,8 @@ import json
 import os
 import shutil
 
-USER_NAME = "user"
+USER_NAME = "nsmbu"
+LEGACY_NAME = "user"
 
 
 def paths(root):
@@ -13,6 +14,9 @@ def paths(root):
 
 def ensure(root):
     user, save = paths(root)
+    legacy = os.path.join(root, LEGACY_NAME)
+    if os.path.isdir(legacy) and not os.path.isdir(user):
+        shutil.move(legacy, user)
     os.makedirs(user, exist_ok=True)
     old_save = os.path.join(root, "save")
     if os.path.isdir(old_save) and not os.path.exists(save):

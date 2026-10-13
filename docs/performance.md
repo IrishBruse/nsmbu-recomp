@@ -84,7 +84,7 @@ and the actual-device renderer smoke test passed in the local build.
 
 Load slot 1 to reach 1-1.
 Do this before you play through the title screen.
-Slot 1 is `user/states/slot1.bin` when you use `just run` / `just launch`.
+Slot 1 is `nsmbu/states/slot1.bin` when you use `just run` / `just launch`.
 Otherwise it is under the platform config folder (`~/.config/nsmbu/states/` on Linux).
 `NSMBU_STATE_LOAD_AT` is `TV frame:slot`.
 Frame 700 is after the boot threads exist.
@@ -418,7 +418,7 @@ Single-level surfaces that rewrite every frame still hash in full. `ctest` `writ
 ## Register-state memo and write-watch clock (2026-10-13)
 
 Linux, Intel Arc B580, i5-12600KF (Alder Lake hybrid).
-`just perf` on the fixed 1-1 scene (`user/states/slot1.bin`, TV frame 700, exit 1100, 25 s
+`just perf` on the fixed 1-1 scene (`nsmbu/states/slot1.bin`, TV frame 700, exit 1100, 25 s
 `perf record` at 997 Hz, `-e cycles:u`, DWARF stacks).
 Artifacts: `.tmp/perf/before/` (pre-change) and `.tmp/perf/after/` (with the fixes below);
 `build/nsmbu` was unchanged between each record and `perf report`.

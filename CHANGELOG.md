@@ -31,8 +31,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
     Off switches use `NSMBU_RECOMP_*`.
 -   **Change**: The settings overlay opens with `` ` `` or F12.
     F1-F5 load save-state slots.
--   **Change**: Every `just` recipe puts settings, states, mods, and shader cache in gitignored `user/`.
-    Example mods are linked into the dev user dir, not copied.
+-   **Change**: Every `just` recipe puts settings, states, mods, and shader cache in gitignored `nsmbu/`.
+    Example mods are linked into the dev userdata dir, not copied.
     `just run` no longer mutes audio.
 -   **Fix**: The port is USA-only now: build registry, `hooks.txt`, `just extract`, and the installer all use the USA 1.3.0 update.
     Wind Waker HD leftovers are removed.

@@ -15,32 +15,32 @@ A release folder contains `portable.txt`. Then everything stays in `<release>/da
 | `data/bin/nsmbu` (`.exe`) | the built game; `data/bin/portable.txt` puts the runtime in portable mode |
 | `data/game/` | game files extracted from a disc image or Cemu archive (an extracted folder chosen by the player is used where it is) |
 | `data/save/` | saves |
-| `data/user/` | settings, controls, graphics options, save states, shader caches (`host::portable_user_dir()`) |
+| `data/nsmbu/` | settings, controls, graphics options, save states, shader caches (`host::portable_user_dir()`) |
 | `data/captures/` | crash logs (the game runs in `data/`) |
 | `data/install.json`, `data/setup.log` | what was prepared (paths inside `data/` relative, so the folder can move), and the setup log |
 | `data/toolchain/`, `data/python/` | the downloaded compiler (Windows, Linux; kept by default for repair) and Python (Linux without Python 3; the Windows release ships its Python in `tools/python`) |
 
 Runtime side: a `portable.txt` next to the game executable makes `host::config_dir()` return
-`<folder>/user` (`runtime/src/platform/host.h`); `main.cpp` points the macOS-only paths (save states,
+`<folder>/nsmbu` (`runtime/src/platform/host.h`); `main.cpp` points the macOS-only paths (save states,
 display settings, Metal shader cache) there through their existing overrides; `gfx/menu.mm` keeps the
-graphics options in `user/graphics.plist` instead of NSUserDefaults; the Controls window does not
+graphics options in `nsmbu/graphics.plist` instead of NSUserDefaults; the Controls window does not
 autosave its frame. Without the marker (source builds) nothing changes. Shortcuts (Applications link,
 Start menu, applications menu) are only created when the player asks for one.
 
 Without `portable.txt` (a Linux AppImage: its mount is read-only, issue #55) the same tree lives in
 the per-user folders of earlier releases instead: `data/` above becomes
 `~/Library/Application Support/nsmbu`, `%LOCALAPPDATA%\NSMBU` or `$XDG_DATA_HOME/nsmbu`
-(`~/.local/share/nsmbu`), and `data/user/` becomes that platform's `host::config_dir()`
+(`~/.local/share/nsmbu`), and `data/nsmbu/` becomes that platform's `host::config_dir()`
 (`~/.config/nsmbu` on Linux). `setup.py default_data_dir()` and `gui/setup_gui.cpp data_dir_of()`
 implement the same rule; `tools/release/appimage.py` drops `portable.txt` from the package for exactly
 this reason. `install.json` then keeps `exe` and `game_dir` as absolute paths (`rel_to_data` is a
 no-op without the marker).
 
-Source builds via `just` set `NSMBU_USER_DIR` to the gitignored `<repo>/user` folder (settings,
-states, Mod Manager, shader cache) and pass `--save user/save`.
-Portable releases keep using `data/user` and `data/save` through `portable.txt` next to the binary
+Source builds via `just` set `NSMBU_USER_DIR` to the gitignored `<repo>/nsmbu` folder (settings,
+states, Mod Manager, shader cache) and pass `--save nsmbu/save`.
+Portable releases keep using `data/nsmbu` and `data/save` through `portable.txt` next to the binary
 (`portable.txt` wins if `NSMBU_USER_DIR` is also set).
-The setup importer also reads `<repo>/user` when this tree is a source checkout.
+The setup importer also reads `<repo>/nsmbu` when this tree is a source checkout.
 
 ## Pieces
 

@@ -178,7 +178,7 @@ inline const std::string& portable_user_dir() {
    if(f){
     fclose(f);
     size_t s=e.find_last_of("/\\");
-    return (s==std::string::npos?e:e.substr(0,s))+"/user";
+    return (s==std::string::npos?e:e.substr(0,s))+"/nsmbu";
    }
   }
   if(const char* override=std::getenv("NSMBU_USER_DIR"))return std::string(override);

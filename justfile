@@ -1,7 +1,7 @@
 # Local userdata for every recipe that runs the game (settings, states, save, mods).
-# Portable installer releases keep using data/user via portable.txt next to the binary.
-user_dir := justfile_directory() / "user"
-export NSMBU_USER_DIR := user_dir
+# Portable installer releases keep using data/nsmbu via portable.txt next to the binary.
+nsmbu_dir := justfile_directory() / "nsmbu"
+export NSMBU_USER_DIR := nsmbu_dir
 
 default:
     @just --list

@@ -1475,15 +1475,21 @@ def import_save(kind, path, data_dir, replace=False):
     return msg
 
 def source_checkout_user_dir():
-    """`<repo>/user` when this setup.py lives in a source tree (`just` sets NSMBU_USER_DIR there)."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "user"))
+    """`<repo>/nsmbu` when this setup.py lives in a source tree (`just` sets NSMBU_USER_DIR there)."""
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    nsmbu = os.path.join(root, "nsmbu")
+    if os.path.isdir(nsmbu):
+        return nsmbu
+    return os.path.join(root, "user")
 
 def legacy_config_dirs():
     """Settings folders to import from: source `just` userdata, then older per-user config dirs."""
     dirs = []
-    checkout = source_checkout_user_dir()
-    if os.path.isdir(checkout):
-        dirs.append(checkout)
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    for name in ("nsmbu", "user"):
+        checkout = os.path.join(root, name)
+        if os.path.isdir(checkout):
+            dirs.append(checkout)
     if IS_MAC:
         dirs.extend([os.path.expanduser("~/Library/Application Support/NSMBU"),
                      os.path.expanduser("~/Library/Application Support/nsmbu")])
@@ -1502,7 +1508,9 @@ def import_sources(path=None):
     if path:
         root = os.path.join(path, "data") if os.path.isdir(os.path.join(path, "data")) else path
         save = os.path.join(root, "save", "user")
-        cfg = [os.path.join(root, "user")]
+        cfg = [os.path.join(root, name) for name in ("nsmbu", "user") if os.path.isdir(os.path.join(root, name))]
+        if not cfg:
+            cfg = [os.path.join(root, "nsmbu")]
     else:
         checkout_save = os.path.join(source_checkout_user_dir(), "save", "user")
         legacy_save = os.path.join(legacy_data_dir(), "save", "user")
@@ -1533,7 +1541,7 @@ def import_existing(data_dir, path=None, replace=False):
     msgs = []
     if save:
         msgs.append(import_save("hd", save, data_dir, replace))
-    user = os.path.join(data_dir, "user")
+    user = os.path.join(data_dir, "nsmbu")
     os.makedirs(user, exist_ok=True)
     copied = []
     for src, name in items:
@@ -1807,8 +1815,8 @@ def install(ctx, source, keys=None, info=None, ui=None, check_keys=None):
 
         with open(os.path.join(exe_dir, "portable.txt"), "w") as f:
             f.write("Portable mode: this game keeps its settings, controls, save states and shader caches in\n"
-                    "../user (next to this folder) instead of your user folders. Delete this file to use those.\n")
-        os.makedirs(os.path.join(data_dir, "user"), exist_ok=True)
+                    "../nsmbu (next to this folder) instead of your user folders. Delete this file to use those.\n")
+        os.makedirs(os.path.join(data_dir, "nsmbu"), exist_ok=True)
         if args.shortcuts and kind != "gen":
             state["shortcut"] = create_shortcut()
     elif not args.no_shortcuts and kind != "gen":

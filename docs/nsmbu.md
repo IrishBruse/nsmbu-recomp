@@ -78,16 +78,15 @@ Otherwise it runs `stubgen.py` so the tree links without your RPX.
 Clang needs a GNU `libstdc++` (for example `libstdc++-14-dev` on Ubuntu).
 `tools/build.py` adds the matching `-L` path when it finds `libstdc++.so` under `/usr/lib/gcc/`.
 
-The justfile exports `NSMBU_USER_DIR` to the gitignored `user/` folder for every recipe.
-`just launch` starts `build/nsmbu` with `--game` set to `game/` and `--save user/save`.
-An existing top-level `save/` is moved to `user/save` on the first launch.
+The justfile exports `NSMBU_USER_DIR` to the gitignored `nsmbu/` folder for every recipe.
+`just launch` starts `build/nsmbu` with `--game` set to `game/` and `--save nsmbu/save`.
 Default debug env vars (`NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, `NSMBU_CRASH_RECOVERY`) are set when they are not already in the environment.
 
 `just launch-release` skips those debug defaults.
-It still uses `user/`.
+It still uses `nsmbu/`.
 
-Portable installer releases keep their own `data/user` and `data/save` (via `portable.txt`).
-The setup importer can also read `<repo>/user` from a source checkout.
+Portable installer releases keep their own `data/nsmbu` (settings and `save/`) via `portable.txt`.
+The setup importer can also read `<repo>/nsmbu` from a source checkout.
 
 `just launch-trace` passes `--trace` for HLE logging.
 
@@ -97,7 +96,7 @@ The setup importer can also read `<repo>/user` from a source checkout.
 
 `just run-release` runs `just build-release` then `just launch-release`. This is the configuration the released installs use.
 
-`just launch` / `just run` link `user/ModManager/Mods` to `modding/examples/` before start.
+`just launch` / `just run` link `nsmbu/ModManager/Mods` to `modding/examples/` before start.
 Enable packages in Mods.
 Set `NSMBU_NO_EXAMPLE_MODS=1` to skip the link.
 
