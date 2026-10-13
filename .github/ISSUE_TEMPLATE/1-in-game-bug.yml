@@ -85,4 +85,4 @@ body:
     attributes:
       label: Logs
       description: |
-        If the game crashed: the newest `crash-<date>-<time>.log` from `data/captures/` (release) or `captures/` (built from source). If the setup failed: `data/setup.log`. Drag the file in here.
+        If the game crashed: the newest `crash-<date>-<time>.log` from `data/nsmbu/logs/` (release) or `nsmbu/logs/` (built from source). If the setup failed: `data/setup.log`. Drag the file in here.

@@ -24,7 +24,6 @@ frame_*.png
 failed_shader_*.metal
 shaders/
 draw_*.png
-captures/
 # never commit game data, keys or anything derived from the game
 *.key
 *.wud

@@ -40,7 +40,7 @@ public class NsmbuActivity extends SDLActivity {
     }
 
     private void offerCrashLog(File files) {
-        File[] reports = new File(files, "captures").listFiles((dir, name) -> name.startsWith("crash-") && name.endsWith(".log"));
+        File[] reports = new File(files, "config/nsmbu/logs").listFiles((dir, name) -> name.startsWith("crash-") && name.endsWith(".log"));
         if (reports == null) return;
         File latest = null;
         for (File report : reports)
