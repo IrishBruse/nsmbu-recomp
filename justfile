@@ -37,6 +37,10 @@ lldb *args:
 run *args:
     just build {{args}} && just launch {{args}}
 
+# Release build, then a launch with no debug defaults, like the released install.
+run-release *args:
+    just build-release {{args}} && just launch-release {{args}}
+
 # Fixed-scene profile (slot 1 @ TV 700, exit 1100, log .tmp/repro/nsmbu.log). Use a Release build.
 profile *args:
     python3 tools/profile.py {{args}}

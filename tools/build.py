@@ -38,6 +38,7 @@ def gcc_install_flags(libdir):
 
 def clang_pair(libdir):
     cxx_flags = gcc_install_flags(libdir)
+    os.makedirs(os.path.join(ROOT, ".tmp"), exist_ok=True)
     for base in ("clang-19", "clang-18", "clang-17", "clang"):
         cc = shutil.which(base)
         if not cc:

@@ -95,6 +95,8 @@ The setup importer can also read `<repo>/user` from a source checkout.
 
 `just run` runs `just build` then `just launch`.
 
+`just run-release` runs `just build-release` then `just launch-release`. This is the configuration the released installs use.
+
 `just launch` / `just run` link `user/ModManager/Mods` to `modding/examples/` before start.
 Enable packages in Mods.
 Set `NSMBU_NO_EXAMPLE_MODS=1` to skip the link.
