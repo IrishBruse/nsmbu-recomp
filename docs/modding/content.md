@@ -19,8 +19,7 @@ Active content is deliberately immutable for the session.
 Script-only Luau packages (no `content_dir`) still load live; a package with `content_dir` always needs a restart.
 
 There is no in-game file picker or import step.
-Build the package layout yourself, or use a tool that writes `manifest.json`.
-Native detection of a Cemu pack root (`rules.txt` + `content/`, no player JSON) and larger size caps are proposed in [cemu-content.md](cemu-content.md).
+Build the package layout yourself, or drop in a Cemu file-only pack root as in [cemu-content.md](cemu-content.md) (Definition-only `rules.txt` + `content/`; the host writes `manifest.json` on scan).
 
 ## Package layouts
 
@@ -50,7 +49,8 @@ Ship only the content files in the package: a mod that also carries a code patch
 ## What is rejected
 
 Support covers **content file replacement only**.
-Packages (and legacy tooling) reject code/meta/DLC folders, PPC patches (`patches.txt` and Cemu `.asm` code patches), shader files, and non-Definition Cemu rule sections.
+Packages (and legacy tooling) reject `code/` and DLC folders, PPC patches (`patches.txt` and Cemu `.asm` code patches), shader files, and non-Definition Cemu rule sections.
+Cemu title `meta/` next to a content pack is ignored and is not mapped into `/vol/content`.
 A mod that ships content files together with a Cemu code patch is refused as a whole, so part of it is never dropped silently.
 To use only its content files, put a content-only package folder in the mods directory.
 Randomizers and mixed code/data mods are not supported by this adapter.
@@ -92,9 +92,9 @@ Content-only Luau packages cannot declare runtime options or dependencies unless
 
 Installed payloads should not be edited externally while the game runs.
 Savestates must be used with the same active content set; savestate metadata does not record an asset fingerprint yet.
-Indexing limits are 4096 entries, 128 MiB per file, and 512 MiB per package.
-Those caps reject large Cemu level packs (for example a soundtrack over 128 MiB or a pack over 512 MiB).
-The planned raise is in [cemu-content.md](cemu-content.md).
+Indexing limits are 4096 entries, 512 MiB per file, and 2 GiB per package.
+Those caps cover full Cemu level packs (including large soundtrack archives).
+See [cemu-content.md](cemu-content.md).
 Symlinks and path traversal are rejected.
 Content files stay in the package folder under the mods directory; the original game files are not changed, and game assets stay outside Git.
 

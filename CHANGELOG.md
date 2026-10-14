@@ -13,7 +13,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Change**: The Mods tab drops the package picker, path field, Install, Refresh, and Hot reload controls.
     **Open mods folder** opens `mods`; players copy package folders there.
     The tab rescans about once per second while open when every package is disabled.
--   **Docs**: Plan for native Cemu content packs (`docs/modding/cemu-content.md`): detect Definition-only `rules.txt` in the mods folder without a player `manifest.json`, ignore Cemu `meta/`, and raise content size caps for full level mods.
+-   **Add**: Native Cemu content packs: scan detects Definition-only `rules.txt` + `content/` (no player `manifest.json`), ignores Cemu `meta/`, synthesizes a Luau `content_dir` package, and raises size caps to 512 MiB per file and 2 GiB per package ([docs/modding/cemu-content.md](docs/modding/cemu-content.md)).
 -   **Change**: `example.intro-skip` waits on scene probes instead of fixed step counts.
     The first call opens save slot 0.
     It does not open the time-attack scene.

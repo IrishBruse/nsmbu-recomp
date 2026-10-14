@@ -48,7 +48,7 @@ No arbitrary instruction patch is applied.
 Other `patches.txt` contents, geometry shaders, unsupported rules/conditions, format replacement, DLC/code/meta payloads, and mixed content-plus-shader packs are rejected.
 Select a single pack rather than an entire Cemu pack collection.
 Models/UI in `content` use the separate content replacement adapter in [content.md](content.md).
-Dropping a Definition-only Cemu level pack into the mods folder (detect `rules.txt`, ignore `meta/`, no player `manifest.json`, larger size caps) is proposed in [cemu-content.md](cemu-content.md).
+Drop a Definition-only Cemu level pack into the mods folder as described in [cemu-content.md](cemu-content.md) (detect `rules.txt`, ignore `meta/`, no player `manifest.json`).
 
 ## Presets
 

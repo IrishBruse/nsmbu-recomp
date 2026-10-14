@@ -58,12 +58,12 @@ bool valid_option(const Option& o,const Value& v){
     if(o.type=="enum")return v.type==Value::String&&std::find(o.choices.begin(),o.choices.end(),v.text)!=o.choices.end();
     return false;
 }
-void reject_luau_files(const fs::path& root){
+void reject_luau_files(const fs::path& root,bool allow_rules_txt){
     for(const auto& file:fs::recursive_directory_iterator(root)){
         if(!file.is_regular_file()&&!file.is_symlink())continue;
         auto name=file.path().filename().string();
         auto lower=name;for(char& c:lower)if(c>='A'&&c<='Z')c+='a'-'A';
-        bool bad=lower.ends_with(".so")||lower.ends_with(".dll")||lower.ends_with(".dylib")||lower.ends_with(".elf")||lower.ends_with(".rpx")||lower=="patches.txt"||lower=="rules.txt"||lower.ends_with("_vs.txt")||lower.ends_with("_ps.txt");
+        bool bad=lower.ends_with(".so")||lower.ends_with(".dll")||lower.ends_with(".dylib")||lower.ends_with(".elf")||lower.ends_with(".rpx")||lower=="patches.txt"||(lower=="rules.txt"&&!allow_rules_txt)||lower.ends_with("_vs.txt")||lower.ends_with("_ps.txt");
         require(!bad,"Luau package may not contain "+name);
     }
 }
@@ -128,7 +128,7 @@ Manifest manifest(const fs::path& path){
             }
             require(!m.entry.empty()||has_content_files(m),"Luau package requires a script entry or content_dir");
         }
-        reject_luau_files(path);
+        reject_luau_files(path,!folder.empty()&&m.entry.empty());
     } else {
         auto folder=string_field(v,"content_dir",false,512);
         index_content_dir(m,path,folder);
@@ -187,7 +187,23 @@ mods::luau_mod::LoadInfo load_info_for(const Record& record,const Value& cfg){
     info.config=cfg;
     return info;
 }
-void scan(){records.clear();if(!ready)return;fs::create_directories(root/"mods");for(const auto& e:fs::directory_iterator(root/"mods")){std::error_code ec;auto folder=e.path().filename().string();if(!e.is_directory(ec)||ec||folder.empty()||folder[0]=='.')continue;Record r;r.path=fs::weakly_canonical(e.path(),ec);if(ec||r.path.empty())r.path=e.path();try{migrate_content_alias(r.path);r.manifest=manifest(r.path);}catch(const std::exception& ex){r.manifest.id=folder;r.manifest.name=folder;r.manifest.problem=ex.what();}if(records.contains(r.manifest.id)){if(r.manifest.problem.empty())r.manifest.problem="Duplicate package ID";if(r.manifest.id==folder)continue;r.manifest.id=folder;}records.emplace(r.manifest.id,std::move(r));}}
+bool looks_like_graphics_rules(const std::string& text){
+    auto rules=text;for(char& c:rules)if(c>='A'&&c<='Z')c+='a'-'A';
+    return rules.find("[preset]")!=std::string::npos||rules.find("[textureredefine]")!=std::string::npos||rules.find("[control]")!=std::string::npos||rules.find("[default]")!=std::string::npos;
+}
+void synthesize_missing_manifest(const fs::path& path,const std::string& folder){
+    if(fs::exists(path/"manifest.json"))return;
+    bool graphics=false;std::error_code ec;
+    for(const auto& file:fs::recursive_directory_iterator(path,ec)){
+        if(ec||!file.is_regular_file())continue;
+        auto name=file.path().filename().string();
+        if(name.ends_with("_vs.txt")||name.ends_with("_ps.txt"))graphics=true;
+        if(name=="rules.txt")graphics=graphics||looks_like_graphics_rules(read_text(file.path()));
+    }
+    if(graphics){cemu::import_legacy(path,folder);return;}
+    if(fs::exists(path/"rules.txt"))content::synthesize_cemu_content(path,folder);
+}
+void scan(){records.clear();if(!ready)return;fs::create_directories(root/"mods");for(const auto& e:fs::directory_iterator(root/"mods")){std::error_code ec;auto folder=e.path().filename().string();if(!e.is_directory(ec)||ec||folder.empty()||folder[0]=='.')continue;Record r;r.path=fs::weakly_canonical(e.path(),ec);if(ec||r.path.empty())r.path=e.path();try{synthesize_missing_manifest(r.path,folder);migrate_content_alias(r.path);r.manifest=manifest(r.path);}catch(const std::exception& ex){r.manifest.id=folder;r.manifest.name=folder;r.manifest.problem=ex.what();}if(records.contains(r.manifest.id)){if(r.manifest.problem.empty())r.manifest.problem="Duplicate package ID";if(r.manifest.id==folder)continue;r.manifest.id=folder;}records.emplace(r.manifest.id,std::move(r));}}
 std::vector<std::string> order(const std::set<std::string>& enabled){
     std::map<std::string,int> mark;std::vector<std::string> result;
     std::function<void(const std::string&)> visit=[&](const std::string& id){require(mark[id]!=1,"Dependency cycle at "+id);if(mark[id]==2)return;mark[id]=1;auto it=records.find(id);require(it!=records.end(),"Missing dependency: "+id);const auto& m=it->second.manifest;require(m.problem.empty(),m.name+": "+m.problem);for(const auto& dep:m.dependencies){auto d=records.find(dep.id);require(d!=records.end(),"Missing dependency: "+dep.id);require(version(d->second.manifest.version)>=version(dep.version),"Dependency "+dep.id+" needs version "+dep.version);require(enabled.contains(dep.id),"Dependency is disabled: "+dep.id);visit(dep.id);}mark[id]=2;result.push_back(id);};
@@ -283,13 +299,13 @@ bool set_hot_reload(bool on,std::string& error){return operation(error,[&]{auto 
 bool install(const std::string& source,std::string& error,std::string* installed_id_out){return operation(error,[&]{
     auto nonce=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());auto stage=root/(".stage-"+nonce),backup=root/(".backup-"+nonce);fs::path target;bool backed=false,moved=false;
     try{if(fs::is_regular_file(source)&&content::known_pack(fs::path(source).filename().string())){
-        require(!fs::is_symlink(source)&&fs::file_size(source)<=128ull*1024*1024,"Invalid or oversized replacement pack");
+        require(!fs::is_symlink(source)&&fs::file_size(source)<=archive::kFileLimit,"Invalid or oversized replacement pack");
         std::ifstream input(source,std::ios::binary);char magic[4]{};input.read(magic,4);require(std::string(magic,4)=="SARC"||std::string(magic,4)=="Yaz0","Replacement pack is not a SARC/Yaz0 archive");
         fs::create_directories(stage);fs::copy_file(source,stage/fs::path(source).filename());
     }else archive::stage(fs::path(source),stage);if(!fs::exists(stage/"manifest.json")){
         bool graphics=false;for(const auto& file:fs::recursive_directory_iterator(stage))if(file.is_regular_file()){
             auto name=file.path().filename().string();if(name.ends_with("_vs.txt")||name.ends_with("_ps.txt"))graphics=true;
-            if(name=="rules.txt"){auto text=read_text(file.path());for(char& c:text)if(c>='A'&&c<='Z')c+='a'-'A';if(text.find("[preset]")!=std::string::npos||text.find("[textureredefine]")!=std::string::npos||text.find("[default]")!=std::string::npos)graphics=true;}
+            if(name=="rules.txt")graphics=graphics||looks_like_graphics_rules(read_text(file.path()));
         }
 
         auto named=fs::path(source).lexically_normal();if(named.filename().empty())named=named.parent_path();

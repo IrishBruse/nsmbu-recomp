@@ -496,5 +496,57 @@ int main(int argc, char** argv) {
     auto duplicate=root/"Duplicate";fs::create_directories(duplicate/"content"/"Object");fs::create_directories(duplicate/"content"/"object");
     std::ofstream(duplicate/"content"/"Object"/"A.bin")<<"fixture";std::ofstream(duplicate/"content"/"object"/"a.bin")<<"fixture";
     if(std::distance(fs::directory_iterator(duplicate/"content"),fs::directory_iterator{})==2)assert(!install(duplicate.string(),error));
+
+    auto cloudy=root/"storage"/"mods"/"Cloudy Level Pack";
+    fs::create_directories(cloudy/"content"/"Common"/"Course");
+    fs::create_directories(cloudy/"meta");
+    std::ofstream(cloudy/"content"/"Common"/"Course"/"1-1.szs")<<"level";
+    std::ofstream(cloudy/"meta"/"iconTex.tga")<<"icon";
+    std::ofstream(cloudy/"rules.txt")<<"[Definition]\nname = Cloudy Level Pack\ntitleIds = 0005000010101C00,0005000010101D00\ndescription = Test level pack\nversion = 6\n";
+    assert(refresh(error));
+    {
+        auto v=view("content.cloudy-level-pack");
+        assert(v.compatible&&v.kind=="luau"&&v.name=="Cloudy Level Pack"&&v.version=="1.0.0");
+        assert(v.description.find("Cemu pack version 6")!=std::string::npos);
+        assert(v.restart_required&&!v.enabled);
+        std::ifstream mf(cloudy/"manifest.json");std::string text{std::istreambuf_iterator<char>(mf),{}};
+        assert(text.find("\"content_dir\":\"content\"")!=std::string::npos);
+        assert(text.find("\"kind\":\"luau\"")!=std::string::npos);
+    }
+    assert(enable("content.cloudy-level-pack",true,error));
+    assert(enable("content.cloudy-level-pack",false,error));
+    assert(remove("content.cloudy-level-pack",error));
+
+    auto wrong_title=root/"storage"/"mods"/"WrongTitle";
+    fs::create_directories(wrong_title/"content"/"Common");
+    std::ofstream(wrong_title/"content"/"Common"/"a.bin")<<"x";
+    std::ofstream(wrong_title/"rules.txt")<<"[Definition]\nname=Wrong\ntitleIds=0005000010101e00\nversion=6\n";
+    assert(refresh(error));
+    {auto v=view("WrongTitle");assert(!v.compatible&&v.reason.find("does not target")!=std::string::npos);}
+    fs::remove_all(wrong_title);
+
+    auto mixed=root/"storage"/"mods"/"MixedPack";
+    fs::create_directories(mixed/"content"/"Common");
+    std::ofstream(mixed/"content"/"Common"/"a.bin")<<"x";
+    std::ofstream(mixed/"rules.txt")<<"[Definition]\nname=Mixed\ntitleIds=0005000010101d00\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280\n";
+    assert(refresh(error));
+    {auto v=view("MixedPack");assert(!v.compatible);assert(v.reason.find("Mixed content")!=std::string::npos||v.reason.find("texture")!=std::string::npos||v.reason.find("adapter")!=std::string::npos||v.reason.find("content")!=std::string::npos);}
+    fs::remove_all(mixed);
+
+    auto with_meta=root/"WithMeta";fs::create_directories(with_meta/"content"/"Common");fs::create_directories(with_meta/"meta");
+    std::ofstream(with_meta/"content"/"Common"/"a.bin")<<"x";std::ofstream(with_meta/"meta"/"meta.xml")<<"<meta/>";
+    std::ofstream(with_meta/"rules.txt")<<"[Definition]\nname=With Meta\ntitleIds=0005000010101d00\nversion=6\n";
+    assert(install(with_meta.string(),error));
+    assert(view("content.with-meta").kind=="luau");
+    assert(remove("content.with-meta",error));
+
+    auto large_dir=root/"LargeFile";fs::create_directories(large_dir/"content");
+    auto large=large_dir/"content"/"big.bin";
+    {std::ofstream(large)<<"x";}
+    fs::resize_file(large,129ull*1024*1024);
+    auto indexed=mods::content::index(large_dir/"content");
+    assert(indexed.size()==1);
+    fs::remove_all(large_dir);
+
     std::cout << "Package install, profiles, dependencies, content and cemu lifecycle passed\n";
 }

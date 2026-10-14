@@ -11,13 +11,13 @@ Manager version **1.0.0**.
 
 | Kind | Status | Doc |
 | --- | --- | --- |
-| `luau` | Live | [luau-mods.md](luau-mods.md), [api.md](api.md), [content.md](content.md) for `content_dir` |
+| `luau` | Live | [luau-mods.md](luau-mods.md), [api.md](api.md), [content.md](content.md) for `content_dir`, [cemu-content.md](cemu-content.md) for drop-in Cemu level packs |
 | `cemu` | Live | [cemu.md](cemu.md) |
 | `content` | Alias this release (migrates to `luau` on scan) | [content.md](content.md) |
 
 Live kinds are `luau` and `cemu`.
 `kind: content` is accepted as a read-only alias this release and rewritten to `luau` on scan.
-Cemu graphics packs stay separate.
+Cemu graphics packs stay separate from file-only Cemu content packs.
 See [luau-mods.md](luau-mods.md) for the scripting and file-replacement plan.
 
 ## Player workflow
@@ -27,7 +27,7 @@ The tab manages packages that already sit in the mods folder.
 There is no built-in gameplay catalogue and no cheat list.
 
 **Open mods folder** opens `<host config directory>/mods` in the system file manager.
-Put each package in that folder as its own subdirectory with a `manifest.json`.
+Put each package in that folder as its own subdirectory with a `manifest.json`, or drop in a Cemu content pack root ([cemu-content.md](cemu-content.md)).
 The package `id` comes from the manifest; the folder name can differ.
 There is no in-game import or install step.
 The Mods tab rescans that folder about once per second while it is open, when every package is disabled (same rule as the old refresh).
