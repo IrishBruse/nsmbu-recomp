@@ -5,6 +5,10 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+## 0.4.1
+
+-   **Fix**: The release installer ships `tools/recomp/names.py` and `headers_names.txt`, so translating the game code no longer fails with `ModuleNotFoundError: No module named 'names'`.
+
 ## 0.4.0
 
 -   **Change**: Mod packages live in `<host config>/mods/` and profiles in `<host config>/profiles.json`.

@@ -46,6 +46,8 @@ TOOL_FILES = [
     "tools/recomp/leaflocal.py",
     "tools/recomp/singleflow.py",
     "tools/recomp/builds.py",
+    "tools/recomp/names.py",
+    "tools/recomp/headers_names.txt",
 ]
 INSTALLER_FILES = [
     "tools/installer/setup.py",

@@ -43,6 +43,43 @@ class SDKPackage(unittest.TestCase):
                     if sibling.is_file():
                         self.assertIn(sibling.relative_to(package.ROOT).as_posix(), shipped)
 
+    def test_recomp_local_imports_are_shipped(self):
+        recomp = Path(package.ROOT) / "tools/recomp"
+        shipped = set(package.TOOL_FILES)
+        for relative in package.TOOL_FILES:
+            if not relative.startswith("tools/recomp/") or not relative.endswith(".py"):
+                continue
+            source = Path(package.ROOT) / relative
+            for node in ast.walk(ast.parse(source.read_text())):
+                names = ([alias.name for alias in node.names] if isinstance(node, ast.Import)
+                         else [node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
+                for name in names:
+                    if not name or name.startswith("."):
+                        continue
+                    sibling = recomp / (name.split(".")[0] + ".py")
+                    if sibling.is_file():
+                        self.assertIn(sibling.relative_to(package.ROOT).as_posix(), shipped,
+                                      relative + " imports " + name)
+        self.assertIn("tools/recomp/names.py", shipped)
+        self.assertIn("tools/recomp/headers_names.txt", shipped)
+
+    def test_packaged_recomp_imports_in_isolated_python(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "pkg"
+            for relative in package.TOOL_FILES:
+                dest = root / relative
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(Path(package.ROOT) / relative, dest)
+            maps = Path(package.ROOT) / "tools/recomp/builds"
+            if maps.is_dir():
+                shutil.copytree(maps, root / "tools/recomp/builds")
+            result = subprocess.run(
+                [sys.executable, "-I", "-B", "-c",
+                 "import runpy,sys; runpy.run_path(sys.argv[1], run_name='recomp_import_test')",
+                 str(root / "tools/recomp/recomp.py")],
+                cwd=tmp, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_packaged_installer_import_in_isolated_python(self):
 
         for layout in ("macos", "linux", "windows", "appimage", "android"):

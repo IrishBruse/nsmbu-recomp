@@ -10,7 +10,19 @@ import build
 
 ZERO = "0" * 40
 WORKTREE = os.path.join(ROOT, ".tmp", "pre-push-check")
-REQUIRED_TESTS = ("build_coverage", "screenshot", "release_sdk_package")
+REQUIRED_TESTS = (
+    "build_coverage",
+    "screenshot",
+    "release_sdk_package",
+    "mod_content_startup",
+    "mod_cemu_startup",
+    "mod_cemu_backend",
+    "mod_packages",
+    "mod_luau",
+    "mod_content_fs_on",
+    "mod_content_fs_off",
+)
+PATH_ALIAS_TESTS = ("mod_content_startup",)
 
 
 def reject(message):
@@ -142,6 +154,23 @@ def configure_and_test(tree):
     for name in REQUIRED_TESTS:
         if name not in listed:
             reject("ctest did not register " + name)
+    alias = "|".join(PATH_ALIAS_TESTS)
+    print(
+        "pre-push: path-alias tests first (" + ", ".join(PATH_ALIAS_TESTS) + ")",
+        file=sys.stderr,
+    )
+    subprocess.run(
+        [
+            "ctest",
+            "--test-dir",
+            bld,
+            "-R",
+            "^(" + alias + ")$",
+            "--output-on-failure",
+        ],
+        cwd=tree,
+        check=True,
+    )
     subprocess.run(
         ["ctest", "--test-dir", bld, "--output-on-failure"],
         cwd=tree,
