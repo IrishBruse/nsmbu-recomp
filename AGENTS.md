@@ -69,6 +69,7 @@ python3 tools/recomp/test_builds.py
 A boot that dumps frames follows `.agents/skills/scripted-run/SKILL.md`.
 A profile follows `.agents/skills/perf/SKILL.md` when the task is a profile.
 A player-facing changelog summary follows `.agents/skills/changelog-summary/SKILL.md`.
+A versioned GitHub release (CHANGELOG cut, `v*` tag, watch CI) follows `.agents/skills/release/SKILL.md`.
 
 ## Architecture
 
