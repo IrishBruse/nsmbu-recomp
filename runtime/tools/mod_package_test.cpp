@@ -23,6 +23,31 @@ void env(const char* key, const char* value) {
 #include <chrono>
 namespace {
 mods::packages::View view(const std::string& id) {for(auto v:mods::packages::list())if(v.id==id)return v;return {};}
+std::string host_path(const std::filesystem::path& p){
+    std::error_code ec;auto c=std::filesystem::weakly_canonical(p,ec);return (ec||c.empty())?p.string():c.string();
+}
+struct TempAlias {
+    std::filesystem::path root;
+    std::filesystem::path real;
+    bool via_symlink=false;
+    ~TempAlias(){
+        std::error_code ec;
+        if(via_symlink)std::filesystem::remove(root,ec);
+        std::filesystem::remove_all(real,ec);
+    }
+};
+TempAlias aliased_temp(const char* tag){
+    namespace fs=std::filesystem;
+    auto stamp=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    TempAlias out;
+    out.real=fs::temp_directory_path()/(std::string(tag)+"-real-"+stamp);
+    auto alias=fs::temp_directory_path()/(std::string(tag)+"-alias-"+stamp);
+    fs::create_directories(out.real);
+    std::error_code ec;
+    fs::create_directory_symlink(out.real,alias,ec);
+    if(ec){out.root=out.real;return out;}
+    out.root=alias;out.via_symlink=true;return out;
+}
 }
 int main(int argc, char** argv) {
     namespace fs=std::filesystem;
@@ -332,8 +357,8 @@ int main(int argc, char** argv) {
         std::cout<<"Cemu startup presets and restart-only immutable lifecycle passed\n";return 0;
     }
     if(argc==2&&std::string(argv[1])=="--content-startup"){
-        auto root=fs::temp_directory_path()/("nsmbu-content-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        auto storage=root/"storage";auto pack=storage/"mods"/"content.test";
+        auto tmp=aliased_temp("nsmbu-content-test");
+        auto storage=tmp.root/"storage";auto pack=storage/"mods"/"content.test";
         fs::create_directories(pack/"content"/"Common");
         std::ofstream(pack/"content"/"Common"/"fixture.bin")<<"synthetic replacement";
         fs::create_directories(pack/"content"/"Common"/"Pack");std::ofstream(pack/"content"/"Common"/"Pack"/"permanent_2d_EuEnglish.pack")<<"SARCsynthetic translation";
@@ -341,12 +366,14 @@ int main(int argc, char** argv) {
         std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"content.test":true}}}})";
         env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());
         assert(mods::content::replacement("/vol/content/Common/fixture.bin").empty());initialize();
-        auto file=mods::content::replacement("/vol/content/common/FIXTURE.bin");assert(file==(pack/"content"/"Common"/"fixture.bin").string());
+        auto fixture=pack/"content"/"Common"/"fixture.bin";
+        if(tmp.via_symlink)assert(fixture.string()!=host_path(fixture));
+        auto file=mods::content::replacement("/vol/content/common/FIXTURE.bin");assert(file==host_path(fixture));
         assert(mods::content::replacement("Common/fixture.bin")==file);
         for(auto path:{"/vol/save/Common/fixture.bin","/vol/code/Common/fixture.bin","/vol/contentX/Common/fixture.bin","/vol/content/../Common/fixture.bin","Common/../Common/fixture.bin","Common\\fixture.bin"})assert(mods::content::replacement(path).empty());
         for(auto mode:{"w","a","r+","r+b","wb"})assert(mods::content::replacement("Common/fixture.bin",mode).empty());
         assert(mods::content::replacement("Common/absent.bin").empty());
-        auto translation=(pack/"content"/"Common"/"Pack"/"permanent_2d_EuEnglish.pack").string();
+        auto translation=host_path(pack/"content"/"Common"/"Pack"/"permanent_2d_EuEnglish.pack");
         assert(mods::content::replacement("/vol/content/Common/Pack/permanent_2d_EuEnglish.pack")==translation);
         assert(mods::content::replacement("/vol/content/Common/Pack/permanent_2d_UsEnglish.pack")==translation);
         for(auto other:{"permanent_2d_UsFrench.pack","permanent_2d_EuGerman.pack","permanent_2d_JpJapanese.pack","permanent_3d.pack","permanent_2d_UsEnglish.pack.bak"})
@@ -360,7 +387,7 @@ int main(int argc, char** argv) {
         assert(list().at(0).active&&!list().at(0).enabled);assert(mods::content::replacement("Common/fixture.bin")==file);
         assert(!remove("content.test",error));assert(!install(pack.string(),error));
         assert(create_profile("Other",error));assert(select_profile("Other",error));frame(101);assert(mods::content::replacement("Common/fixture.bin")==file);
-        fs::remove_all(root);std::cout<<"Startup overrides, read-only routing, boundaries, and restart lifecycle passed\n";return 0;
+        std::cout<<"Startup overrides, read-only routing, boundaries, and restart lifecycle passed\n";return 0;
     }
     assert(argc == 2);
     auto root=fs::path(argv[1])/std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
