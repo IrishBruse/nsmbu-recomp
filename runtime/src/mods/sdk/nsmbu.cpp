@@ -409,6 +409,7 @@ const uint32_t kSubjectMgr = GD(0x101D1874);
 
 const uint32_t kAreaTaskInstance = GD(0x101D1598);
 const uint32_t kFlowVtbl = GD(0x10177E4C);
+const uint32_t kMenuVtbl = GD(0x10175F88);
 constexpr uint32_t kSceneNowCreatorOff = 0x58u;
 constexpr uint32_t kSceneNextTypeOff = 0x5Cu;
 constexpr uint32_t kSceneTaskMgrOff = 0x64u;
@@ -436,6 +437,7 @@ const uint32_t kCreatorFlow = GC(0x0297B9F8);
 const uint32_t kCreatorFileSelect = GC(0x0298AD3C);
 const uint32_t kCreatorSaveSelect = GC(0x024C11F4);
 const uint32_t kCreatorTitle = GC(0x0202B51C);
+const uint32_t kCreatorMenu = GC(0x0202B61C);
 const uint32_t kCreatorMap = GC(0x020292B8);
 const uint32_t kCreatorCourseTask = GC(0x0202B4C8);
 const uint32_t kCreatorCourseSelect = GC(0x0202B86C);
@@ -1446,7 +1448,9 @@ uint32_t g_scene_request_src = 0;
 
 extern "C" void nsmbu_note_scene_src(uint32_t src, uint32_t factory) {
     if (src == 0) return;
-    if (factory == kCreatorTitle || factory == kCreatorFileSelect || factory == kCreatorFlow) g_scene_request_src = src;
+    if (factory == kCreatorTitle || factory == kCreatorFileSelect || factory == kCreatorFlow ||
+        factory == kCreatorMenu)
+        g_scene_request_src = src;
 }
 
 bool task_is_flow(uint32_t task, bool& match, std::string& err) {
@@ -1463,7 +1467,22 @@ bool task_is_flow(uint32_t task, bool& match, std::string& err) {
     return true;
 }
 
-bool find_flow_in_tree(uint32_t start, uint32_t& out, std::string& err) {
+bool task_is_menu(uint32_t task, bool& match, std::string& err) {
+    match = false;
+    uint32_t vt = 0;
+    if (!luau_guest::read_u32(task + kTaskVtblOff, vt, err)) return false;
+    if (vt == kMenuVtbl) {
+        match = true;
+        return true;
+    }
+    uint32_t factory = 0;
+    if (!luau_guest::read_u32(task + kTaskClassFactoryOff, factory, err)) return false;
+    match = factory == kCreatorMenu;
+    return true;
+}
+
+bool find_task_in_tree(uint32_t start, bool (*is_match)(uint32_t, bool&, std::string&), uint32_t& out,
+                      std::string& err) {
     if (start == 0) return false;
     uint32_t root = start;
     for (int i = 0; i < 16; i++) {
@@ -1486,7 +1505,7 @@ bool find_flow_in_tree(uint32_t start, uint32_t& out, std::string& err) {
         if (dup) continue;
         if (sn < 48) seen[sn++] = task;
         bool match = false;
-        if (!task_is_flow(task, match, err)) return false;
+        if (!is_match(task, match, err)) return false;
         if (match) {
             out = task;
             return true;
@@ -1501,7 +1520,16 @@ bool find_flow_in_tree(uint32_t start, uint32_t& out, std::string& err) {
     return false;
 }
 
-bool find_flow_in_list(uint32_t sentinel, uint32_t prefer, uint32_t& out, bool& saw_prefer, std::string& err) {
+bool find_flow_in_tree(uint32_t start, uint32_t& out, std::string& err) {
+    return find_task_in_tree(start, task_is_flow, out, err);
+}
+
+bool find_menu_in_tree(uint32_t start, uint32_t& out, std::string& err) {
+    return find_task_in_tree(start, task_is_menu, out, err);
+}
+
+bool find_task_in_list(uint32_t sentinel, bool (*is_match)(uint32_t, bool&, std::string&), uint32_t prefer,
+                      uint32_t& out, bool& saw_prefer, std::string& err) {
     uint32_t node = 0;
     if (!luau_guest::read_u32(sentinel + kTaskListNextOff, node, err)) return false;
     for (int i = 0; i < 64; i++) {
@@ -1510,7 +1538,7 @@ bool find_flow_in_list(uint32_t sentinel, uint32_t prefer, uint32_t& out, bool& 
         if (!luau_guest::read_u32(node + kTaskListDataOff, task, err)) return false;
         if (task != 0) {
             bool match = false;
-            if (!task_is_flow(task, match, err)) return false;
+            if (!is_match(task, match, err)) return false;
             if (match) {
                 out = task;
                 return true;
@@ -1520,6 +1548,14 @@ bool find_flow_in_list(uint32_t sentinel, uint32_t prefer, uint32_t& out, bool& 
         if (!luau_guest::read_u32(node + kTaskListNextOff, node, err)) return false;
     }
     return false;
+}
+
+bool find_flow_in_list(uint32_t sentinel, uint32_t prefer, uint32_t& out, bool& saw_prefer, std::string& err) {
+    return find_task_in_list(sentinel, task_is_flow, prefer, out, saw_prefer, err);
+}
+
+bool find_menu_in_list(uint32_t sentinel, uint32_t prefer, uint32_t& out, bool& saw_prefer, std::string& err) {
+    return find_task_in_list(sentinel, task_is_menu, prefer, out, saw_prefer, err);
 }
 
 bool scene_app_object(uint32_t& out, std::string& err) {
@@ -1551,6 +1587,59 @@ bool scene_app_object(uint32_t& out, std::string& err) {
     }
     err = "flow task missing";
     return false;
+}
+
+bool scene_menu_object(uint32_t& out, std::string& err) {
+    uint32_t scene = 0;
+    if (!scene_object(scene, err)) return false;
+    uint32_t mgr = 0;
+    if (!luau_guest::read_u32(scene + kSceneTaskMgrOff, mgr, err)) return false;
+    bool saw_prefer = false;
+    if (mgr != 0) {
+        const uint32_t lists[] = {
+            kTaskMgrPrepareOff, kTaskMgrPrepareDoneOff, kTaskMgrActiveOff, kTaskMgrStaticOff,
+        };
+        for (uint32_t off : lists) {
+            if (find_menu_in_list(mgr + off, 0, out, saw_prefer, err)) return true;
+            if (!err.empty()) return false;
+        }
+        uint32_t root = 0;
+        if (!luau_guest::read_u32(mgr + kTaskMgrRootOff, root, err)) return false;
+        if (find_menu_in_tree(root, out, err)) return true;
+        if (!err.empty()) return false;
+    }
+    uint32_t area = 0;
+    if (!luau_guest::read_u32(kAreaTaskInstance, area, err)) return false;
+    if (find_menu_in_tree(area, out, err)) return true;
+    if (!err.empty()) return false;
+    err = "menu missing";
+    return false;
+}
+
+bool menu_state_ready(uint32_t menu, std::string& err) {
+    uint32_t factory = 0;
+    if (!luau_guest::read_u32(menu + kAppStateMethodOff, factory, err)) return false;
+    if (factory == 0) {
+        err = "state not ready";
+        return false;
+    }
+    uint32_t factory_vt = 0;
+    if (!luau_guest::read_u32(factory, factory_vt, err)) return false;
+    if (factory_vt == 0) {
+        err = "state not ready";
+        return false;
+    }
+    uint32_t state = 0;
+    if (!luau_guest::read_u32(menu + kAppStateMethodOff + 8, state, err)) return false;
+    if (state != 0) {
+        uint32_t state_vt = 0;
+        if (!luau_guest::read_u32(state, state_vt, err)) return false;
+        if (state_vt == 0) {
+            err = "state not ready";
+            return false;
+        }
+    }
+    return true;
 }
 
 bool scene_change_open(std::string& err) {
@@ -1610,26 +1699,20 @@ int l_scene_open_title(lua_State* L) {
 int l_scene_open_file_select(lua_State* L) {
     std::string err;
     if (!scene_change_open(err)) return fail(L, err.c_str());
-    uint32_t app = 0;
-    if (!scene_app_object(app, err)) return fail(L, err.c_str());
+    uint32_t menu = 0;
+    if (!scene_menu_object(menu, err)) {
+        if (err == "menu missing") {
+            if (!scene_transition(kCreatorMenu, 0, err)) return fail(L, err.c_str());
+            return fail(L, "menu missing");
+        }
+        return fail(L, err.c_str());
+    }
+    if (!menu_state_ready(menu, err)) return fail(L, err.c_str());
     uint32_t mgr = 0;
     if (!luau_guest::read_u32(kSubjectMgr, mgr, err)) return fail(L, err.c_str());
     if (mgr == 0) return fail(L, "file not ready");
     if (guest_call(t_guest_cpu, kSubjectSelectFile, {mgr, 0}) == 0) return fail(L, "file not ready");
-    uint32_t factory = 0;
-    if (!luau_guest::read_u32(app + kAppStateMethodOff, factory, err)) return fail(L, err.c_str());
-    if (factory == 0) return fail(L, "file not ready");
-    uint32_t factory_vt = 0;
-    if (!luau_guest::read_u32(factory, factory_vt, err)) return fail(L, err.c_str());
-    if (factory_vt == 0) return fail(L, "file not ready");
-    uint32_t state = 0;
-    if (!luau_guest::read_u32(app + kAppStateMethodOff + 8, state, err)) return fail(L, err.c_str());
-    if (state != 0) {
-        uint32_t state_vt = 0;
-        if (!luau_guest::read_u32(state, state_vt, err)) return fail(L, err.c_str());
-        if (state_vt == 0) return fail(L, "file not ready");
-    }
-    guest_call(t_guest_cpu, kAppFileSelectState, {app});
+    guest_call(t_guest_cpu, kAppFileSelectState, {menu});
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -1644,11 +1727,12 @@ int l_scene_open_course_select(lua_State* L) {
 int l_scene_confirm_file(lua_State* L) {
     std::string err;
     if (!scene_change_open(err)) return fail(L, err.c_str());
-    uint32_t app = 0;
-    if (!scene_app_object(app, err)) return fail(L, err.c_str());
-    if (!luau_guest::write_u8(app + kAppGateSelect, 1, err)) return fail(L, err.c_str());
-    if (!luau_guest::write_u8(app + kAppGateStory, 1, err)) return fail(L, err.c_str());
-    guest_call(t_guest_cpu, kAppConfirmFile, {app});
+    uint32_t menu = 0;
+    if (!scene_menu_object(menu, err)) return fail(L, err.c_str());
+    if (!menu_state_ready(menu, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u8(menu + kAppGateSelect, 1, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u8(menu + kAppGateStory, 1, err)) return fail(L, err.c_str());
+    guest_call(t_guest_cpu, kAppConfirmFile, {menu});
     lua_pushboolean(L, 1);
     return 1;
 }

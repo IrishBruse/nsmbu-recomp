@@ -133,7 +133,7 @@ grep -rn "setNextScene" references/headers
 
 The headers do not name every address this repository uses.
 The remaining hooks are `02ACD218`, `024D752C`, and `@022A79C4`.
-The remaining runtime addresses are `kCreatorBoot`, `kCreatorFlow`, `kCreatorFileSelect`, `kCreatorSaveSelect`, `kCreatorMap`, `kCreatorCourseTask`, `kAppFileSelectState`, `kSubjectSelectFile`, `kAppConfirmFile`, `kFaderBusy`, the save state functions, and the interpolation probes.
+The remaining runtime addresses are `kCreatorBoot`, `kCreatorFlow`, `kCreatorFileSelect`, `kCreatorSaveSelect`, `kCreatorMenu`, `kCreatorMap`, `kCreatorCourseTask`, `kAppFileSelectState`, `kSubjectSelectFile`, `kAppConfirmFile`, `kFaderBusy`, the save state functions, and the interpolation probes.
 Give those a name when a tree gains the symbol.
 
 ## Offsets

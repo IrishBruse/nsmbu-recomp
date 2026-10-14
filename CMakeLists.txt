@@ -113,6 +113,7 @@ endif()
 file(GLOB RUNTIME_SOURCES CONFIGURE_DEPENDS runtime/src/*.cpp runtime/src/*.c runtime/src/hle/*.cpp runtime/src/mods/*.cpp runtime/src/mods/sdk/*.cpp runtime/src/motion/*.cpp
                                             runtime/src/overlay/*.cpp)
 list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "nsmbu_guest_stubs\\.c$")
+list(FILTER RUNTIME_SOURCES EXCLUDE REGEX "mod_luau_test_stubs\\.cpp$")
 list(APPEND RUNTIME_SOURCES runtime/src/platform/perf_hint.cpp)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(NSMBU_GUEST_STUBS ${CMAKE_BINARY_DIR}/generated/nsmbu_guest_stubs.c)

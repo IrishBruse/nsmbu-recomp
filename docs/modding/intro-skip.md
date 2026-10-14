@@ -65,6 +65,7 @@ The factory allocates the task and calls the constructor.
 | --- | --- | --- | --- | --- |
 | `0x0202930C` | `0x103C` | `0x0297AC48` | none | `kCreatorBoot` |
 | `0x0202B51C` | title task | `TitleScene::TitleScene` | `sead::TTaskFactory<TitleScene>` | `kCreatorTitle` |
+| `0x0202B61C` | `0x3E94` | `0x0297C5D8` | none | `kCreatorMenu` |
 | `0x0297B9F8` | `0x2C4` | `0x02989CF8` | none | `kCreatorFlow` |
 | `0x024C11F4` | `0x11D0` | `0x0297F3CC` | `ChallengeSelectScene` | none |
 | `0x0298AD3C` | `0x138` | `0x02990610` | none | `kCreatorFileSelect` |
@@ -83,9 +84,11 @@ That scene is the time-attack page.
 `open_file_select()` does not request that factory.
 `save_select()` is true when the current scene factory is `0x024C11F4`.
 The skip does not wait on that phase.
-`open_file_select()` calls `0x024CE594` on `SubjectMgr` (`0x101D1874`) with file 0.
-It then calls `0x0297D58C`.
+`open_file_select()` requests factory `0x0202B61C` when that menu task is missing.
+It then calls `0x024CE594` on `SubjectMgr` (`0x101D1874`) with file 0.
+It then calls `0x0297D58C` on the menu task.
 That call changes the state at `+0x1DC` to `0x1022C184` and enters the save-slot page.
+The flow task (`0x0297B9F8`, size `0x2C4`) does not own that state.
 
 `course()` reads `CourseTask::sInstance` (`0x101D15F0`).
 `map_phase()` is true when `mNowScene` is the `AreaTask` factory.
@@ -104,8 +107,8 @@ The runtime looks for that task on the scene task lists and in the task tree.
 It also keeps the source of the title request while that object stays on a list.
 It does not pass `AreaTask`.
 The port passes that object as `this` and as the source task.
-The live flow object is larger than `0x2C4`.
-Offsets `0xDB1`, `0x1CAD`, `0x1DC`, and `0x3E90` are on that object.
+The save-slot menu is factory `0x0202B61C` (size `0x3E94`, virtual table `0x10175F88`).
+Offsets `0xDB1`, `0x1CAD`, `0x1DC`, and `0x3E90` are on that menu task.
 
 | Offset | Use |
 | --- | --- |
@@ -120,9 +123,10 @@ Offsets `0xDB1`, `0x1CAD`, `0x1DC`, and `0x3E90` are on that object.
 It does not request factory `0x024C11F4`.
 `0x024C11F4` is `ChallengeSelectScene`, the time-attack scene.
 
-1. Call `0x024CE594` on `SubjectMgr` (`0x101D1874`) with file 0.
-2. Call `0x0297D58C`.
-   That call changes the flow-task state at `+0x1DC` to `0x1022C184`.
+1. Request factory `0x0202B61C` when the menu task is missing.
+2. Call `0x024CE594` on `SubjectMgr` (`0x101D1874`) with file 0.
+3. Call `0x0297D58C` on the menu task.
+   That call changes the menu state at `+0x1DC` to `0x1022C184`.
 
 `SubjectMgr::mMode` is the byte at `+0x1E7F`.
 `0x024CD904` sets that byte to 0.

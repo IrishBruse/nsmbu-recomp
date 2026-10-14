@@ -18,9 +18,11 @@ At release, move those notes to a version heading and leave Unreleased empty.
     The first call opens save slot 0.
     It does not open the time-attack scene.
     The first call also runs while `map_phase()` is true, because a boot leaves the current scene on AreaTask `0x020292B8` after it requests TitleScene.
-    The scene calls pass the flow task as the source.
+    `open_file_select` requests menu factory `0x0202B61C`, then changes that task's state.
+    It does not call the state change on the flow task.
+    The scene calls pass the flow task as the `setNextScene` source.
     They do not pass the `Scene` object.
-    `open_file_select` returns `"scene busy"` or `"file not ready"` when it cannot run.
+    `open_file_select` returns `"scene busy"`, `"menu missing"`, `"state not ready"`, or `"file not ready"` when it cannot run.
     The script sends the same call again.
     The script stops when `file_index()` is 0.
 -   **Change**: Lifecycle callbacks live on `nsmbu.hooks` as assignable fields (`on_logic_step`, `on_config_changed`, `on_loaded`, `on_unload`) instead of `nsmbu.on_*` register helpers and `unlisten`.

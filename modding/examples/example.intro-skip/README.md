@@ -5,11 +5,12 @@ It does not open the time-attack page.
 
 `hooks.on_logic_step` drives the skip while the boot flow runs.
 While `title()` or `map_phase()` is true, the script calls `open_file_select()`.
+After the first attempt it keeps calling until the call returns true.
 When that call returns true, the script logs the save slot page.
 It then reads `file_index()`.
 When the file number is 0, the script logs save slot 0 and stops.
 
-The script sends `open_file_select()` again on the next logic step when the call returns `"scene busy"` or `"file not ready"`.
+The script sends `open_file_select()` again when the call returns `"scene busy"`, `"menu missing"`, `"state not ready"`, or `"file not ready"`.
 It does not call `confirm_file()` or `open_course_select()`.
 `save_select()` is a probe for the time-attack scene.
 The script does not treat that probe as success.

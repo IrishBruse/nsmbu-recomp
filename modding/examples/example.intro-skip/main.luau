@@ -2,6 +2,7 @@ const scene = nsmbu.scene
 const hooks = nsmbu.hooks
 
 local stage = 0
+local started = false
 local last = ""
 
 local function accepted(ok: boolean?): boolean
@@ -26,13 +27,14 @@ end
 
 function hooks.on_logic_step(step: number)
   if stage == 0 then
-    if scene.title() or scene.map_phase() then
+    if started or scene.title() or scene.map_phase() then
       local opened, err = scene.open_file_select()
       if accepted(opened) then
         note(step, "save slot page")
         stage = 1
       else
-        note(step, string.format("open_file_select %s", err or "refused"))
+        started = true
+        note(step, string.format("open_file_select %s phase=%s", err or "refused", phase_text()))
       end
     else
       note(step, string.format("wait title phase=%s", phase_text()))
@@ -50,5 +52,6 @@ end
 
 function hooks.on_unload()
   stage = 0
+  started = false
   last = ""
 end
