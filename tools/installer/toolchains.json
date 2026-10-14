@@ -5,6 +5,10 @@
       "kind": "xcode-clt",
       "min_macos": "14.0"
     },
+    "host-clang": {
+      "kind": "host-clang",
+      "_comment": "Developer packages only (just installer). Matches a runtime built with system Clang/libstdc++."
+    },
     "llvm-mingw-20260922": {
       "kind": "llvm-mingw",
       "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20260922/llvm-mingw-20260922-ucrt-x86_64.zip",

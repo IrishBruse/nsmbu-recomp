@@ -103,9 +103,14 @@ def main():
     parser.add_argument("--release", action="store_true")
     parser.add_argument("--no-debug", action="store_true")
     parser.add_argument("--sanitizer", action="store_true")
+    parser.add_argument("--target", default="nsmbu", help="CMake target to build (default: nsmbu)")
+    parser.add_argument("--dir", default=None, help="CMake build directory (default: build)")
     parser.add_argument("cmake_args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     _, args.cmake_args = slot.take_slot(args.cmake_args)
+    if args.cmake_args and args.cmake_args[0] == "--":
+        args.cmake_args = args.cmake_args[1:]
+    build_dir = os.path.abspath(args.dir) if args.dir else BUILD
     debug_build = not args.release and not args.no_debug
     ensure_gen_dir()
     libdir = libstdcxx_libdir()
@@ -124,7 +129,7 @@ def main():
         "-S",
         ROOT,
         "-B",
-        BUILD,
+        build_dir,
         f"-DCMAKE_C_COMPILER={cc}",
         f"-DCMAKE_CXX_COMPILER={cxx}",
         f"-DCMAKE_C_FLAGS={compile_flags}",
@@ -142,10 +147,12 @@ def main():
     extra = list(args.cmake_args)
     if not any(a.startswith("-DNSMBU_BUNDLED_DEPS") for a in extra):
         cmake.append("-DNSMBU_BUNDLED_DEPS=ON")
+    if args.target == "nsmbu-setup" and not any(a.startswith("-DNSMBU_SETUP_GUI") for a in extra):
+        cmake.append("-DNSMBU_SETUP_GUI=ON")
     cmake.extend(extra)
     subprocess.run(cmake, check=True, cwd=ROOT)
     subprocess.run(
-        ["cmake", "--build", BUILD, "--target", "nsmbu", "-j", str(args.jobs)],
+        ["cmake", "--build", build_dir, "--target", args.target, "-j", str(args.jobs)],
         check=True,
         cwd=ROOT,
     )

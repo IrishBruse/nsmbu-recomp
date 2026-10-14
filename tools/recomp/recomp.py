@@ -439,8 +439,13 @@ class Recompiler:
         out.append("}")
         return "\n".join(out), len(body)
 
-    def run(self, outdir, per_file):
+    def run(self, outdir, per_file, on_progress=None):
+        def progress(done, total, detail=""):
+            if on_progress:
+                on_progress(done, total, detail)
+
         os.makedirs(outdir, exist_ok=True)
+        progress(0, 1, "loading names")
         self.names = names.load()
         self.unhandled = collections.Counter()
         self.cr_stats = [0, 0]
@@ -451,6 +456,7 @@ class Recompiler:
         self.saved_clobbers = self.find_saved_clobbers() if ppc2c.SINGLE else set()
         self.singleflow = None
         if ppc2c.SINGLE and singleflow.INTERPROC:
+            progress(0, 1, "analyzing floating-point use")
             t0 = time.time()
             self.singleflow = singleflow.Solver(self).solve()
             sys.stderr.write("single-precision summaries: %d function analyses, %.1f s\n" %
@@ -458,13 +464,16 @@ class Recompiler:
         self.used_imports = set()
         ppc2c.single_stats[:] = [0, 0]
         files, cur, n = [], [], 0
-        for start in self.sorted_entries:
+        total_fn = len(self.sorted_entries)
+        for i, start in enumerate(self.sorted_entries):
             src, count = self.emit_function(start)
             cur.append(src)
             n += count
             if n >= per_file:
                 files.append(cur)
                 cur, n = [], 0
+            if (i + 1) % 64 == 0 or i + 1 == total_fn:
+                progress(i + 1, total_fn, "translating functions (%d of %d)" % (i + 1, total_fn))
         if cur:
             files.append(cur)
         for i, funcs in enumerate(files):
@@ -472,8 +481,11 @@ class Recompiler:
                 f.write('#include "funcs.h"\n\n')
                 f.write("\n\n".join(funcs))
                 f.write("\n")
+            progress(i + 1, len(files), "writing code_%03d.c (%d of %d)" % (i, i + 1, len(files)))
+        progress(len(files), len(files), "writing headers")
         self.write_headers(outdir)
         self.write_report(outdir, len(files))
+        progress(1, 1, "%d source files" % len(files))
 
     def static_float_gqrs(self):
         written = set()
@@ -579,6 +591,8 @@ if __name__ == "__main__":
     ap.add_argument("rpx")
     ap.add_argument("outdir")
     ap.add_argument("--insns-per-file", type=int, default=30000)
+    ap.add_argument("--progress", action="store_true",
+                    help="print 'progress DONE TOTAL detail' lines for the installer")
     ap.add_argument("--build", help="which build the rpx is, when it should not be identified by "
                                     "its SHA-256 (%s)" % ", ".join(b.name for b in game_builds.all_builds()))
     a = ap.parse_args()
@@ -587,4 +601,11 @@ if __name__ == "__main__":
         build = game_builds.by_name(a.build)
         if build is None:
             sys.exit("unknown build %r; known: %s" % (a.build, ", ".join(b.name for b in game_builds.all_builds())))
-    Recompiler(a.rpx, build).run(a.outdir, a.insns_per_file)
+
+    def on_progress(done, total, detail=""):
+        if a.progress:
+            print("progress %d %d %s" % (done, total, detail), flush=True)
+
+    if a.progress:
+        print("progress 0 1 reading game code", flush=True)
+    Recompiler(a.rpx, build).run(a.outdir, a.insns_per_file, on_progress=on_progress)

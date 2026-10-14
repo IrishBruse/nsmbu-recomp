@@ -31,6 +31,7 @@ The developer table in `README.md` describes the same recipes.
 - `just run` — `just build`, then `just launch`.
 - `just run 3` — same, and load save slot 3 (slots are 1 through 5).
 - `just run-release` — Release build, then a launch with the debug defaults off.
+- `just installer` — Ninja Release under `build/rel`, package a real SDK, open the setup window.
 - `just launch-trace` — start with `--trace` for HLE logging.
 - `just gdb` / `just lldb` — start under that debugger.
 

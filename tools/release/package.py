@@ -222,6 +222,13 @@ def build_link_recipe(build, pkg, linkonly):
             continue
         if a.startswith("-Wl,--out-implib") or a.startswith("-Wl,-rpath,"):
             continue
+        if a == "-Xlinker":
+            nxt = args[i + 1] if i + 1 < len(args) else ""
+            if nxt.startswith("--dependency-file"):
+                skip = True
+                continue
+        if a.startswith("--dependency-file"):
+            continue
         if a == "-isysroot":
             skip = True
             continue

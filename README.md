@@ -157,6 +157,7 @@ The file layout is in [game/README.md](game/README.md).
 | `just launch-trace` | Start with `--trace` for HLE logging |
 | `just run` | Run `just build`, then `just launch` |
 | `just run 3` | Same, and load save slot 3 |
+| `just installer` | Ninja Release under `build/rel`, package a real SDK, open setup |
 | `just recomp` | Translate `game/code/red-pro2.rpx` into `build/gen` |
 | `just gdb` | Start the game under gdb |
 | `just lldb` | Start the game under lldb |

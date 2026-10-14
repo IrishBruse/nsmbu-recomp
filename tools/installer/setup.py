@@ -541,6 +541,12 @@ def get_toolchain(name, data_dir, ui):
     if kind == "xcode-clt":
         ensure_xcode_clt(ui)
         return Toolchain(["xcrun", "clang"], ["xcrun", "clang++"], ["xcrun", "ar"], desc="Apple Command Line Tools")
+    if kind == "host-clang":
+        cc = shutil.which("clang-19") or shutil.which("clang-18") or shutil.which("clang")
+        cxx = shutil.which("clang++-19") or shutil.which("clang++-18") or shutil.which("clang++")
+        if not cc or not cxx:
+            raise SetupError("this developer package needs clang/clang++ on PATH")
+        return Toolchain([cc], [cxx], ["ar"], desc="host " + os.path.basename(cc))
     root = os.path.join(data_dir, "toolchain")
     os.makedirs(root, exist_ok=True)
     tdir = os.path.join(root, tc["dir"])
@@ -1172,11 +1178,37 @@ def language_source_kind(path):
 def recompile(game_dir, gen_dir):
     shutil.rmtree(gen_dir, ignore_errors=True)
     rpx = os.path.join(game_dir, "code", "red-pro2.rpx")
-    out = run_logged([sys.executable, os.path.join(PKG, "tools", "recomp", "recomp.py"), rpx, gen_dir],
-                     env=dict(os.environ, NSMBU_RECOMP_MOD_HOOKS="0"), what="translating the game code")
+    cmd = [sys.executable, os.path.join(PKG, "tools", "recomp", "recomp.py"), rpx, gen_dir, "--progress"]
+    env = dict(os.environ, NSMBU_RECOMP_MOD_HOOKS="0", PYTHONDONTWRITEBYTECODE="1")
+    LOG.write("$ " + " ".join(cmd))
+    pr = Progress("translating")
+    pr.update(0, 1, "starting", force=True)
+    p = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    out_lines = []
+    for line in p.stdout:
+        line = line.rstrip("\n")
+        out_lines.append(line)
+        if line.startswith("progress "):
+            parts = line.split(None, 3)
+            if len(parts) >= 3:
+                try:
+                    done, total = int(parts[1]), int(parts[2])
+                except ValueError:
+                    continue
+                detail = parts[3] if len(parts) > 3 else ""
+                pr.update(done, total, detail)
+            continue
+        if line.strip():
+            say(line)
+    rc = p.wait()
+    LOG.write("\n".join(out_lines))
+    if rc != 0:
+        tail = "\n".join(out_lines[-25:])
+        raise SetupError("translating the game code failed (exit code %d):\n%s" % (rc, tail))
     n = len(glob.glob(os.path.join(gen_dir, "code_*.c")))
     if n == 0:
         raise SetupError("the recompiler wrote no code")
+    pr.done("%d source files" % n)
     return n
 
 def default_jobs():

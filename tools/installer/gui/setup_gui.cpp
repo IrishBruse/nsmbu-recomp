@@ -470,10 +470,13 @@ static int request(const std::string& cmd, const std::string& fields) {
 static bool busy() { return A.pending_id != 0; }
 
 static ImFont* g_font = nullptr;
-static const ImVec4 ACCENT(0.11f, 0.47f, 0.76f, 1.0f);
-static const ImVec4 GOOD(0.16f, 0.60f, 0.30f, 1.0f);
-static const ImVec4 BAD(0.80f, 0.20f, 0.18f, 1.0f);
-static const ImVec4 MUTED(0.42f, 0.45f, 0.50f, 1.0f);
+static ImVec4 ACCENT(0.11f, 0.47f, 0.76f, 1.0f);
+static ImVec4 GOOD(0.16f, 0.60f, 0.30f, 1.0f);
+static ImVec4 BAD(0.80f, 0.20f, 0.18f, 1.0f);
+static ImVec4 MUTED(0.42f, 0.45f, 0.50f, 1.0f);
+static float g_ui_scale = 1.0f;
+static bool g_dark = false;
+static Uint8 g_clear_r = 248, g_clear_g = 250, g_clear_b = 251;
 
 static void load_fonts(float scale) {
     ImGuiIO& io = ImGui::GetIO();
@@ -504,9 +507,15 @@ static void load_fonts(float scale) {
     }
 }
 
+static bool system_dark() { return SDL_GetSystemTheme() == SDL_SYSTEM_THEME_DARK; }
+
 static void apply_style(float scale) {
-    ImGui::StyleColorsLight();
+    g_ui_scale = scale;
+    g_dark = system_dark();
     ImGuiStyle& st = ImGui::GetStyle();
+    st = ImGuiStyle();
+    if (g_dark) ImGui::StyleColorsDark();
+    else ImGui::StyleColorsLight();
     st.WindowPadding = ImVec2(28, 22);
     st.FramePadding = ImVec2(12, 7);
     st.ItemSpacing = ImVec2(10, 10);
@@ -517,18 +526,52 @@ static void apply_style(float scale) {
     st.WindowRounding = 0;
     st.FrameBorderSize = 1;
     ImVec4* c = st.Colors;
-    c[ImGuiCol_WindowBg] = ImVec4(0.975f, 0.98f, 0.985f, 1);
-    c[ImGuiCol_ChildBg] = ImVec4(1, 1, 1, 1);
-    c[ImGuiCol_Border] = ImVec4(0.82f, 0.85f, 0.88f, 1);
-    c[ImGuiCol_Text] = ImVec4(0.12f, 0.14f, 0.17f, 1);
-    c[ImGuiCol_Button] = ImVec4(0.92f, 0.94f, 0.96f, 1);
-    c[ImGuiCol_ButtonHovered] = ImVec4(0.85f, 0.90f, 0.95f, 1);
-    c[ImGuiCol_ButtonActive] = ImVec4(0.78f, 0.86f, 0.94f, 1);
-    c[ImGuiCol_FrameBg] = ImVec4(1, 1, 1, 1);
+    if (g_dark) {
+        ACCENT = ImVec4(0.35f, 0.68f, 0.98f, 1);
+        GOOD = ImVec4(0.35f, 0.78f, 0.48f, 1);
+        BAD = ImVec4(0.95f, 0.42f, 0.40f, 1);
+        MUTED = ImVec4(0.68f, 0.71f, 0.76f, 1);
+        g_clear_r = 30;
+        g_clear_g = 33;
+        g_clear_b = 38;
+        c[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.13f, 0.15f, 1);
+        c[ImGuiCol_ChildBg] = ImVec4(0.16f, 0.17f, 0.20f, 1);
+        c[ImGuiCol_PopupBg] = ImVec4(0.14f, 0.15f, 0.18f, 1);
+        c[ImGuiCol_Border] = ImVec4(0.32f, 0.35f, 0.40f, 1);
+        c[ImGuiCol_Text] = ImVec4(0.92f, 0.93f, 0.95f, 1);
+        c[ImGuiCol_Button] = ImVec4(0.22f, 0.24f, 0.28f, 1);
+        c[ImGuiCol_ButtonHovered] = ImVec4(0.30f, 0.34f, 0.40f, 1);
+        c[ImGuiCol_ButtonActive] = ImVec4(0.18f, 0.30f, 0.42f, 1);
+        c[ImGuiCol_FrameBg] = ImVec4(0.18f, 0.19f, 0.22f, 1);
+        c[ImGuiCol_FrameBgHovered] = ImVec4(0.24f, 0.26f, 0.30f, 1);
+        c[ImGuiCol_FrameBgActive] = ImVec4(0.28f, 0.32f, 0.38f, 1);
+        c[ImGuiCol_Header] = ImVec4(0.22f, 0.25f, 0.30f, 1);
+        c[ImGuiCol_HeaderHovered] = ImVec4(0.28f, 0.32f, 0.38f, 1);
+        c[ImGuiCol_HeaderActive] = ImVec4(0.32f, 0.38f, 0.46f, 1);
+        c[ImGuiCol_Separator] = ImVec4(0.32f, 0.35f, 0.40f, 1);
+        c[ImGuiCol_ScrollbarBg] = ImVec4(0.12f, 0.13f, 0.15f, 1);
+        c[ImGuiCol_ScrollbarGrab] = ImVec4(0.35f, 0.38f, 0.42f, 1);
+    } else {
+        ACCENT = ImVec4(0.11f, 0.47f, 0.76f, 1);
+        GOOD = ImVec4(0.16f, 0.60f, 0.30f, 1);
+        BAD = ImVec4(0.80f, 0.20f, 0.18f, 1);
+        MUTED = ImVec4(0.42f, 0.45f, 0.50f, 1);
+        g_clear_r = 248;
+        g_clear_g = 250;
+        g_clear_b = 251;
+        c[ImGuiCol_WindowBg] = ImVec4(0.975f, 0.98f, 0.985f, 1);
+        c[ImGuiCol_ChildBg] = ImVec4(1, 1, 1, 1);
+        c[ImGuiCol_Border] = ImVec4(0.82f, 0.85f, 0.88f, 1);
+        c[ImGuiCol_Text] = ImVec4(0.12f, 0.14f, 0.17f, 1);
+        c[ImGuiCol_Button] = ImVec4(0.92f, 0.94f, 0.96f, 1);
+        c[ImGuiCol_ButtonHovered] = ImVec4(0.85f, 0.90f, 0.95f, 1);
+        c[ImGuiCol_ButtonActive] = ImVec4(0.78f, 0.86f, 0.94f, 1);
+        c[ImGuiCol_FrameBg] = ImVec4(1, 1, 1, 1);
+        c[ImGuiCol_Header] = ImVec4(0.90f, 0.93f, 0.96f, 1);
+        c[ImGuiCol_HeaderHovered] = ImVec4(0.85f, 0.90f, 0.95f, 1);
+    }
     c[ImGuiCol_PlotHistogram] = ACCENT;
     c[ImGuiCol_CheckMark] = ACCENT;
-    c[ImGuiCol_Header] = ImVec4(0.90f, 0.93f, 0.96f, 1);
-    c[ImGuiCol_HeaderHovered] = ImVec4(0.85f, 0.90f, 0.95f, 1);
     st.ScaleAllSizes(scale);
     st.FontScaleDpi = scale;
 }
@@ -615,12 +658,21 @@ static float button_w(const char* label) {
     return ImGui::CalcTextSize(label, nullptr, true).x + ImGui::GetStyle().FramePadding.x * 2 + 24;
 }
 
+static float footer_reserve() {
+    return ImGui::GetFrameHeight() + 8 + ImGui::GetStyle().WindowPadding.y + ImGui::GetStyle().ItemSpacing.y;
+}
+
 static int footer(std::initializer_list<const char*> labels, int primary = -1, int disabled_mask = 0) {
     float h = ImGui::GetFrameHeight() + 8;
-    float y = ImGui::GetWindowHeight() - ImGui::GetStyle().WindowPadding.y - h;
+    float pad = ImGui::GetStyle().WindowPadding.y;
+    float y = ImGui::GetWindowHeight() - pad - h;
+    if (ImGui::GetCursorPosY() < y) ImGui::SetCursorPosY(y);
+    else ImGui::Dummy(ImVec2(0, ImGui::GetStyle().ItemSpacing.y));
     float total = 0;
     for (const char* l : labels) total += button_w(l) + ImGui::GetStyle().ItemSpacing.x;
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - total, y));
+    float x = ImGui::GetWindowWidth() - pad - total;
+    if (x < pad) x = pad;
+    ImGui::SetCursorPosX(x);
     int i = 0, hit = -1;
     for (const char* l : labels) {
         if (i) ImGui::SameLine();
@@ -938,13 +990,24 @@ static void pump_child() {
 
 static bool details_open = false;
 
+static void centered_button_row(float w) {
+    float x = ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - w) * 0.5f;
+    if (x > ImGui::GetCursorPosX()) ImGui::SetCursorPosX(x);
+}
+
 static bool details_header() {
     if (details_open) ImGui::SetNextItemOpen(true, ImGuiCond_Always);
     return ImGui::CollapsingHeader("Details");
 }
 
 static float space_above_footer() {
-    return ImGui::GetContentRegionAvail().y - (ImGui::GetFrameHeight() + 8) - ImGui::GetStyle().ItemSpacing.y * 3;
+    return ImGui::GetContentRegionAvail().y - footer_reserve() - ImGui::GetStyle().ItemSpacing.y * 2;
+}
+
+static float log_pane_height(float share = 0.4f) {
+    float line = ImGui::GetTextLineHeightWithSpacing();
+    float avail = std::max(0.0f, space_above_footer());
+    return std::clamp(std::max(line * 10, avail * share), line * 10, std::max(line * 10, avail));
 }
 
 static void page_header(const char* title, const std::string& sub = "") {
@@ -955,7 +1018,7 @@ static void page_header(const char* title, const std::string& sub = "") {
 
 static void log_pane(float height) {
     ImGui::BeginChild("log", ImVec2(0, height), ImGuiChildFlags_Borders);
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.25f, 0.28f, 0.32f, 1));
+    ImGui::PushStyleColor(ImGuiCol_Text, MUTED);
     for (auto& l : A.log) ImGui::TextUnformatted(l.c_str());
     ImGui::PopStyleColor();
     if (A.log_scroll) ImGui::SetScrollHereY(1.0f), A.log_scroll = false;
@@ -1047,21 +1110,36 @@ static void screen_welcome() {
     if (b == 1) go(Screen::Source);
 }
 
+static float menu_button_w(std::initializer_list<const char*> labels) {
+    float w = 0;
+    for (const char* l : labels) w = std::max(w, button_w(l));
+    float avail = ImGui::GetContentRegionAvail().x;
+    return std::min(w, avail);
+}
+
 static void screen_menu() {
     bool update = A.installed_version != A.version;
     page_header(A.portable ? "NSMBU" : "NSMBU is installed",
                 update ? "Prepared with " + A.installed_version + ". This release: " + A.version + "."
                        : "Version " + A.version + ", in " + home_folder());
-    float w = 520;
+    const char* change = "Change the game (disc image, Cemu archive or game folder)";
+    float w = menu_button_w({"Update to this release", "Play", "Repair", change, "Import saves or settings...",
+                             "Open the folder"});
     if (update) {
+        centered_button_row(w);
         if (button("Update to this release", ImVec2(w, 0), true)) start_install("installed");
         muted("Rebuilds the game with this release. Your game files and saves are kept; no keys needed.");
     }
+    centered_button_row(w);
     if (button("Play", ImVec2(w, 0), !update)) A.after = "play";
+    centered_button_row(w);
     if (button("Repair", ImVec2(w, 0))) start_install("installed");
     muted("Rebuilds the game code from the installed game files.");
-    if (button("Change the game (disc image, Cemu archive or game folder)", ImVec2(w, 0))) go(Screen::Source);
+    centered_button_row(w);
+    if (button(change, ImVec2(w, 0))) go(Screen::Source);
+    centered_button_row(w);
     if (button("Import saves or settings...", ImVec2(w, 0))) go(Screen::Save);
+    centered_button_row(w);
     if (button("Open the folder", ImVec2(w, 0))) open_folder(home_folder());
     if (footer({"Quit"}) == 0) A.exit_code = 0;
 }
@@ -1074,10 +1152,11 @@ static void screen_source() {
                                                    {"Wii U disc image (.wux, .wud)", "wux;wud"},
                                                    {"Cemu Wii U archive (.wua)", "wua"},
                                                    {"All files", "*"}};
-    if (button("Choose disc image or archive...", ImVec2(320, 0), A.source_path.empty()))
+    float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+    if (button("Choose disc image or archive...", ImVec2(half, 0), A.source_path.empty()))
         choose_file("source", filters, 4);
     ImGui::SameLine();
-    if (button("Choose extracted game folder...", ImVec2(320, 0))) choose_folder("source");
+    if (button("Choose extracted game folder...", ImVec2(half, 0))) choose_folder("source");
     ImGui::Spacing();
     if (!A.source_path.empty()) {
         ImGui::BeginChild("src", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
@@ -1205,23 +1284,30 @@ static void screen_installing() {
     ImGui::TextUnformatted("Overall");
     ImGui::ProgressBar(tw > 0 ? (float)(dw / tw) : 0.0f, ImVec2(-1, 0));
     ImGui::Spacing();
-    ImGui::BeginChild("steps", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
+    float split = std::max(0.0f, space_above_footer() - ImGui::GetFrameHeightWithSpacing() - ImGui::GetStyle().ItemSpacing.y * 2);
+    float step_avail = std::max(120.0f, split * 0.75f);
+    float log_slot = std::max(ImGui::GetTextLineHeightWithSpacing() * 6, split * 0.25f);
+    ImGui::BeginChild("steps", ImVec2(0, step_avail), ImGuiChildFlags_Borders);
+    float icon_pad = ImGui::GetFontSize() * 1.1f + ImGui::GetStyle().ItemSpacing.x;
     for (auto& s : A.steps) {
         mark(s.state);
         std::string t = s.title;
         if (size_t paren = t.find(" ("); paren != std::string::npos) t = t.substr(0, paren);
         if (s.state == 0) ImGui::PushStyleColor(ImGuiCol_Text, MUTED);
-        ImGui::TextUnformatted(t.c_str());
+        ImGui::TextWrapped("%s", t.c_str());
         if (s.state == 0) ImGui::PopStyleColor();
         if (s.state == 1) {
-            ImGui::SameLine(380);
+            ImGui::Indent(icon_pad);
             float frac = s.total > 0 ? (float)std::min(1.0, s.done / s.total) : -1.0f * (float)ImGui::GetTime();
-            ImGui::ProgressBar(frac, ImVec2(-1, 0), s.detail.empty() ? (s.total > 0 ? nullptr : "") : s.detail.c_str());
+            ImGui::ProgressBar(frac, ImVec2(-1, 0), s.total > 0 ? nullptr : "");
+            if (!s.detail.empty()) muted(s.detail);
+            ImGui::Unindent(icon_pad);
+            ImGui::Spacing();
         }
     }
     ImGui::EndChild();
     ImGui::Spacing();
-    if (details_header()) log_pane(std::max(60.0f, space_above_footer()));
+    if (details_header()) log_pane(std::max(log_slot, space_above_footer()));
 }
 
 static void screen_error() {
@@ -1235,17 +1321,17 @@ static void screen_error() {
     if (!head.empty()) head[0] = (char)toupper((unsigned char)head[0]);
     ImGui::TextWrapped("%s", head.c_str());
     if (!rest.empty()) {
-        float h = std::min(ImGui::GetTextLineHeightWithSpacing() * 8, std::max(60.0f, space_above_footer() * 0.5f));
-        ImGui::BeginChild("errdetail", ImVec2(0, h), ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar);
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.25f, 0.28f, 0.32f, 1));
-        ImGui::TextUnformatted(rest.c_str());
+        float h = std::min(ImGui::GetTextLineHeightWithSpacing() * 10, std::max(80.0f, space_above_footer() * 0.45f));
+        ImGui::BeginChild("errdetail", ImVec2(0, h), ImGuiChildFlags_Borders);
+        ImGui::PushStyleColor(ImGuiCol_Text, MUTED);
+        ImGui::TextWrapped("%s", rest.c_str());
         ImGui::PopStyleColor();
         ImGui::EndChild();
     }
     ImGui::Spacing();
     muted("Nothing that was finished is lost. \"Copy log\" puts the details on the clipboard for a bug report; the log "
           "contains no keys.");
-    if (details_header()) log_pane(std::max(60.0f, space_above_footer()));
+    if (details_header()) log_pane(log_pane_height(0.5f));
     int b = footer({"Quit", "Copy log", "Retry"}, 2);
     if (b == 0) A.exit_code = 1;
     if (b == 1) copy_log();
@@ -1382,7 +1468,7 @@ static void screen_fatal() {
         ImGui::Spacing();
         muted("This was written to " + A.fatal_log);
     }
-    if (!A.log.empty()) log_pane(std::max(60.0f, space_above_footer()));
+    if (!A.log.empty()) log_pane(log_pane_height(0.5f));
 #ifdef __APPLE__
     const char* show = "Show in Finder";
 #else
@@ -1446,9 +1532,21 @@ static bool untranslocate_bundle(const std::string& bundle, std::string& origina
 }
 #endif
 
+static std::string with_trailing_sep(std::string p) {
+    if (p.empty()) return p;
+    char last = p.back();
+    if (last != '/' && last != '\\') p.push_back('/');
+    return p;
+}
+
 static PackageSearch find_package() {
     PackageSearch r;
-    if (const char* e = SDL_getenv("NSMBU_SETUP_PKG")) return r.pkg = e, r;
+    if (const char* e = SDL_getenv("NSMBU_SETUP_PKG")) {
+        r.pkg = with_trailing_sep(e);
+        r.start = r.pkg;
+        r.checked = r.pkg + "tools/installer/setup.py";
+        return r;
+    }
     std::string base = SDL_GetBasePath() ? SDL_GetBasePath() : "./";
     r.start = base;
 #ifdef __APPLE__
@@ -1636,10 +1734,24 @@ static std::string package_version() {
     return m.str("version");
 }
 
+static bool path_is_file(const std::string& path) {
+    SDL_PathInfo info;
+    return SDL_GetPathInfo(path.c_str(), &info) && info.type == SDL_PATHTYPE_FILE;
+}
+
 static void start_child() {
     std::vector<std::string> args;
+    SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "PYTHONDONTWRITEBYTECODE", "1", true);
 #if defined(__APPLE__)
-    args = {"/bin/bash", A.pkg + "tools/Setup in Terminal.command"};
+    std::string release_sh = A.pkg + "tools/Setup in Terminal.command";
+    std::string setup_py = A.pkg + "tools/installer/setup.py";
+    if (path_is_file(release_sh)) args = {"/bin/bash", release_sh};
+    else if (path_is_file(setup_py)) args = {"/usr/bin/python3", setup_py};
+    else {
+        fail("Setup could not start: " + release_sh + " and " + setup_py + " are missing.",
+             "Keep this program inside the release folder (or the source tree) so tools/ is next to it.", A.pkg);
+        return;
+    }
 #elif defined(_WIN32)
 
     if (!have_bundled_python(A.pkg)) {
@@ -1650,9 +1762,16 @@ static void start_child() {
         return;
     }
     args = {bundled_python(A.pkg), A.pkg + "tools\\installer\\setup.py"};
-    SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "PYTHONDONTWRITEBYTECODE", "1", true);
 #else
-    args = {"/bin/sh", A.pkg + "tools/setup-in-terminal.sh"};
+    std::string release_sh = A.pkg + "tools/setup-in-terminal.sh";
+    std::string setup_py = A.pkg + "tools/installer/setup.py";
+    if (path_is_file(release_sh)) args = {"/bin/sh", release_sh};
+    else if (path_is_file(setup_py)) args = {"python3", setup_py};
+    else {
+        fail("Setup could not start: " + release_sh + " and " + setup_py + " are missing.",
+             "Keep this program inside the release folder (or the source tree) so tools/ is next to it.", A.pkg);
+        return;
+    }
 #endif
     args.push_back("--gui-protocol");
     for (auto& a : A.passthru) args.push_back(a);
@@ -1861,6 +1980,7 @@ int main(int argc, char** argv) {
             ImGui_ImplSDL3_ProcessEvent(&ev);
             if (ev.type == SDL_EVENT_QUIT || (ev.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && ev.window.windowID == SDL_GetWindowID(g_window)))
                 quit_requested = true;
+            if (ev.type == SDL_EVENT_SYSTEM_THEME_CHANGED && system_dark() != g_dark) apply_style(g_ui_scale);
         }
         pump_child();
         {
@@ -1920,7 +2040,7 @@ int main(int argc, char** argv) {
         ImGui::Render();
 
         SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-        SDL_SetRenderDrawColor(renderer, 248, 250, 251, 255);
+        SDL_SetRenderDrawColor(renderer, g_clear_r, g_clear_g, g_clear_b, 255);
         SDL_RenderClear(renderer);
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
         if (!A.shot_pending.empty()) {

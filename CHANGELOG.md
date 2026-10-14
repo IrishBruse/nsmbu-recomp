@@ -5,6 +5,14 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+## 0.4.2
+
+-   **Fix**: The setup window follows the system dark or light theme.
+-   **Fix**: Setup buttons and long labels no longer clip; menu actions are centered and sized to the window.
+-   **Fix**: The install progress screen gives most of the space to the steps and keeps the Details log readable.
+-   **Change**: Translating the game code shows live progress in the installer.
+-   **Add**: `just installer` builds a Ninja Release under `build/rel`, packages a real SDK, and opens setup (for local install tests).
+
 ## 0.4.1
 
 -   **Fix**: The release installer ships `tools/recomp/names.py` and `headers_names.txt`, so translating the game code no longer fails with `ModuleNotFoundError: No module named 'names'`.
