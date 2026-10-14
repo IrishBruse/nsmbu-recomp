@@ -23,26 +23,26 @@ See [luau-mods.md](luau-mods.md) for the scripting and file-replacement plan.
 ## Player workflow
 
 Open the in-game settings overlay (`` ` `` or F12, Cmd+, or Settings in the menu) and select **Mods**.
-The tab manages installed packages.
+The tab manages packages that already sit in the mods folder.
 There is no built-in gameplay catalogue and no cheat list.
 
-The Installed packages section accepts a local folder or `.nsmbumod` ZIP.
-Choose it with the file/folder picker, then press Install package.
+**Open mods folder** opens `<host config directory>/ModManager/Mods` in the system file manager.
+Put each package in that folder as `Mods/<id>/` with a `manifest.json` whose `id` matches the folder name.
+There is no in-game import or install step.
+The Mods tab rescans that folder about once per second while it is open, when every package is disabled (same rule as the old refresh).
 Installed packages start disabled.
 Nothing from a package is loaded until you enable it.
 Enabling resolves required dependencies.
 Missing versions, cycles, and declared conflicts produce an error.
 The details show metadata, status, and bool/number/string/enum options.
 String edits commit with Enter.
-Disable a package and wait for its next game update before updating or removing it.
+Disable a package and wait for its next game update before replacing or removing its folder.
 Luau packages with `content_dir`, and Cemu packs, need a restart after enable, disable, or preset changes.
 Script-only Luau packages (no `content_dir`) load live on enable.
-The Mods tab has a **Hot reload Luau scripts** checkbox.
-When it is on, enabled script-only packs unload and reload when `.luau` files under the package change (the scan runs about twice per second).
-Packs with `content_dir` ignore this path and still need a restart.
-The preference is the top-level `hot_reload` boolean in `profiles.json` (not per profile).
-Reinstall the same ID while disabled to update; configuration is preserved by ID.
-Refresh discovers manual folder changes when all packages are disabled.
+Optional hot reload for script-only packs is the top-level `hot_reload` boolean in `profiles.json` (not shown in the Mods tab).
+When it is on, enabled script-only packs unload and reload when `.luau` files under the package change.
+Packs with `content_dir` ignore that path and still need a restart.
+Replace the same folder id while disabled to update; configuration is preserved by ID.
 
 Profiles save package toggles and configuration.
 An older `profiles.json` may still contain `builtins` and `builtin_options`.
@@ -58,7 +58,7 @@ Storage is `<host config directory>/ModManager`: `Mods/<id>/manifest.json` plus 
 `NSMBU_NO_HOST_INPUT` skips user preferences and package storage unless an explicit manager directory is supplied for a test.
 Source `just launch` / `just run` links `nsmbu/ModManager/Mods` to `modding/examples/` first.
 Set `NSMBU_NO_EXAMPLE_MODS=1` to skip that link.
-Content files are copied locally into manager storage; the original game files are preserved.
+Package files live under the mods folder; the original game files are not changed.
 Game assets and saves are never committed, uploaded, or redistributed.
 
 Test aids (only with `NSMBU_NO_HOST_INPUT`): `NSMBU_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when the Mods tab is drawn (with `NSMBU_TEST_OVERLAY=open:mods`).
@@ -93,7 +93,7 @@ Online downloads and catalogues are outside this manager.
 ## Packaging a mod
 
 A package is a folder, or a ZIP archive of that folder's contents renamed to `.nsmbumod`, with `manifest.json` at its root.
-Packages you publish must not contain game files; content and Cemu packs are imported locally by the player.
+Packages you publish must not contain game files; content and Cemu packs are copied locally by the player into the mods folder.
 See [luau-mods.md](luau-mods.md), [content.md](content.md), and [cemu.md](cemu.md).
 
 ## Validation

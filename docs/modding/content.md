@@ -11,41 +11,32 @@ They do not run host or guest code unless they also ship a Luau entry.
 
 ## Player workflow
 
-Use **Mods → Installed packages → Choose folder… / Choose package… → Install package**.
-Select a single local pack with a `content/` directory, or its ZIP.
-Installation starts disabled.
-Enable it and restart the game.
-Disable it and restart to restore original reads; then it can be updated or removed.
+Use **Mods → Open mods folder** and place a package directory under `Mods/<id>/` with a `manifest.json` and a `content/` tree (`content_dir`).
+Enable the package and restart the game.
+Disable it and restart to restore original reads; then replace or remove the folder.
 Profiles choose the next launch's content set.
 Active content is deliberately immutable for the session.
 Script-only Luau packages (no `content_dir`) still load live; a package with `content_dir` always needs a restart.
 
-## Import layouts
+There is no in-game file picker or import step.
+Build the package layout yourself, or use a tool that writes `manifest.json`.
+Native detection of a Cemu pack root (`rules.txt` + `content/`, no player JSON) and larger size caps are proposed in [cemu-content.md](cemu-content.md).
 
-The importer accepts:
+## Package layouts
 
-- a simple `MyMod/content/...` tree
-- a single-pack SDCafiine layout
-- file-only Cemu packs with Definition metadata
+A content package is a folder the player copies into the mods directory:
 
+- `Mods/<id>/manifest.json` with `kind: luau` and `content_dir`
+- `Mods/<id>/<content_dir>/...` game-relative replacements (usually `content/`)
+
+Tests and tooling may still call the legacy importer helpers for SDCafiine trees, Definition-only Cemu packs, and loose known `.pack` files.
+Those helpers are not exposed in the Mods tab.
 Explicit SDCafiine and Cemu title IDs must include NSMBU USA `0005000010101d00`.
-ZIP wrappers are accepted if they contain exactly one content directory.
-Multiple packs require selecting or extracting one pack first.
-
-Known loose pack files (including `permanent_3d.pack` and all nine `permanent_2d_<Us|Eu|Jp><Language>.pack` language packs) can also be selected directly, or imported from a folder/ZIP with their original filenames.
-They map to `Common/Pack/`.
-Other loose files are placed where the installed game has a file of the same name, when it has exactly one (for example `Title_00.szs` goes to `Common/Layout/`).
-Files the game does not have (read-me texts, pictures) are not used, and the package description lists what was placed and what was not.
-A loose file whose name the game has several times, or an unknown `.pack`, requires an explicit content tree.
-
-The importer writes a `kind: luau` package with `content_dir` set.
-The source filename supplies a stable `content.<name>` ID, so same-named imports count as updates.
-Supply an explicit manifest for a different ID, descriptive metadata, or version.
 
 ## Fan translations
 
 A fan translation is usually a replaced 2D language pack (`permanent_2d_<Region><Language>.pack`: every message, the fonts, and the 2D layouts), often with a replaced title logo (`Common/Layout/Title_00.szs`).
-Install it like any content mod: choose its folder or ZIP (loose files or a `content/` tree) and Install package, enable it, and restart.
+Install it like any content mod: put the package under the mods folder, enable it, and restart.
 The language pack applies to the language of the same name whatever region its file name has.
 A translation shipped as `permanent_2d_EuEnglish.pack` (made for the European game) replaces English in the USA game.
 A `permanent_2d_UsEnglish.pack` replaces English when English comes from a European language source ([../language-packs.md](../language-packs.md)).
@@ -54,14 +45,14 @@ Choose the language the translation replaces (usually English) in Settings → L
 No renaming is needed, and the game folder is never changed.
 Arabic and Hebrew translations are shaped and laid out right to left by the port itself ([../rtl-text.md](../rtl-text.md)).
 A Cemu code patch that such a translation ships for that purpose is not needed.
-Install only its `content` folder: a package with a code patch is refused as a whole.
+Ship only the content files in the package: a mod that also carries a code patch is refused as a whole.
 
 ## What is rejected
 
 Support covers **content file replacement only**.
-The importer rejects code/meta/DLC folders, PPC patches (`patches.txt` and Cemu `.asm` code patches), shader files, and non-Definition Cemu rule sections.
+Packages (and legacy tooling) reject code/meta/DLC folders, PPC patches (`patches.txt` and Cemu `.asm` code patches), shader files, and non-Definition Cemu rule sections.
 A mod that ships content files together with a Cemu code patch is refused as a whole, so part of it is never dropped silently.
-To use only its content files, select its `content` folder.
+To use only its content files, put a content-only package folder in the mods directory.
 Randomizers and mixed code/data mods are not supported by this adapter.
 
 These conventions follow the upstream [SDCafiine documentation](https://github.com/wiiu-env/sdcafiine_plugin) and [Cemu graphic-pack format](https://github.com/cemu-project/cemu_graphic_packs/wiki/How-to-create-Graphic-Packs).
@@ -101,9 +92,11 @@ Content-only Luau packages cannot declare runtime options or dependencies unless
 
 Installed payloads should not be edited externally while the game runs.
 Savestates must be used with the same active content set; savestate metadata does not record an asset fingerprint yet.
-Import/staging limits are 4096 entries, 128 MiB per file, and 512 MiB per package.
+Indexing limits are 4096 entries, 128 MiB per file, and 512 MiB per package.
+Those caps reject large Cemu level packs (for example a soundtrack over 128 MiB or a pack over 512 MiB).
+The planned raise is in [cemu-content.md](cemu-content.md).
 Symlinks and path traversal are rejected.
-Content files are copied into manager storage; the original game files are not changed, and game assets stay outside Git.
+Content files stay in the package folder under the mods directory; the original game files are not changed, and game assets stay outside Git.
 
 ## Tests
 

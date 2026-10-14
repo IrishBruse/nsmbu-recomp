@@ -861,40 +861,20 @@ void package_controls() {
     static std::string error;
 
     static const char* test_enable = g_no_host ? getenv("NSMBU_TEST_MOD_ENABLE") : nullptr;
-    static char source[1024] = {};
-    static std::mutex picker_mutex;
-    static std::string picked;
     {
-        std::lock_guard guard(picker_mutex);
-        if (!picked.empty()) { snprintf(source, sizeof source, "%s", picked.c_str()); picked.clear(); }
+        static double last_scan = -1;
+        double now = ImGui::GetTime();
+        if (last_scan < 0 || now - last_scan >= 1.0) {
+            last_scan = now;
+            std::string ignore;
+            refresh(ignore);
+        }
     }
     heading("Installed packages");
-    note("Install a local package, a content/ mod folder or ZIP, or a replacement .pack file.");
-    {
-        bool watch = hot_reload();
-        if (ImGui::Checkbox("Hot reload Luau scripts", &watch)) set_hot_reload(watch, error);
-        note("When on, enabled script-only packs reload when .luau files change. Packs with content still need a restart.");
-    }
-    if (ImGui::Button("Choose package…")) hostui::choose_mod_source(false, [](std::string path) {
-        std::lock_guard guard(picker_mutex); picked = std::move(path);
-    });
-    ImGui::SameLine();
-    if (ImGui::Button("Choose folder…")) hostui::choose_mod_source(true, [](std::string path) {
-        std::lock_guard guard(picker_mutex); picked = std::move(path);
-    });
-    ImGui::SetNextItemWidth(-140);
-    ImGui::InputText("Package path", source, sizeof source);
-    bool install_now=ImGui::Button("Install package");
-    static const char* test_install=g_no_host?getenv("NSMBU_TEST_MOD_INSTALL"):nullptr;
-    if(test_install){snprintf(source,sizeof source,"%s",test_install);test_install=nullptr;install_now=true;}
-    if(install_now) install(source,error);
-    ImGui::SameLine();
-    if (ImGui::Button("Refresh packages")) refresh(error);
-    auto path = directory();
-    if (!path.empty()) note("Mods folder: %s", path.c_str());
+    note("Put each package folder in the mods folder (folder name matches the package id). Then enable it here.");
     if (!error.empty()) ImGui::TextWrapped("%s", error.c_str());
     auto installed = list();
-    if (installed.empty()) note("No external packages installed.");
+    if (installed.empty()) note("No packages in the mods folder yet.");
     for (const auto& mod : installed) {
         ImGui::PushID(mod.id.c_str());
         bool on = mod.enabled;
@@ -950,6 +930,14 @@ void package_controls() {
 
 void tab_mods() {
     heading("Mod manager");
+    auto path = mods::packages::directory();
+    if (hostui::can_open_folder() && !path.empty()) {
+        if (ImGui::Button("Open mods folder")) {
+            hostui::post([path] { hostui::open_folder(path); });
+        }
+    } else if (!path.empty()) {
+        note("Mods folder: %s", path.c_str());
+    }
     note("Installed packages start off. Enable a package to load it.");
     package_controls();
 }

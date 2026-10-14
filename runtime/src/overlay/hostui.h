@@ -6,7 +6,6 @@
 
 namespace hostui {
 
-void choose_mod_source(bool folder, std::function<void(std::string)> chosen);
 void post(std::function<void()> fn);
 
 bool get(const char* key, std::string& value);

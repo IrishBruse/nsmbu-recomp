@@ -19,6 +19,7 @@ Rejected on install: `kind: native`, `kind: guest`, and `kind: settings`.
 
 | Doc | What it covers |
 | --- | --- |
+| [cemu-content.md](cemu-content.md) | Native Cemu level/content packs: detect `rules.txt`, no player `manifest.json`, larger size caps |
 | [luau-mods.md](luau-mods.md) phases 4–5 | Hooks, `nsmbu.hooks.call`, and hard rejection of the content alias |
 | [api.md](api.md) (hooks, calls, input, data, guest heap) | Host APIs still marked proposal in that doc |
 

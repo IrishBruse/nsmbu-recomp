@@ -1,18 +1,19 @@
 # Cemu graphics packs (`kind: cemu`)
 
 Status: **live**.
-Cemu packages import one graphics/shader pack through the mod manager.
+Cemu packages are graphics/shader packs the player places in the mods folder.
 They do not replace arbitrary game content archives; use [content.md](content.md) for that.
 
 See [mod-manager.md](mod-manager.md) for install, profiles, and shared manifest fields.
 
 ## Player workflow
 
-Import one Cemu pack folder or ZIP with **Mods → Installed packages → Install package**.
+Put one Cemu graphics pack under the mods folder as `Mods/<id>/` with `manifest.json` (`kind: cemu`, `cemu_dir`) and its `rules.txt` / shaders.
+Use **Mods → Open mods folder** to find that directory.
 The adapter reads `rules.txt` versions 4/5, checks the USA NSMBU title ID, and exposes each preset category as a dropdown.
 Enable it and restart.
 Changing a preset, disabling, or switching profiles also requires a restart.
-The active snapshot stays fixed until exit; active pack files cannot be replaced or removed by the manager.
+The active snapshot stays fixed until exit; disable and restart before replacing or removing the folder.
 
 ## Manifest fields
 
@@ -47,6 +48,7 @@ No arbitrary instruction patch is applied.
 Other `patches.txt` contents, geometry shaders, unsupported rules/conditions, format replacement, DLC/code/meta payloads, and mixed content-plus-shader packs are rejected.
 Select a single pack rather than an entire Cemu pack collection.
 Models/UI in `content` use the separate content replacement adapter in [content.md](content.md).
+Dropping a Definition-only Cemu level pack into the mods folder (detect `rules.txt`, ignore `meta/`, no player `manifest.json`, larger size caps) is proposed in [cemu-content.md](cemu-content.md).
 
 ## Presets
 

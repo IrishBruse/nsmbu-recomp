@@ -117,19 +117,6 @@ void post(std::function<void()> fn) {
     std::lock_guard<std::mutex> lk(g_mu);
     g_posted.push_back(std::move(fn));
 }
-void choose_mod_source(bool folder, std::function<void(std::string)> chosen) {
-    post([folder, chosen] {
-        auto callback = new std::function<void(std::string)>(chosen);
-        auto done = [](void* context, const char* const* files, int) {
-            auto fn = static_cast<std::function<void(std::string)>*>(context);
-            if (files && files[0]) (*fn)(files[0]);
-            delete fn;
-        };
-        if (folder) SDL_ShowOpenFolderDialog(done, callback, nullptr, nullptr, false);
-        else SDL_ShowOpenFileDialog(done, callback, nullptr, nullptr, 0, nullptr, false);
-    });
-}
-
 void run_posted() {
     std::vector<std::function<void()>> fns;
     {
