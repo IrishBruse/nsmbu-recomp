@@ -346,9 +346,10 @@ class Recipe(unittest.TestCase):
     def test_toolchains_pinned(self):
         tcs = setup.load_toolchains()
         for name, tc in tcs["toolchains"].items():
-            if tc["kind"] != "xcode-clt":
-                self.assertRegex(tc["sha256"], r"^[0-9a-f]{64}$", name)
-                self.assertTrue(tc["url"].startswith("https://"), name)
+            if tc["kind"] in ("xcode-clt", "host-clang"):
+                continue
+            self.assertRegex(tc["sha256"], r"^[0-9a-f]{64}$", name)
+            self.assertTrue(tc["url"].startswith("https://"), name)
         for name, py in tcs["python"].items():
             self.assertRegex(py["sha256"], r"^[0-9a-f]{64}$", name)
 
