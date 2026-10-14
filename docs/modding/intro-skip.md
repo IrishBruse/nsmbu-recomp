@@ -2,10 +2,10 @@
 
 Investigation for `modding/examples/example.intro-skip`.
 
-The example loads the world map with three scene calls.
-The calls match the game.
-The example sends each call again while `Scene::setNextScene` would refuse it.
-It advances when the next boot probe is true.
+The example stops on the first save slot.
+It does not open the time-attack page.
+The example sends `open_file_select()` again when the call returns `"scene busy"` or `"file not ready"`.
+It stops when `file_index()` is 0.
 
 This note records the boot tasks and the other ways that were considered.
 
@@ -23,12 +23,13 @@ Bodies come from the generated C in `build/gen`.
    A boot log shows `setNextScene` request TitleScene `0x0202B51C`, then the current phase stays on AreaTask `0x020292B8`.
    `title()` stays false on that boot.
    `map_phase()` is that AreaTask.
-2. While `scene.save_select()` is true and `scene.file_index()` returns a file, call `scene.confirm_file()`.
-   Advance when the call returns true.
-3. While `scene.course()` and `scene.course_task()` are true, call `scene.open_course_select()`.
-4. Stop when `scene.course_select()` is true.
+2. Read `scene.file_index()`.
+   Stop when the number is 0.
+   Do not call `confirm_file()` or `open_course_select()`.
+   Do not treat `save_select()` as success.
 
 Each transition returns `nil` and `"scene busy"` while `mNextScene` is set or the fader is busy.
+`open_file_select()` also returns `nil` and `"file not ready"` when the file is not ready.
 The runtime makes that check before it calls the guest function.
 A retry does not play the title sound and does not clear `SubjectMgr` again.
 The script sends the same call on the next logic step.
@@ -50,7 +51,9 @@ That function returns false in two cases.
 `nsmbu.scene.phase()` reads the factory at `+0x58`.
 
 A later call can succeed on a later step.
-The script must keep the same call until it returns true, and until `phase()` shows the requested factory.
+The script must keep the same call until it returns true.
+`open_file_select()` does not request a factory.
+The skip does not wait for phase `0x024C11F4`.
 
 ## Boot tasks
 
@@ -63,21 +66,26 @@ The factory allocates the task and calls the constructor.
 | `0x0202930C` | `0x103C` | `0x0297AC48` | none | `kCreatorBoot` |
 | `0x0202B51C` | title task | `TitleScene::TitleScene` | `sead::TTaskFactory<TitleScene>` | `kCreatorTitle` |
 | `0x0297B9F8` | `0x2C4` | `0x02989CF8` | none | `kCreatorFlow` |
-| `0x024C11F4` | `0x11D0` | `0x0297F3CC` | none | none |
+| `0x024C11F4` | `0x11D0` | `0x0297F3CC` | `ChallengeSelectScene` | none |
 | `0x0298AD3C` | `0x138` | `0x02990610` | none | `kCreatorFileSelect` |
 | `0x0202B4C8` | `0x5A4` | `CourseTask::CourseTask` | none in the names file | none |
 | `0x020292B8` | `0xBE4` | `AreaTask::AreaTask` | none in the names file | `kCreatorMap` |
 | `0x0202B86C` | `0xDD0` | `CourseSelectTask::CourseSelectTask` | `sead::TTaskFactory<CourseSelectTask>` | `kCreatorCourseSelect` |
 
 `TitleScene`, `CourseTask`, `AreaTask`, and `CourseSelectTask` are in the headers.
-The other four factories have no header name.
+`0x024C11F4` is `ChallengeSelectScene`, the time-attack scene.
+The other three factories have no header name.
 Keep the address until a header names them.
 
 `nsmbu.scene.file_select()` is true when `mNowScene` is `0x0298AD3C`.
-`open_file_select()` requests `0x024C11F4`.
-Those are different tasks.
-`file_select()` stays false through the save select that this skip opens.
-Wait on `phase()` equal to `0x024C11F4`.
+`0x024C11F4` is `ChallengeSelectScene`.
+That scene is the time-attack page.
+`open_file_select()` does not request that factory.
+`save_select()` is true when the current scene factory is `0x024C11F4`.
+The skip does not wait on that phase.
+`open_file_select()` calls `0x024CE594` on `SubjectMgr` (`0x101D1874`) with file 0.
+It then calls `0x0297D58C`.
+That call changes the state at `+0x1DC` to `0x1022C184` and enters the save-slot page.
 
 `course()` reads `CourseTask::sInstance` (`0x101D15F0`).
 `map_phase()` is true when `mNowScene` is the `AreaTask` factory.
@@ -96,8 +104,8 @@ The runtime looks for that task on the scene task lists and in the task tree.
 It also keeps the source of the title request while that object stays on a list.
 It does not pass `AreaTask`.
 The port passes that object as `this` and as the source task.
-The object is the `0x2C4` flow task.
-These fields fit in that size.
+The live flow object is larger than `0x2C4`.
+Offsets `0xDB1`, `0x1CAD`, `0x1DC`, and `0x3E90` are on that object.
 
 | Offset | Use |
 | --- | --- |
@@ -106,14 +114,15 @@ These fields fit in that size.
 | `+0x1CAD` | Set to 1 after a successful confirm. |
 | `+0x1DC` | `StateMethod` (`0x10` bytes). Confirm calls `StateMethod::changeStateMethod` with state id `0x1022C1D0`. |
 
-### `open_file_select` — `0x0297D5A8`
+### `open_file_select`
 
-This is the call the title makes for the save select.
+`open_file_select()` selects save file 0 and enters the save-slot page.
+It does not request factory `0x024C11F4`.
+`0x024C11F4` is `ChallengeSelectScene`, the time-attack scene.
 
-1. `SndAudioMgr::startSystemSe` (`0x029B54C0`).
-2. `0x024CD904` on `SubjectMgr::sInstance` (`0x101D1874`).
-   That function clears `SubjectMgr` fields from `+0x1E28` through the file byte at `+0x1E7E`.
-3. `Scene::setNextScene` to factory `0x024C11F4`, fader 0.
+1. Call `0x024CE594` on `SubjectMgr` (`0x101D1874`) with file 0.
+2. Call `0x0297D58C`.
+   That call changes the flow-task state at `+0x1DC` to `0x1022C184`.
 
 `SubjectMgr::mMode` is the byte at `+0x1E7F`.
 `0x024CD904` sets that byte to 0.
@@ -146,7 +155,7 @@ A confirm that runs before the save-select task writes `+0x1E7E` copies an empty
 The map then opens on the wrong file.
 
 When the story gate is 0, the same function requests factory `0x024C11F4` again.
-That is the save-select task, so the story gate must stay 1.
+That factory is `ChallengeSelectScene`, the time-attack scene, so the story gate must stay 1.
 
 ### `open_course_select`
 
@@ -163,8 +172,8 @@ The world map is interactive only after that second task exists.
 
 ### 1. Retry each call until the scene shows it
 
-Keep the three calls.
-Remove the step counts.
+This table is the old three-call path.
+The current example does not wait on `save_select()`.
 
 | Step | Send the call when | Call | Advance when |
 | --- | --- | --- | --- |
@@ -173,11 +182,13 @@ Remove the step counts.
 | 3 | `course()` and `course_task()` are true | `open_course_select()` | The call returns true |
 | 4 | `course_select()` is true | none | Stop |
 
-`save_select()` is factory `0x024C11F4`.
+`save_select()` is true when the current scene factory is `0x024C11F4`.
+`0x024C11F4` is `ChallengeSelectScene`, the time-attack scene.
+The example does not treat `save_select()` as success.
 `course_task()` is factory `0x0202B4C8`.
 `file_index()` reads `SubjectMgr + 0x1E7E` while `SubjectMgr::mMode` is active.
 
-The example uses this path.
+The example stops when `file_index()` is 0.
 
 ### 2. Press A through `nsmbu.input.press`
 
@@ -187,7 +198,7 @@ A script can press A while `title()` is true, then press A again after the save 
 The press still needs the same ready signals as way 1.
 The press also depends on which button the layout reads, and on focus.
 The scene calls skip that layout.
-Way 1 is the stable form of the current example.
+The current example stops on save slot 0.
 
 ### 3. One `setNextScene` from the title to `CourseSelectTask`
 
@@ -204,9 +215,12 @@ Remove it only after another function is shown to write that byte from `SaveData
 
 ## Recommendation
 
-The example uses way 1.
-`save_select()`, `course_task()`, and `file_index()` are the probes.
-The three transition calls return `"scene busy"` until `Scene::setNextScene` can accept them.
+The example stops on save slot 0.
+`file_index()` is the probe for that stop.
+`save_select()` is the time-attack probe.
+The example does not treat it as success.
+`open_file_select()` returns `"scene busy"` or `"file not ready"` when it cannot run.
+The script sends the same call again.
 
 Leave way 3 until a boot log shows a writer for `SubjectMgr + 0x1E7E` outside `0x024CE594`.
 The `CourseSelectTask` constructor hook `hook_022656E0` records the caller of a natural start.
@@ -214,7 +228,7 @@ One boot with the example off fills in that caller.
 
 ## Gaps
 
-- Factories `0x0202930C`, `0x0297B9F8`, `0x024C11F4`, and `0x0298AD3C` have no header name.
+- Factories `0x0202930C`, `0x0297B9F8`, and `0x0298AD3C` have no header name.
 - `SubjectMgr + 0x1E7E` has no header name. The runtime constant is `kSubjectFileOff`. `+0x1E7F` is `SubjectMgr::mMode`.
 - State id `0x1022C1D0` has no header name.
 - `references/decomp` does not contain these functions.

@@ -1,21 +1,20 @@
 # Intro skip
 
-Loads to the world map without input.
+The skip stops on the first save slot.
+It does not open the time-attack page.
 
 `hooks.on_logic_step` drives the skip while the boot flow runs.
-It calls three scene transitions in order.
-It sends each call again on the next logic step when the call returns `"scene busy"`.
-It advances when the next probe is true.
+While `title()` or `map_phase()` is true, the script calls `open_file_select()`.
+When that call returns true, the script logs the save slot page.
+It then reads `file_index()`.
+When the file number is 0, the script logs save slot 0 and stops.
 
-1. While `title()` or `map_phase()` is true, `open_file_select()`.
-   Advance when that call returns true.
-2. While `save_select()` is true and `file_index()` returns a file, `confirm_file()`.
-   Advance when that call returns true.
-3. While `course()` and `course_task()` are true, `open_course_select()`.
-   Stop when `course_select()` is true.
+The script sends `open_file_select()` again on the next logic step when the call returns `"scene busy"` or `"file not ready"`.
+It does not call `confirm_file()` or `open_course_select()`.
+`save_select()` is a probe for the time-attack scene.
+The script does not treat that probe as success.
 
 No buttons are pressed and no guest memory is read.
-The scene calls already do the work the button presses would do.
 
 [docs/modding/intro-skip.md](../../../docs/modding/intro-skip.md) records the boot tasks behind these probes.
 

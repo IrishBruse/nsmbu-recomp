@@ -14,12 +14,23 @@ At release, move those notes to a version heading and leave Unreleased empty.
     **Open mods folder** opens `mods`; players copy package folders there.
     The tab rescans about once per second while open when every package is disabled.
 -   **Docs**: Plan for native Cemu content packs (`docs/modding/cemu-content.md`): detect Definition-only `rules.txt` in the mods folder without a player `manifest.json`, ignore Cemu `meta/`, and raise content size caps for full level mods.
--   **Change**: `example.intro-skip` waits on scene probes instead of fixed step counts. The first call also runs while `map_phase()` is true, because a boot leaves the current scene on AreaTask `0x020292B8` after it requests TitleScene. The scene calls pass the flow task as the source. They do not pass the `Scene` object. `open_file_select`, `confirm_file`, and `open_course_select` return `"scene busy"` while a scene change is queued or the fader is busy, and the script sends the same call again. New probes: `save_select`, `course_task`, and `file_index`.
+-   **Change**: `example.intro-skip` waits on scene probes instead of fixed step counts.
+    The first call opens save slot 0.
+    It does not open the time-attack scene.
+    The first call also runs while `map_phase()` is true, because a boot leaves the current scene on AreaTask `0x020292B8` after it requests TitleScene.
+    The scene calls pass the flow task as the source.
+    They do not pass the `Scene` object.
+    `open_file_select` returns `"scene busy"` or `"file not ready"` when it cannot run.
+    The script sends the same call again.
+    The script stops when `file_index()` is 0.
 -   **Change**: Lifecycle callbacks live on `nsmbu.hooks` as assignable fields (`on_logic_step`, `on_config_changed`, `on_loaded`, `on_unload`) instead of `nsmbu.on_*` register helpers and `unlisten`.
 -   **Add**: Mod API `nsmbu.scene`: boot-flow phase probes (`title`, `file_select`, `map_phase`, `course`, `course_select`, `phase`) and transitions (`open_title`, `open_file_select`, `open_course_select`, `confirm_file`, `load_story`) that call `Scene::setNextScene` / `Scene::setCourse_Story` inside the port.
 -   **Add**: Mod API `nsmbu.hooks.on_loaded` fires once right after a package is loaded, as soon as the game can be called into.
     `nsmbu.input.press(...)` injects buttons for N logic steps.
-    Example `example.intro-skip` loads to the world map without input: from `on_logic_step` it calls `nsmbu.scene.open_file_select`, `confirm_file`, and `open_course_select` in order, so it never presses buttons or reads guest memory.
+    Example `example.intro-skip` stops on save slot 0 without input.
+    From `on_logic_step` it calls `nsmbu.scene.open_file_select`, then it reads `file_index()`.
+    It does not open the time-attack scene.
+    It never presses buttons or reads guest memory.
 -   **Docs**: `docs/names.md` maps the function names in `references/headers` and `references/decomp` to the guest addresses and the port names (`f_…`, `hook_…`, `GC`/`GD`, `kName`).
     The reference notes now point at `references/headers` instead of the old `headers/` path.
     The scene phase constants in the mod SDK now read the canonical address through `GC`, and the doc table gains `sead::TTaskFactory<TitleScene>` and `sead::TTaskFactory<CourseSelectTask>`.

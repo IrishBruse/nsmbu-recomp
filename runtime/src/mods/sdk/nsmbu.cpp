@@ -401,7 +401,8 @@ const uint32_t kCourseTaskInstance = GD(0x101D15F0);
 const uint32_t kSceneSingleton = GD(0x101E7B28);
 const uint32_t kSetNextScene = GC(0x02994164);
 const uint32_t kSetCourseStory = GC(0x029941D0);
-const uint32_t kAppOpenFileSelect = GC(0x0297D5A8);
+const uint32_t kAppFileSelectState = GC(0x0297D58C);
+const uint32_t kSubjectSelectFile = GC(0x024CE594);
 const uint32_t kAppConfirmFile = GC(0x0297EC3C);
 const uint32_t kFaderBusy = GC(0x02983B28);
 const uint32_t kSubjectMgr = GD(0x101D1874);
@@ -427,6 +428,7 @@ constexpr uint32_t kTaskVtblOff = 0x70u;
 constexpr uint32_t kSubjectFileOff = 0x1E7Eu;
 constexpr uint32_t kSubjectModeOff = 0x1E7Fu;
 constexpr uint8_t kSubjectModeActive = 1;
+constexpr uint32_t kAppStateMethodOff = 0x1DCu;
 constexpr uint32_t kAppGateSelect = 0xDB1u;
 constexpr uint32_t kAppGateStory = 0xDB2u;
 const uint32_t kCreatorBoot = GC(0x0202930C);
@@ -1610,7 +1612,24 @@ int l_scene_open_file_select(lua_State* L) {
     if (!scene_change_open(err)) return fail(L, err.c_str());
     uint32_t app = 0;
     if (!scene_app_object(app, err)) return fail(L, err.c_str());
-    if (guest_call(t_guest_cpu, kAppOpenFileSelect, {app}) == 0) return fail(L, "scene busy");
+    uint32_t mgr = 0;
+    if (!luau_guest::read_u32(kSubjectMgr, mgr, err)) return fail(L, err.c_str());
+    if (mgr == 0) return fail(L, "file not ready");
+    if (guest_call(t_guest_cpu, kSubjectSelectFile, {mgr, 0}) == 0) return fail(L, "file not ready");
+    uint32_t factory = 0;
+    if (!luau_guest::read_u32(app + kAppStateMethodOff, factory, err)) return fail(L, err.c_str());
+    if (factory == 0) return fail(L, "file not ready");
+    uint32_t factory_vt = 0;
+    if (!luau_guest::read_u32(factory, factory_vt, err)) return fail(L, err.c_str());
+    if (factory_vt == 0) return fail(L, "file not ready");
+    uint32_t state = 0;
+    if (!luau_guest::read_u32(app + kAppStateMethodOff + 8, state, err)) return fail(L, err.c_str());
+    if (state != 0) {
+        uint32_t state_vt = 0;
+        if (!luau_guest::read_u32(state, state_vt, err)) return fail(L, err.c_str());
+        if (state_vt == 0) return fail(L, "file not ready");
+    }
+    guest_call(t_guest_cpu, kAppFileSelectState, {app});
     lua_pushboolean(L, 1);
     return 1;
 }

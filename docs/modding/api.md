@@ -352,7 +352,7 @@ game's own menus do.
 | `phase()` | The current boot-flow task class id, or `nil` and a message before the scene exists. |
 | `title()` | `true` when the title layout phase is current. |
 | `file_select()` | `true` when the small file-select task is the current scene. |
-| `save_select()` | `true` when the save-select task that `open_file_select()` requests is the current scene. |
+| `save_select()` | `true` when the current scene factory is `0x024C11F4` (`ChallengeSelectScene`). |
 | `course_task()` | `true` when the `CourseTask` scene is current. |
 | `file_index()` | The save file index after the save select has applied a file. `nil` and a message before that. |
 | `flow_phase()` | `true` when the application flow phase is current. |
@@ -360,7 +360,7 @@ game's own menus do.
 | `course()` | `true` when the game scene task (the animated map behind the menus, the world map, and course scenes) is alive. |
 | `course_select()` | `true` when the world map select task is alive; the world map is up and interactive. |
 | `open_title()` | Requests a scene change into the title task. The game continues its own flow. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
-| `open_file_select()` | Requests a scene change into the save select. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. The call plays the system sound only when the scene accepts it. |
+| `open_file_select()` | Selects save file 0 and enters the save-slot page. It does not request factory `0x024C11F4`. Returns `nil` and `"scene busy"` or `"file not ready"` when it cannot run. Returns true when both calls are made. |
 | `open_course_select()` | Requests the world map select task. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
 | `confirm_file()` | Confirms the save select. The routine sets the file and story gates on the flow object and tells the app to confirm, the way the save select does after a file is chosen. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy, and does not write the gates in that case. |
 | `load_story(world_no, course_no)` | Sets the next story location on `CourseInfo` and requests the game scene task, the way the save select does. `world_no` is 0-indexed (world 1 = 0). |
