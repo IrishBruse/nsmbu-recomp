@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+## 0.4.0
+
 -   **Change**: Mod packages live in `<host config>/mods/` and profiles in `<host config>/profiles.json`.
     The old `ModManager/` tree is removed with no migration.
     Package folder names are not required to match the manifest `id`.
