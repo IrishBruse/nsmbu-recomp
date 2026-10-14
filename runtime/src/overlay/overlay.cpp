@@ -596,12 +596,14 @@ void tab_graphics() {
     for (int r : {60, 120, 165, 240}) {
         if (r != 60) ImGui::SameLine();
         char label[16];
+        if (r != 60) ImGui::BeginDisabled();
         snprintf(label, sizeof label, "%d fps", r);
         const bool on = r == 60 ? m != 1 : m == 1 && f == r;
         if (radio(label, on)) post_changed([r] {
             if (r == 60) interp::set_mode(0);
             else { interp::set_fps(r); interp::set_mode(1); }
         });
+        if (r != 60) ImGui::EndDisabled();
     }
     help("60 fps is the game rate.\n"
          "120, 165 and 240 fps are the higher rates. The game logic stays at 60 steps a second.\n"
@@ -859,36 +861,13 @@ void package_controls() {
     static std::string error;
 
     static const char* test_enable = g_no_host ? getenv("NSMBU_TEST_MOD_ENABLE") : nullptr;
-    static char source[1024] = {}, new_profile[65] = {};
+    static char source[1024] = {};
     static std::mutex picker_mutex;
     static std::string picked;
     {
         std::lock_guard guard(picker_mutex);
         if (!picked.empty()) { snprintf(source, sizeof source, "%s", picked.c_str()); picked.clear(); }
     }
-    heading("Profiles");
-    auto current = current_profile();
-    if (ImGui::BeginCombo("Active profile", current.c_str())) {
-        for (const auto& name : profiles())
-            if (ImGui::Selectable(name.c_str(), name == current)) select_profile(name, error);
-        ImGui::EndCombo();
-    }
-    ImGui::InputText("New profile", new_profile, sizeof new_profile);
-    ImGui::SameLine();
-    if (ImGui::Button("Clone current") && create_profile(new_profile, error)) new_profile[0] = 0;
-    static std::string delete_choice;
-    auto saved_profiles = profiles();
-    if (delete_choice == current || std::find(saved_profiles.begin(), saved_profiles.end(), delete_choice) == saved_profiles.end()) delete_choice.clear();
-    if (delete_choice.empty()) for (const auto& name : saved_profiles) if (name != current) { delete_choice = name; break; }
-    if (ImGui::BeginCombo("Delete profile", delete_choice.empty() ? "No inactive profile" : delete_choice.c_str())) {
-        for (const auto& name : saved_profiles) if (name != current && ImGui::Selectable(name.c_str(), name == delete_choice)) delete_choice = name;
-        ImGui::EndCombo();
-    }
-    ImGui::SameLine();
-    ImGui::BeginDisabled(delete_choice.empty());
-    if (ImGui::Button("Delete selected")) { if (delete_profile(delete_choice, error)) delete_choice.clear(); }
-    ImGui::EndDisabled();
-    note("Your active profile is protected from deletion.");
     heading("Installed packages");
     note("Install a local package, a content/ mod folder or ZIP, or a replacement .pack file.");
     {
@@ -963,9 +942,6 @@ void package_controls() {
                 ImGui::PopID();
             }
             if(mod.restart_required) note("Changes apply on the next game start. Active files stay loaded until exit.");
-            ImGui::BeginDisabled(mod.enabled || mod.active);
-            if (ImGui::Button("Remove package")) remove(mod.id, error);
-            ImGui::EndDisabled();
             ImGui::TreePop();
         }
         ImGui::PopID();
