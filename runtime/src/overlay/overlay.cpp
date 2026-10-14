@@ -871,7 +871,7 @@ void package_controls() {
         }
     }
     heading("Installed packages");
-    note("Put each package folder in the mods folder (folder name matches the package id). Then enable it here.");
+    note("Put each mod folder in the mods folder. Then enable it here.");
     if (!error.empty()) ImGui::TextWrapped("%s", error.c_str());
     auto installed = list();
     if (installed.empty()) note("No packages in the mods folder yet.");
