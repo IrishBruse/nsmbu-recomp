@@ -50,5 +50,7 @@ void load_saved_options();
 void toggle_drc();
 void drc_window_closed();
 void tv_fullscreen_changed();
+bool window_size(int& width, int& height);
+void window_resized();
 
 }

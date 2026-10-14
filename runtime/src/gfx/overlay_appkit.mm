@@ -94,6 +94,11 @@ void load_saved_options() {
     else if (gfx::host_setting("runInBackground", v))
         g_run_in_background.store(v != "0", std::memory_order_relaxed);
 }
+void toggle_drc() { show_drc(!drc_shown()); }
+void drc_window_closed() {}
+void tv_fullscreen_changed() {}
+bool window_size(int&, int&) { return false; }
+void window_resized() {}
 
 }
 

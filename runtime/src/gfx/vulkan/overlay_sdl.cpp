@@ -252,6 +252,42 @@ void set_run_in_background(bool on) {
 bool app_focused() { return g_app_focused.load(std::memory_order_relaxed); }
 void set_app_focused(bool on) { g_app_focused.store(on, std::memory_order_relaxed); }
 
+bool window_size(int& width, int& height) {
+#ifndef __ANDROID__
+    std::string sw, sh;
+    if (!get("windowWidth", sw) || !get("windowHeight", sh)) return false;
+    const int w = atoi(sw.c_str()), h = atoi(sh.c_str());
+    if (w < 320 || h < 240 || w > 7680 || h > 4320) return false;
+    width = w;
+    height = h;
+    return true;
+#else
+    (void)width;
+    (void)height;
+    return false;
+#endif
+}
+
+void window_resized() {
+#ifndef __ANDROID__
+    SDL_Window* tv = gfxvk::R.tv.window;
+    if (!tv || fullscreen() || (SDL_GetWindowFlags(tv) & SDL_WINDOW_HIDDEN)) return;
+    int w = 0, h = 0;
+    if (!SDL_GetWindowSize(tv, &w, &h) || w < 320 || h < 240) return;
+    char bw[16], bh[16];
+    snprintf(bw, sizeof bw, "%d", w);
+    snprintf(bh, sizeof bh, "%d", h);
+    {
+        std::lock_guard<std::mutex> lk(g_mu);
+        load_locked();
+        if (g_values["windowWidth"] == bw && g_values["windowHeight"] == bh) return;
+        g_values["windowWidth"] = bw;
+        g_values["windowHeight"] = bh;
+        save_locked();
+    }
+#endif
+}
+
 void tv_fullscreen_changed() {
 #ifndef __ANDROID__
     if (gfx::display_fullscreen_env() || !gfxvk::R.tv.window) return;

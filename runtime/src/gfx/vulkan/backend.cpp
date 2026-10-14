@@ -2215,7 +2215,11 @@ void init() {
   const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE |
                                       (hidden_windows() ? SDL_WINDOW_HIDDEN : 0);
 #endif
-  R.tv.window = SDL_CreateWindow(app_title::kVulkan, 1280, 720, windowFlags);
+  int windowW = 1280, windowH = 720;
+#ifndef __ANDROID__
+  ::hostui::window_size(windowW, windowH);
+#endif
+  R.tv.window = SDL_CreateWindow(app_title::kVulkan, windowW, windowH, windowFlags);
   if (!R.tv.window)
     throw std::runtime_error(SDL_GetError());
 #ifdef __ANDROID__
@@ -2529,6 +2533,8 @@ void run_main_loop() {
             s->height = event.window.data2;
             s->resize = true;
           }
+          if (s == &R.tv && event.type == SDL_EVENT_WINDOW_RESIZED)
+            ::hostui::window_resized();
           if (s == &R.tv && (event.type == SDL_EVENT_WINDOW_ENTER_FULLSCREEN ||
                              event.type == SDL_EVENT_WINDOW_LEAVE_FULLSCREEN))
             ::hostui::tv_fullscreen_changed();
