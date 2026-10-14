@@ -8,7 +8,7 @@ See [mod-manager.md](mod-manager.md) for install, profiles, and shared manifest 
 
 ## Player workflow
 
-Put one Cemu graphics pack under the mods folder as `Mods/<id>/` with `manifest.json` (`kind: cemu`, `cemu_dir`) and its `rules.txt` / shaders.
+Put one Cemu graphics pack under the mods folder as its own subdirectory with `manifest.json` (`kind: cemu`, `cemu_dir`) and its `rules.txt` / shaders.
 Use **Mods → Open mods folder** to find that directory.
 The adapter reads `rules.txt` versions 4/5, checks the USA NSMBU title ID, and exposes each preset category as a dropdown.
 Enable it and restart.

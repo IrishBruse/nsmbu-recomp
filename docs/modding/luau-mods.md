@@ -170,7 +170,7 @@ Phase 4 proposal (hooks and calls).
 | Read config at startup | `nsmbu.config` (live; no restart for script options) |
 | `nsmbu_log` and friends | `nsmbu.log` |
 | Per-mod guest heap | `nsmbu.guest.alloc` / `free`, or a Luau table when the data must not live in guest RAM |
-| `nsmbu_file_read` / `write` under `ModManager/Data/<id>` | `nsmbu.data` |
+| `nsmbu_file_read` / `write` under `mod-data/<id>` | `nsmbu.data` |
 | `nsmbu_input_read` | `nsmbu.input` |
 | `nsmbu_logic_dt` / `nsmbu_logic_step` | `nsmbu.logic_dt()` and the step argument |
 | One replacement per function, many hooks | Same conflict rule |
@@ -278,7 +278,7 @@ The port's own hooks in `hooks*.txt` stay outside this call.
 | `manifest.json` | Required. |
 | `main.luau` and other `.luau` files | Script. `require` searches only inside the package. Optional when `content_dir` is set. |
 | `content/...` | Optional file replacements. Same layout rules as today. |
-| `ModManager/Data/<id>/` | Created by the runtime for `nsmbu.data`. Not shipped in the zip. |
+| `mod-data/<id>/` | Created by the runtime for `nsmbu.data`. Not shipped in the zip. |
 
 Reject `.so`, `.dll`, `.dylib`, `.elf`, `.rpx`, `patches.txt`, `.asm`, shader files, and `rules.txt` inside a Luau package.
 Reject `code/`, `meta/`, and DLC trees inside `content/`, as the content importer does today.
@@ -370,7 +370,7 @@ A content-only package is valid.
 
 ### Data files and input
 
-`nsmbu.data.read` and `nsmbu.data.write` use `ModManager/Data/<id>/`.
+`nsmbu.data.read` and `nsmbu.data.write` use `mod-data/<id>/` under the host config directory.
 Flat names only.
 No `..`, symlinks, or absolute paths.
 Maximum 1 MiB per call.

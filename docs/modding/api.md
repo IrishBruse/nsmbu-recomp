@@ -351,20 +351,26 @@ game's own menus do.
 | --- | --- |
 | `phase()` | The current boot-flow task class id, or `nil` and a message before the scene exists. |
 | `title()` | `true` when the title layout phase is current. |
-| `file_select()` | `true` when the save-select phase is current. |
+| `file_select()` | `true` when the small file-select task is the current scene. |
+| `save_select()` | `true` when the save-select task that `open_file_select()` requests is the current scene. |
+| `course_task()` | `true` when the `CourseTask` scene is current. |
+| `file_index()` | The save file index after the save select has applied a file. `nil` and a message before that. |
 | `flow_phase()` | `true` when the application flow phase is current. |
 | `map_phase()` | `true` when the world map gamescene phase is current. |
 | `course()` | `true` when the game scene task (the animated map behind the menus, the world map, and course scenes) is alive. |
 | `course_select()` | `true` when the world map select task is alive; the world map is up and interactive. |
-| `open_title()` | Requests a scene change into the title task. The game continues its own flow. |
-| `open_file_select()` | Requests a scene change into the save select. |
-| `confirm_file()` | Confirms the save select. The routine sets the file and story gates on the flow object and tells the app to confirm, the way the save select does after a file is chosen. |
+| `open_title()` | Requests a scene change into the title task. The game continues its own flow. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
+| `open_file_select()` | Requests a scene change into the save select. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. The call plays the system sound only when the scene accepts it. |
+| `open_course_select()` | Requests the world map select task. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
+| `confirm_file()` | Confirms the save select. The routine sets the file and story gates on the flow object and tells the app to confirm, the way the save select does after a file is chosen. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy, and does not write the gates in that case. |
 | `load_story(world_no, course_no)` | Sets the next story location on `CourseInfo` and requests the game scene task, the way the save select does. `world_no` is 0-indexed (world 1 = 0). |
 
 The transitions call `Scene::setNextScene` and `Scene::setCourse_Story` inside the
 port; mods never pass guest registers or addresses.
 A request only moves the flow it lands on, so call transitions from the matching
 phase or after the flow has reached the map.
+Call the same transition again on a later logic step when it returns `"scene busy"`.
+`Scene::setNextScene` accepts the request after the queued change clears and the fader is idle.
 
 ## Function addresses
 
@@ -564,7 +570,7 @@ It does not rumble the pad.
 
 Proposal.
 
-Files live in `ModManager/Data/<package id>/`.
+Files live in `mod-data/<package id>/` under the host config directory.
 The name is one path segment.
 `/`, `\`, `..`, and an empty name fail.
 The host rejects symlinks and Windows device names.

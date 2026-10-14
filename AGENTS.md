@@ -42,8 +42,9 @@ Those addresses will miss `references/headers` and `tools/recomp/headers_names.t
 The justfile exports `NSMBU_USER_DIR` to the gitignored `nsmbu/` folder.
 `just launch` sets `NSMBU_PROFILE`, `NSMBU_VK_STATS`, `NSMBU_SYNC_STATS`, and `NSMBU_CRASH_RECOVERY` when those variables are unset.
 `just launch-release` leaves those variables unset.
-`just launch` and `just run` link `nsmbu/ModManager/Mods` to `modding/examples/`.
-Set `NSMBU_NO_EXAMPLE_MODS=1` to skip that link.
+`just launch` and `just run` symlink each package under `modding/examples/` into `nsmbu/mods/<id>/`.
+Existing real folders in that mods directory are left alone.
+Set `NSMBU_NO_EXAMPLE_MODS=1` to skip those links.
 
 The dump layout is in `game/README.md`.
 
@@ -173,4 +174,5 @@ A portable release uses the same layout under `data/nsmbu/`, selected by `portab
 - `nsmbu/states/` — save-state slots and crash recovery.
 - `nsmbu/logs/` — run log (`nsmbu.log`), the previous log, crash logs, and frame dumps.
 - `nsmbu/shadercache/` — Vulkan pipeline and shader disk cache.
-- `nsmbu/ModManager/` — mod profiles and installed packages (`Mods/`).
+- `nsmbu/mods/` — installed mod packages.
+- `nsmbu/profiles.json` — mod profile toggles and options.

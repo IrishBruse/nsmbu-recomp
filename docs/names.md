@@ -125,6 +125,7 @@ grep -rn "setNextScene" references/headers
 | `0x101D15F0` | `CourseTask::sInstance` | `kCourseTaskInstance`, mod API |
 | `0x101D15F4` | `CourseTimer::sInstance` | `kCourseTimerSingleton`, mod API |
 | `0x101D1604` | `FieldGame::sInstance` | `kFieldGameSingleton`, mod API |
+| `0x101D1874` | `SubjectMgr::sInstance` | `kSubjectMgr`, mod API |
 | `0x101E6994` | `PlayerMgr::sInstance` | `kPlayerMgrSingleton`, mod API |
 | `0x101E7B28` | `Scene::sInstance` | `kSceneSingleton`, mod API |
 | `0x101E9CC0` | `Actor::getRuntimeTypeInfoStatic()::typeInfo` | `kTypeInfoActor`, mod API |
@@ -132,7 +133,7 @@ grep -rn "setNextScene" references/headers
 
 The headers do not name every address this repository uses.
 The remaining hooks are `02ACD218`, `024D752C`, and `@022A79C4`.
-The remaining runtime addresses are `kCreatorBoot`, `kCreatorFlow`, `kCreatorFileSelect`, `kCreatorMap`, `kAppOpenFileSelect`, `kAppConfirmFile`, the save state functions, and the interpolation probes.
+The remaining runtime addresses are `kCreatorBoot`, `kCreatorFlow`, `kCreatorFileSelect`, `kCreatorSaveSelect`, `kCreatorMap`, `kCreatorCourseTask`, `kAppOpenFileSelect`, `kAppConfirmFile`, `kFaderBusy`, the save state functions, and the interpolation probes.
 Give those a name when a tree gains the symbol.
 
 ## Offsets
@@ -152,3 +153,9 @@ Take the member order from `references/headers` or `references/decomp` and add t
 
 So `kTimerTime = 0x14` is `CourseTimer::mTime`.
 A `static_assert(sizeof(X) == 0xNN)` in the header confirms the layout.
+
+`SubjectMgr` ends at `0x1E84`.
+`kSubjectModeOff = 0x1E7F` is `SubjectMgr::mMode`.
+`kSubjectFileOff = 0x1E7E` is the byte before `mMode`.
+The header does not name that byte.
+`0x024CE594` stores the chosen save file there when it sets `mMode` to active.

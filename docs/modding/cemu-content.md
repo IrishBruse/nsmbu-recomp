@@ -11,7 +11,7 @@ See the live behaviour in [content.md](content.md) and graphics-only Cemu packs 
 
 ## Goal
 
-A player opens **Mods → Open mods folder** and drops the **pack root** into `ModManager/Mods/` (or a subfolder whose name becomes the package id).
+A player opens **Mods → Open mods folder** and drops the **pack root** into `mods/` (or a subfolder whose name becomes the package id).
 On scan, the port detects a file-only Cemu content pack from `rules.txt` and the `content/` tree.
 The player does **not** supply a `manifest.json` (or any other metadata JSON).
 The scanner writes or updates `manifest.json` beside the pack and fills id, name, and version from `rules.txt` when present.
@@ -31,7 +31,7 @@ Scripted mods stay on `kind: luau` ([luau-mods.md](luau-mods.md)).
 
 ## Detection (no player JSON)
 
-When scanning `ModManager/Mods/<entry>/`, classify as follows.
+When scanning `mods/<entry>/`, classify as follows.
 
 1. If the tree has a valid `manifest.json` with `kind` / `content_dir` / `luau` / `cemu`, keep the existing package path.
 2. Else if `rules.txt` has graphics sections (`[Texture…]`, `[Control…]`, `[Preset…]`, shaders, and so on), treat it as `kind: cemu` and synthesize the graphics manifest ([cemu.md](cemu.md)).
@@ -48,7 +48,7 @@ Suggested fields from `[Definition]`:
 | `name` | `name` |
 | `version` (Cemu pack version integer or string) | `version` as three-part semver when possible; else `1.0.0` with the raw value in `description` |
 | `titleIds` | Must include USA NSMBU `0005000010101d00` (same check as today) |
-| (none) | `id` = folder name when it is already a valid id; else rename guidance or `content.<slug(name)>` with a documented folder rename |
+| (none) | `id` = slug from `name`, or the folder name when it is already a valid id |
 | (none) | `kind` = `luau`, `content_dir` = relative path to the detected `content/` |
 | `description` | Optional `description` |
 
@@ -60,7 +60,7 @@ An optional player-supplied `manifest.json` in the pack may still override id or
 Accepted pack under the mods folder (example):
 
 ```text
-ModManager/Mods/cloudy-smbu-2/
+mods/cloudy-smbu-2/
   rules.txt          # [Definition] only; titleIds includes 0005000010101d00
   content/           # game-relative replacements
   meta/              # ignored (boot/icon TGA, meta.xml); not mapped into /vol/content
@@ -73,7 +73,7 @@ Rules:
 - Ignore `meta/` for content packs; do not map it into `/vol/content`.
 - Reject `code/`, non-empty patch payloads (`.asm`, `patches.txt`), shader files, and mixed graphics+content in one folder (same refusal policy as [content.md](content.md): do not drop half the pack silently).
 - Title ID checks stay USA 1.3.0 only.
-- The folder name must match the package `id` after synthesis (same scan rule as other packages).
+- The folder name may differ from the package `id`.
 
 ## Size limits
 
@@ -94,7 +94,7 @@ Apply the same numbers in:
 Document the new caps in [content.md](content.md) when the code lands.
 Keep rejecting symlinks and path traversal.
 
-Files already live in `ModManager/Mods/<id>/` after the player copies them.
+Files already live under `mods/` after the player copies them.
 No second install copy is required for this path.
 
 ## Runtime and UI
@@ -116,7 +116,7 @@ No second install copy is required for this path.
 ## Implementation sketch
 
 1. **Classify** during `scan()`: Definition-only `rules.txt` + `content/` → synthesize content/`luau` manifest; ignore sibling `meta/`.
-2. **Synthesize** `manifest.json` from `[Definition]` (no player JSON required); folder name must match `id`.
+2. **Synthesize** `manifest.json` from `[Definition]` (no player JSON required); folder name may differ from `id`.
 3. **Raise** per-file and per-package limits to the proposed floor in content and archive code paths.
 4. **Tests**: synthetic mods-folder pack with `rules.txt` + `content/` + `meta/`; title-id failure; oversized file under the new cap that would have failed at 128 MiB; reject Definition+Preset+`content/` mix.
 5. **Docs**: mark this page live or merge the player steps into [content.md](content.md); update [cemu.md](cemu.md) to point content packs here.

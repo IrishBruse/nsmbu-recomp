@@ -30,24 +30,14 @@ def sync_example_mods(root):
     src_root = os.path.join(root, "modding", "examples")
     if not os.path.isdir(src_root):
         return
-    mods_dir = os.path.join(root, USER_NAME, "ModManager", "Mods")
-    os.makedirs(os.path.dirname(mods_dir), exist_ok=True)
+    mods_dir = os.path.join(root, USER_NAME, "mods")
     if os.path.islink(mods_dir):
-        if os.path.realpath(mods_dir) == os.path.realpath(src_root):
-            return
         os.unlink(mods_dir)
-    if not os.path.exists(mods_dir):
-        os.symlink(os.path.relpath(src_root, os.path.dirname(mods_dir)), mods_dir)
-        return
-    if os.path.isdir(mods_dir):
-        if not os.listdir(mods_dir):
-            os.rmdir(mods_dir)
-            os.symlink(os.path.relpath(src_root, os.path.dirname(mods_dir)), mods_dir)
-            return
-        copy_example_mods(src_root, mods_dir)
+    os.makedirs(mods_dir, exist_ok=True)
+    link_example_mods(src_root, mods_dir)
 
 
-def copy_example_mods(src_root, mods_dir):
+def link_example_mods(src_root, mods_dir):
     for name in sorted(os.listdir(src_root)):
         src = os.path.join(src_root, name)
         manifest_path = os.path.join(src, "manifest.json")
@@ -58,9 +48,14 @@ def copy_example_mods(src_root, mods_dir):
         if not isinstance(package_id, str) or not package_id:
             continue
         dest = os.path.join(mods_dir, package_id)
-        if os.path.isdir(dest):
-            shutil.rmtree(dest)
-        shutil.copytree(src, dest)
+        target = os.path.relpath(src, mods_dir)
+        if os.path.islink(dest):
+            if os.readlink(dest) == target:
+                continue
+            os.unlink(dest)
+        elif os.path.exists(dest):
+            continue
+        os.symlink(target, dest)
 
 
 def apply_env(env, root):

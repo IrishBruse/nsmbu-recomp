@@ -108,7 +108,7 @@ void attach_loaded(lua_State* L, const char* name, const char* field) {
 int l_log(lua_State* L) {
     Instance* inst = self(L);
     if (!lua_isstring(L, 1)) return fail(L, "message must be a string");
-    fprintf(stderr, "[mod:%s] %s\n", inst->id.c_str(), lua_tostring(L, 1));
+    LOG("[mod:%s] %s", inst->id.c_str(), lua_tostring(L, 1));
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -117,8 +117,8 @@ int l_log_int(lua_State* L) {
     Instance* inst = self(L);
     if (!lua_isstring(L, 1)) return fail(L, "label must be a string");
     if (!lua_isnumber(L, 2)) return fail(L, "value must be a number");
-    fprintf(stderr, "[mod:%s] %s %lld\n", inst->id.c_str(), lua_tostring(L, 1),
-            (long long)lua_tointeger(L, 2));
+    LOG("[mod:%s] %s %lld", inst->id.c_str(), lua_tostring(L, 1),
+        (long long)lua_tointeger(L, 2));
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -127,8 +127,8 @@ int l_log_hex(lua_State* L) {
     Instance* inst = self(L);
     if (!lua_isstring(L, 1)) return fail(L, "label must be a string");
     if (!lua_isnumber(L, 2)) return fail(L, "value must be a number");
-    fprintf(stderr, "[mod:%s] %s %08X\n", inst->id.c_str(), lua_tostring(L, 1),
-            (unsigned)(uint32_t)lua_tointeger(L, 2));
+    LOG("[mod:%s] %s %08X", inst->id.c_str(), lua_tostring(L, 1),
+        (unsigned)(uint32_t)lua_tointeger(L, 2));
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -137,7 +137,7 @@ int l_log_float(lua_State* L) {
     Instance* inst = self(L);
     if (!lua_isstring(L, 1)) return fail(L, "label must be a string");
     if (!lua_isnumber(L, 2)) return fail(L, "value must be a number");
-    fprintf(stderr, "[mod:%s] %s %.17g\n", inst->id.c_str(), lua_tostring(L, 1),
+    LOG("[mod:%s] %s %.17g", inst->id.c_str(), lua_tostring(L, 1),
             (double)lua_tonumber(L, 2));
     lua_pushboolean(L, 1);
     return 1;
@@ -403,16 +403,39 @@ const uint32_t kSetNextScene = GC(0x02994164);
 const uint32_t kSetCourseStory = GC(0x029941D0);
 const uint32_t kAppOpenFileSelect = GC(0x0297D5A8);
 const uint32_t kAppConfirmFile = GC(0x0297EC3C);
+const uint32_t kFaderBusy = GC(0x02983B28);
+const uint32_t kSubjectMgr = GD(0x101D1874);
 
+const uint32_t kAreaTaskInstance = GD(0x101D1598);
+const uint32_t kFlowVtbl = GD(0x10177E4C);
 constexpr uint32_t kSceneNowCreatorOff = 0x58u;
-constexpr uint32_t kSceneFlowOff = 0x14u;
+constexpr uint32_t kSceneNextTypeOff = 0x5Cu;
+constexpr uint32_t kSceneTaskMgrOff = 0x64u;
+constexpr uint32_t kSceneFaderOff = 0x68u;
+constexpr uint32_t kTaskParentOff = 0x0u;
+constexpr uint32_t kTaskChildOff = 0x4u;
+constexpr uint32_t kTaskSiblingOff = 0x8u;
+constexpr uint32_t kTaskListNextOff = 0x4u;
+constexpr uint32_t kTaskListDataOff = 0x8u;
+constexpr uint32_t kTaskMgrPrepareOff = 0x48u;
+constexpr uint32_t kTaskMgrPrepareDoneOff = 0x54u;
+constexpr uint32_t kTaskMgrActiveOff = 0x60u;
+constexpr uint32_t kTaskMgrStaticOff = 0x6Cu;
+constexpr uint32_t kTaskMgrRootOff = 0xB0u;
+constexpr uint32_t kTaskClassFactoryOff = 0x6Cu;
+constexpr uint32_t kTaskVtblOff = 0x70u;
+constexpr uint32_t kSubjectFileOff = 0x1E7Eu;
+constexpr uint32_t kSubjectModeOff = 0x1E7Fu;
+constexpr uint8_t kSubjectModeActive = 1;
 constexpr uint32_t kAppGateSelect = 0xDB1u;
 constexpr uint32_t kAppGateStory = 0xDB2u;
 const uint32_t kCreatorBoot = GC(0x0202930C);
 const uint32_t kCreatorFlow = GC(0x0297B9F8);
 const uint32_t kCreatorFileSelect = GC(0x0298AD3C);
+const uint32_t kCreatorSaveSelect = GC(0x024C11F4);
 const uint32_t kCreatorTitle = GC(0x0202B51C);
 const uint32_t kCreatorMap = GC(0x020292B8);
+const uint32_t kCreatorCourseTask = GC(0x0202B4C8);
 const uint32_t kCreatorCourseSelect = GC(0x0202B86C);
 constexpr uint32_t kClassIdTask = 0x00000002u;
 
@@ -1383,6 +1406,24 @@ int l_scene_title(lua_State* L) { return scene_state_is(L, kCreatorTitle); }
 
 int l_scene_file_select(lua_State* L) { return scene_state_is(L, kCreatorFileSelect); }
 
+int l_scene_save_select(lua_State* L) { return scene_state_is(L, kCreatorSaveSelect); }
+
+int l_scene_course_task(lua_State* L) { return scene_state_is(L, kCreatorCourseTask); }
+
+int l_scene_file_index(lua_State* L) {
+    uint32_t mgr = 0;
+    std::string err;
+    if (!luau_guest::read_u32(kSubjectMgr, mgr, err)) return fail(L, err.c_str());
+    if (mgr == 0) return fail(L, "scene not ready");
+    uint8_t mode = 0;
+    if (!luau_guest::read_u8(mgr + kSubjectModeOff, mode, err)) return fail(L, err.c_str());
+    if (mode != kSubjectModeActive) return fail(L, "file not ready");
+    uint8_t file = 0;
+    if (!luau_guest::read_u8(mgr + kSubjectFileOff, file, err)) return fail(L, err.c_str());
+    lua_pushnumber(L, (lua_Number)file);
+    return 1;
+}
+
 int l_scene_flow(lua_State* L) { return scene_state_is(L, kCreatorFlow); }
 
 int l_scene_map_phase(lua_State* L) { return scene_state_is(L, kCreatorMap); }
@@ -1399,24 +1440,150 @@ int l_scene_course_select(lua_State* L) { return l_scene_installed(L, kCourseSel
 
 int l_scene_course(lua_State* L) { return l_scene_installed(L, kCourseTaskInstance); }
 
-bool scene_app_object(uint32_t& out, std::string& err) {
-    uint32_t scene = 0;
-    if (!scene_object(scene, err)) return false;
-    uint32_t ref = 0;
-    if (!luau_guest::read_u32(scene + kSceneFlowOff, ref, err)) return false;
-    if (ref == 0) {
-        err = "scene not ready";
-        return false;
+uint32_t g_scene_request_src = 0;
+
+extern "C" void nsmbu_note_scene_src(uint32_t src, uint32_t factory) {
+    if (src == 0) return;
+    if (factory == kCreatorTitle || factory == kCreatorFileSelect || factory == kCreatorFlow) g_scene_request_src = src;
+}
+
+bool task_is_flow(uint32_t task, bool& match, std::string& err) {
+    match = false;
+    uint32_t vt = 0;
+    if (!luau_guest::read_u32(task + kTaskVtblOff, vt, err)) return false;
+    if (vt == kFlowVtbl) {
+        match = true;
+        return true;
     }
-    out = ref - 4;
+    uint32_t factory = 0;
+    if (!luau_guest::read_u32(task + kTaskClassFactoryOff, factory, err)) return false;
+    match = factory == kCreatorFlow;
     return true;
 }
 
-bool scene_transition(uint32_t creator, uint32_t fader, std::string& err) {
+bool find_flow_in_tree(uint32_t start, uint32_t& out, std::string& err) {
+    if (start == 0) return false;
+    uint32_t root = start;
+    for (int i = 0; i < 16; i++) {
+        uint32_t parent = 0;
+        if (!luau_guest::read_u32(root + kTaskParentOff, parent, err)) return false;
+        if (parent == 0 || parent == root) break;
+        root = parent;
+    }
+    uint32_t stack[48];
+    uint32_t seen[48];
+    int n = 0;
+    int sn = 0;
+    stack[n++] = root;
+    while (n > 0) {
+        uint32_t task = stack[--n];
+        bool dup = false;
+        for (int i = 0; i < sn; i++) {
+            if (seen[i] == task) dup = true;
+        }
+        if (dup) continue;
+        if (sn < 48) seen[sn++] = task;
+        bool match = false;
+        if (!task_is_flow(task, match, err)) return false;
+        if (match) {
+            out = task;
+            return true;
+        }
+        uint32_t child = 0;
+        uint32_t sibling = 0;
+        if (!luau_guest::read_u32(task + kTaskChildOff, child, err)) return false;
+        if (!luau_guest::read_u32(task + kTaskSiblingOff, sibling, err)) return false;
+        if (sibling != 0 && n < 48) stack[n++] = sibling;
+        if (child != 0 && n < 48) stack[n++] = child;
+    }
+    return false;
+}
+
+bool find_flow_in_list(uint32_t sentinel, uint32_t prefer, uint32_t& out, bool& saw_prefer, std::string& err) {
+    uint32_t node = 0;
+    if (!luau_guest::read_u32(sentinel + kTaskListNextOff, node, err)) return false;
+    for (int i = 0; i < 64; i++) {
+        if (node == 0 || node == sentinel) return false;
+        uint32_t task = 0;
+        if (!luau_guest::read_u32(node + kTaskListDataOff, task, err)) return false;
+        if (task != 0) {
+            bool match = false;
+            if (!task_is_flow(task, match, err)) return false;
+            if (match) {
+                out = task;
+                return true;
+            }
+            if (task == prefer) saw_prefer = true;
+        }
+        if (!luau_guest::read_u32(node + kTaskListNextOff, node, err)) return false;
+    }
+    return false;
+}
+
+bool scene_app_object(uint32_t& out, std::string& err) {
+    uint32_t scene = 0;
+    if (!scene_object(scene, err)) return false;
+    uint32_t mgr = 0;
+    if (!luau_guest::read_u32(scene + kSceneTaskMgrOff, mgr, err)) return false;
+    bool saw_prefer = false;
+    if (mgr != 0) {
+        const uint32_t lists[] = {
+            kTaskMgrPrepareOff, kTaskMgrPrepareDoneOff, kTaskMgrActiveOff, kTaskMgrStaticOff,
+        };
+        for (uint32_t off : lists) {
+            if (find_flow_in_list(mgr + off, g_scene_request_src, out, saw_prefer, err)) return true;
+            if (!err.empty()) return false;
+        }
+        uint32_t root = 0;
+        if (!luau_guest::read_u32(mgr + kTaskMgrRootOff, root, err)) return false;
+        if (find_flow_in_tree(root, out, err)) return true;
+        if (!err.empty()) return false;
+    }
+    uint32_t area = 0;
+    if (!luau_guest::read_u32(kAreaTaskInstance, area, err)) return false;
+    if (find_flow_in_tree(area, out, err)) return true;
+    if (!err.empty()) return false;
+    if (saw_prefer && g_scene_request_src != 0) {
+        out = g_scene_request_src;
+        return true;
+    }
+    err = "flow task missing";
+    return false;
+}
+
+bool scene_change_open(std::string& err) {
     if (!t_guest_cpu) {
         err = "no guest cpu";
         return false;
     }
+    uint32_t scene = 0;
+    if (!scene_object(scene, err)) return false;
+    uint32_t next_type = 0;
+    if (!luau_guest::read_u32(scene + kSceneNextTypeOff, next_type, err)) return false;
+    if (next_type != 0) {
+        char buf[64];
+        snprintf(buf, sizeof buf, "scene busy next=%08X", next_type);
+        err = buf;
+        return false;
+    }
+    uint32_t fader = 0;
+    if (!luau_guest::read_u32(scene + kSceneFaderOff, fader, err)) return false;
+    if (fader == 0) {
+        err = "scene busy fader=none";
+        return false;
+    }
+    uint32_t busy = guest_call(t_guest_cpu, kFaderBusy, {fader});
+    if (busy != 0) {
+        char buf[64];
+        snprintf(buf, sizeof buf, "scene busy fader=%08X", busy);
+        err = buf;
+        return false;
+    }
+    return true;
+}
+
+bool scene_transition(uint32_t creator, uint32_t fader, std::string& err) {
+    if (!scene_change_open(err)) return false;
     uint32_t scene = 0;
     uint32_t app = 0;
     if (!scene_object(scene, err)) return false;
@@ -1424,7 +1591,10 @@ bool scene_transition(uint32_t creator, uint32_t fader, std::string& err) {
     uint32_t pair = mem::host_alloc(8, 4);
     st32(pair, kClassIdTask);
     st32(pair + 4, creator);
-    guest_call(t_guest_cpu, kSetNextScene, {scene, app, pair, fader, 0});
+    if (guest_call(t_guest_cpu, kSetNextScene, {scene, app, pair, fader, 0}) == 0) {
+        err = "scene busy";
+        return false;
+    }
     return true;
 }
 
@@ -1436,11 +1606,11 @@ int l_scene_open_title(lua_State* L) {
 }
 
 int l_scene_open_file_select(lua_State* L) {
-    if (!t_guest_cpu) return fail(L, "no guest cpu");
-    uint32_t app = 0;
     std::string err;
+    if (!scene_change_open(err)) return fail(L, err.c_str());
+    uint32_t app = 0;
     if (!scene_app_object(app, err)) return fail(L, err.c_str());
-    guest_call(t_guest_cpu, kAppOpenFileSelect, {app});
+    if (guest_call(t_guest_cpu, kAppOpenFileSelect, {app}) == 0) return fail(L, "scene busy");
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -1453,9 +1623,9 @@ int l_scene_open_course_select(lua_State* L) {
 }
 
 int l_scene_confirm_file(lua_State* L) {
-    if (!t_guest_cpu) return fail(L, "no guest cpu");
-    uint32_t app = 0;
     std::string err;
+    if (!scene_change_open(err)) return fail(L, err.c_str());
+    uint32_t app = 0;
     if (!scene_app_object(app, err)) return fail(L, err.c_str());
     if (!luau_guest::write_u8(app + kAppGateSelect, 1, err)) return fail(L, err.c_str());
     if (!luau_guest::write_u8(app + kAppGateStory, 1, err)) return fail(L, err.c_str());
@@ -1505,6 +1675,9 @@ void install_game(lua_State* L) {
     lua_newtable(L);
     bind_guest(L, "title", l_scene_title);
     bind_guest(L, "file_select", l_scene_file_select);
+    bind_guest(L, "save_select", l_scene_save_select);
+    bind_guest(L, "course_task", l_scene_course_task);
+    bind_guest(L, "file_index", l_scene_file_index);
     bind_guest(L, "flow_phase", l_scene_flow);
     bind_guest(L, "map_phase", l_scene_map_phase);
     bind_guest(L, "phase", l_scene_phase);

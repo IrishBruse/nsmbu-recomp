@@ -96,9 +96,10 @@ The setup importer can also read `<repo>/nsmbu` from a source checkout.
 
 `just run-release` runs `just build-release` then `just launch-release`. This is the configuration the released installs use.
 
-`just launch` / `just run` link `nsmbu/ModManager/Mods` to `modding/examples/` before start.
+`just launch` / `just run` symlink each `modding/examples/` package into `nsmbu/mods/<id>/` before start.
+Real folders already in mods are not replaced.
 Enable packages in Mods.
-Set `NSMBU_NO_EXAMPLE_MODS=1` to skip the link.
+Set `NSMBU_NO_EXAMPLE_MODS=1` to skip those links.
 
 `just run 3` loads save slot 3 after boot.
 The number is the save slot.

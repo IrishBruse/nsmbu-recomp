@@ -63,6 +63,9 @@ type Fn = {
 type Scene = {
 	title: () -> boolean,
 	file_select: () -> boolean,
+	save_select: () -> boolean,
+	course_task: () -> boolean,
+	file_index: () -> (number?, string?),
 	flow_phase: () -> boolean,
 	map_phase: () -> boolean,
 	phase: () -> (number?, string?),

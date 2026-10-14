@@ -5,11 +5,16 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: Mod packages live in `<host config>/mods/` and profiles in `<host config>/profiles.json`.
+    The old `ModManager/` tree is removed with no migration.
+    Package folder names are not required to match the manifest `id`.
+-   **Change**: Dev launches symlink each `modding/examples/` package into `nsmbu/mods/<id>/` instead of replacing the whole mods folder with one link.
+    Real folders already in mods stay in place.
 -   **Change**: The Mods tab drops the package picker, path field, Install, Refresh, and Hot reload controls.
-    **Open mods folder** opens `ModManager/Mods`; players copy package folders there.
+    **Open mods folder** opens `mods`; players copy package folders there.
     The tab rescans about once per second while open when every package is disabled.
 -   **Docs**: Plan for native Cemu content packs (`docs/modding/cemu-content.md`): detect Definition-only `rules.txt` in the mods folder without a player `manifest.json`, ignore Cemu `meta/`, and raise content size caps for full level mods.
-
+-   **Change**: `example.intro-skip` waits on scene probes instead of fixed step counts. The first call also runs while `map_phase()` is true, because a boot leaves the current scene on AreaTask `0x020292B8` after it requests TitleScene. The scene calls pass the flow task as the source. They do not pass the `Scene` object. `open_file_select`, `confirm_file`, and `open_course_select` return `"scene busy"` while a scene change is queued or the fader is busy, and the script sends the same call again. New probes: `save_select`, `course_task`, and `file_index`.
 -   **Change**: Lifecycle callbacks live on `nsmbu.hooks` as assignable fields (`on_logic_step`, `on_config_changed`, `on_loaded`, `on_unload`) instead of `nsmbu.on_*` register helpers and `unlisten`.
 -   **Add**: Mod API `nsmbu.scene`: boot-flow phase probes (`title`, `file_select`, `map_phase`, `course`, `course_select`, `phase`) and transitions (`open_title`, `open_file_select`, `open_course_select`, `confirm_file`, `load_story`) that call `Scene::setNextScene` / `Scene::setCourse_Story` inside the port.
 -   **Add**: Mod API `nsmbu.hooks.on_loaded` fires once right after a package is loaded, as soon as the game can be called into.

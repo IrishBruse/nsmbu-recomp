@@ -11,7 +11,7 @@ They do not run host or guest code unless they also ship a Luau entry.
 
 ## Player workflow
 
-Use **Mods → Open mods folder** and place a package directory under `Mods/<id>/` with a `manifest.json` and a `content/` tree (`content_dir`).
+Use **Mods → Open mods folder** and place a package directory under `mods/` with a `manifest.json` and a `content/` tree (`content_dir`).
 Enable the package and restart the game.
 Disable it and restart to restore original reads; then replace or remove the folder.
 Profiles choose the next launch's content set.
@@ -26,8 +26,8 @@ Native detection of a Cemu pack root (`rules.txt` + `content/`, no player JSON) 
 
 A content package is a folder the player copies into the mods directory:
 
-- `Mods/<id>/manifest.json` with `kind: luau` and `content_dir`
-- `Mods/<id>/<content_dir>/...` game-relative replacements (usually `content/`)
+- `mods/<folder>/manifest.json` with `kind: luau` and `content_dir`
+- `mods/<folder>/<content_dir>/...` game-relative replacements (usually `content/`)
 
 Tests and tooling may still call the legacy importer helpers for SDCafiine trees, Definition-only Cemu packs, and loose known `.pack` files.
 Those helpers are not exposed in the Mods tab.

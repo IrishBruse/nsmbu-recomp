@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
         assert(set_hot_reload(true,error));assert(hot_reload());
         frame(51);
         {
-            auto script=storage/"Mods"/"luau.reload"/"main.luau";
+            auto script=storage/"mods"/"luau.reload"/"main.luau";
             std::ofstream(script)
                 <<"local nsmbu=require(\"nsmbu\")\n"
                 <<"function nsmbu.hooks.on_logic_step(step)\n"
@@ -267,7 +267,7 @@ int main(int argc, char** argv) {
         frame(70);frame(90);
         {auto v=view("luau.reload");assert(v.active&&v.enabled&&v.status=="after");}
         {
-            auto script=storage/"Mods"/"luau.reload"/"main.luau";
+            auto script=storage/"mods"/"luau.reload"/"main.luau";
             std::ofstream(script)<<"this is not valid luau {{\n";
             auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(4);
             fs::last_write_time(script,stamp);
@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
         assert(set_hot_reload(true,error));
         frame(60);
         {
-            auto script=storage/"Mods"/"luau.both"/"main.luau";
+            auto script=storage/"mods"/"luau.both"/"main.luau";
             std::ofstream(script)
                 <<"local nsmbu=require(\"nsmbu\")\n"
                 <<"function nsmbu.hooks.on_logic_step(step)\n"
@@ -304,13 +304,13 @@ int main(int argc, char** argv) {
     if(argc==2&&(std::string(argv[1])=="--cemu-startup"||std::string(argv[1])=="--cemu-backend")){
         bool backend=std::string(argv[1])=="--cemu-backend";
         auto root=fs::temp_directory_path()/("nsmbu-cemu-startup-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        auto storage=root/"storage",pack=storage/"Mods"/"cemu.test";fs::create_directories(pack);
+        auto storage=root/"storage",pack=storage/"mods"/"cemu.test";fs::create_directories(pack);
         std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"cemu.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"cemu","cemu_dir":""})";
         std::ofstream(pack/"rules.txt")<<"[Definition]\nname=Test\ntitleIds=0005000010101d00\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n";
         std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true},"config":{"cemu.test":{"preset-0":"Double"}}}}})";
         if(backend){
             std::ofstream(pack/"0000000000000001_0000000000000002_ps.txt")<<"#version 420\nvoid main(){}\n";
-            auto content=storage/"Mods"/"content.test";fs::create_directories(content/"content"/"Common");
+            auto content=storage/"mods"/"content.test";fs::create_directories(content/"content"/"Common");
             std::ofstream(content/"content"/"Common"/"test.bin")<<"synthetic content";
             std::ofstream(content/"manifest.json")<<R"({"format_version":2,"id":"content.test","name":"Content","version":"1.0.0","game_id":"nsmbu-usa","kind":"luau","content_dir":"content"})";
             std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true,"content.test":true}}}})";
@@ -333,7 +333,7 @@ int main(int argc, char** argv) {
     }
     if(argc==2&&std::string(argv[1])=="--content-startup"){
         auto root=fs::temp_directory_path()/("nsmbu-content-test-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        auto storage=root/"storage";auto pack=storage/"Mods"/"content.test";
+        auto storage=root/"storage";auto pack=storage/"mods"/"content.test";
         fs::create_directories(pack/"content"/"Common");
         std::ofstream(pack/"content"/"Common"/"fixture.bin")<<"synthetic replacement";
         fs::create_directories(pack/"content"/"Common"/"Pack");std::ofstream(pack/"content"/"Common"/"Pack"/"permanent_2d_EuEnglish.pack")<<"SARCsynthetic translation";
@@ -370,7 +370,7 @@ int main(int argc, char** argv) {
     env("NSMBU_MOD_MANAGER_DIR",(root/"storage").string().c_str());
     fs::create_directories(root/"storage");
     std::ofstream(root/"storage"/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{},"builtins":{"direct-camera":true},"builtin_options":{"direct-camera.speed":1.5}}}})";
-    auto migrate=root/"storage"/"Mods"/"content.migrate";fs::create_directories(migrate/"content"/"Common");
+    auto migrate=root/"storage"/"mods"/"content.migrate";fs::create_directories(migrate/"content"/"Common");
     std::ofstream(migrate/"content"/"Common"/"m.bin")<<"m";
     std::ofstream(migrate/"manifest.json")<<R"({"format_version":1,"id":"content.migrate","name":"Migrate","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
     initialize();

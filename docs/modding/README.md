@@ -25,3 +25,9 @@ Rejected on install: `kind: native`, `kind: guest`, and `kind: settings`.
 
 Example packages: [../../modding/examples/](../../modding/examples/).
 Luau SDK: [../../modding/sdk/](../../modding/sdk/).
+
+## Investigation
+
+| Doc | What it covers |
+| --- | --- |
+| [intro-skip.md](intro-skip.md) | Stable boot path for `example.intro-skip` |

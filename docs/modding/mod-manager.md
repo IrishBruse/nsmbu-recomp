@@ -26,8 +26,9 @@ Open the in-game settings overlay (`` ` `` or F12, Cmd+, or Settings in the menu
 The tab manages packages that already sit in the mods folder.
 There is no built-in gameplay catalogue and no cheat list.
 
-**Open mods folder** opens `<host config directory>/ModManager/Mods` in the system file manager.
-Put each package in that folder as `Mods/<id>/` with a `manifest.json` whose `id` matches the folder name.
+**Open mods folder** opens `<host config directory>/mods` in the system file manager.
+Put each package in that folder as its own subdirectory with a `manifest.json`.
+The package `id` comes from the manifest; the folder name can differ.
 There is no in-game import or install step.
 The Mods tab rescans that folder about once per second while it is open, when every package is disabled (same rule as the old refresh).
 Installed packages start disabled.
@@ -53,11 +54,12 @@ Switch away before deleting a profile.
 Disable all covers installed packages.
 Explicit startup environment values, including zero, override saved choices at startup.
 
-Storage is `<host config directory>/ModManager`: `Mods/<id>/manifest.json` plus package files, and `profiles.json`.
-`NSMBU_MOD_MANAGER_DIR` selects isolated storage.
+Storage is `<host config directory>`: `mods/<folder>/manifest.json` plus package files, and `profiles.json`.
+`NSMBU_MOD_MANAGER_DIR` selects isolated storage (same layout under that directory).
 `NSMBU_NO_HOST_INPUT` skips user preferences and package storage unless an explicit manager directory is supplied for a test.
-Source `just launch` / `just run` links `nsmbu/ModManager/Mods` to `modding/examples/` first.
-Set `NSMBU_NO_EXAMPLE_MODS=1` to skip that link.
+Source `just launch` / `just run` symlink each `modding/examples/` package into `nsmbu/mods/<id>/`.
+Real folders already in mods are not replaced.
+Set `NSMBU_NO_EXAMPLE_MODS=1` to skip those links.
 Package files live under the mods folder; the original game files are not changed.
 Game assets and saves are never committed, uploaded, or redistributed.
 
