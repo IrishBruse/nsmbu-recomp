@@ -1,9 +1,6 @@
 ---
-name: changelog-summary
-description: >-
-  Player-facing changelog summary from CHANGELOG.md for launcher and release
-  users. Use when the user asks for a changelog summary, release notes, or a
-  cleaned-up Unreleased / version write-up for players.
+name: changelog
+description: Use when editing CHANGELOG.md
 ---
 
 # Changelog summary (players)
