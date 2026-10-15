@@ -4,7 +4,7 @@
   "name": "Intro skip",
   "version": "0.1.0",
   "game_id": "nsmbu-usa",
-  "description": "Loads to the world map without input. It retries each scene call until the boot flow reaches the next task.",
+  "description": "Skips the opening into the world map. It does not open time attack.",
   "kind": "luau",
   "luau": {
     "api_version": 1,

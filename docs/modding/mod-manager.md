@@ -45,12 +45,9 @@ When it is on, enabled script-only packs unload and reload when `.luau` files un
 Packs with `content_dir` ignore that path and still need a restart.
 Replace the same folder id while disabled to update; configuration is preserved by ID.
 
-Profiles save package toggles and configuration.
-An older `mods.json` (or legacy `profiles.json`) may still contain `builtins` and `builtin_options`.
-The loader ignores those keys.
-The next save removes them and writes `mods.json`.
-Clone current creates another profile; select it in Active profile.
-Switch away before deleting a profile.
+`mods.json` stores package toggles in top-level `enabled` and option values in top-level `config`.
+An older nested `profiles` object (or legacy `profiles.json`) still loads: the active profile's `enabled` and `config` move to the top level.
+The next save writes the flat file and drops `profiles`, `active`, `builtins`, and `builtin_options`.
 Disable all covers installed packages.
 Explicit startup environment values, including zero, override saved choices at startup.
 
@@ -100,9 +97,9 @@ See [luau-mods.md](luau-mods.md), [content.md](content.md), and [cemu.md](cemu.m
 
 ## Validation
 
-`mod_packages` exercises install, profiles, missing dependencies, configuration, disable, and removal.
+`mod_packages` exercises install, missing dependencies, configuration, disable, and removal.
 A package that names `builtin:` fails to install.
-The next profile save drops leftover `builtins` keys.
+The next save drops leftover nested-profile and `builtins` keys.
 The same test installs synthetic Cemu and Luau content packs: legacy imports, loose `.pack` files, preset validation, replacement conflicts, rejection of code/shader/rule/region mismatches, and the restart-only lifecycle.
 Install of `kind: native`, `kind: guest`, and `kind: settings` is asserted to fail.
 

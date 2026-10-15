@@ -4,7 +4,7 @@ Status: **live**.
 Cemu packages are graphics/shader packs the player places in the mods folder.
 They do not replace arbitrary game content archives; use [content.md](content.md) for that.
 
-See [mod-manager.md](mod-manager.md) for install, profiles, and shared manifest fields.
+See [mod-manager.md](mod-manager.md) for install and shared manifest fields.
 
 ## Player workflow
 
@@ -12,7 +12,7 @@ Put one Cemu graphics pack under the mods folder as its own subdirectory with `m
 Use **Mods → Open mods folder** to find that directory.
 The adapter reads `rules.txt` versions 4/5, checks the USA NSMBU title ID, and exposes each preset category as a dropdown.
 Enable it and restart.
-Changing a preset, disabling, or switching profiles also requires a restart.
+Changing a preset or disabling also requires a restart.
 The active snapshot stays fixed until exit; disable and restart before replacing or removing the folder.
 
 ## Manifest fields

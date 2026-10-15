@@ -179,4 +179,4 @@ A portable release uses the same layout under `data/nsmbu/`, selected by `portab
 - `nsmbu/logs/` — run log (`nsmbu.log`), the previous log, crash logs, and frame dumps.
 - `nsmbu/shadercache/` — Vulkan pipeline and shader disk cache.
 - `nsmbu/mods/` — installed mod packages.
-- `nsmbu/mods.json` — mod profile toggles and options.
+- `nsmbu/mods.json` — enabled mods and their options.

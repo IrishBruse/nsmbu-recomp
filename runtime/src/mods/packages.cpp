@@ -40,7 +40,7 @@ Value database;
 fs::path root;
 bool ready=false;
 std::string last_problem;
-std::atomic<bool> dirty{false},running{false},profile_changed{false};
+std::atomic<bool> dirty{false},running{false};
 void require(bool ok,const std::string& message){if(!ok)throw std::runtime_error(message);}
 bool id_ok(const std::string& s){return !s.empty()&&s.size()<=64&&s[0]!='.'&&std::all_of(s.begin(),s.end(),[](unsigned char c){return (c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_'||c=='-'||c=='.';});}
 std::array<unsigned,3> version(const std::string& s) {
@@ -147,13 +147,32 @@ Manifest manifest(const fs::path& path){
     if(m.kind=="content")require(m.dependencies.empty()&&m.options.empty(),"Content packages do not support dependencies or runtime options yet");
     return m;
 }
-Value& profile(){return database["profiles"][database.get("active").string("Default")];}
-bool wanted(const std::string& id){const auto& v=profile().get("enabled").get(id);return v.type==Value::Bool&&v.boolean;}
+bool wanted(const std::string& id){const auto& v=database.get("enabled").get(id);return v.type==Value::Bool&&v.boolean;}
 
-Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=profile().get("config").get(m.id).get(o.id);out[o.id]=valid_option(o,saved)?saved:o.default_value;}return out;}
-void strip_builtins(){for(auto& entry:database["profiles"].object){entry.second.object.erase("builtins");entry.second.object.erase("builtin_options");}}
-void save(){if(!ready)return;strip_builtins();fs::create_directories(root);auto tmp=root/"mods.json.tmp";std::ofstream f(tmp,std::ios::binary|std::ios::trunc);f<<json::dump(database,2)<<'\n';f.close();require(bool(f)&&host::replace_file(tmp.string(),(root/"mods.json").string()),"Cannot save mod profiles");std::error_code ec;fs::remove(root/"profiles.json",ec);}
-void defaults(){database=Value{};database["format_version"]=1;database["active"]="Default";database["hot_reload"]=false;profile()["enabled"].type=Value::Object;}
+Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=database.get("config").get(m.id).get(o.id);out[o.id]=valid_option(o,saved)?saved:o.default_value;}return out;}
+void strip_legacy(){database.object.erase("active");database.object.erase("profiles");database.object.erase("builtins");database.object.erase("builtin_options");}
+void save(){if(!ready)return;strip_legacy();fs::create_directories(root);auto tmp=root/"mods.json.tmp";std::ofstream f(tmp,std::ios::binary|std::ios::trunc);f<<json::dump(database,2)<<'\n';f.close();require(bool(f)&&host::replace_file(tmp.string(),(root/"mods.json").string()),"Cannot save mods.json");std::error_code ec;fs::remove(root/"profiles.json",ec);}
+void defaults(){database=Value{};database["format_version"]=1;database["hot_reload"]=false;database["enabled"].type=Value::Object;}
+void normalize_database(){
+    require(database.get("format_version").type==Value::Number&&database.get("format_version").number==1,"Unsupported mods.json format");
+    if(database.get("profiles").type==Value::Object&&!database.get("profiles").object.empty()){
+        auto active=database.get("active").string("Default");
+        if(!database.get("profiles").object.contains(active))active=database.get("profiles").object.begin()->first;
+        const auto& src=database.get("profiles").get(active);
+        if(database.get("enabled").type!=Value::Object){
+            database["enabled"]=src.get("enabled");
+            if(database.get("enabled").type!=Value::Object)database["enabled"].type=Value::Object;
+        }
+        if(database.get("config").type!=Value::Object){
+            database["config"]=src.get("config");
+            if(database.get("config").type!=Value::Object)database["config"].type=Value::Object;
+        }
+    }
+    if(database.get("enabled").type!=Value::Object)database["enabled"].type=Value::Object;
+    if(database.get("config").type!=Value::Object)database["config"].type=Value::Object;
+    if(database.get("hot_reload").type!=Value::Bool)database["hot_reload"]=false;
+    strip_legacy();
+}
 bool hot_reload_flag(){const auto& v=database.get("hot_reload");return v.type==Value::Bool&&v.boolean;}
 bool content_folder_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n=="content";}
 bool luau_file_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n.size()>=5&&n.compare(n.size()-5,5,".luau")==0;}
@@ -251,7 +270,7 @@ bool reload_live(const std::string& id,const Record& record,const Value& cfg){
             records.at(id).loading=false;
             records.at(id).status.clear();
             records.at(id).error=e.what();
-            profile()["enabled"][id]=false;
+            database["enabled"][id]=false;
             try{save();}catch(...){}
         }
         running=!live.empty();
@@ -264,7 +283,7 @@ bool reload_live(const std::string& id,const Record& record,const Value& cfg){
 void initialize(){
     std::lock_guard guard(mutex);if(ready)return;const char* override=std::getenv("NSMBU_MOD_MANAGER_DIR");if(std::getenv("NSMBU_NO_HOST_INPUT")&&!override)return;
     root=override?fs::path(override):fs::path(host::config_dir());ready=true;defaults();
-    try{fs::create_directories(root);auto path=root/"mods.json";if(!fs::exists(path)&&fs::exists(root/"profiles.json"))path=root/"profiles.json";if(fs::exists(path)){auto saved=json::parse(read_text(path));require(saved.get("format_version").type==Value::Number&&saved.get("format_version").number==1,"Unsupported profile format");require(saved.get("profiles").type==Value::Object&&!saved.get("profiles").object.empty(),"Invalid profiles");require(saved.get("active").type==Value::String&&saved.get("profiles").object.contains(saved.get("active").text),"Invalid active profile");database=std::move(saved);if(database.get("hot_reload").type!=Value::Bool)database["hot_reload"]=false;}scan();
+    try{fs::create_directories(root);auto path=root/"mods.json";if(!fs::exists(path)&&fs::exists(root/"profiles.json"))path=root/"profiles.json";if(fs::exists(path)){database=json::parse(read_text(path));normalize_database();}scan();
         try { auto enabled=enabled_set();auto sequence=order(enabled);validate_conflicts(enabled);
             content::Files files;
             for(const auto& id:sequence){auto& record=records.at(id);if(record.manifest.kind=="content"||(record.manifest.kind=="luau"&&has_content_files(record.manifest))){
@@ -285,7 +304,7 @@ void initialize(){
                     item.script_mtimes=scan_luau_mtimes(record.path);
                     live.emplace(id,std::move(item));live_order.push_back(id);
                     fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());
-                }catch(const std::exception& e){if(item.luau)mods::luau_mod::unload(*item.luau);record.error=e.what();fprintf(stderr,"[mod-manager] luau fail %s: %s\n",id.c_str(),e.what());profile()["enabled"][id]=false;try{save();}catch(...){}}}
+                }catch(const std::exception& e){if(item.luau)mods::luau_mod::unload(*item.luau);record.error=e.what();fprintf(stderr,"[mod-manager] luau fail %s: %s\n",id.c_str(),e.what());database["enabled"][id]=false;try{save();}catch(...){}}}
             running=!live.empty();
         } catch(const std::exception& e) {last_problem=e.what();}
         dirty=true;
@@ -314,36 +333,31 @@ bool install(const std::string& source,std::string& error,std::string* installed
     }auto m=manifest(stage);require(m.problem.empty()||m.problem.starts_with("GLSL shader packs require Vulkan"),m.problem);target=root/"mods"/m.id;auto it=records.find(m.id);require(it==records.end()||(!wanted(m.id)&&!it->second.active&&!it->second.loading),it!=records.end()&&content_lifecycle(it->second.manifest)?"Disable this content mod and restart before updating":"Disable this mod and wait for it to unload before updating");fs::create_directories(target.parent_path());if(fs::exists(target)){fs::rename(target,backup);backed=true;}fs::rename(stage,target);moved=true;m=manifest(target);Record r;r.path=target;r.manifest=std::move(m);auto installed_id=r.manifest.id;records[installed_id]=std::move(r);if(installed_id_out)*installed_id_out=installed_id;if(backed){std::error_code cleanup;fs::remove_all(backup,cleanup);}dirty=true;
     }catch(...){if(moved)fs::remove_all(target);if(backed)fs::rename(backup,target);if(fs::exists(stage))fs::remove_all(stage);throw;}
 });}
-bool remove(const std::string& id,std::string& error){return operation(error,[&]{auto it=records.find(id);require(it!=records.end(),"Mod not found");require(!wanted(id)&&!it->second.active&&!it->second.loading,content_lifecycle(it->second.manifest)?"Disable this content mod and restart before removing":"Disable this mod and wait for it to unload before removing");for(const auto& [other,r]:records)if(wanted(other))for(const auto& d:r.manifest.dependencies)require(d.id!=id,r.manifest.name+" depends on this mod");auto previous=database;for(auto& [name,p]:database["profiles"].object){p["enabled"].object.erase(id);p["config"].object.erase(id);}try{save();}catch(...){database=previous;throw;}fs::remove_all(it->second.path);records.erase(it);dirty=true;});}
+bool remove(const std::string& id,std::string& error){return operation(error,[&]{auto it=records.find(id);require(it!=records.end(),"Mod not found");require(!wanted(id)&&!it->second.active&&!it->second.loading,content_lifecycle(it->second.manifest)?"Disable this content mod and restart before removing":"Disable this mod and wait for it to unload before removing");for(const auto& [other,r]:records)if(wanted(other))for(const auto& d:r.manifest.dependencies)require(d.id!=id,r.manifest.name+" depends on this mod");auto previous=database;database["enabled"].object.erase(id);database["config"].object.erase(id);try{save();}catch(...){database=previous;throw;}fs::remove_all(it->second.path);records.erase(it);dirty=true;});}
 bool enable(const std::string& id,bool on,std::string& error){return operation(error,[&]{require(records.contains(id),"Mod not found");auto enabled=enabled_set();if(on){
     std::set<std::string> visiting;
     std::function<void(const std::string&)> add=[&](const std::string& current){require(!visiting.contains(current),"Dependency cycle at "+current);require(records.contains(current),"Missing dependency: "+current);const auto& graphics=records.at(current).manifest.graphics;if(graphics&&!graphics->shaders.empty())require(cemu::vulkan(),"GLSL shader packs require Vulkan; choose it in Graphics and restart");if(enabled.contains(current))return;visiting.insert(current);for(const auto& d:records.at(current).manifest.dependencies)add(d.id);visiting.erase(current);enabled.insert(current);};add(id);
-    }else enabled.erase(id);order(enabled);validate_conflicts(enabled);auto previous=database;for(const auto& [key,r]:records)profile()["enabled"][key]=enabled.contains(key);try{save();}catch(...){database=previous;throw;}for(const auto& key:enabled)records.at(key).error.clear();dirty=true;});}
-bool configure(const std::string& id,const std::string& option_id,const Value& value,std::string& error){return operation(error,[&]{require(records.contains(id),"Mod not found");auto& opts=records.at(id).manifest.options;auto it=std::find_if(opts.begin(),opts.end(),[&](const Option& o){return o.id==option_id;});require(it!=opts.end()&&valid_option(*it,value),"Invalid configuration value");auto previous=database;profile()["config"][id][option_id]=value;try{if(records.at(id).manifest.graphics)cemu::validate({{id,*records.at(id).manifest.graphics,config(records.at(id).manifest)}});if(wanted(id))validate_conflicts(enabled_set());save();}catch(...){database=previous;throw;}dirty=true;});}
-void disable_all(){std::string ignored;operation(ignored,[&]{auto previous=database;for(const auto& [id,r]:records)profile()["enabled"][id]=false;try{save();}catch(...){database=previous;throw;}dirty=true;});}
-std::vector<std::string> profiles(){std::lock_guard guard(mutex);std::vector<std::string> result;if(ready)for(const auto& [name,p]:database.get("profiles").object)result.push_back(name);return result;}
-std::string current_profile(){std::lock_guard guard(mutex);return ready?database.get("active").string():"Default";}
-bool create_profile(const std::string& name,std::string& error){return operation(error,[&]{require(!name.empty()&&name.size()<=64&&name.find('\0')==std::string::npos,"Invalid profile name");require(database.get("profiles").object.size()<64,"Profile limit reached");require(!database.get("profiles").object.contains(name),"Profile already exists");auto previous=database;Value copy=profile();database["profiles"][name]=std::move(copy);try{save();}catch(...){database=previous;throw;}});}
-bool select_profile(const std::string& name,std::string& error){return operation(error,[&]{require(database.get("profiles").object.contains(name),"Profile not found");auto previous=database;database["active"]=name;try{order(enabled_set());validate_conflicts(enabled_set());save();}catch(...){database=previous;throw;}profile_changed=true;dirty=true;});}
-bool delete_profile(const std::string& name,std::string& error){return operation(error,[&]{require(name!=database.get("active").string(),"Switch profiles before deleting the active one");require(database.get("profiles").object.contains(name),"Profile not found");auto previous=database;database["profiles"].object.erase(name);try{save();}catch(...){database=previous;throw;}});}
+    }else enabled.erase(id);order(enabled);validate_conflicts(enabled);auto previous=database;for(const auto& [key,r]:records)database["enabled"][key]=enabled.contains(key);try{save();}catch(...){database=previous;throw;}for(const auto& key:enabled)records.at(key).error.clear();dirty=true;});}
+bool configure(const std::string& id,const std::string& option_id,const Value& value,std::string& error){return operation(error,[&]{require(records.contains(id),"Mod not found");auto& opts=records.at(id).manifest.options;auto it=std::find_if(opts.begin(),opts.end(),[&](const Option& o){return o.id==option_id;});require(it!=opts.end()&&valid_option(*it,value),"Invalid configuration value");auto previous=database;database["config"][id][option_id]=value;try{if(records.at(id).manifest.graphics)cemu::validate({{id,*records.at(id).manifest.graphics,config(records.at(id).manifest)}});if(wanted(id))validate_conflicts(enabled_set());save();}catch(...){database=previous;throw;}dirty=true;});}
+void disable_all(){std::string ignored;operation(ignored,[&]{auto previous=database;for(const auto& [id,r]:records)database["enabled"][id]=false;try{save();}catch(...){database=previous;throw;}dirty=true;});}
 bool refresh(std::string& error){return operation(error,[&]{for(const auto& [id,r]:records)require(!r.active&&!r.loading&&!wanted(id),content_lifecycle(r.manifest)?"Disable content mods and restart before rescanning":"Disable installed mods before rescanning");scan();dirty=true;});}
 void frame(uint64_t step){
     if(!dirty.load(std::memory_order_relaxed)&&!running.load(std::memory_order_relaxed))return;
     static uint64_t previous=~uint64_t(0);if(step==previous)return;previous=step;
     if(dirty.exchange(false)){
-        std::map<std::string,std::pair<Record,Value>> desired;std::vector<std::string> sequence;bool switching=false;
-        {std::lock_guard guard(mutex);switching=profile_changed.exchange(false);try{auto enabled=enabled_set();sequence=order(enabled);validate_conflicts(enabled);std::erase_if(sequence,[](const auto& id){return startup_only(records.at(id).manifest);});for(const auto& id:sequence){desired[id]={records.at(id),config(records.at(id).manifest)};records.at(id).loading=true;}}catch(const std::exception& e){last_problem=e.what();for(auto& [id,r]:records)if(wanted(id))r.error=e.what();sequence.clear();desired.clear();}}
+        std::map<std::string,std::pair<Record,Value>> desired;std::vector<std::string> sequence;
+        {std::lock_guard guard(mutex);try{auto enabled=enabled_set();sequence=order(enabled);validate_conflicts(enabled);std::erase_if(sequence,[](const auto& id){return startup_only(records.at(id).manifest);});for(const auto& id:sequence){desired[id]={records.at(id),config(records.at(id).manifest)};records.at(id).loading=true;}}catch(const std::exception& e){last_problem=e.what();for(auto& [id,r]:records)if(wanted(id))r.error=e.what();sequence.clear();desired.clear();}}
         std::vector<std::string> preserved;
         for(auto it=live_order.rbegin();it!=live_order.rend();++it){
             bool file_backed=false;{std::lock_guard guard(mutex);if(records.contains(*it))file_backed=has_content_files(records.at(*it).manifest);}
             if(file_backed){if(live.contains(*it))preserved.push_back(*it);continue;}
-            if(!desired.contains(*it)||switching){auto found=live.find(*it);if(found!=live.end()){if(found->second.luau)mods::luau_mod::unload(*found->second.luau);live.erase(found);}std::lock_guard guard(mutex);if(records.contains(*it)){records.at(*it).active=false;records.at(*it).status.clear();}}
+            if(!desired.contains(*it)){auto found=live.find(*it);if(found!=live.end()){if(found->second.luau)mods::luau_mod::unload(*found->second.luau);live.erase(found);}std::lock_guard guard(mutex);if(records.contains(*it)){records.at(*it).active=false;records.at(*it).status.clear();}}
         }
         live_order.assign(preserved.rbegin(),preserved.rend());
         for(const auto& id:sequence){const auto& [record,cfg]=desired.at(id);bool deps_ok=true;for(const auto& dep:record.manifest.dependencies)if(!live.contains(dep.id)){std::lock_guard guard(mutex);if(!records.contains(dep.id)||!records.at(dep.id).active)deps_ok=false;}
             if(!deps_ok){std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error="A dependency is unavailable (content dependencies may require restart)";continue;}
             auto it=live.find(id);
-            if(it==live.end()){Live item;item.kind=record.manifest.kind;try{item.luau=mods::luau_mod::load(load_info_for(record,cfg));item.last_config=cfg;item.script_mtimes=scan_luau_mtimes(record.path);live.emplace(id,std::move(item));fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());}catch(const std::exception& e){if(item.luau)mods::luau_mod::unload(*item.luau);std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=e.what();profile()["enabled"][id]=false;try{save();}catch(...){}continue;}}
+            if(it==live.end()){Live item;item.kind=record.manifest.kind;try{item.luau=mods::luau_mod::load(load_info_for(record,cfg));item.last_config=cfg;item.script_mtimes=scan_luau_mtimes(record.path);live.emplace(id,std::move(item));fprintf(stderr,"[mod-manager] loaded %s (%s)\n",id.c_str(),record.manifest.kind.c_str());}catch(const std::exception& e){if(item.luau)mods::luau_mod::unload(*item.luau);std::lock_guard guard(mutex);records.at(id).loading=false;records.at(id).error=e.what();database["enabled"][id]=false;try{save();}catch(...){}continue;}}
             live_order.push_back(id);std::lock_guard guard(mutex);records.at(id).active=true;records.at(id).loading=false;records.at(id).error.clear();
         }
         running=!live.empty();
@@ -388,7 +402,7 @@ void frame(uint64_t step){
             ++i;continue;
         }
         auto msg=mods::luau_mod::fault_message(*item.luau);mods::luau_mod::unload(*item.luau);live.erase(id);live_order.erase(live_order.begin()+static_cast<std::ptrdiff_t>(i));
-        {std::lock_guard guard(mutex);if(records.contains(id)){records.at(id).active=false;records.at(id).status.clear();records.at(id).error=msg;profile()["enabled"][id]=false;try{save();}catch(...){}}}
+        {std::lock_guard guard(mutex);if(records.contains(id)){records.at(id).active=false;records.at(id).status.clear();records.at(id).error=msg;database["enabled"][id]=false;try{save();}catch(...){}}}
         running=!live.empty();
     }
 }

@@ -120,8 +120,9 @@ grep -rn "setNextScene" references/headers
 | `0x024C11F4` | `sead::TTaskFactory<ChallengeSelectScene>` | `kCreatorSaveSelect`, time-attack scene |
 | `0x0297AC48` | `BootScene::BootScene` (ctor) | boot task body |
 | `0x0297C5D8` | `MenuTask0202B61C::MenuTask0202B61C` (ctor) | menu task body |
-| `0x0297D58C` | `MenuTask0202B61C::enterSaveSlotPage` | `kAppFileSelectState`, intro skip |
-| `0x0297D5A8` | `MenuTask0202B61C::openChallengeSelect` | time-attack path (not intro skip) |
+| `0x0297D268` | `MenuTask0202B61C::enterFileState` | `kAppEnterFileState`, intro skip |
+| `0x0297D58C` | `MenuTask0202B61C::enterChallengeSelectState` | time-attack state enter (not intro skip) |
+| `0x0297D5A8` | `MenuTask0202B61C::openChallengeSelect` | state `0x1022C184` initialize; requests `ChallengeSelectScene` |
 | `0x0297EC3C` | `MenuTask0202B61C::confirmFile` | `kAppConfirmFile`, story vs challenge |
 | `0x0297F3CC` | `ChallengeSelectScene::ChallengeSelectScene` (ctor) | time-attack scene body |
 | `0x024CD904` | `SubjectMgr::clearSubject` | clears `mMode` |

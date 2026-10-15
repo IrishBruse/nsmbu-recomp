@@ -28,11 +28,6 @@ bool enable(const std::string& id,bool on,std::string& error);
 
 bool configure(const std::string& id,const std::string& option,const json::Value& value,std::string& error);
 void disable_all();
-std::vector<std::string> profiles();
-std::string current_profile();
-bool create_profile(const std::string& name,std::string& error);
-bool select_profile(const std::string& name,std::string& error);
-bool delete_profile(const std::string& name,std::string& error);
 
 void frame(uint64_t step);
 bool refresh(std::string& error);

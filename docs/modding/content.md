@@ -4,7 +4,7 @@ Status: **live**.
 File replacements (models, textures, UI, language packs) ship as Luau packages with an optional `content_dir`.
 `kind: content` is a one-release read-only alias and migrates to `kind: luau` on scan.
 See [luau-mods.md](luau-mods.md) for the package model.
-See [mod-manager.md](mod-manager.md) for install, profiles, and shared manifest fields.
+See [mod-manager.md](mod-manager.md) for install and shared manifest fields.
 
 Packages may be content-only: a manifest and a `content/` tree, with no script.
 They do not run host or guest code unless they also ship a Luau entry.
@@ -14,7 +14,7 @@ They do not run host or guest code unless they also ship a Luau entry.
 Use **Mods → Open mods folder** and place a package directory under `mods/` with a `manifest.json` and a `content/` tree (`content_dir`).
 Enable the package and restart the game.
 Disable it and restart to restore original reads; then replace or remove the folder.
-Profiles choose the next launch's content set.
+`enabled` in `mods.json` chooses the next launch's content set.
 Active content is deliberately immutable for the session.
 Script-only Luau packages (no `content_dir`) still load live; a package with `content_dir` always needs a restart.
 

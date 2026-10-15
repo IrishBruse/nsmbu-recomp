@@ -6,7 +6,7 @@ This folder is the modding documentation for NSMBU recomp.
 
 | Doc | What it covers |
 | --- | --- |
-| [mod-manager.md](mod-manager.md) | In-game Mods tab, install, profiles, storage, shared manifest fields |
+| [mod-manager.md](mod-manager.md) | In-game Mods tab, install, storage, shared manifest fields |
 | [luau-mods.md](luau-mods.md) | Luau packages (phase 2 scripting; phase 3 `content_dir`) |
 | [api.md](api.md) | Luau host API (phase 2 live; later phases still proposal) |
 | [content.md](content.md) | File replacements via Luau `content_dir` (`kind: content` is a legacy alias this release) |

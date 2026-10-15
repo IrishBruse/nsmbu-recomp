@@ -401,8 +401,8 @@ const uint32_t kCourseTaskInstance = GD(0x101D15F0);
 const uint32_t kSceneSingleton = GD(0x101E7B28);
 const uint32_t kSetNextScene = GC(0x02994164);
 const uint32_t kSetCourseStory = GC(0x029941D0);
-const uint32_t kAppFileSelectState = GC(0x0297D58C);
 const uint32_t kSubjectSelectFile = GC(0x024CE594);
+const uint32_t kAppEnterFileState = GC(0x0297D268);
 const uint32_t kAppConfirmFile = GC(0x0297EC3C);
 const uint32_t kFaderBusy = GC(0x02983B28);
 const uint32_t kSubjectMgr = GD(0x101D1874);
@@ -1700,19 +1700,13 @@ int l_scene_open_file_select(lua_State* L) {
     std::string err;
     if (!scene_change_open(err)) return fail(L, err.c_str());
     uint32_t menu = 0;
-    if (!scene_menu_object(menu, err)) {
-        if (err == "menu missing") {
-            if (!scene_transition(kCreatorMenu, 0, err)) return fail(L, err.c_str());
-            return fail(L, "menu missing");
-        }
-        return fail(L, err.c_str());
-    }
+    if (!scene_menu_object(menu, err)) return fail(L, err.c_str());
     if (!menu_state_ready(menu, err)) return fail(L, err.c_str());
     uint32_t mgr = 0;
     if (!luau_guest::read_u32(kSubjectMgr, mgr, err)) return fail(L, err.c_str());
     if (mgr == 0) return fail(L, "file not ready");
     if (guest_call(t_guest_cpu, kSubjectSelectFile, {mgr, 0}) == 0) return fail(L, "file not ready");
-    guest_call(t_guest_cpu, kAppFileSelectState, {menu});
+    guest_call(t_guest_cpu, kAppEnterFileState, {menu});
     lua_pushboolean(L, 1);
     return 1;
 }

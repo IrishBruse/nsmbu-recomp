@@ -1,13 +1,15 @@
 const scene = nsmbu.scene
+const input = nsmbu.input
 const hooks = nsmbu.hooks
 
-local stage = 0
-local started = false
-local last = ""
+local AFTER_TITLE = 0x0202B6C4
+local PRE_COURSE = 0x0202B570
+local COURSE_SELECT = 0x0202B86C
 
-local function accepted(ok: boolean?): boolean
-  return ok == true
-end
+local done = false
+local can_press = false
+local last = ""
+local last_press = -1
 
 local function note(step: number, message: string)
   if message == last then
@@ -26,36 +28,48 @@ local function phase_text(): string
 end
 
 function hooks.on_logic_step(step: number)
-  if stage == 0 then
-    if started or scene.title() or scene.map_phase() then
-      local opened, err = scene.open_file_select()
-      if accepted(opened) then
-        note(step, "save slot page")
-        stage = 1
-      else
-        started = true
-        note(step, string.format("open_file_select %s phase=%s", err or "refused", phase_text()))
-      end
-    else
-      note(step, string.format("wait title phase=%s", phase_text()))
-    end
-  elseif stage == 1 then
-    if scene.save_select() then
-      note(step, "unexpected challenge select")
-      return
-    end
-    local file, file_err = scene.file_index()
-    if file == 0 then
-      note(step, "save slot 0")
-      stage = 4
-    else
-      note(step, string.format("wait file_index %s phase=%s", file_err or "nil", phase_text()))
-    end
+  if done then
+    return
   end
+
+  if scene.save_select() then
+    note(step, "unexpected challenge select")
+    return
+  end
+
+  if scene.course_select() then
+    note(step, "world map")
+    done = true
+    return
+  end
+
+  local phase = scene.phase()
+  if phase == COURSE_SELECT then
+    note(step, "world map")
+    done = true
+    return
+  end
+
+  if scene.title() or scene.map_phase() or phase == AFTER_TITLE or phase == PRE_COURSE then
+    can_press = true
+  end
+
+  if not can_press then
+    note(step, string.format("wait boot phase=%s", phase_text()))
+    return
+  end
+
+  if last_press >= 0 and step - last_press < 45 then
+    return
+  end
+  last_press = step
+  input.press("A", 12)
+  note(step, string.format("press A phase=%s", phase_text()))
 end
 
 function hooks.on_unload()
-  stage = 0
-  started = false
+  done = false
+  can_press = false
   last = ""
+  last_press = -1
 end

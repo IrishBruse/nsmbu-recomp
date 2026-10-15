@@ -332,13 +332,13 @@ int main(int argc, char** argv) {
         auto storage=root/"storage",pack=storage/"mods"/"cemu.test";fs::create_directories(pack);
         std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"cemu.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"cemu","cemu_dir":""})";
         std::ofstream(pack/"rules.txt")<<"[Definition]\nname=Test\ntitleIds=0005000010101d00\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n";
-        std::ofstream(storage/"mods.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true},"config":{"cemu.test":{"preset-0":"Double"}}}}})";
+        std::ofstream(storage/"mods.json")<<R"({"format_version":1,"enabled":{"cemu.test":true},"config":{"cemu.test":{"preset-0":"Double"}}})";
         if(backend){
             std::ofstream(pack/"0000000000000001_0000000000000002_ps.txt")<<"#version 420\nvoid main(){}\n";
             auto content=storage/"mods"/"content.test";fs::create_directories(content/"content"/"Common");
             std::ofstream(content/"content"/"Common"/"test.bin")<<"synthetic content";
             std::ofstream(content/"manifest.json")<<R"({"format_version":2,"id":"content.test","name":"Content","version":"1.0.0","game_id":"nsmbu-usa","kind":"luau","content_dir":"content"})";
-            std::ofstream(storage/"mods.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true,"content.test":true}}}})";
+            std::ofstream(storage/"mods.json")<<R"({"format_version":1,"enabled":{"cemu.test":true,"content.test":true}})";
         }
         env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());initialize();
         if(backend){
@@ -363,7 +363,7 @@ int main(int argc, char** argv) {
         std::ofstream(pack/"content"/"Common"/"fixture.bin")<<"synthetic replacement";
         fs::create_directories(pack/"content"/"Common"/"Pack");std::ofstream(pack/"content"/"Common"/"Pack"/"permanent_2d_EuEnglish.pack")<<"SARCsynthetic translation";
         std::ofstream(pack/"manifest.json")<<R"({"format_version":2,"id":"content.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"luau","content_dir":"content"})";
-        std::ofstream(storage/"mods.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"content.test":true}}}})";
+        std::ofstream(storage/"mods.json")<<R"({"format_version":1,"enabled":{"content.test":true}})";
         env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());
         assert(mods::content::replacement("/vol/content/Common/fixture.bin").empty());initialize();
         auto fixture=pack/"content"/"Common"/"fixture.bin";
@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         std::string error;assert(list().at(0).kind=="luau");assert(list().at(0).active&&list().at(0).restart_required);assert(enable("content.test",false,error));frame(100);
         assert(list().at(0).active&&!list().at(0).enabled);assert(mods::content::replacement("Common/fixture.bin")==file);
         assert(!remove("content.test",error));assert(!install(pack.string(),error));
-        assert(create_profile("Other",error));assert(select_profile("Other",error));frame(101);assert(mods::content::replacement("Common/fixture.bin")==file);
+        assert(mods::content::replacement("Common/fixture.bin")==file);
         std::cout<<"Startup overrides, read-only routing, boundaries, and restart lifecycle passed\n";return 0;
     }
     assert(argc == 2);
@@ -396,7 +396,7 @@ int main(int argc, char** argv) {
     env("NSMBU_NO_HOST_INPUT","1");
     env("NSMBU_MOD_MANAGER_DIR",(root/"storage").string().c_str());
     fs::create_directories(root/"storage");
-    std::ofstream(root/"storage"/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{},"builtins":{"direct-camera":true},"builtin_options":{"direct-camera.speed":1.5}}}})";
+    std::ofstream(root/"storage"/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{},"config":{},"builtins":{"direct-camera":true},"builtin_options":{"direct-camera.speed":1.5}}}})";
     auto migrate=root/"storage"/"mods"/"content.migrate";fs::create_directories(migrate/"content"/"Common");
     std::ofstream(migrate/"content"/"Common"/"m.bin")<<"m";
     std::ofstream(migrate/"manifest.json")<<R"({"format_version":1,"id":"content.migrate","name":"Migrate","version":"1.0.0","game_id":"nsmbu-usa","kind":"content","content_dir":"content"})";
@@ -448,15 +448,13 @@ int main(int argc, char** argv) {
         std::string text{std::istreambuf_iterator<char>(saved),{}};
         assert(text.find("builtins")==std::string::npos);
         assert(text.find("builtin_options")==std::string::npos);
-        assert(text.find("\n  \"")!=std::string::npos);
+        assert(text.find("\"profiles\"")==std::string::npos);
+        assert(text.find("\"active\"")==std::string::npos);
+        assert(text.find("\n  \"enabled\"")!=std::string::npos);
     }
     assert(!remove("climb-preset",error));
     assert(enable("climb-preset",false,error));frame(2);assert(!view("climb-preset").enabled);
-    assert(create_profile("Adventure",error));
     assert(enable("climb-preset",true,error));frame(20);assert(view("climb-preset").enabled);
-    assert(select_profile("Adventure",error));frame(21);assert(!view("climb-preset").enabled);
-    assert(current_profile()=="Adventure");assert(!delete_profile("Adventure",error));
-    assert(select_profile("Default",error));assert(delete_profile("Adventure",error));
     assert(install(cemu_package("missing-dep",",\"dependencies\":[{\"id\":\"absent\"}]"),error));
     assert(!enable("missing-dep",true,error));
     assert(remove("missing-dep",error));
@@ -578,5 +576,5 @@ int main(int argc, char** argv) {
     assert(indexed.size()==1);
     fs::remove_all(large_dir);
 
-    std::cout << "Package install, profiles, dependencies, content and cemu lifecycle passed\n";
+    std::cout << "Package install, dependencies, content and cemu lifecycle passed\n";
 }
