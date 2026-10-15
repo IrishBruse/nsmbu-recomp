@@ -1,6 +1,6 @@
 ---
 name: changelog
-description: Use when editing CHANGELOG.md
+description: Write a player-facing summary of CHANGELOG.md. Use when editing CHANGELOG.md or when the user asks for a player-facing changelog summary.
 ---
 
 # Changelog summary (players)

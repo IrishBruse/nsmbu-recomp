@@ -22,7 +22,7 @@ Local pushes run `tools/git/pre-push`, which builds and runs the full `ctest` su
    - Move every note under `## Unreleased` in `CHANGELOG.md` under a new `## X.Y.Z` heading.
    - Leave `## Unreleased` empty above it.
    - Commit that change with any other release-ready files the user asked to include.
-3. For a player-facing write-up of that version, follow `.agents/skills/changelog-summary/SKILL.md`.
+3. For a player-facing write-up of that version, follow `.agents/skills/changelog/SKILL.md`.
 4. Push `main` to `origin` when the release commit is not yet on the remote.
 5. Create the tag on that commit: `git tag vX.Y.Z`.
    Push only that tag: `git push origin vX.Y.Z`.

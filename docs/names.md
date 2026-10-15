@@ -20,6 +20,21 @@ Use `references/decomp` for the body of a function, the member order, and the la
 `references/decomp` uses the same class names as `references/headers`.
 Use `references/Cemu` for HLE behaviour, not for names.
 
+These checkouts are gitignored.
+They are not name sources.
+Open one when the task is in that library.
+
+| Tree | What it gives |
+| --- | --- |
+| `references/sead` | The sead engine and the related EAD libraries in NSMBU |
+| `references/Eft` | NintendoWare Eft (particles) as in NSMBU |
+| `references/G3d` | NintendoWare G3d (3D) as in NSMBU |
+| `references/FFL` | The Wii U Face Library (Mii) as used by NSMBU |
+| `references/Lyt` | Layout library |
+| `references/Snd` | Sound library |
+| `references/Sys` | System library |
+| `references/Nintendo-File-Formats` | Nintendo file format notes |
+
 The repository does not carry the headers.
 `tools/recomp/names.py` extracts the addresses and names from a local `references/headers` checkout into `tools/recomp/headers_names.txt`, and that file is in git.
 `recomp.py` and `stubgen.py` read the file, so the gen needs no checkout of the headers.

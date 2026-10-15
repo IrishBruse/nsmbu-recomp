@@ -18,7 +18,7 @@ The remote name in this clone is `upstream`.
 
 The next update is one merge, not a rebase.
 
-Follow `.cursor/skills/upstream-merge/SKILL.md`.
+Follow `.agents/skills/upstream-merge/SKILL.md`.
 
 ## What you can reuse
 
