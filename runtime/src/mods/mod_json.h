@@ -39,14 +39,26 @@ inline std::string quote(const std::string& s) {
     }
     return out+'"';
 }
-inline std::string dump(const Value& v) {
+inline std::string dump(const Value& v, int indent=-1, int depth=0) {
     switch(v.type) {
     case Value::Null:return "null";
     case Value::Bool:return v.boolean?"true":"false";
     case Value::Number:{ if(!std::isfinite(v.number))throw std::runtime_error("Nonfinite JSON number");std::ostringstream s;s<<std::setprecision(17)<<v.number;return s.str(); }
     case Value::String:return quote(v.text);
-    case Value::Array:{ std::string s="[";for(const auto& a:v.array){if(s.size()>1)s+=',';s+=dump(a);}return s+']'; }
-    case Value::Object:{std::string s="{";for(const auto& [k,a]:v.object){if(s.size()>1)s+=',';s+=quote(k)+':'+dump(a);}return s+'}';}
+    case Value::Array:{
+        if(indent<0){std::string s="[";for(const auto& a:v.array){if(s.size()>1)s+=',';s+=dump(a);}return s+']';}
+        if(v.array.empty())return "[]";
+        std::string s="[\n",pad(size_t(indent*(depth+1)),' '),end(size_t(indent*depth),' ');
+        for(size_t i=0;i<v.array.size();++i){if(i)s+=",\n";s+=pad;s+=dump(v.array[i],indent,depth+1);}
+        return s+"\n"+end+']';
+    }
+    case Value::Object:{
+        if(indent<0){std::string s="{";for(const auto& [k,a]:v.object){if(s.size()>1)s+=',';s+=quote(k)+':'+dump(a);}return s+'}';}
+        if(v.object.empty())return "{}";
+        std::string s="{\n",pad(size_t(indent*(depth+1)),' '),end(size_t(indent*depth),' ');
+        bool first=true;for(const auto& [k,a]:v.object){if(!first)s+=",\n";first=false;s+=pad;s+=quote(k)+": "+dump(a,indent,depth+1);}
+        return s+"\n"+end+'}';
+    }
     }
     return "null";
 }

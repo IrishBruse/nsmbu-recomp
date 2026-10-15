@@ -385,7 +385,7 @@ It is not required to replace v1 or v2.
 ## Sandbox and trust
 
 Native and guest packages run as native code after confirmation.
-`profiles.json` stores `native_trust` as a SHA-256 of the library or ELF.
+`mods.json` stores `native_trust` as a SHA-256 of the library or ELF.
 Luau packages do not get that dialog.
 They also do not get full process rights.
 
@@ -478,7 +478,7 @@ This document is the reason to stop extending either path.
 | Item | Action |
 | --- | --- |
 | `packages.cpp` kinds | Allow `luau` and `cemu` (plus `content` alias this release). |
-| `guest_regions` in `profiles.json` | Ignore, then drop on the next save. |
+| `guest_regions` in `mods.json` | Ignore, then drop on the next save. |
 | `native_trust` | Ignore, then drop on the next save. |
 | Restart rules | Content files and Cemu still need a restart. Script hooks and options apply on enable when the package has no `content_dir`. A package with both restarts, so the file map and the script start together. |
 

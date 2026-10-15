@@ -5,6 +5,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Change**: Mod profile storage is `<host config>/mods.json` (formatted JSON).
+    An existing `profiles.json` still loads; the next save writes `mods.json` and removes the old file.
+
 ## 0.4.2
 
 -   **Fix**: The setup window follows the system dark or light theme.

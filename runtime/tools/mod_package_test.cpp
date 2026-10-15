@@ -332,13 +332,13 @@ int main(int argc, char** argv) {
         auto storage=root/"storage",pack=storage/"mods"/"cemu.test";fs::create_directories(pack);
         std::ofstream(pack/"manifest.json")<<R"({"format_version":1,"id":"cemu.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"cemu","cemu_dir":""})";
         std::ofstream(pack/"rules.txt")<<"[Definition]\nname=Test\ntitleIds=0005000010101d00\nversion=4\n[Preset]\nname=Normal\n$scale=1\n[Preset]\nname=Double\n$scale=2\n[TextureRedefine]\nwidth=1280\nheight=720\noverwriteWidth=1280*$scale\n";
-        std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true},"config":{"cemu.test":{"preset-0":"Double"}}}}})";
+        std::ofstream(storage/"mods.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true},"config":{"cemu.test":{"preset-0":"Double"}}}}})";
         if(backend){
             std::ofstream(pack/"0000000000000001_0000000000000002_ps.txt")<<"#version 420\nvoid main(){}\n";
             auto content=storage/"mods"/"content.test";fs::create_directories(content/"content"/"Common");
             std::ofstream(content/"content"/"Common"/"test.bin")<<"synthetic content";
             std::ofstream(content/"manifest.json")<<R"({"format_version":2,"id":"content.test","name":"Content","version":"1.0.0","game_id":"nsmbu-usa","kind":"luau","content_dir":"content"})";
-            std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true,"content.test":true}}}})";
+            std::ofstream(storage/"mods.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"cemu.test":true,"content.test":true}}}})";
         }
         env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());initialize();
         if(backend){
@@ -363,7 +363,7 @@ int main(int argc, char** argv) {
         std::ofstream(pack/"content"/"Common"/"fixture.bin")<<"synthetic replacement";
         fs::create_directories(pack/"content"/"Common"/"Pack");std::ofstream(pack/"content"/"Common"/"Pack"/"permanent_2d_EuEnglish.pack")<<"SARCsynthetic translation";
         std::ofstream(pack/"manifest.json")<<R"({"format_version":2,"id":"content.test","name":"Test","version":"1.0.0","game_id":"nsmbu-usa","kind":"luau","content_dir":"content"})";
-        std::ofstream(storage/"profiles.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"content.test":true}}}})";
+        std::ofstream(storage/"mods.json")<<R"({"format_version":1,"active":"Default","profiles":{"Default":{"enabled":{"content.test":true}}}})";
         env("NSMBU_NO_HOST_INPUT","1");env("NSMBU_MOD_MANAGER_DIR",storage.string().c_str());
         assert(mods::content::replacement("/vol/content/Common/fixture.bin").empty());initialize();
         auto fixture=pack/"content"/"Common"/"fixture.bin";
@@ -442,10 +442,13 @@ int main(int argc, char** argv) {
     assert(enable("climb-preset",true,error));frame(1);
     assert(view("climb-preset").enabled && !view("climb-preset").active && view("climb-preset").pending_restart);
     {
-        std::ifstream saved(root/"storage"/"profiles.json");
+        assert(fs::exists(root/"storage"/"mods.json"));
+        assert(!fs::exists(root/"storage"/"profiles.json"));
+        std::ifstream saved(root/"storage"/"mods.json");
         std::string text{std::istreambuf_iterator<char>(saved),{}};
         assert(text.find("builtins")==std::string::npos);
         assert(text.find("builtin_options")==std::string::npos);
+        assert(text.find("\n  \"")!=std::string::npos);
     }
     assert(!remove("climb-preset",error));
     assert(enable("climb-preset",false,error));frame(2);assert(!view("climb-preset").enabled);

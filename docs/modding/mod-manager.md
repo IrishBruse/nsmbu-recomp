@@ -40,21 +40,21 @@ String edits commit with Enter.
 Disable a package and wait for its next game update before replacing or removing its folder.
 Luau packages with `content_dir`, and Cemu packs, need a restart after enable, disable, or preset changes.
 Script-only Luau packages (no `content_dir`) load live on enable.
-Optional hot reload for script-only packs is the top-level `hot_reload` boolean in `profiles.json` (not shown in the Mods tab).
+Optional hot reload for script-only packs is the top-level `hot_reload` boolean in `mods.json` (not shown in the Mods tab).
 When it is on, enabled script-only packs unload and reload when `.luau` files under the package change.
 Packs with `content_dir` ignore that path and still need a restart.
 Replace the same folder id while disabled to update; configuration is preserved by ID.
 
 Profiles save package toggles and configuration.
-An older `profiles.json` may still contain `builtins` and `builtin_options`.
+An older `mods.json` (or legacy `profiles.json`) may still contain `builtins` and `builtin_options`.
 The loader ignores those keys.
-The next save removes them.
+The next save removes them and writes `mods.json`.
 Clone current creates another profile; select it in Active profile.
 Switch away before deleting a profile.
 Disable all covers installed packages.
 Explicit startup environment values, including zero, override saved choices at startup.
 
-Storage is `<host config directory>`: `mods/<folder>/manifest.json` plus package files, and `profiles.json`.
+Storage is `<host config directory>`: `mods/<folder>/manifest.json` plus package files, and `mods.json`.
 `NSMBU_MOD_MANAGER_DIR` selects isolated storage (same layout under that directory).
 `NSMBU_NO_HOST_INPUT` skips user preferences and package storage unless an explicit manager directory is supplied for a test.
 Source `just launch` / `just run` symlink each `modding/examples/` package into `nsmbu/mods/<id>/`.

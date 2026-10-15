@@ -152,7 +152,7 @@ bool wanted(const std::string& id){const auto& v=profile().get("enabled").get(id
 
 Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=profile().get("config").get(m.id).get(o.id);out[o.id]=valid_option(o,saved)?saved:o.default_value;}return out;}
 void strip_builtins(){for(auto& entry:database["profiles"].object){entry.second.object.erase("builtins");entry.second.object.erase("builtin_options");}}
-void save(){if(!ready)return;strip_builtins();fs::create_directories(root);auto tmp=root/"profiles.json.tmp";std::ofstream f(tmp,std::ios::binary|std::ios::trunc);f<<json::dump(database)<<'\n';f.close();require(bool(f)&&host::replace_file(tmp.string(),(root/"profiles.json").string()),"Cannot save mod profiles");}
+void save(){if(!ready)return;strip_builtins();fs::create_directories(root);auto tmp=root/"mods.json.tmp";std::ofstream f(tmp,std::ios::binary|std::ios::trunc);f<<json::dump(database,2)<<'\n';f.close();require(bool(f)&&host::replace_file(tmp.string(),(root/"mods.json").string()),"Cannot save mod profiles");std::error_code ec;fs::remove(root/"profiles.json",ec);}
 void defaults(){database=Value{};database["format_version"]=1;database["active"]="Default";database["hot_reload"]=false;profile()["enabled"].type=Value::Object;}
 bool hot_reload_flag(){const auto& v=database.get("hot_reload");return v.type==Value::Bool&&v.boolean;}
 bool content_folder_name(std::string n){for(char& c:n)if(c>='A'&&c<='Z')c+='a'-'A';return n=="content";}
@@ -264,7 +264,7 @@ bool reload_live(const std::string& id,const Record& record,const Value& cfg){
 void initialize(){
     std::lock_guard guard(mutex);if(ready)return;const char* override=std::getenv("NSMBU_MOD_MANAGER_DIR");if(std::getenv("NSMBU_NO_HOST_INPUT")&&!override)return;
     root=override?fs::path(override):fs::path(host::config_dir());ready=true;defaults();
-    try{fs::create_directories(root);if(fs::exists(root/"profiles.json")){auto saved=json::parse(read_text(root/"profiles.json"));require(saved.get("format_version").type==Value::Number&&saved.get("format_version").number==1,"Unsupported profile format");require(saved.get("profiles").type==Value::Object&&!saved.get("profiles").object.empty(),"Invalid profiles");require(saved.get("active").type==Value::String&&saved.get("profiles").object.contains(saved.get("active").text),"Invalid active profile");database=std::move(saved);if(database.get("hot_reload").type!=Value::Bool)database["hot_reload"]=false;}scan();
+    try{fs::create_directories(root);auto path=root/"mods.json";if(!fs::exists(path)&&fs::exists(root/"profiles.json"))path=root/"profiles.json";if(fs::exists(path)){auto saved=json::parse(read_text(path));require(saved.get("format_version").type==Value::Number&&saved.get("format_version").number==1,"Unsupported profile format");require(saved.get("profiles").type==Value::Object&&!saved.get("profiles").object.empty(),"Invalid profiles");require(saved.get("active").type==Value::String&&saved.get("profiles").object.contains(saved.get("active").text),"Invalid active profile");database=std::move(saved);if(database.get("hot_reload").type!=Value::Bool)database["hot_reload"]=false;}scan();
         try { auto enabled=enabled_set();auto sequence=order(enabled);validate_conflicts(enabled);
             content::Files files;
             for(const auto& id:sequence){auto& record=records.at(id);if(record.manifest.kind=="content"||(record.manifest.kind=="luau"&&has_content_files(record.manifest))){
