@@ -6,13 +6,14 @@ The example stops on the first save slot.
 It does not open the time-attack page.
 The example sends `open_file_select()` again when the call returns `"scene busy"` or `"file not ready"`.
 It stops when `file_index()` is 0.
+It treats `save_select()` as the time-attack path and does not stop there.
 
 This note records the boot tasks and the other ways that were considered.
 
 Addresses are USA v1.3.0.
 Names come from `references/headers`.
 Bodies come from the generated C in `build/gen`.
-`references/decomp` has no scene, title, or save-select sources.
+`decomp/include/scene/` holds `BootScene`, `ChallengeSelectScene`, and `MenuTask0202B61C`.
 
 ## What the example does
 
@@ -27,6 +28,8 @@ Bodies come from the generated C in `build/gen`.
    Stop when the number is 0.
    Do not call `confirm_file()` or `open_course_select()`.
    Do not treat `save_select()` as success.
+   `save_select()` means `ChallengeSelectScene` (`0x024C11F4`), not the save-slot page.
+   The menu task can own the save-slot state while `phase()` is still another factory.
 
 Each transition returns `nil` and `"scene busy"` while `mNextScene` is set or the fader is busy.
 `open_file_select()` also returns `nil` and `"file not ready"` when the file is not ready.
@@ -63,19 +66,21 @@ The factory allocates the task and calls the constructor.
 
 | Factory | Size | Constructor | Header name | Runtime constant |
 | --- | --- | --- | --- | --- |
-| `0x0202930C` | `0x103C` | `0x0297AC48` | none | `kCreatorBoot` |
+| `0x0202930C` | `0x103C` | `0x0297AC48` | `BootScene` | `kCreatorBoot` |
 | `0x0202B51C` | title task | `TitleScene::TitleScene` | `sead::TTaskFactory<TitleScene>` | `kCreatorTitle` |
-| `0x0202B61C` | `0x3E94` | `0x0297C5D8` | none | `kCreatorMenu` |
+| `0x0202B61C` | `0x3E94` | `0x0297C5D8` | `MenuTask0202B61C` | `kCreatorMenu` |
 | `0x0297B9F8` | `0x2C4` | `0x02989CF8` | none | `kCreatorFlow` |
-| `0x024C11F4` | `0x11D0` | `0x0297F3CC` | `ChallengeSelectScene` | none |
+| `0x024C11F4` | `0x11D0` | `0x0297F3CC` | `ChallengeSelectScene` | `kCreatorSaveSelect` |
 | `0x0298AD3C` | `0x138` | `0x02990610` | none | `kCreatorFileSelect` |
 | `0x0202B4C8` | `0x5A4` | `CourseTask::CourseTask` | none in the names file | none |
 | `0x020292B8` | `0xBE4` | `AreaTask::AreaTask` | none in the names file | `kCreatorMap` |
 | `0x0202B86C` | `0xDD0` | `CourseSelectTask::CourseSelectTask` | `sead::TTaskFactory<CourseSelectTask>` | `kCreatorCourseSelect` |
 
-`TitleScene`, `CourseTask`, `AreaTask`, and `CourseSelectTask` are in the headers.
+`TitleScene`, `BootScene`, `ChallengeSelectScene`, `MenuTask0202B61C`, `CourseTask`, `AreaTask`, and `CourseSelectTask` are in `decomp/include/scene/` (and related paths).
+`MenuTask0202B61C` is the address-based name for factory `0x0202B61C`.
+The headers tree has no RTTI name for that task.
 `0x024C11F4` is `ChallengeSelectScene`, the time-attack scene.
-The other three factories have no header name.
+Factories `0x0297B9F8` and `0x0298AD3C` still have no header name.
 Keep the address until a header names them.
 
 `nsmbu.scene.file_select()` is true when `mNowScene` is `0x0298AD3C`.
@@ -86,8 +91,12 @@ That scene is the time-attack page.
 The skip does not wait on that phase.
 `open_file_select()` requests factory `0x0202B61C` when that menu task is missing.
 It then calls `0x024CE594` on `SubjectMgr` (`0x101D1874`) with file 0.
-It then calls `0x0297D58C` on the menu task.
-That call changes the state at `+0x1DC` to `0x1022C184` and enters the save-slot page.
+It then calls `MenuTask0202B61C::enterSaveSlotPage` (`0x0297D58C`) on the menu task.
+That call only runs `StateMethod::changeStateMethod` on `+0x1DC` with state id `0x1022C184`.
+It enters the save-slot page.
+Do not call `MenuTask0202B61C::openChallengeSelect` (`0x0297D5A8`).
+That function plays a title sound effect, clears `SubjectMgr`, and requests `ChallengeSelectScene` (`0x024C11F4`).
+That path is time attack, not the save-slot state.
 The flow task (`0x0297B9F8`, size `0x2C4`) does not own that state.
 
 `course()` reads `CourseTask::sInstance` (`0x101D15F0`).
@@ -128,10 +137,11 @@ It does not request factory `0x024C11F4`.
 3. Call `0x0297D58C` on the menu task.
    That call changes the menu state at `+0x1DC` to `0x1022C184`.
 
+`SubjectMgr::mSelectedFile` is the byte at `+0x1E7E`.
 `SubjectMgr::mMode` is the byte at `+0x1E7F`.
-`0x024CD904` sets that byte to 0.
-`0x024CE594` sets it to `cMode_Active` (1) when the save record for the file exists, and it stores the file at `+0x1E7E`.
-The constructor stores 0 at `+0x1E7E`, so a range check on that byte is not a ready signal.
+`SubjectMgr::clearSubject` (`0x024CD904`) sets `mMode` to 0.
+`SubjectMgr::selectSaveFile` (`0x024CE594`) sets `mMode` to `cMode_Active` (1) when the save record for the file exists, and it stores the file in `mSelectedFile`.
+The constructor stores 0 in `mSelectedFile`, so a range check on that byte alone is not a ready signal.
 `nsmbu.scene.file_index()` returns the file only while `mMode` is active.
 
 ### `confirm_file` — `0x0297EC3C`
@@ -232,8 +242,8 @@ One boot with the example off fills in that caller.
 
 ## Gaps
 
-- Factories `0x0202930C`, `0x0297B9F8`, and `0x0298AD3C` have no header name.
-- `SubjectMgr + 0x1E7E` has no header name. The runtime constant is `kSubjectFileOff`. `+0x1E7F` is `SubjectMgr::mMode`.
+- Factories `0x0297B9F8` and `0x0298AD3C` have no header name.
+- `MenuTask0202B61C` is a decomp placeholder name for factory `0x0202B61C`.
 - State id `0x1022C1D0` has no header name.
 - `references/decomp` does not contain these functions.
 - `SaveMgr::sInstance` has no address in the headers.

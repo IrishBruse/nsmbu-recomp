@@ -40,12 +40,16 @@ function hooks.on_logic_step(step: number)
       note(step, string.format("wait title phase=%s", phase_text()))
     end
   elseif stage == 1 then
+    if scene.save_select() then
+      note(step, "unexpected challenge select")
+      return
+    end
     local file, file_err = scene.file_index()
     if file == 0 then
       note(step, "save slot 0")
       stage = 4
     else
-      note(step, string.format("wait file_index %s", file_err or "nil"))
+      note(step, string.format("wait file_index %s phase=%s", file_err or "nil", phase_text()))
     end
   end
 end
