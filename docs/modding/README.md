@@ -30,4 +30,4 @@ Luau SDK: [../../modding/sdk/](../../modding/sdk/).
 
 | Doc | What it covers |
 | --- | --- |
-| [intro-skip.md](intro-skip.md) | Stable boot path for `example.intro-skip` |
+| [intro-skip.md](intro-skip.md) | Boot path for `example.intro-skip`; open work is which confirm button the popup uses |

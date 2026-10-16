@@ -364,7 +364,8 @@ game's own menus do.
 | `open_file_select()` | Selects save file 0 through `SubjectMgr::selectSaveFile` on an existing menu task, then enters menu state `0x1022C0E4` (`0x0297D268`). It does not create the menu factory and does not enter the challenge-select state (`0x0297D58C`). Returns `nil` and `"scene busy"`, `"menu missing"`, `"state not ready"`, or `"file not ready"` when it cannot run. Returns true when the file select runs. |
 | `open_course_select()` | Requests the world map select task. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
 | `confirm_file()` | Confirms the save select. The routine sets the file and story gates on the flow object and tells the app to confirm, the way the save select does after a file is chosen. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy, and does not write the gates in that case. |
-| `load_story(world_no, course_no)` | Sets the next story location on `CourseInfo` and requests the game scene task, the way the save select does. `world_no` is 0-indexed (world 1 = 0). |
+| `load_story(world_no, course_no)` | Sets the next story location on `CourseInfo` and requests the game scene task, the way the save select does. `world_no` is 0-indexed (world 1 = 0). `course_no` is 0–255 and is `pack_id - 1` (pack `1-23` is world 0, course 22). Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
+| `load_pack(name)` | `name` is `world-pack` with world 1–9 and pack 1–256 (for example `1-23`). It calls the same `setCourse_Story` path as `load_story`. Returns `nil` and `"bad pack"` on a bad name. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
 
 The transitions call `Scene::setNextScene` and `Scene::setCourse_Story` inside the
 port; mods never pass guest registers or addresses.

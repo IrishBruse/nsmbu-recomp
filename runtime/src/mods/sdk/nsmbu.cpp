@@ -1796,17 +1796,71 @@ int l_scene_confirm_file(lua_State* L) {
     return 1;
 }
 
+bool scene_story_bounds(int32_t world, int32_t course) {
+    return world >= 0 && world <= 8 && course >= 0 && course <= 255;
+}
+
+bool parse_course_pack(const char* s, size_t len, int32_t& world, int32_t& course) {
+    if (len == 0) return false;
+    size_t i = 0;
+    if (s[i] < '1' || s[i] > '9') return false;
+    int w = s[i++] - '0';
+    if (i >= len || s[i++] != '-') return false;
+    if (i >= len || s[i] < '1' || s[i] > '9') return false;
+    int p = s[i++] - '0';
+    while (i < len) {
+        if (s[i] < '0' || s[i] > '9') return false;
+        if (p > 256) return false;
+        p = p * 10 + (s[i++] - '0');
+    }
+    if (p < 1 || p > 256) return false;
+    world = w - 1;
+    course = p - 1;
+    return scene_story_bounds(world, course);
+}
+
+bool scene_load_story_transition(int32_t world, int32_t course, std::string& err) {
+    if (!t_guest_cpu) {
+        err = "no guest cpu";
+        return false;
+    }
+    if (!scene_change_open(err)) return false;
+    uint32_t scene = 0;
+    uint32_t app = 0;
+    if (!scene_object(scene, err)) return false;
+    if (!scene_app_object(app, err)) return false;
+    if (app == 0) {
+        err = "flow task missing";
+        return false;
+    }
+    if (guest_call(t_guest_cpu, kSetCourseStory, {scene, app, (uint32_t)world, (uint32_t)course}) == 0) {
+        err = "scene busy";
+        return false;
+    }
+    return true;
+}
+
 int l_scene_load_story(lua_State* L) {
-    if (!t_guest_cpu) return fail(L, "no guest cpu");
     if (!lua_isnumber(L, 1) || !lua_isnumber(L, 2)) return fail(L, "bad type");
     int32_t world = (int32_t)lua_tonumber(L, 1);
     int32_t course = (int32_t)lua_tonumber(L, 2);
     if (world < 0 || world > 8) return fail(L, "bad world");
-    if (course < 0 || course > 11) return fail(L, "bad course");
-    uint32_t scene = 0;
+    if (course < 0 || course > 255) return fail(L, "bad course");
     std::string err;
-    if (!scene_object(scene, err)) return fail(L, err.c_str());
-    guest_call(t_guest_cpu, kSetCourseStory, {scene, 0, (uint32_t)world, (uint32_t)course});
+    if (!scene_load_story_transition(world, course, err)) return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_scene_load_pack(lua_State* L) {
+    if (!lua_isstring(L, 1)) return fail(L, "bad type");
+    size_t len = 0;
+    const char* name = lua_tolstring(L, 1, &len);
+    int32_t world = 0;
+    int32_t course = 0;
+    if (!parse_course_pack(name, len, world, course)) return fail(L, "bad pack");
+    std::string err;
+    if (!scene_load_story_transition(world, course, err)) return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -1851,6 +1905,7 @@ void install_game(lua_State* L) {
     bind_guest(L, "open_course_select", l_scene_open_course_select);
     bind_guest(L, "confirm_file", l_scene_confirm_file);
     bind_guest(L, "load_story", l_scene_load_story);
+    bind_guest(L, "load_pack", l_scene_load_pack);
     set_loaded(L, "nsmbu.scene");
 }
 

@@ -77,6 +77,7 @@ type Scene = {
 	open_course_select: () -> (boolean?, string?),
 	confirm_file: () -> (boolean?, string?),
 	load_story: (world_no: number, course_no: number) -> (boolean?, string?),
+	load_pack: (name: string) -> (boolean?, string?),
 }
 
 type ButtonName = "A" | "B" | "X" | "Y"

@@ -84,6 +84,32 @@ int main(int argc, char** argv) {
         {auto v=view("luau.status");assert(v.active&&v.status.find("Yo")!=std::string::npos&&v.status.find("Hi")==std::string::npos);}
         assert(enable("luau.status",false,error));frame(3);assert(remove("luau.status",error));
 
+        assert(install(luau_pack("luau.pack",
+            "local nsmbu=require(\"nsmbu\")\n"
+            "local scene=nsmbu.scene\n"
+            "local function expect(want,a,b)\n"
+            "  return a==nil and b==want\n"
+            "end\n"
+            "function nsmbu.hooks.on_logic_step(step)\n"
+            "  local ok=true\n"
+            "  local a,b=scene.load_pack(\"1-23\")\n"
+            "  if not expect(\"no guest cpu\",a,b) then ok=false end\n"
+            "  a,b=scene.load_pack(\"nope\")\n"
+            "  if not expect(\"bad pack\",a,b) then ok=false end\n"
+            "  a,b=scene.load_pack(\"1-0\")\n"
+            "  if not expect(\"bad pack\",a,b) then ok=false end\n"
+            "  a,b=scene.load_story(0,22)\n"
+            "  if not expect(\"no guest cpu\",a,b) then ok=false end\n"
+            "  a,b=scene.load_story(0,256)\n"
+            "  if not expect(\"bad course\",a,b) then ok=false end\n"
+            "  a,b=scene.load_story(9,0)\n"
+            "  if not expect(\"bad world\",a,b) then ok=false end\n"
+            "  nsmbu.status(ok and \"pack-ok\" or \"pack-fail\")\n"
+            "end\n",""),error));
+        assert(enable("luau.pack",true,error));frame(4);
+        {auto v=view("luau.pack");assert(v.active&&v.enabled&&v.status=="pack-ok");}
+        assert(enable("luau.pack",false,error));frame(5);assert(remove("luau.pack",error));
+
         assert(install(luau_pack("luau.loaded",
             "local nsmbu=require(\"nsmbu\")\n"
             "function nsmbu.hooks.on_loaded()\n"
