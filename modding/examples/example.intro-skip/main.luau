@@ -1,6 +1,6 @@
-local scene = nsmbu.scene
-local hooks = nsmbu.hooks
-local config = nsmbu.config
+const scene = nsmbu.scene
+const hooks = nsmbu.hooks
+const config = nsmbu.config
 
 local k_boot = 0x0202930C
 
