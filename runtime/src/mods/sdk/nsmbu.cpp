@@ -406,6 +406,8 @@ const uint32_t kAppEnterFileState = GC(0x0297D268);
 const uint32_t kAppConfirmFile = GC(0x0297EC3C);
 const uint32_t kOpenFirstSave = GC(0x029872BC);
 const uint32_t kApplySaveFile = GC(0x029D7648);
+const uint32_t kMainGame = GD(0x101E7D7C);
+constexpr uint32_t kSinglePlayerDrc = 0x14u;
 const uint32_t kSaveMgr = GD(0x101E7DA4);
 const uint32_t kSaveApplyFlag = GD(0x101E7D9C);
 constexpr uint32_t kFirstSave = 0u;
@@ -1743,6 +1745,11 @@ int l_scene_open_first_save(lua_State* L) {
     uint32_t src = 0;
     if (!continue_source(src, err)) return fail(L, err.c_str());
     guest_call(t_guest_cpu, kOpenFirstSave, {src});
+    uint32_t game = 0;
+    if (!luau_guest::read_u32(kMainGame, game, err)) return fail(L, err.c_str());
+    if (game == 0) return fail(L, "file not ready");
+    if (!luau_guest::write_u8(game + kSinglePlayerDrc, input::pro_controller() ? 0 : 1, err))
+        return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }

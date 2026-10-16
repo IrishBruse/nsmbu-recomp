@@ -1,7 +1,3 @@
 {
-  "luau-lsp.platform.type": "standard",
-  "luau-lsp.types.definitionFiles": {
-    "@nsmbu": "modding/sdk/nsmbu.d.luau"
-  },
-  "luau-lsp.types.hotReload": true
+  "luau-lsp.platform.type": "standard"
 }

@@ -17,6 +17,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
     The scene source is `*(*(CourseTask) + 0x10)`, the same pointer the title confirm passes to `setNextScene`.
     An empty file 0 follows the game branch to factory `0x0202B570`.
     The call applies save file 0 with guest `0x029D7648` before `0x029872BC`.
+    It then sets `MainGame.mIsSinglePlayerDRC` so the map reads the GamePad or the Pro Controller.
 -   **Fix**: The error viewer closes as soon as the game shows it, and that call does not pause the game.
     This port does not draw that viewer.
     A pause held the world map on the opening circle and made the map run slow.
