@@ -5,6 +5,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Add**: Luau `nsmbu.Hooks.onSceneChange(factory)` fires after guest `Scene::setNextScene` returns, with the requested class creator id.
+    Nested requests while a handler runs are queued.
+    `example.intro-skip` only sets flags from that event and runs `apply_save` / `load_pack` / A pulses on `onLogicStep`.
 -   **Add**: `just run 1-1` enables `example.intro-skip` for that course pack; `just run 1` still loads save slot 1.
 -   **Fix**: A number option in the Mods tab follows its `step`.
 -   **Add**: A `radio` option shows one button per choice, with a separate label.

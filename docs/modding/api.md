@@ -1,7 +1,7 @@
 # Luau API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle fields on `nsmbu.Hooks` (`onLoaded`, `onLogicStep`, `onConfigChanged`, and `onUnload`), package metadata, log and status, time, config, guest memory, high-level `nsmbu.Level` / `nsmbu.Player` helpers, level actor reads / spawns, and `nsmbu.Scene` flow probes and transitions are implemented with embedded Luau.
+Lifecycle fields on `nsmbu.Hooks` (`onLoaded`, `onLogicStep`, `onSceneChange`, `onConfigChanged`, and `onUnload`), package metadata, log and status, time, config, guest memory, high-level `nsmbu.Level` / `nsmbu.Player` helpers, level actor reads / spawns, and `nsmbu.Scene` flow probes and transitions are implemented with embedded Luau.
 Function hooks (`hook` / `replace` / `call` on `nsmbu.Hooks`), input pad reads, data files, guest heap alloc, and `nsmbu.Fn` stay proposal until later phases.
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.
@@ -61,6 +61,9 @@ Omit a field when the package does not need that event.
 function nsmbu.Hooks.onLogicStep(step)
 end
 
+function nsmbu.Hooks.onSceneChange(factory)
+end
+
 function nsmbu.Hooks.onConfigChanged()
 end
 
@@ -74,6 +77,7 @@ end
 | Field | Type | When it runs |
 | --- | --- | --- |
 | `onLogicStep` | `(step: number) -> ()` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
+| `onSceneChange` | `(factory: number) -> ()` | After guest `Scene::setNextScene` returns. `factory` is the class creator id of the **requested** next scene, not a guarantee that scene is already current. Do not call `nsmbu.Scene` transition helpers from this callback; set flags and act on `onLogicStep` so a nested `setNextScene` cannot re-enter the handler mid-transition. |
 | `onConfigChanged` | `() -> ()` | After the player edits an option for this package. |
 | `onLoaded` | `() -> ()` | Once right after the entry script returns, before the first logic step. |
 | `onUnload` | `() -> ()` | When the package is disabled or the profile changes. Process exit does not promise this call. |

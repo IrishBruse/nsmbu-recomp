@@ -418,4 +418,28 @@ void frame(uint64_t step){
         running=!live.empty();
     }
 }
+void scene_change(uint32_t factory){
+    if(!running.load(std::memory_order_relaxed))return;
+    static bool nesting=false;
+    static std::vector<uint32_t> queued;
+    if(nesting){queued.push_back(factory);return;}
+    nesting=true;
+    queued.push_back(factory);
+    while(!queued.empty()){
+        uint32_t next=queued.front();
+        queued.erase(queued.begin());
+        for(size_t i=0;i<live_order.size();){
+            auto id=live_order[i];auto& item=live.at(id);
+            if(item.luau)mods::luau_mod::scene_change(*item.luau,next);
+            if(!item.luau||!mods::luau_mod::faulted(*item.luau)){
+                if(item.luau){auto st=mods::luau_mod::status(*item.luau);std::lock_guard guard(mutex);if(records.contains(id))records.at(id).status=std::move(st);}
+                ++i;continue;
+            }
+            auto msg=mods::luau_mod::fault_message(*item.luau);mods::luau_mod::unload(*item.luau);live.erase(id);live_order.erase(live_order.begin()+static_cast<std::ptrdiff_t>(i));
+            {std::lock_guard guard(mutex);if(records.contains(id)){records.at(id).active=false;records.at(id).status.clear();records.at(id).error=msg;database["enabled"][id]=false;try{save();}catch(...){}}}
+            running=!live.empty();
+        }
+    }
+    nesting=false;
+}
 }

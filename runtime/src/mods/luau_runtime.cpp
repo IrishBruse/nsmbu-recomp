@@ -340,6 +340,13 @@ void logic_step(Instance& inst, uint64_t step) {
     fire_logic(inst);
 }
 
+void scene_change(Instance& inst, uint32_t factory) {
+    if (!inst.state || inst.fault) return;
+    lua_State* L = static_cast<lua_State*>(inst.state);
+    lua_pushnumber(L, (lua_Number)factory);
+    fire_hook(inst, "onSceneChange", 1);
+}
+
 std::string status(const Instance& inst) { return inst.status_line; }
 bool faulted(const Instance& inst) { return inst.fault; }
 std::string fault_message(const Instance& inst) { return inst.fault_msg; }

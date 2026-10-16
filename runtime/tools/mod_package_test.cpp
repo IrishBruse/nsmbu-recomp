@@ -119,6 +119,16 @@ int main(int argc, char** argv) {
         {auto v=view("luau.loaded");assert(v.active&&v.status=="loaded");}
         assert(enable("luau.loaded",false,error));frame(5);assert(remove("luau.loaded",error));
 
+        assert(install(luau_pack("luau.scene",
+            "local nsmbu=require(\"nsmbu\")\n"
+            "function nsmbu.Hooks.onSceneChange(factory)\n"
+            "  nsmbu.status(string.format(\"%08X\",factory))\n"
+            "end\n",""),error));
+        assert(enable("luau.scene",true,error));frame(6);
+        scene_change(0x0298AD3Cu);
+        {auto v=view("luau.scene");assert(v.active&&v.status=="0298AD3C");}
+        assert(enable("luau.scene",false,error));frame(7);assert(remove("luau.scene",error));
+
         assert(install(luau_pack("luau.boom",
             "local nsmbu=require(\"nsmbu\")\n"
             "function nsmbu.Hooks.onLogicStep(step)\n"
@@ -349,7 +359,7 @@ int main(int argc, char** argv) {
         assert(remove("luau.both",error));
 
         fs::remove_all(root);
-        std::cout<<"Luau load, options, fault isolation, sandbox, guest memory, level/player API, content_dir, and hot reload passed\n";
+        std::cout<<"Luau load, options, onSceneChange, fault isolation, sandbox, guest memory, level/player API, content_dir, and hot reload passed\n";
         return 0;
     }
     if(argc==2&&(std::string(argv[1])=="--cemu-startup"||std::string(argv[1])=="--cemu-backend")){

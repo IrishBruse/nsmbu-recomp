@@ -1,4 +1,5 @@
 #include "runtime.h"
+#include "mods/packages.h"
 
 extern "C" void f_02994164_orig(Cpu* c);
 extern "C" void nsmbu_note_scene_src(uint32_t src, uint32_t factory);
@@ -9,8 +10,10 @@ extern "C" void hook_02994164(Cpu* c) {
     if (logged++ < 200)
         LOG("[setnext] idx=%d scene=%08X src=%08X classid=%08X/%08X fader=%08X snd=%08X lr=%08X",
             logged - 1, c->r[3], c->r[4], ld32(c->r[5]), ld32(c->r[5] + 4), c->r[6], c->r[7], c->lr);
-    nsmbu_note_scene_src(c->r[4], ld32(c->r[5] + 4));
+    uint32_t factory = ld32(c->r[5] + 4);
+    nsmbu_note_scene_src(c->r[4], factory);
     f_02994164_orig(c);
+    mods::packages::scene_change(factory);
 }
 
 extern "C" void hook_029CBBB4(Cpu*) {}

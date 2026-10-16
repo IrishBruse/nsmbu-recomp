@@ -1,10 +1,12 @@
 type GuestAddr = number
 
 type LogicStepCallback = (step: number) -> ()
+type SceneChangeCallback = (factory: number) -> ()
 type VoidCallback = () -> ()
 
 type Hooks = {
 	onLogicStep: LogicStepCallback,
+	onSceneChange: SceneChangeCallback,
 	onConfigChanged: VoidCallback,
 	onLoaded: VoidCallback,
 	onUnload: VoidCallback,

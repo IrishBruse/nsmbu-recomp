@@ -38,6 +38,7 @@ void unload(Instance&);
 void set_config(Instance&, const json::Value& config);
 void config_changed(Instance&);
 void logic_step(Instance&, uint64_t step);
+void scene_change(Instance&, uint32_t factory);
 std::string status(const Instance&);
 bool faulted(const Instance&);
 std::string fault_message(const Instance&);

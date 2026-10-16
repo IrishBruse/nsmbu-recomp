@@ -118,6 +118,7 @@ Phase 2 covers this table.
 | Native v1 | Luau |
 | --- | --- |
 | `on_frame(logic_step)` once per logic step, not per interpolated draw | `function nsmbu.Hooks.onLogicStep(step)` |
+| (no native equivalent) guest `Scene::setNextScene` | `function nsmbu.Hooks.onSceneChange(factory)` |
 | `onConfigChanged` | `function nsmbu.Hooks.onConfigChanged()` |
 | `onUnload` | `function nsmbu.Hooks.onUnload()` |
 | `get_string` / `get_number` / `get_bool` | `nsmbu.Config` reads |

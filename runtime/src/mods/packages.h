@@ -30,6 +30,7 @@ bool configure(const std::string& id,const std::string& option,const json::Value
 void disable_all();
 
 void frame(uint64_t step);
+void scene_change(uint32_t factory);
 bool refresh(std::string& error);
 bool hot_reload();
 bool set_hot_reload(bool on,std::string& error);

@@ -23,12 +23,14 @@ That call writes the selected save and does not run guest `0x029872BC`.
 It then calls `scene.load_pack` once and stops when `course_task()` is true.
 `nsmbu.Level.active()` is already true while the title scene is coming up, so the skip does not use it as the stop.
 
-`Hooks.onLogicStep` runs this sequence.
+`Hooks.onSceneChange` only sets pending flags from factory transitions.
+Do not call `Scene` transition helpers from that callback.
+`Hooks.onLogicStep` runs `apply_save`, `load_pack`, and `open_title`, and pulses confirm while the file-select popup is pending.
 
-1. While `file_select()` is true, pulse `press("A", 3)` every 30 logic steps (up to four times).
+1. On factory `0x0298AD3C`, pulse `press("A", 3)` every 30 logic steps (up to four times).
 2. If the popup is still current after four pulses, retry `open_title()` until `title()` or `map_phase()` is true.
-3. After the boot logo, call `apply_save(file)` until it returns true.
-4. Call `scene.load_pack` once, then wait until `course_task()` is true.
+3. After the boot logo (`0x0202930C` is gone), call `apply_save(file)` until it returns true.
+4. Call `scene.load_pack` once, then stop when factory `0x0202B4C8` is current or `course_task()` is true.
 
 Do not call `open_file_select()` for this skip.
 Forcing menu factory `0x0202B61C` early shows the time-attack trial layout.
@@ -37,9 +39,9 @@ A boot log with this skip shows:
 
 1. `press A file_select` (and optionally `open_title`) while factory `0x0298AD3C` is current
 2. Title or map phase
-3. `open_first_save(file)`
+3. `apply save` for the configured slot (`apply_save(file)`)
 4. `load_pack` for the configured pack (`1-1` by default)
-5. `course_task()`
+5. `course_task()` or factory `0x0202B4C8`
 
 ## Why the menu path failed
 
@@ -69,12 +71,12 @@ Observed boot order from `Scene::setNextScene` logs:
 2. Flow `0x0297B9F8`
 3. File select `0x0298AD3C` (GamePad setup popup)
 4. Title `0x0202B51C`
-5. After `open_first_save`: `CourseSelectTask` `0x0202B86C`
+5. After `apply_save`: `CourseSelectTask` `0x0202B86C` (story path may skip straight to `CourseTask`)
 
 ## Recommendation (current skip)
 
 While `file_select()` is true, pulse `press("A", 3)` then fall back to `open_title()` if needed.
-Call `open_first_save(file)` from the title or map phase.
+Call `apply_save(file)` from the title or map phase after the boot logo.
 `file` is 0, 1, or 2.
 Then call `scene.load_pack`.
 The default pack is `1-1`.
@@ -96,13 +98,13 @@ It sits after the application flow task `0x0297B9F8` (`scene.flow_phase()`) and 
 Do not use `open_file_select()` or `confirm_file()` for this popup.
 
 `MainGame.mIsSinglePlayerDRC` (`MainGame::sInstance` `0x101E7D7C` + `0x14`) is the GamePad vs Pro flag for single-player input after the map loads.
-`open_first_save` already writes that field from the host Pro / GamePad setting.
+`apply_save` already writes that field from the host Pro / GamePad setting.
 That write does not dismiss the boot popup.
 
 ### What shipped vs what is still open
 
 The example now uses approach **A** while `file_select()` is true: `nsmbu.Input.press("A", 3)` about every 30 logic steps, up to four pulses.
-If the popup is still current, it falls back to `scene.open_title()` (the existing SDK stand-in for approach **B**), with the same retry pattern as `open_first_save`.
+If the popup is still current, it falls back to `scene.open_title()` (the existing SDK stand-in for approach **B**), with the same retry pattern as `apply_save`.
 It does not add a native `skip_setup()` helper (approach **C**).
 
 Which button the layout actually consumes is still unknown.
@@ -139,7 +141,7 @@ The flow / file-select task classes themselves are not named in `decomp/` yet.
 
 1. Confirm from logs whether **A** or `open_title` clears the popup on your boot path.
 2. If **A** does not advance the window, try other buttons (Plus, etc.) or add approach **C** only if `open_title` is insufficient.
-3. Keep writing `mIsSinglePlayerDRC` through `open_first_save` so the map matches host GamePad vs Pro.
+3. Keep writing `mIsSinglePlayerDRC` through `apply_save` so the map matches host GamePad vs Pro.
 
 Do not use `open_file_select()`, `0x0202B61C`, or `0x0297D58C` for this screen.
 
@@ -182,7 +184,7 @@ The example uses it with the Course pack option.
 
 ### Normal enter path
 
-1. Intro skip → `open_first_save` → optional `load_pack` → `CourseTask`.
+1. Intro skip → `apply_save` → optional `load_pack` → `CourseTask`.
 2. Player picks a node on the map (vanilla path).
 3. `setCourse_Story` → `CourseTask` `0x0202B4C8`.
 4. Course setup calls `loadCourseResPack` with the resolved name (e.g. `1-23`).
