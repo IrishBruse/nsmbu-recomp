@@ -51,11 +51,18 @@ std::array<unsigned,3> version(const std::string& s) {
 std::string string_field(const Value& v,const char* key,bool optional=false,size_t limit=8192){const auto& f=v.get(key);if(optional&&f.type==Value::Null)return {};require(f.type==Value::String&&f.text.size()<=limit&&f.text.find('\0')==std::string::npos,"Invalid field: "+std::string(key));return f.text;}
 
 std::string read_text(const fs::path& p){require(fs::is_regular_file(p)&&!fs::is_symlink(p)&&fs::file_size(p)<=1024*1024,"Missing or oversized JSON file: "+p.filename().string());std::ifstream f(p,std::ios::binary);return {std::istreambuf_iterator<char>(f),{}};}
+double snap_number(const Option& o,double value){
+    if(!(o.step>0)||!std::isfinite(o.step)||!std::isfinite(value))return value;
+    value=o.minimum+std::round((value-o.minimum)/o.step)*o.step;
+    if(value<o.minimum)value=o.minimum;
+    if(value>o.maximum)value=o.maximum;
+    return value;
+}
 bool valid_option(const Option& o,const Value& v){
     if(o.type=="bool")return v.type==Value::Bool;
     if(o.type=="number")return v.type==Value::Number&&std::isfinite(v.number)&&v.number>=o.minimum&&v.number<=o.maximum;
     if(o.type=="string")return v.type==Value::String&&v.text.size()<=1024&&v.text.find('\0')==std::string::npos;
-    if(o.type=="enum")return v.type==Value::String&&std::find(o.choices.begin(),o.choices.end(),v.text)!=o.choices.end();
+    if(o.type=="enum"||o.type=="radio")return v.type==Value::String&&std::find(o.choices.begin(),o.choices.end(),v.text)!=o.choices.end();
     return false;
 }
 void reject_luau_files(const fs::path& root,bool allow_rules_txt){
@@ -141,8 +148,11 @@ Manifest manifest(const fs::path& path,Value v){
     for(const auto& option:options.array){
         Option o;o.id=string_field(option,"id",false,64);require(id_ok(o.id)&&option_ids.insert(o.id).second,"Invalid or duplicate option ID");o.name=string_field(option,"name",false,128);o.description=string_field(option,"description",true);o.type=string_field(option,"type",false,32);o.default_value=option.get("default");
         if(o.type=="number"){const auto& lo=option.get("min");const auto& hi=option.get("max");const auto& step=option.get("step");require(lo.type==Value::Number&&hi.type==Value::Number&&lo.number<=hi.number,"Invalid numeric bounds");o.minimum=lo.number;o.maximum=hi.number;o.step=step.type==Value::Number?step.number:1;require(o.step>0&&std::isfinite(o.step),"Invalid numeric step");}
-        if(o.type=="enum"){const auto& choices=option.get("choices");require(choices.type==Value::Array&&!choices.array.empty()&&choices.array.size()<=64,"Invalid enum choices");for(const auto& c:choices.array){require(c.type==Value::String&&c.text.size()<=128,"Invalid enum value");o.choices.push_back(c.text);}}
-        require(valid_option(o,o.default_value),"Invalid default for "+o.id);o.value=o.default_value;m.options.push_back(o);
+        if(o.type=="enum"||o.type=="radio"){const auto& choices=option.get("choices");require(choices.type==Value::Array&&!choices.array.empty()&&choices.array.size()<=64,"Invalid enum choices");for(const auto& c:choices.array){require(c.type==Value::String&&c.text.size()<=128,"Invalid enum value");o.choices.push_back(c.text);}}
+        if(o.type=="radio"){const auto& labels=option.get("labels");require(labels.type==Value::Array&&labels.array.size()==o.choices.size(),"Invalid radio labels");for(const auto& label:labels.array){require(label.type==Value::String&&!label.text.empty()&&label.text.size()<=128,"Invalid radio label");o.labels.push_back(label.text);}}
+        require(valid_option(o,o.default_value),"Invalid default for "+o.id);
+        if(o.type=="number")o.default_value.number=snap_number(o,o.default_value.number);
+        o.value=o.default_value;m.options.push_back(o);
     }
     if(m.kind=="content")require(m.dependencies.empty()&&m.options.empty(),"Content packages do not support dependencies or runtime options yet");
     return m;
@@ -150,7 +160,7 @@ Manifest manifest(const fs::path& path,Value v){
 Manifest manifest(const fs::path& path){return manifest(path,json::parse(read_text(path/"manifest.json")));}
 bool wanted(const std::string& id){const auto& v=database.get("enabled").get(id);return v.type==Value::Bool&&v.boolean;}
 
-Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=database.get("config").get(m.id).get(o.id);out[o.id]=valid_option(o,saved)?saved:o.default_value;}return out;}
+Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=database.get("config").get(m.id).get(o.id);Value v=valid_option(o,saved)?saved:o.default_value;if(o.type=="number"&&v.type==Value::Number)v.number=snap_number(o,v.number);out[o.id]=v;}return out;}
 void strip_legacy(){database.object.erase("active");database.object.erase("profiles");database.object.erase("builtins");database.object.erase("builtin_options");}
 void save(){if(!ready)return;strip_legacy();fs::create_directories(root);auto tmp=root/"mods.json.tmp";std::ofstream f(tmp,std::ios::binary|std::ios::trunc);f<<json::dump(database,2)<<'\n';f.close();require(bool(f)&&host::replace_file(tmp.string(),(root/"mods.json").string()),"Cannot save mods.json");std::error_code ec;fs::remove(root/"profiles.json",ec);}
 void defaults(){database=Value{};database["format_version"]=1;database["hot_reload"]=false;database["enabled"].type=Value::Object;}
@@ -340,7 +350,7 @@ bool enable(const std::string& id,bool on,std::string& error){return operation(e
     std::set<std::string> visiting;
     std::function<void(const std::string&)> add=[&](const std::string& current){require(!visiting.contains(current),"Dependency cycle at "+current);require(records.contains(current),"Missing dependency: "+current);const auto& graphics=records.at(current).manifest.graphics;if(graphics&&!graphics->shaders.empty())require(cemu::vulkan(),"GLSL shader packs require Vulkan; choose it in Graphics and restart");if(enabled.contains(current))return;visiting.insert(current);for(const auto& d:records.at(current).manifest.dependencies)add(d.id);visiting.erase(current);enabled.insert(current);};add(id);
     }else enabled.erase(id);order(enabled);validate_conflicts(enabled);auto previous=database;for(const auto& [key,r]:records)database["enabled"][key]=enabled.contains(key);try{save();}catch(...){database=previous;throw;}for(const auto& key:enabled)records.at(key).error.clear();dirty=true;});}
-bool configure(const std::string& id,const std::string& option_id,const Value& value,std::string& error){return operation(error,[&]{require(records.contains(id),"Mod not found");auto& opts=records.at(id).manifest.options;auto it=std::find_if(opts.begin(),opts.end(),[&](const Option& o){return o.id==option_id;});require(it!=opts.end()&&valid_option(*it,value),"Invalid configuration value");auto previous=database;database["config"][id][option_id]=value;try{if(records.at(id).manifest.graphics)cemu::validate({{id,*records.at(id).manifest.graphics,config(records.at(id).manifest)}});if(wanted(id))validate_conflicts(enabled_set());save();}catch(...){database=previous;throw;}dirty=true;});}
+bool configure(const std::string& id,const std::string& option_id,const Value& value,std::string& error){return operation(error,[&]{require(records.contains(id),"Mod not found");auto& opts=records.at(id).manifest.options;auto it=std::find_if(opts.begin(),opts.end(),[&](const Option& o){return o.id==option_id;});require(it!=opts.end()&&valid_option(*it,value),"Invalid configuration value");Value stored=value;if(it->type=="number"&&stored.type==Value::Number)stored.number=snap_number(*it,stored.number);auto previous=database;database["config"][id][option_id]=stored;try{if(records.at(id).manifest.graphics)cemu::validate({{id,*records.at(id).manifest.graphics,config(records.at(id).manifest)}});if(wanted(id))validate_conflicts(enabled_set());save();}catch(...){database=previous;throw;}dirty=true;});}
 void disable_all(){std::string ignored;operation(ignored,[&]{auto previous=database;for(const auto& [id,r]:records)database["enabled"][id]=false;try{save();}catch(...){database=previous;throw;}dirty=true;});}
 bool refresh(std::string& error){return operation(error,[&]{for(const auto& [id,r]:records)require(!r.active&&!r.loading&&!wanted(id),content_lifecycle(r.manifest)?"Disable content mods and restart before rescanning":"Disable installed mods before rescanning");scan();dirty=true;});}
 void frame(uint64_t step){

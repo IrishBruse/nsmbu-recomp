@@ -35,7 +35,11 @@ Installed packages start disabled.
 Nothing from a package is loaded until you enable it.
 Enabling resolves required dependencies.
 Missing versions, cycles, and declared conflicts produce an error.
-The details show metadata, status, and bool/number/string/enum options.
+The details show metadata, status, and bool, number, string, enum, and radio options.
+A number option moves by its `step`.
+A radio option shows one button for each choice.
+The button text is the label.
+The stored value is the choice.
 String edits commit with Enter.
 Disable a package and wait for its next game update before replacing or removing its folder.
 Luau packages with `content_dir`, and Cemu packs, need a restart after enable, disable, or preset changes.

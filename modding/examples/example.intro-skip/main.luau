@@ -48,10 +48,12 @@ function hooks.on_logic_step(step: number)
     return
   end
 
-  local picked = config.number("save_file", 1)
+  local picked = config.string("save_file", "1")
   local save = 1
-  if picked ~= nil and picked >= 1 and picked <= 3 then
-    save = picked
+  if picked == "2" then
+    save = 2
+  elseif picked == "3" then
+    save = 3
   end
   local ok, err = scene.open_first_save(save - 1)
   if ok == true then

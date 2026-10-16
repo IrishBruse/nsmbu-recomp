@@ -10,7 +10,7 @@ struct Option {
     std::string id,name,description,type;
     json::Value value,default_value;
     double minimum=0,maximum=1,step=1;
-    std::vector<std::string> choices;
+    std::vector<std::string> choices, labels;
 };
 struct View {
     std::string id,name,version,author,description,kind,reason,status;

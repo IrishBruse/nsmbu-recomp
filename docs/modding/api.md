@@ -147,7 +147,7 @@ local on = nsmbu.config.bool("enabled", true)
 
 | Function | Result |
 | --- | --- |
-| `nsmbu.config.string(id, fallback)` | The string option, or `fallback` when the id is missing or not a string. Enum options return the selected choice name. |
+| `nsmbu.config.string(id, fallback)` | The string option, or `fallback` when the id is missing or not a string. Enum and radio options return the selected choice, not the radio label. |
 | `nsmbu.config.number(id, fallback)` | The number, or `fallback` when the id is missing or not a number. |
 | `nsmbu.config.bool(id, fallback)` | The boolean, or `fallback` when the id is missing or not a boolean. |
 

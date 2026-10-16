@@ -5,6 +5,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Fix**: A number option in the Mods tab follows its `step`.
+-   **Add**: A `radio` option shows one button per choice, with a separate label.
+    `example.intro-skip` uses that option for save files 1, 2, and 3.
 -   **Add**: Mod manifests can set `$schema` to `modding/sdk/manifest.schema.json`.
 -   **Fix**: Scanning a dropped Cemu content or graphics pack no longer writes `manifest.json` into the player's pack folder.
     Synthesized metadata stays in memory until install stages a managed package.

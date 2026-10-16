@@ -902,10 +902,40 @@ void package_controls() {
                     bool value = option.value.boolean;
                     if (ImGui::Checkbox(option.name.c_str(), &value)) configure(mod.id, option.id, value, error);
                 } else if (option.type == "number") {
-                    double value = option.value.number;
-                    if (ImGui::SliderScalar(option.name.c_str(), ImGuiDataType_Double, &value,
-                                            &option.minimum, &option.maximum, "%.3f"))
-                        configure(mod.id, option.id, value, error);
+                    double step = option.step > 0 ? option.step : 1;
+                    double span = (option.maximum - option.minimum) / step;
+                    if (std::isfinite(span) && span >= 0 && span <= 100000) {
+                        int count = (int)std::floor(span + 1e-8);
+                        int index = (int)std::lround((option.value.number - option.minimum) / step);
+                        if (index < 0) index = 0;
+                        if (index > count) index = count;
+                        char preview[64];
+                        snprintf(preview, sizeof preview, "%g", option.minimum + (double)index * step);
+                        if (ImGui::SliderInt(option.name.c_str(), &index, 0, count, preview, ImGuiSliderFlags_NoInput)) {
+                            double snapped = option.minimum + (double)index * step;
+                            if (snapped > option.maximum) snapped = option.maximum;
+                            configure(mod.id, option.id, snapped, error);
+                        }
+                    } else {
+                        double value = option.value.number;
+                        if (ImGui::SliderScalar(option.name.c_str(), ImGuiDataType_Double, &value,
+                                                &option.minimum, &option.maximum, "%g")) {
+                            double snapped = option.minimum + std::round((value - option.minimum) / step) * step;
+                            if (snapped < option.minimum) snapped = option.minimum;
+                            if (snapped > option.maximum) snapped = option.maximum;
+                            configure(mod.id, option.id, snapped, error);
+                        }
+                    }
+                } else if (option.type == "radio") {
+                    ImGui::TextUnformatted(option.name.c_str());
+                    for (size_t i = 0; i < option.choices.size(); ++i) {
+                        ImGui::PushID(option.choices[i].c_str());
+                        const char* label = i < option.labels.size() ? option.labels[i].c_str() : option.choices[i].c_str();
+                        if (radio(label, option.choices[i] == option.value.text))
+                            configure(mod.id, option.id, option.choices[i], error);
+                        ImGui::PopID();
+                        if (i + 1 < option.choices.size()) ImGui::SameLine();
+                    }
                 } else if (option.type == "enum") {
                     if (ImGui::BeginCombo(option.name.c_str(), option.value.text.c_str())) {
                         for (const auto& choice : option.choices)
