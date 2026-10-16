@@ -5,6 +5,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Add**: Mod manifests can set `$schema` to `modding/sdk/manifest.schema.json`.
 -   **Fix**: Scanning a dropped Cemu content or graphics pack no longer writes `manifest.json` into the player's pack folder.
     Synthesized metadata stays in memory until install stages a managed package.
 -   **Fix**: `open_file_select` no longer calls `0x0297D58C` and no longer creates menu factory `0x0202B61C`.
@@ -12,11 +13,13 @@ At release, move those notes to a version heading and leave Unreleased empty.
     `0x0297D58C` enters the challenge-select state whose initialize opens `ChallengeSelectScene`.
     The call now selects save file 0 on an existing menu and enters file state `0x0297D268`.
 -   **Change**: `example.intro-skip` calls `open_first_save` once the title or map phase is current.
-    That call writes save file 0 and runs guest `0x029872BC`, which requests the world map when the file has a record.
+    The Save file option is 1, 2, or 3.
+    The default is 1.
+    That call writes the selected file and runs guest `0x029872BC`, which requests the world map when the file has a record.
     It does not press buttons and it does not create menu factory `0x0202B61C`.
     The scene source is `*(*(CourseTask) + 0x10)`, the same pointer the title confirm passes to `setNextScene`.
-    An empty file 0 follows the game branch to factory `0x0202B570`.
-    The call applies save file 0 with guest `0x029D7648` before `0x029872BC`.
+    An empty selected file follows the game branch to factory `0x0202B570`.
+    The call applies that save file with guest `0x029D7648` before `0x029872BC`.
     It then sets `MainGame.mIsSinglePlayerDRC` so the map reads the GamePad or the Pro Controller.
 -   **Fix**: The error viewer closes as soon as the game shows it, and that call does not pause the game.
     This port does not draw that viewer.

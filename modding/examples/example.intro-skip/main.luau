@@ -1,5 +1,6 @@
 const scene = nsmbu.scene
 const hooks = nsmbu.hooks
+const config = nsmbu.config
 
 local done = false
 local opened = false
@@ -47,10 +48,15 @@ function hooks.on_logic_step(step: number)
     return
   end
 
-  local ok, err = scene.open_first_save()
+  local picked = config.number("save_file", 1)
+  local save = 1
+  if picked ~= nil and picked >= 1 and picked <= 3 then
+    save = picked
+  end
+  local ok, err = scene.open_first_save(save - 1)
   if ok == true then
     opened = true
-    note(step, "open save 0")
+    note(step, string.format("open save %d", save))
     return
   end
   note(step, string.format("open_first_save %s phase=%s", err or "refused", phase_text()))

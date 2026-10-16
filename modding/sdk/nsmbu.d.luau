@@ -72,7 +72,7 @@ type Scene = {
 	course_select: () -> boolean,
 	course: () -> boolean,
 	open_title: () -> (boolean?, string?),
-	open_first_save: () -> (boolean?, string?),
+	open_first_save: (file: number?) -> (boolean?, string?),
 	open_file_select: () -> (boolean?, string?),
 	open_course_select: () -> (boolean?, string?),
 	confirm_file: () -> (boolean?, string?),

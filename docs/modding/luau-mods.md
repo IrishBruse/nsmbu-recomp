@@ -194,6 +194,7 @@ That limit is the same as in SDK v2.
 
 ```json
 {
+  "$schema": "../../sdk/manifest.schema.json",
   "format_version": 2,
   "id": "example.coin-counter",
   "name": "Coin counter",

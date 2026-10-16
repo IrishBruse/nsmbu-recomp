@@ -410,7 +410,7 @@ const uint32_t kMainGame = GD(0x101E7D7C);
 constexpr uint32_t kSinglePlayerDrc = 0x14u;
 const uint32_t kSaveMgr = GD(0x101E7DA4);
 const uint32_t kSaveApplyFlag = GD(0x101E7D9C);
-constexpr uint32_t kFirstSave = 0u;
+constexpr uint32_t kSaveFileCount = 3u;
 constexpr uint32_t kSaveApplyFlagOff = 0x11u;
 const uint32_t kFaderBusy = GC(0x02983B28);
 const uint32_t kSubjectMgr = GD(0x101D1874);
@@ -1726,6 +1726,13 @@ bool continue_source(uint32_t& out, std::string& err) {
 }
 
 int l_scene_open_first_save(lua_State* L) {
+    uint32_t file = 0;
+    if (lua_gettop(L) >= 1 && !lua_isnil(L, 1)) {
+        if (!lua_isnumber(L, 1)) return fail(L, "bad type");
+        lua_Number n = lua_tonumber(L, 1);
+        if (n < 0 || n >= (lua_Number)kSaveFileCount || n != (lua_Number)(uint32_t)n) return fail(L, "bad file");
+        file = (uint32_t)n;
+    }
     std::string err;
     if (!scene_change_open(err)) return fail(L, err.c_str());
     uint32_t mgr = 0;
@@ -1734,14 +1741,14 @@ int l_scene_open_first_save(lua_State* L) {
     uint32_t savedata = 0;
     if (!luau_guest::read_u32(mgr + kSaveDataOff, savedata, err)) return fail(L, err.c_str());
     if (savedata == 0) return fail(L, "file not ready");
-    if (!luau_guest::write_u8(savedata + kLastFileOff, 0, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u8(savedata + kLastFileOff, (uint8_t)file, err)) return fail(L, err.c_str());
     uint32_t field = 0;
     if (!luau_guest::read_u32(kFieldGameSingleton, field, err)) return fail(L, err.c_str());
     if (field == 0) return fail(L, "file not ready");
     uint32_t gate = 0;
     if (!luau_guest::read_u32(kSaveApplyFlag, gate, err)) return fail(L, err.c_str());
     if (gate != 0 && !luau_guest::write_u8(gate + kSaveApplyFlagOff, 0, err)) return fail(L, err.c_str());
-    guest_call(t_guest_cpu, kApplySaveFile, {mgr, kFirstSave});
+    guest_call(t_guest_cpu, kApplySaveFile, {mgr, file});
     uint32_t src = 0;
     if (!continue_source(src, err)) return fail(L, err.c_str());
     guest_call(t_guest_cpu, kOpenFirstSave, {src});

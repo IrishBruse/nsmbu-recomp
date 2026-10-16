@@ -65,6 +65,9 @@ It needs an explicit `NSMBU_MOD_MANAGER_DIR`, so it never applies to a player's 
 
 ## Shared manifest fields
 
+The schema is `modding/sdk/manifest.schema.json`.
+Each example manifest sets `$schema` to `../../sdk/manifest.schema.json`.
+
 | Field | Meaning |
 | --- | --- |
 | `format_version` | `1` or `2` |
