@@ -2270,7 +2270,7 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
     const float targetScale = std::max(sx, sy);
     vkCmdSetDepthBias(cmd, f32(r[REGADDR::PA_SU_POLY_OFFSET_FRONT_OFFSET]),
                       f32(r[REGADDR::PA_SU_POLY_OFFSET_CLAMP]),
-                      f32(r[REGADDR::PA_SU_POLY_OFFSET_FRONT_SCALE]) / 16 * targetScale);
+                      f32(r[REGADDR::PA_SU_POLY_OFFSET_FRONT_SCALE]) * targetScale);
   }
   uint32_t tl = r[REGADDR::PA_SC_GENERIC_SCISSOR_TL],
            br = r[REGADDR::PA_SC_GENERIC_SCISSOR_BR];
