@@ -106,6 +106,11 @@ The number is the save slot.
 Slots are 1 through 5.
 The load starts at TV frame 200 and waits until the boot threads exist.
 
+`just run 1-1` does not load a save state.
+It enables the `example.intro-skip` mod and sets its course pack option to `1-1`.
+Any `N-M` token with that shape works the same way.
+You cannot pass a slot and a course pack on one launch.
+
 `just profile` runs `build/nsmbu` with the fixed-scene profile env (`NSMBU_NO_AUDIO`, profile and Vulkan stats, slow-swap log, log file under `.tmp/repro/`).
 Default load is slot 2 at TV frame 700; the run stops at TV frame 1100.
 Pass a slot number, or `--exit-at`, `--load-at`, or `--log`.

@@ -35,7 +35,7 @@ def main():
     parser.add_argument("--trace", action="store_true", help="pass --trace to the game (HLE trace)")
     parser.add_argument("run_args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
-    slot_num, args.run_args = slot.take_slot(args.run_args)
+    slot_num, course_pack, args.run_args = slot.take_args(args.run_args)
     use_debug_env = not args.no_debug
     exe = nsmbu_exe()
     if not os.path.isfile(exe):
@@ -44,8 +44,10 @@ def main():
     if not os.path.isdir(game):
         sys.exit("missing game/; run: just extract")
     env = os.environ.copy()
-    _, save = devdata.apply_env(env, ROOT)
-    if slot_num is not None:
+    user, save = devdata.apply_env(env, ROOT)
+    if course_pack is not None:
+        slot.apply_course_pack(user, course_pack)
+    elif slot_num is not None:
         slot.apply_slot(env, slot_num)
     if use_debug_env:
         for key, value in LAUNCH_DEBUG_ENV.items():

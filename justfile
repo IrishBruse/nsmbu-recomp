@@ -33,7 +33,7 @@ gdb *args:
 lldb *args:
     python3 tools/launch.py --lldb {{args}}
 
-# Build, then launch. A number 1 through 5 loads that save slot.
+# Build, then launch. A number 1 through 5 loads that save slot. A pack like 1-1 enables intro-skip for that course.
 run *args:
     just build {{args}} && just launch {{args}}
 

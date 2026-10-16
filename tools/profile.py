@@ -37,7 +37,9 @@ def main():
     parser.add_argument("--log", default=LOG, help=f"log file path (default {LOG})")
     parser.add_argument("run_args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
-    slot_num, run_args = slot.take_slot(args.run_args)
+    slot_num, course_pack, run_args = slot.take_args(args.run_args)
+    if course_pack is not None:
+        sys.exit("profile needs a save slot, such as 1 (not a course pack like 1-1)")
     if slot_num is None:
         slot_num = 1
     exe = nsmbu_exe()

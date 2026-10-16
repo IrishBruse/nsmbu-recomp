@@ -5,6 +5,7 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Add**: `just run 1-1` enables `example.intro-skip` for that course pack; `just run 1` still loads save slot 1.
 -   **Fix**: A number option in the Mods tab follows its `step`.
 -   **Add**: A `radio` option shows one button per choice, with a separate label.
     `example.intro-skip` uses that option for save files 1, 2, and 3.
