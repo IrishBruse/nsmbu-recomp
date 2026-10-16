@@ -46,7 +46,7 @@ That layout is the time-attack trial page when created early.
 | `0x0202B51C` | `TitleScene` | `kCreatorTitle` |
 | `0x0202B6C4` | none | post-title select |
 | `0x0202B570` | none | pre-course |
-| `0x0202B61C` | `MenuTask0202B61C` | `kCreatorMenu` (do not force) |
+| `0x0202B61C` | `MenuScene` | `kCreatorMenu` (do not force) |
 | `0x024C11F4` | `ChallengeSelectScene` | `kCreatorSaveSelect` |
 | `0x0202B4C8` | `CourseTask` | course body |
 | `0x0202B86C` | `CourseSelectTask` | `kCreatorCourseSelect` |

@@ -130,15 +130,15 @@ grep -rn "setNextScene" references/headers
 | `0x02009954` | `ActorMgr::createLater` | `kActorMgrCreateLater`, mod API |
 | `0x0202930C` | `sead::TTaskFactory<BootScene>` | `kCreatorBoot`, boot scene factory |
 | `0x0202B51C` | `sead::TTaskFactory<TitleScene>` | `kCreatorTitle`, scene phase probe |
-| `0x0202B61C` | `sead::TTaskFactory<MenuTask0202B61C>` | `kCreatorMenu`, save-slot menu task |
+| `0x0202B61C` | `sead::TTaskFactory<MenuScene>` | `kCreatorMenu`, save-slot menu task |
 | `0x0202B86C` | `sead::TTaskFactory<CourseSelectTask>` | `kCreatorCourseSelect`, scene phase probe |
 | `0x024C11F4` | `sead::TTaskFactory<ChallengeSelectScene>` | `kCreatorSaveSelect`, time-attack scene |
 | `0x0297AC48` | `BootScene::BootScene` (ctor) | boot task body |
-| `0x0297C5D8` | `MenuTask0202B61C::MenuTask0202B61C` (ctor) | menu task body |
-| `0x0297D268` | `MenuTask0202B61C::enterFileState` | `kAppEnterFileState`, intro skip |
-| `0x0297D58C` | `MenuTask0202B61C::enterChallengeSelectState` | time-attack state enter (not intro skip) |
-| `0x0297D5A8` | `MenuTask0202B61C::openChallengeSelect` | state `0x1022C184` initialize; requests `ChallengeSelectScene` |
-| `0x0297EC3C` | `MenuTask0202B61C::confirmFile` | `kAppConfirmFile`, story vs challenge |
+| `0x0297C5D8` | `MenuScene::MenuScene` (ctor) | menu task body |
+| `0x0297D268` | `MenuScene::enterFileState` | `kAppEnterFileState`, intro skip |
+| `0x0297D58C` | `MenuScene::enterChallengeSelectState` | time-attack state enter (not intro skip) |
+| `0x0297D5A8` | `MenuScene::openChallengeSelect` | state `0x1022C184` initialize; requests `ChallengeSelectScene` |
+| `0x0297EC3C` | `MenuScene::confirmFile` | `kAppConfirmFile`, story vs challenge |
 | `0x029872BC` | save continue into `CourseSelectTask` | `kOpenFirstSave`, intro skip |
 | `0x029D7648` | apply a save file onto `MainGame` | `kApplySaveFile`, intro skip |
 | `0x0297F3CC` | `ChallengeSelectScene::ChallengeSelectScene` (ctor) | time-attack scene body |
@@ -166,7 +166,6 @@ The headers do not name every address this repository uses.
 The table records that address as the save continue handler.
 The remaining hooks are `02ACD218`, `024D752C`, and `@022A79C4`.
 The remaining runtime addresses are `kCreatorFlow`, `kCreatorFileSelect`, `kCreatorMap`, `kCreatorCourseTask`, `kFaderBusy`, the save state functions, and the interpolation probes.
-`MenuTask0202B61C` is a decomp placeholder for factory `0x0202B61C` until `references/headers` names that class.
 Give the rest a name when a tree gains the symbol.
 
 ## Offsets
