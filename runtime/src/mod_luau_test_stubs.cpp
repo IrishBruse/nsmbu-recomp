@@ -17,3 +17,7 @@ __attribute__((weak)) uint32_t host_alloc(uint32_t size, uint32_t align) {
     return 0;
 }
 }
+
+namespace input {
+__attribute__((weak)) bool pro_controller() { return false; }
+}
