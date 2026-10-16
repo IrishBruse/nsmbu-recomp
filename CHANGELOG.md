@@ -16,7 +16,10 @@ At release, move those notes to a version heading and leave Unreleased empty.
     It does not press buttons and it does not create menu factory `0x0202B61C`.
     The scene source is `*(*(CourseTask) + 0x10)`, the same pointer the title confirm passes to `setNextScene`.
     An empty file 0 follows the game branch to factory `0x0202B570`.
-    The call copies save file 0 world, course, and node onto MainGame before `0x029872BC`.
+    The call applies save file 0 with guest `0x029D7648` before `0x029872BC`.
+-   **Fix**: The error viewer closes as soon as the game shows it, and that call does not pause the game.
+    This port does not draw that viewer.
+    A pause held the world map on the opening circle and made the map run slow.
 -   **Change**: Mod storage is `<host config>/mods.json` with top-level `enabled` and `config` (formatted JSON).
     Mod profiles are removed.
     An older nested `profiles` object or `profiles.json` still loads; the next save writes the flat file.

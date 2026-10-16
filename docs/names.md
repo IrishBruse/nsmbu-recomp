@@ -140,6 +140,7 @@ grep -rn "setNextScene" references/headers
 | `0x0297D5A8` | `MenuTask0202B61C::openChallengeSelect` | state `0x1022C184` initialize; requests `ChallengeSelectScene` |
 | `0x0297EC3C` | `MenuTask0202B61C::confirmFile` | `kAppConfirmFile`, story vs challenge |
 | `0x029872BC` | save continue into `CourseSelectTask` | `kOpenFirstSave`, intro skip |
+| `0x029D7648` | apply a save file onto `MainGame` | `kApplySaveFile`, intro skip |
 | `0x0297F3CC` | `ChallengeSelectScene::ChallengeSelectScene` (ctor) | time-attack scene body |
 | `0x024CD904` | `SubjectMgr::clearSubject` | clears `mMode` |
 | `0x024CE594` | `SubjectMgr::selectSaveFile` | sets `mSelectedFile` and `mMode` |

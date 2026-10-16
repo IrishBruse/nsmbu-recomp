@@ -13,6 +13,8 @@ extern "C" void hook_02994164(Cpu* c) {
     f_02994164_orig(c);
 }
 
+extern "C" void hook_029CBBB4(Cpu*) {}
+
 extern "C" void hook_022656E0(Cpu* c) {
     static int logged = 0;
     if (logged++ < 5)

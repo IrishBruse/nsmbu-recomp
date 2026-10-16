@@ -6,4 +6,5 @@
 024D752C  # draw queues: drop items whose model pointer at node+0x28 is null
 @022A79C4  # DistantViewMgr::calcView_: scale the flicker before it is added to the projection
 02994164  # Scene::setNextScene: intro-skip probe (BootScene, MenuTask0202B61C, ChallengeSelectScene)
+029CBBB4  # error viewer: this port does not draw it, so the call must not pause the game
 022656E0  # CourseSelectTask ctor: intro-skip probe, log the caller of the natural start

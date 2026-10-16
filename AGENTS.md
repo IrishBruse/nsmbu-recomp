@@ -46,6 +46,11 @@ python3 tools/recomp/test_builds.py
 
 A profile follows `.agents/skills/perf/SKILL.md`.
 
+## Automation
+
+Headless scripted boots use `tools/scripted-run.sh`.
+Read `docs/automation.md` for the environment that script sets (`NSMBU_HIDDEN_WINDOWS`, `NSMBU_NO_HOST_INPUT`, `NSMBU_NO_AUDIO`, and related) and the variables you set (`NSMBU_EXIT_AT_FRAME`, dumps, presses, sticks, mod-manager dir).
+
 ## Guest code
 
 Each guest function is `void f_XXXXXXXX(Cpu* c)`.
