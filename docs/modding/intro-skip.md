@@ -2,8 +2,12 @@
 
 Investigation for `modding/examples/example.intro-skip`.
 
-The example presses A through the title path until the world map is up.
-It does not open the menu task or the time-attack page.
+The example calls `open_first_save()` once the title or the map phase is current.
+That call writes save file 0 and runs guest `0x029872BC`.
+`0x029872BC` requests `CourseSelectTask` `0x0202B86C` when the file has a record.
+An empty file follows the game branch to factory `0x0202B570`.
+The example stops when `course_select()` is true.
+It does not press buttons.
 
 Addresses are USA v1.3.0.
 
@@ -11,8 +15,8 @@ Addresses are USA v1.3.0.
 
 `hooks.on_logic_step` runs this sequence.
 
-1. Wait until the title path is current (`title()`, `map_phase()`, or phase `0x0202B6C4` / `0x0202B570`).
-2. Press A on a timer.
+1. Wait until `title()` or `map_phase()` is true.
+2. Call `open_first_save()` until it returns true.
 3. Stop when `course_select()` is true.
 
 Do not call `open_file_select()` for this skip.
@@ -20,9 +24,9 @@ Forcing menu factory `0x0202B61C` early shows the time-attack trial layout.
 
 A boot log with this skip shows:
 
-1. Title factory `0x0202B51C`
-2. After A, factory `0x0202B6C4`
-3. After A, `CourseSelectTask` `0x0202B86C`
+1. Title or map phase
+2. `open_first_save()`
+3. `CourseSelectTask` `0x0202B86C`
 4. `course_select()` becomes true
 
 ## Why the menu path failed
@@ -45,6 +49,6 @@ That layout is the time-attack trial page when created early.
 
 ## Recommendation
 
-Press A through the title path.
+Call `open_first_save()` from the title or map phase.
 Stop on `course_select()`.
 Do not force `0x0202B61C`.

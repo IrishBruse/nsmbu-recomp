@@ -1,11 +1,13 @@
 # Intro skip
 
-The skip presses A through the title path until the world map is up.
-It does not open the menu task or the time-attack page.
+The skip calls `open_first_save()` once the title or the map phase is current.
+That call writes save file 0 and runs guest `0x029872BC`.
+The world map comes up when that file has a record.
+An empty file follows the game branch to factory `0x0202B570`.
 
 `hooks.on_logic_step` drives the skip while the boot flow runs.
 
-1. After the title path is current, press A on a timer.
+1. After the title or the map phase is current, call `open_first_save()`.
 2. Stop when `course_select()` is true (world map).
 
 Forcing menu factory `0x0202B61C` early shows the time-attack trial layout.

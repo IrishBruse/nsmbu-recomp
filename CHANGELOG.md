@@ -9,8 +9,12 @@ At release, move those notes to a version heading and leave Unreleased empty.
     Creating that factory early shows the time-attack trial layout.
     `0x0297D58C` enters the challenge-select state whose initialize opens `ChallengeSelectScene`.
     The call now selects save file 0 on an existing menu and enters file state `0x0297D268`.
-    `example.intro-skip` presses A through the title path until the world map is up.
-    It never requests the menu factory.
+-   **Change**: `example.intro-skip` calls `open_first_save` once the title or map phase is current.
+    That call writes save file 0 and runs guest `0x029872BC`, which requests the world map when the file has a record.
+    It does not press buttons and it does not create menu factory `0x0202B61C`.
+    The scene source is `*(*(CourseTask) + 0x10)`, the same pointer the title confirm passes to `setNextScene`.
+    An empty file 0 follows the game branch to factory `0x0202B570`.
+    The call copies save file 0 world, course, and node onto MainGame before `0x029872BC`.
 -   **Change**: Mod storage is `<host config>/mods.json` with top-level `enabled` and `config` (formatted JSON).
     Mod profiles are removed.
     An older nested `profiles` object or `profiles.json` still loads; the next save writes the flat file.

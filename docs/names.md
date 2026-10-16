@@ -139,6 +139,7 @@ grep -rn "setNextScene" references/headers
 | `0x0297D58C` | `MenuTask0202B61C::enterChallengeSelectState` | time-attack state enter (not intro skip) |
 | `0x0297D5A8` | `MenuTask0202B61C::openChallengeSelect` | state `0x1022C184` initialize; requests `ChallengeSelectScene` |
 | `0x0297EC3C` | `MenuTask0202B61C::confirmFile` | `kAppConfirmFile`, story vs challenge |
+| `0x029872BC` | save continue into `CourseSelectTask` | `kOpenFirstSave`, intro skip |
 | `0x0297F3CC` | `ChallengeSelectScene::ChallengeSelectScene` (ctor) | time-attack scene body |
 | `0x024CD904` | `SubjectMgr::clearSubject` | clears `mMode` |
 | `0x024CE594` | `SubjectMgr::selectSaveFile` | sets `mSelectedFile` and `mMode` |
@@ -155,10 +156,13 @@ grep -rn "setNextScene" references/headers
 | `0x101D1874` | `SubjectMgr::sInstance` | `kSubjectMgr`, mod API |
 | `0x101E6994` | `PlayerMgr::sInstance` | `kPlayerMgrSingleton`, mod API |
 | `0x101E7B28` | `Scene::sInstance` | `kSceneSingleton`, mod API |
+| `0x101E7DA4` | `SaveMgr::sInstance` | `kSaveMgr`, intro skip |
 | `0x101E9CC0` | `Actor::getRuntimeTypeInfoStatic()::typeInfo` | `kTypeInfoActor`, mod API |
 | `0x101ED8DC` | `Profile::sProfileList` | `kProfileList`, mod API |
 
 The headers do not name every address this repository uses.
+`0x029872BC` has no header name.
+The table records that address as the save continue handler.
 The remaining hooks are `02ACD218`, `024D752C`, and `@022A79C4`.
 The remaining runtime addresses are `kCreatorFlow`, `kCreatorFileSelect`, `kCreatorMap`, `kCreatorCourseTask`, `kFaderBusy`, the save state functions, and the interpolation probes.
 `MenuTask0202B61C` is a decomp placeholder for factory `0x0202B61C` until `references/headers` names that class.

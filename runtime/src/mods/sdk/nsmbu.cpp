@@ -404,6 +404,19 @@ const uint32_t kSetCourseStory = GC(0x029941D0);
 const uint32_t kSubjectSelectFile = GC(0x024CE594);
 const uint32_t kAppEnterFileState = GC(0x0297D268);
 const uint32_t kAppConfirmFile = GC(0x0297EC3C);
+const uint32_t kOpenFirstSave = GC(0x029872BC);
+const uint32_t kSaveMgr = GD(0x101E7DA4);
+const uint32_t kMainGame = GD(0x101E7D7C);
+constexpr uint32_t kFirstSave = 0u;
+constexpr uint32_t kSaveFileStride = 0x204u;
+constexpr uint32_t kSaveLiveFlagOff = 0xC28u;
+constexpr uint32_t kSaveRecordOff = 0x10u;
+constexpr uint32_t kSaveWorldOff = 4u;
+constexpr uint32_t kSaveCourseOff = 5u;
+constexpr uint32_t kSaveNodeOff = 6u;
+constexpr uint32_t kMainWorldOff = 0x19Cu;
+constexpr uint32_t kMainCourseOff = 0x1A0u;
+constexpr uint32_t kMainNodeOff = 0x1A4u;
 const uint32_t kFaderBusy = GC(0x02983B28);
 const uint32_t kSubjectMgr = GD(0x101D1874);
 
@@ -432,6 +445,9 @@ constexpr uint8_t kSubjectModeActive = 1;
 constexpr uint32_t kAppStateMethodOff = 0x1DCu;
 constexpr uint32_t kAppGateSelect = 0xDB1u;
 constexpr uint32_t kAppGateStory = 0xDB2u;
+constexpr uint32_t kSaveDataOff = 0x24u;
+constexpr uint32_t kLastFileOff = 0x07u;
+constexpr uint32_t kCourseTaskSrcOff = 0x10u;
 const uint32_t kCreatorBoot = GC(0x0202930C);
 const uint32_t kCreatorFlow = GC(0x0297B9F8);
 const uint32_t kCreatorFileSelect = GC(0x0298AD3C);
@@ -1696,6 +1712,59 @@ int l_scene_open_title(lua_State* L) {
     return 1;
 }
 
+bool continue_source(uint32_t& out, std::string& err) {
+    uint32_t course = 0;
+    if (!luau_guest::read_u32(kCourseTaskInstance, course, err)) return false;
+    if (course != 0) {
+        uint32_t head = 0;
+        if (!luau_guest::read_u32(course, head, err)) return false;
+        if (head != 0) {
+            uint32_t src = 0;
+            if (!luau_guest::read_u32(head + kCourseTaskSrcOff, src, err)) return false;
+            if (src != 0) {
+                out = src;
+                return true;
+            }
+        }
+    }
+    return scene_app_object(out, err);
+}
+
+int l_scene_open_first_save(lua_State* L) {
+    std::string err;
+    if (!scene_change_open(err)) return fail(L, err.c_str());
+    uint32_t mgr = 0;
+    if (!luau_guest::read_u32(kSaveMgr, mgr, err)) return fail(L, err.c_str());
+    if (mgr == 0) return fail(L, "file not ready");
+    uint32_t savedata = 0;
+    if (!luau_guest::read_u32(mgr + kSaveDataOff, savedata, err)) return fail(L, err.c_str());
+    if (savedata == 0) return fail(L, "file not ready");
+    if (!luau_guest::write_u8(savedata + kLastFileOff, 0, err)) return fail(L, err.c_str());
+    uint32_t game = 0;
+    if (!luau_guest::read_u32(kMainGame, game, err)) return fail(L, err.c_str());
+    if (game == 0) return fail(L, "file not ready");
+    uint32_t slot = kFirstSave * kSaveFileStride;
+    uint8_t live = 0;
+    if (!luau_guest::read_u8(savedata + slot + kSaveLiveFlagOff, live, err)) return fail(L, err.c_str());
+    uint32_t record = savedata + slot + kSaveLiveFlagOff;
+    if (live == 0) record = savedata + slot + kSaveRecordOff;
+    uint8_t world = 0;
+    uint8_t course = 0;
+    uint8_t node = 0;
+    if (!luau_guest::read_u8(record + kSaveWorldOff, world, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u8(record + kSaveCourseOff, course, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u8(record + kSaveNodeOff, node, err)) return fail(L, err.c_str());
+    uint32_t node_word = node == 255 ? 0xFFFFFFFFu : node;
+    if (!luau_guest::write_u32(game + kMainWorldOff, world, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u32(game + kMainCourseOff, course, err)) return fail(L, err.c_str());
+    if (!luau_guest::write_u32(game + kMainNodeOff, node_word, err)) return fail(L, err.c_str());
+    uint32_t src = 0;
+    if (!continue_source(src, err)) return fail(L, err.c_str());
+    guest_call(t_guest_cpu, kOpenFirstSave, {src});
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
 int l_scene_open_file_select(lua_State* L) {
     std::string err;
     if (!scene_change_open(err)) return fail(L, err.c_str());
@@ -1781,6 +1850,7 @@ void install_game(lua_State* L) {
     bind_guest(L, "course_select", l_scene_course_select);
     bind_guest(L, "course", l_scene_course);
     bind_guest(L, "open_title", l_scene_open_title);
+    bind_guest(L, "open_first_save", l_scene_open_first_save);
     bind_guest(L, "open_file_select", l_scene_open_file_select);
     bind_guest(L, "open_course_select", l_scene_open_course_select);
     bind_guest(L, "confirm_file", l_scene_confirm_file);

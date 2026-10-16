@@ -1,15 +1,9 @@
 const scene = nsmbu.scene
-const input = nsmbu.input
 const hooks = nsmbu.hooks
 
-local AFTER_TITLE = 0x0202B6C4
-local PRE_COURSE = 0x0202B570
-local COURSE_SELECT = 0x0202B86C
-
 local done = false
-local can_press = false
+local opened = false
 local last = ""
-local last_press = -1
 
 local function note(step: number, message: string)
   if message == last then
@@ -43,33 +37,27 @@ function hooks.on_logic_step(step: number)
     return
   end
 
-  local phase = scene.phase()
-  if phase == COURSE_SELECT then
-    note(step, "world map")
-    done = true
+  if opened then
+    note(step, string.format("wait world map phase=%s", phase_text()))
     return
   end
 
-  if scene.title() or scene.map_phase() or phase == AFTER_TITLE or phase == PRE_COURSE then
-    can_press = true
-  end
-
-  if not can_press then
+  if not (scene.title() or scene.map_phase()) then
     note(step, string.format("wait boot phase=%s", phase_text()))
     return
   end
 
-  if last_press >= 0 and step - last_press < 45 then
+  local ok, err = scene.open_first_save()
+  if ok == true then
+    opened = true
+    note(step, "open save 0")
     return
   end
-  last_press = step
-  input.press("A", 12)
-  note(step, string.format("press A phase=%s", phase_text()))
+  note(step, string.format("open_first_save %s phase=%s", err or "refused", phase_text()))
 end
 
 function hooks.on_unload()
   done = false
-  can_press = false
+  opened = false
   last = ""
-  last_press = -1
 end
