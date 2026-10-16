@@ -68,12 +68,12 @@ void refresh_package(Instance& inst) {
         lua_pop(L, 1);
         return;
     }
-    lua_getfield(L, -1, "package");
+    lua_getfield(L, -1, "Package");
     if (!lua_istable(L, -1)) {
         lua_pop(L, 1);
         lua_newtable(L);
         lua_pushvalue(L, -1);
-        lua_setfield(L, -3, "package");
+        lua_setfield(L, -3, "Package");
     }
     lua_pushlstring(L, inst.id.data(), inst.id.size());
     lua_setfield(L, -2, "id");
@@ -1918,12 +1918,12 @@ void install_game(lua_State* L) {
     bind_guest(L, "actors", l_level_actors);
     bind_guest(L, "count", l_level_count);
     bind_guest(L, "spawn", l_level_spawn);
-    set_loaded(L, "nsmbu.level");
+    set_loaded(L, "nsmbu.Level");
 
     lua_newtable(L);
     bind_guest(L, "get_player", l_player);
     bind_guest(L, "get_players", l_players);
-    set_loaded(L, "nsmbu.player");
+    set_loaded(L, "nsmbu.Player");
 
     lua_newtable(L);
     bind_guest(L, "title", l_scene_title);
@@ -1944,7 +1944,7 @@ void install_game(lua_State* L) {
     bind_guest(L, "confirm_file", l_scene_confirm_file);
     bind_guest(L, "load_story", l_scene_load_story);
     bind_guest(L, "load_pack", l_scene_load_pack);
-    set_loaded(L, "nsmbu.scene");
+    set_loaded(L, "nsmbu.Scene");
 }
 
 void install_global(lua_State* L) {
@@ -1952,19 +1952,19 @@ void install_global(lua_State* L) {
         lua_pop(L, 1);
         return;
     }
-    attach_loaded(L, "nsmbu.config", "config");
-    attach_loaded(L, "nsmbu.guest", "guest");
-    attach_loaded(L, "nsmbu.fn", "fn");
-    attach_loaded(L, "nsmbu.hooks", "hooks");
-    attach_loaded(L, "nsmbu.input", "input");
-    attach_loaded(L, "nsmbu.data", "data");
-    attach_loaded(L, "nsmbu.enemy", "enemy");
-    attach_loaded(L, "nsmbu.boss", "boss");
-    attach_loaded(L, "nsmbu.blocks", "blocks");
-    attach_loaded(L, "nsmbu.env", "env");
-    attach_loaded(L, "nsmbu.level", "level");
-    attach_loaded(L, "nsmbu.player", "player");
-    attach_loaded(L, "nsmbu.scene", "scene");
+    attach_loaded(L, "nsmbu.Config", "Config");
+    attach_loaded(L, "nsmbu.Guest", "Guest");
+    attach_loaded(L, "nsmbu.Fn", "Fn");
+    attach_loaded(L, "nsmbu.Hooks", "Hooks");
+    attach_loaded(L, "nsmbu.Input", "Input");
+    attach_loaded(L, "nsmbu.Data", "Data");
+    attach_loaded(L, "nsmbu.Enemy", "Enemy");
+    attach_loaded(L, "nsmbu.Boss", "Boss");
+    attach_loaded(L, "nsmbu.Blocks", "Blocks");
+    attach_loaded(L, "nsmbu.Env", "Env");
+    attach_loaded(L, "nsmbu.Level", "Level");
+    attach_loaded(L, "nsmbu.Player", "Player");
+    attach_loaded(L, "nsmbu.Scene", "Scene");
     lua_setglobal(L, "nsmbu");
 }
 
@@ -1986,7 +1986,7 @@ void install_modules(lua_State* L, Instance* inst) {
     lua_setfield(L, -2, "version");
     lua_pushlstring(L, inst->path.data(), inst->path.size());
     lua_setfield(L, -2, "path");
-    lua_setfield(L, -2, "package");
+    lua_setfield(L, -2, "Package");
 
     set_loaded(L, "nsmbu");
 
@@ -1994,7 +1994,7 @@ void install_modules(lua_State* L, Instance* inst) {
     bind(L, inst, "string", l_config_string);
     bind(L, inst, "number", l_config_number);
     bind(L, inst, "bool", l_config_bool);
-    set_loaded(L, "nsmbu.config");
+    set_loaded(L, "nsmbu.Config");
 
     lua_newtable(L);
     bind_guest(L, "read_u8", guest_read_u8);
@@ -2015,18 +2015,18 @@ void install_modules(lua_State* L, Instance* inst) {
     bind_guest(L, "write_f32", guest_write_f32);
     bind_guest(L, "write_f64", guest_write_f64);
     bind_guest(L, "write", guest_write);
-    set_loaded(L, "nsmbu.guest");
+    set_loaded(L, "nsmbu.Guest");
 
-    set_empty_module(L, "nsmbu.fn");
-    set_empty_module(L, "nsmbu.hooks");
+    set_empty_module(L, "nsmbu.Fn");
+    set_empty_module(L, "nsmbu.Hooks");
     lua_newtable(L);
     bind(L, inst, "press", l_input_press);
-    set_loaded(L, "nsmbu.input");
-    set_empty_module(L, "nsmbu.data");
-    set_empty_module(L, "nsmbu.enemy");
-    set_empty_module(L, "nsmbu.boss");
-    set_empty_module(L, "nsmbu.blocks");
-    set_empty_module(L, "nsmbu.env");
+    set_loaded(L, "nsmbu.Input");
+    set_empty_module(L, "nsmbu.Data");
+    set_empty_module(L, "nsmbu.Enemy");
+    set_empty_module(L, "nsmbu.Boss");
+    set_empty_module(L, "nsmbu.Blocks");
+    set_empty_module(L, "nsmbu.Env");
 
     install_game(L);
 }

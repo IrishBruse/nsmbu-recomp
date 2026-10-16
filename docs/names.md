@@ -75,7 +75,7 @@ A nested `class` in the file adds to the scope: in `references/headers/scene/Sce
 | A hooked function | `hook_XXXXXXXX` in the runtime, `f_XXXXXXXX_orig` for the game code | `hook_02994164` | `f_` plus the same digits |
 | Runtime code and data | `GC(0xXXXXXXXX)` for code, `GD(0xXXXXXXXX)` for data | `GC(0x02994164)` | [runtime/include/guest_addr.h](../runtime/include/guest_addr.h) |
 | A runtime constant | a `kName` constant that holds the address | `kSetNextScene = GC(0x02994164)` | [runtime/src/mods/sdk/nsmbu.cpp](../runtime/src/mods/sdk/nsmbu.cpp) |
-| Mod API (proposal) | `nsmbu.fn.<name>`, generated from the headers | `nsmbu.fn.dScnPly_Execute` | [modding/api.md](modding/api.md) |
+| Mod API (proposal) | `nsmbu.Fn.<name>`, generated from the headers | `nsmbu.Fn.dScnPly_Execute` | [modding/api.md](modding/api.md) |
 
 `GC` and `GD` are the identity for the USA build.
 They stay in the code so a later regional build can shift the address through that build's map.

@@ -13,7 +13,7 @@ It reads the Course pack option.
 The default is `1-1`.
 An empty Course pack also uses `1-1`.
 A non-empty pack calls `scene.load_pack` after the save opens.
-While the boot GamePad setup popup is current (`file_select()`, factory `0x0298AD3C`), it pulses confirm with `nsmbu.input.press("A", 3)` about every 30 logic steps.
+While the boot GamePad setup popup is current (`file_select()`, factory `0x0298AD3C`), it pulses confirm with `nsmbu.Input.press("A", 3)` about every 30 logic steps.
 After four pulses, if the popup is still current, it retries `scene.open_title()` until the title or map phase is current.
 It waits out the boot logo.
 `BootScene` does not leave until its own timer finishes.
@@ -21,9 +21,9 @@ It calls `apply_save(file)` once that scene is gone.
 `file` is the option minus 1.
 That call writes the selected save and does not run guest `0x029872BC`.
 It then calls `scene.load_pack` once and stops when `course_task()` is true.
-`nsmbu.level.active()` is already true while the title scene is coming up, so the skip does not use it as the stop.
+`nsmbu.Level.active()` is already true while the title scene is coming up, so the skip does not use it as the stop.
 
-`hooks.on_logic_step` runs this sequence.
+`Hooks.onLogicStep` runs this sequence.
 
 1. While `file_select()` is true, pulse `press("A", 3)` every 30 logic steps (up to four times).
 2. If the popup is still current after four pulses, retry `open_title()` until `title()` or `map_phase()` is true.
@@ -101,7 +101,7 @@ That write does not dismiss the boot popup.
 
 ### What shipped vs what is still open
 
-The example now uses approach **A** while `file_select()` is true: `nsmbu.input.press("A", 3)` about every 30 logic steps, up to four pulses.
+The example now uses approach **A** while `file_select()` is true: `nsmbu.Input.press("A", 3)` about every 30 logic steps, up to four pulses.
 If the popup is still current, it falls back to `scene.open_title()` (the existing SDK stand-in for approach **B**), with the same retry pattern as `open_first_save`.
 It does not add a native `skip_setup()` helper (approach **C**).
 
@@ -130,7 +130,7 @@ The flow / file-select task classes themselves are not named in `decomp/` yet.
 
 | Approach | How | Pros | Cons |
 | --- | --- | --- | --- |
-| **A. Input inject** | While `scene.file_select()`, call `nsmbu.input.press("A", n)` (or the confirm button the layout uses) until `title()` | No new SDK; matches real UI | Need the right button and a few steps; fragile if layout changes |
+| **A. Input inject** | While `scene.file_select()`, call `nsmbu.Input.press("A", n)` (or the confirm button the layout uses) until `title()` | No new SDK; matches real UI | Need the right button and a few steps; fragile if layout changes |
 | **B. Force title** | From `file_select()`, call `Scene::setNextScene` with `kCreatorTitle` when the fader is idle | Fast; no pad | No Luau wrapper for an arbitrary factory today; must respect `scene busy` / fader |
 | **C. Native helper** | Add e.g. `scene.skip_setup()` that sets the known gate / advances state, or wraps B | Clean API for the example | Needs a small runtime change and a short RE pass on the decide path |
 | **D. Leave as-is** | Keep waiting for title / map | Zero work when the popup auto-clears | Breaks scripted boots that need no host input |

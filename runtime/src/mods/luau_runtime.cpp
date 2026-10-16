@@ -121,7 +121,7 @@ bool push_hook(lua_State* L, const char* name) {
         lua_pop(L, 1);
         return false;
     }
-    lua_getfield(L, -1, "hooks");
+    lua_getfield(L, -1, "Hooks");
     lua_remove(L, -2);
     if (!lua_istable(L, -1)) {
         lua_pop(L, 1);
@@ -149,14 +149,14 @@ bool fire_hook(Instance& inst, const char* name, int nargs) {
 bool fire_logic(Instance& inst) {
     lua_State* L = static_cast<lua_State*>(inst.state);
     lua_pushnumber(L, (lua_Number)inst.step);
-    return fire_hook(inst, "on_logic_step", 1);
+    return fire_hook(inst, "onLogicStep", 1);
 }
 
-bool fire_config(Instance& inst) { return fire_hook(inst, "on_config_changed", 0); }
+bool fire_config(Instance& inst) { return fire_hook(inst, "onConfigChanged", 0); }
 
-bool fire_loaded(Instance& inst) { return fire_hook(inst, "on_loaded", 0); }
+bool fire_loaded(Instance& inst) { return fire_hook(inst, "onLoaded", 0); }
 
-bool fire_unload(Instance& inst) { return fire_hook(inst, "on_unload", 0); }
+bool fire_unload(Instance& inst) { return fire_hook(inst, "onUnload", 0); }
 
 int l_require(lua_State* L) {
     Instance* inst = self(L);

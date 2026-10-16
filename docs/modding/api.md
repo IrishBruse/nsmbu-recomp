@@ -1,8 +1,8 @@
 # Luau API (version 1)
 
 Status: **Phase 2 partial**.
-Lifecycle fields on `nsmbu.hooks` (`on_loaded`, `on_logic_step`, `on_config_changed`, and `on_unload`), package metadata, log and status, time, config, guest memory, high-level `nsmbu.level` / `nsmbu.player` helpers, level actor reads / spawns, and `nsmbu.scene` flow probes and transitions are implemented with embedded Luau.
-Function hooks (`hook` / `replace` / `call` on `nsmbu.hooks`), input pad reads, data files, guest heap alloc, and `nsmbu.fn` stay proposal until later phases.
+Lifecycle fields on `nsmbu.Hooks` (`onLoaded`, `onLogicStep`, `onConfigChanged`, and `onUnload`), package metadata, log and status, time, config, guest memory, high-level `nsmbu.Level` / `nsmbu.Player` helpers, level actor reads / spawns, and `nsmbu.Scene` flow probes and transitions are implemented with embedded Luau.
+Function hooks (`hook` / `replace` / `call` on `nsmbu.Hooks`), input pad reads, data files, guest heap alloc, and `nsmbu.Fn` stay proposal until later phases.
 Package plan: [luau-mods.md](luau-mods.md).
 Cemu packs do not use this API.
 
@@ -10,9 +10,9 @@ The runtime exposes one global, `nsmbu`.
 It holds the lifecycle fields, the log and status helpers, and one field per module.
 
 ```luau
-nsmbu.guest.read_u32(0x105E2C80)
-nsmbu.level.set_time(999)
-nsmbu.player(0)
+nsmbu.Guest.read_u32(0x105E2C80)
+nsmbu.Level.set_time(999)
+nsmbu.Player(0)
 ```
 
 Luau type definitions for editors live in [../../modding/sdk/nsmbu.d.luau](../../modding/sdk/nsmbu.d.luau).
@@ -26,16 +26,16 @@ Each package has its own Luau state, so one package cannot replace another packa
 | Module | Role | Status |
 | --- | --- | --- |
 | `nsmbu` | Log, status, time, package | Live |
-| `nsmbu.config` | Package option reads | Live |
-| `nsmbu.guest` | Guest memory read/write (heap alloc later) | Live (R/W) |
-| `nsmbu.level` | Course timer, course coins, score, live actors, spawn | Live |
-| `nsmbu.player` | Player handles and iterator | Live |
-| `nsmbu.scene` | Boot flow phase probes and scene transitions | Live |
-| `nsmbu.fn` | Generated function addresses | Proposal (empty table) |
-| `nsmbu.hooks` | Lifecycle callbacks (live); hook, replace, original, call (proposal) | Partial |
-| `nsmbu.input` | Pad snapshot, button helpers | Proposal (`press` injection is live) |
-| `nsmbu.data` | Per-package data files | Proposal (empty table) |
-| `nsmbu.enemy` / `nsmbu.boss` / `nsmbu.blocks` / `nsmbu.env` | Future game domains | Stub empty tables |
+| `nsmbu.Config` | Package option reads | Live |
+| `nsmbu.Guest` | Guest memory read/write (heap alloc later) | Live (R/W) |
+| `nsmbu.Level` | Course timer, course coins, score, live actors, spawn | Live |
+| `nsmbu.Player` | Player handles and iterator | Live |
+| `nsmbu.Scene` | Boot flow phase probes and scene transitions | Live |
+| `nsmbu.Fn` | Generated function addresses | Proposal (empty table) |
+| `nsmbu.Hooks` | Lifecycle callbacks (live); hook, replace, original, call (proposal) | Partial |
+| `nsmbu.Input` | Pad snapshot, button helpers | Proposal (`press` injection is live) |
+| `nsmbu.Data` | Per-package data files | Proposal (empty table) |
+| `nsmbu.Enemy` / `nsmbu.Boss` / `nsmbu.Blocks` / `nsmbu.Env` | Future game domains | Stub empty tables |
 
 ## Rules
 
@@ -48,35 +48,35 @@ Each package has its own Luau state, so one package cannot replace another packa
 - Guest multi-byte values are big-endian.
 - One guest read or write is at most 1 MiB.
 - Strings passed to the host are copied before the call returns.
-- Do not keep a guest pointer across frames unless you allocated it with `nsmbu.guest.alloc` (proposal).
+- Do not keep a guest pointer across frames unless you allocated it with `nsmbu.Guest.alloc` (proposal).
 
 ## Lifecycle
 
 Implemented in phase 2.
 
-Assign one function per event on `nsmbu.hooks`.
+Assign one function per event on `nsmbu.Hooks`.
 Omit a field when the package does not need that event.
 
 ```luau
-function nsmbu.hooks.on_logic_step(step)
+function nsmbu.Hooks.onLogicStep(step)
 end
 
-function nsmbu.hooks.on_config_changed()
+function nsmbu.Hooks.onConfigChanged()
 end
 
-function nsmbu.hooks.on_loaded()
+function nsmbu.Hooks.onLoaded()
 end
 
-function nsmbu.hooks.on_unload()
+function nsmbu.Hooks.onUnload()
 end
 ```
 
 | Field | Type | When it runs |
 | --- | --- | --- |
-| `on_logic_step` | `(step: number) -> ()` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
-| `on_config_changed` | `() -> ()` | After the player edits an option for this package. |
-| `on_loaded` | `() -> ()` | Once right after the entry script returns, before the first logic step. |
-| `on_unload` | `() -> ()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
+| `onLogicStep` | `(step: number) -> ()` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
+| `onConfigChanged` | `() -> ()` | After the player edits an option for this package. |
+| `onLoaded` | `() -> ()` | Once right after the entry script returns, before the first logic step. |
+| `onUnload` | `() -> ()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
 
 Package order follows manifest dependencies.
 
@@ -84,7 +84,7 @@ Package order follows manifest dependencies.
 
 Implemented in phase 2.
 
-`nsmbu.package` is read-only.
+`nsmbu.Package` is read-only.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -140,22 +140,22 @@ Values come from the Mods tab.
 They match the manifest `options` entry.
 
 ```luau
-local name = nsmbu.config.string("label", "Coins")
-local every = nsmbu.config.number("poll_every", 30)
-local on = nsmbu.config.bool("enabled", true)
+local name = nsmbu.Config.string("label", "Coins")
+local every = nsmbu.Config.number("poll_every", 30)
+local on = nsmbu.Config.bool("enabled", true)
 ```
 
 | Function | Result |
 | --- | --- |
-| `nsmbu.config.string(id, fallback)` | The string option, or `fallback` when the id is missing or not a string. Enum and radio options return the selected choice, not the radio label. |
-| `nsmbu.config.number(id, fallback)` | The number, or `fallback` when the id is missing or not a number. |
-| `nsmbu.config.bool(id, fallback)` | The boolean, or `fallback` when the id is missing or not a boolean. |
+| `nsmbu.Config.string(id, fallback)` | The string option, or `fallback` when the id is missing or not a string. Enum and radio options return the selected choice, not the radio label. |
+| `nsmbu.Config.number(id, fallback)` | The number, or `fallback` when the id is missing or not a number. |
+| `nsmbu.Config.bool(id, fallback)` | The boolean, or `fallback` when the id is missing or not a boolean. |
 
 `id` is the option id, not the display name.
 `fallback` is required.
 A wrong `fallback` type returns `nil` and a message.
 
-Option edits are visible on the next `nsmbu.config.*` call.
+Option edits are visible on the next `nsmbu.Config.*` call.
 They also fire `config_changed` callbacks.
 A package with `content_dir` still restarts before new files apply.
 The script options themselves do not wait for that restart.
@@ -166,11 +166,11 @@ Implemented in phase 2 (reads and writes).
 Guest heap alloc is still proposal.
 
 ```luau
-local value = nsmbu.guest.read_u32(0x105E2C80)
-nsmbu.guest.write_u32(0x105E2C80, value + 1)
+local value = nsmbu.Guest.read_u32(0x105E2C80)
+nsmbu.Guest.write_u32(0x105E2C80, value + 1)
 
-local bytes = nsmbu.guest.read(0x105E2C80, 16)
-nsmbu.guest.write(0x105E2C80, bytes)
+local bytes = nsmbu.Guest.read(0x105E2C80, 16)
+nsmbu.Guest.write(0x105E2C80, bytes)
 ```
 
 Reads and writes cover MEM1, MEM2, and the foreground bucket.
@@ -206,10 +206,10 @@ Use this only when game code must hold a pointer to bytes you own.
 Luau tables do not need it.
 
 ```luau
-local block = nsmbu.guest.alloc(256)
+local block = nsmbu.Guest.alloc(256)
 if block then
-  nsmbu.guest.write_u32(block, 1)
-  nsmbu.guest.free(block)
+  nsmbu.Guest.write_u32(block, 1)
+  nsmbu.Guest.free(block)
 end
 ```
 
@@ -229,17 +229,17 @@ Save states store it with that package id when this function exists.
 Implemented in phase 2.
 
 These helpers wrap USA v1.3.0 guest layout for common course scripts.
-Prefer them over raw `nsmbu.guest` reads when they cover the job.
+Prefer them over raw `nsmbu.Guest` reads when they cover the job.
 Addresses stay inside the host.
 
 ```luau
-if nsmbu.level.active() then
-  nsmbu.level.set_time(999)
-  nsmbu.level.set_coins(0)
-  nsmbu.level.set_score(0)
+if nsmbu.Level.active() then
+  nsmbu.Level.set_time(999)
+  nsmbu.Level.set_coins(0)
+  nsmbu.Level.set_score(0)
 end
 
-local p = nsmbu.player(0)
+local p = nsmbu.Player(0)
 if p and p:entered() then
   p:set_lives(99)
   p:set_mode(p:mode())
@@ -249,12 +249,12 @@ if p and p:entered() then
   end
 end
 
-for p in nsmbu.player.players() do
+for p in nsmbu.Player.players() do
   local lives = p:lives()
 end
 ```
 
-### `nsmbu.level`
+### `nsmbu.Level`
 
 | Function | Result |
 | --- | --- |
@@ -265,12 +265,12 @@ end
 | `coins()` / `set_coins(n)` | Course-wide coin total from `FieldGame`. |
 | `score()` / `set_score(n)` | Course score from `FieldGame`. |
 
-### `nsmbu.player`
+### `nsmbu.Player`
 
-The module is callable: `nsmbu.player(index)` is the same as `nsmbu.player.get(index)`.
-`nsmbu.player.players()` returns an iterator over entered players only.
+The module is callable: `nsmbu.Player(index)` is the same as `nsmbu.Player.get(index)`.
+`nsmbu.Player.players()` returns an iterator over entered players only.
 
-`nsmbu.player(index)` / `nsmbu.player.get(index)` returns a player handle for `index` `0` .. `3`, or `nil` when `FieldGame` is missing or the index is bad.
+`nsmbu.Player(index)` / `nsmbu.Player.get(index)` returns a player handle for `index` `0` .. `3`, or `nil` when `FieldGame` is missing or the index is bad.
 
 | Method | Result |
 | --- | --- |
@@ -288,7 +288,7 @@ The module is callable: `nsmbu.player(index)` is the same as `nsmbu.player.get(i
 
 `p.index` is the slot number.
 Do not keep a player handle across frames and treat it as a stable guest pointer.
-Call `nsmbu.player` / `nsmbu.player.get` or `nsmbu.player.players` again each logic step.
+Call `nsmbu.Player` / `nsmbu.Player.get` or `nsmbu.Player.players` again each logic step.
 
 ### Level actors and spawn
 
@@ -296,14 +296,14 @@ Live course actors, actor handles, and spawning.
 These wrap `ActorMgr`, `ActorBase`, and `Profile` from the USA v1.3.0 layout.
 
 ```luau
-for _, a in nsmbu.level.actors() do
+for _, a in nsmbu.Level.actors() do
   local pid = a:profile_id()
   if pid == 467 then
     local pos = a:pos()
   end
 end
 
-nsmbu.level.spawn(467, 100, 0, 0, { layer = 0, param0 = 0 })
+nsmbu.Level.spawn(467, 100, 0, 0, { layer = 0, param0 = 0 })
 ```
 
 | Function | Result |
@@ -337,14 +337,14 @@ Each handle is a table with `addr` (the guest address) and these methods:
 
 Do not keep an actor handle across logic steps.
 The game reuses actor slots and memory, so a stale handle can point at a different actor.
-Re-read `nsmbu.level.actors()` each step, and call `profile_id()` before you edit or delete a handle.
+Re-read `nsmbu.Level.actors()` each step, and call `profile_id()` before you edit or delete a handle.
 
 ## Scene flow
 
 Implemented in phase 2 extended with the title-skip groundwork.
 
 The boot flow runs the menus, the save select, and the world map as sead tasks.
-`nsmbu.scene` reads the current phase and requests transitions the same way the
+`nsmbu.Scene` reads the current phase and requests transitions the same way the
 game's own menus do.
 
 | Function | Result |
@@ -380,10 +380,10 @@ Call the same transition again on a later logic step when it returns `"scene bus
 Proposal (phase 4 with hooks).
 
 ```luau
-local addr = nsmbu.fn.dScnPly_Execute
+local addr = nsmbu.Fn.dScnPly_Execute
 ```
 
-`nsmbu.fn` is a generated table.
+`nsmbu.Fn` is a generated table.
 Keys are public function names from the USA headers.
 Values are integer addresses for the running build.
 The European build map translates them at load.
@@ -401,15 +401,15 @@ The game cannot call a Luau function through a function pointer.
 Proposal (phase 4).
 
 ```luau
-local id = nsmbu.hooks.hook(nsmbu.fn.dScnPly_Execute, "entry", function(ctx)
+local id = nsmbu.Hooks.hook(nsmbu.Fn.dScnPly_Execute, "entry", function(ctx)
   nsmbu.log_hex("r3", ctx.r3)
 end)
 
-nsmbu.hooks.hook(nsmbu.fn.dScnPly_Execute, "return", function(ctx)
+nsmbu.Hooks.hook(nsmbu.Fn.dScnPly_Execute, "return", function(ctx)
   ctx.r3 = 0
 end)
 
-nsmbu.hooks.unhook(id)
+nsmbu.Hooks.unhook(id)
 ```
 
 | Function | Result |
@@ -418,7 +418,7 @@ nsmbu.hooks.unhook(id)
 | `replace(target, callback)` | An integer id. |
 | `unhook(id)` | `true`. Removes a hook or a replacement owned by this package. |
 
-`target` is an address from `nsmbu.fn` or a mapped integer.
+`target` is an address from `nsmbu.Fn` or a mapped integer.
 `callback` is `function(ctx)`.
 A second package that `replace`s the same function fails at enable time.
 Any number of entry and return hooks is allowed.
@@ -450,8 +450,8 @@ An entry hook that only reads `ctx` must not set `skip`.
 ### `original`
 
 ```luau
-nsmbu.hooks.replace(nsmbu.fn.cLib_addCalc2, function(ctx)
-  nsmbu.hooks.original()
+nsmbu.Hooks.replace(nsmbu.Fn.cLib_addCalc2, function(ctx)
+  nsmbu.Hooks.original()
   nsmbu.log_int("result", ctx.r3)
 end)
 ```
@@ -470,7 +470,7 @@ Entry and return hooks cannot call `original`.
 Proposal (phase 4).
 
 ```luau
-local ok, err = nsmbu.hooks.call(nsmbu.fn.cLib_addCalc2, {
+local ok, err = nsmbu.Hooks.call(nsmbu.Fn.cLib_addCalc2, {
   r3 = object,
   f1 = 1.0,
 })
@@ -485,7 +485,7 @@ Read them with a return hook, or with `original` inside a replacement.
 `call` is for a script that wants to invoke a game function from a logic-step callback or from a hook.
 
 ```luau
-local result = nsmbu.hooks.call_result(nsmbu.fn.cLib_addCalc2, { r3 = object, f1 = 1.0 })
+local result = nsmbu.Hooks.call_result(nsmbu.Fn.cLib_addCalc2, { r3 = object, f1 = 1.0 })
 if result then
   nsmbu.log_int("r3", result.r3)
 end
@@ -507,8 +507,8 @@ Replace that function instead.
 `press` is live. The pad snapshot and button read helpers stay proposal.
 
 ```luau
-nsmbu.input.press("A", 3)
-nsmbu.input.press({ "Down", "Down" }, 2)
+nsmbu.Input.press("A", 3)
+nsmbu.Input.press({ "Down", "Down" }, 2)
 ```
 
 | Function | Result |
@@ -517,14 +517,14 @@ nsmbu.input.press({ "Down", "Down" }, 2)
 
 
 ```luau
-local pad = nsmbu.input()
-if pad.buttons & nsmbu.input.button.A ~= 0 then
+local pad = nsmbu.Input()
+if pad.buttons & nsmbu.Input.button.A ~= 0 then
   nsmbu.log("A")
 end
 ```
 
-The `nsmbu.input` module is callable.
-`nsmbu.input()` returns this table.
+The `nsmbu.Input` module is callable.
+`nsmbu.Input()` returns this table.
 It does not change the pad.
 
 | Field | Type | Meaning |
@@ -535,7 +535,7 @@ It does not change the pad.
 | `touch` | boolean | Touch is down. |
 | `tx`, `ty` | number | Touch position. |
 
-`nsmbu.input.button` holds the mask constants.
+`nsmbu.Input.button` holds the mask constants.
 
 | Name | Value |
 | --- | --- |
@@ -558,13 +558,13 @@ It does not change the pad.
 | `StickR` | `0x00020000` |
 
 ```luau
-local down = nsmbu.input.button.held("A")
+local down = nsmbu.Input.button.held("A")
 ```
 
 | Function | Result |
 | --- | --- |
-| `nsmbu.input.button.held(name)` | `true` when that button is down. `name` is a key of `nsmbu.input.button` such as `"A"`. A bad name returns `nil` and a message. |
-| `nsmbu.input.button.pressed(name)` | `true` when the button is down now and was up on the previous `nsmbu.input()` or `nsmbu.input.button.pressed` sample in this package. |
+| `nsmbu.Input.button.held(name)` | `true` when that button is down. `name` is a key of `nsmbu.Input.button` such as `"A"`. A bad name returns `nil` and a message. |
+| `nsmbu.Input.button.pressed(name)` | `true` when the button is down now and was up on the previous `nsmbu.Input()` or `nsmbu.Input.button.pressed` sample in this package. |
 
 This API does not inject buttons.
 It does not rumble the pad.
@@ -580,9 +580,9 @@ The host rejects symlinks and Windows device names.
 One call moves at most 1 MiB.
 
 ```luau
-nsmbu.data.write("counter.txt", "3")
-local text = nsmbu.data.read("counter.txt")
-nsmbu.data.remove("counter.txt")
+nsmbu.Data.write("counter.txt", "3")
+local text = nsmbu.Data.read("counter.txt")
+nsmbu.Data.remove("counter.txt")
 ```
 
 | Function | Result |
@@ -623,11 +623,11 @@ Prefer no coroutines in hooks.
 A status line from an option and player coins (phase 2):
 
 ```luau
-function nsmbu.hooks.on_logic_step(step)
-  if step % nsmbu.config.number("every", 30) ~= 0 then
+function nsmbu.Hooks.onLogicStep(step)
+  if step % nsmbu.Config.number("every", 30) ~= 0 then
     return
   end
-  local p = nsmbu.player(0)
+  local p = nsmbu.Player(0)
   if not p or not p:entered() then
     return
   end
@@ -636,7 +636,7 @@ function nsmbu.hooks.on_logic_step(step)
     nsmbu.log(err)
     return
   end
-  nsmbu.status(nsmbu.config.string("label", "Coins") .. ": " .. coins)
+  nsmbu.status(nsmbu.Config.string("label", "Coins") .. ": " .. coins)
 end
 ```
 
@@ -645,11 +645,11 @@ Count calls to a play-scene function, then leave the game body unchanged (propos
 ```luau
 local calls = 0
 
-nsmbu.hooks.hook(nsmbu.fn.dScnPly_Execute, "entry", function(ctx)
+nsmbu.Hooks.hook(nsmbu.Fn.dScnPly_Execute, "entry", function(ctx)
   calls = calls + 1
 end)
 
-nsmbu.hooks.hook(nsmbu.fn.dScnPly_Execute, "return", function(ctx)
+nsmbu.Hooks.hook(nsmbu.Fn.dScnPly_Execute, "return", function(ctx)
   if calls % 60 == 0 then
     nsmbu.log_int("play scene calls", calls)
   end
@@ -659,8 +659,8 @@ end)
 Save a counter beside the package (proposal until data files land):
 
 ```luau
-function nsmbu.hooks.on_unload()
-  nsmbu.data.write("calls.txt", tostring(calls))
+function nsmbu.Hooks.onUnload()
+  nsmbu.Data.write("calls.txt", tostring(calls))
 end
 ```
 
@@ -685,7 +685,7 @@ end
 | `out of memory` | The package guest heap is full. |
 | `bad type` | A host function received the wrong Luau type. |
 | `unknown option` | Not used. Config returns `fallback` instead. |
-| `unknown function` | `nsmbu.fn` name or `call` target is not a game function on this build. |
+| `unknown function` | `nsmbu.Fn` name or `call` target is not a game function on this build. |
 | `already replaced` | This function already has a replacement. Enable fails before the script runs when another package owns it. |
 | `original already called` | `original` ran twice in one replacement. |
 | `original outside replacement` | `original` ran from an entry hook, a return hook, or a logic-step callback. |

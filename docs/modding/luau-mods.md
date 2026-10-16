@@ -117,13 +117,13 @@ Phase 2 covers this table.
 
 | Native v1 | Luau |
 | --- | --- |
-| `on_frame(logic_step)` once per logic step, not per interpolated draw | `function nsmbu.hooks.on_logic_step(step)` |
-| `on_config_changed` | `function nsmbu.hooks.on_config_changed()` |
-| `on_unload` | `function nsmbu.hooks.on_unload()` |
-| `get_string` / `get_number` / `get_bool` | `nsmbu.config` reads |
+| `on_frame(logic_step)` once per logic step, not per interpolated draw | `function nsmbu.Hooks.onLogicStep(step)` |
+| `onConfigChanged` | `function nsmbu.Hooks.onConfigChanged()` |
+| `onUnload` | `function nsmbu.Hooks.onUnload()` |
+| `get_string` / `get_number` / `get_bool` | `nsmbu.Config` reads |
 | `log` and `status` | `nsmbu.log` and `nsmbu.status` |
-| `read_guest` / `write_guest`, big-endian, at most 1 MiB | `nsmbu.guest` typed helpers |
-| Common course reads (timer, coins, score, lives, power-up, pos, speed, grounded) | `nsmbu.level` and `nsmbu.player` |
+| `read_guest` / `write_guest`, big-endian, at most 1 MiB | `nsmbu.Guest` typed helpers |
+| Common course reads (timer, coins, score, lives, power-up, pos, speed, grounded) | `nsmbu.Level` and `nsmbu.Player` |
 | Options, dependencies, conflicts in the manifest | Same manifest fields |
 | Runs on the game thread | Same rule |
 
@@ -162,16 +162,16 @@ Phase 4 proposal (hooks and calls).
 
 | Guest v2 | Luau |
 | --- | --- |
-| Entry hook on a game function | `nsmbu.hooks.hook(address, "entry", fn)` |
-| Return hook | `nsmbu.hooks.hook(address, "return", fn)` |
-| Replace a function | `nsmbu.hooks.replace(address, fn)` |
-| Call the original body | `nsmbu.hooks.original()` from inside a replacement |
-| Call another game function | `nsmbu.hooks.call(address, args)` |
-| Read config at startup | `nsmbu.config` (live; no restart for script options) |
+| Entry hook on a game function | `nsmbu.Hooks.hook(address, "entry", fn)` |
+| Return hook | `nsmbu.Hooks.hook(address, "return", fn)` |
+| Replace a function | `nsmbu.Hooks.replace(address, fn)` |
+| Call the original body | `nsmbu.Hooks.original()` from inside a replacement |
+| Call another game function | `nsmbu.Hooks.call(address, args)` |
+| Read config at startup | `nsmbu.Config` (live; no restart for script options) |
 | `nsmbu_log` and friends | `nsmbu.log` |
-| Per-mod guest heap | `nsmbu.guest.alloc` / `free`, or a Luau table when the data must not live in guest RAM |
-| `nsmbu_file_read` / `write` under `mod-data/<id>` | `nsmbu.data` |
-| `nsmbu_input_read` | `nsmbu.input` |
+| Per-mod guest heap | `nsmbu.Guest.alloc` / `free`, or a Luau table when the data must not live in guest RAM |
+| `nsmbu_file_read` / `write` under `mod-data/<id>` | `nsmbu.Data` |
+| `nsmbu_input_read` | `nsmbu.Input` |
 | `nsmbu_logic_dt` / `nsmbu_logic_step` | `nsmbu.logic_dt()` and the step argument |
 | One replacement per function, many hooks | Same conflict rule |
 | Port hooks stay outside mod hooks | Same. Frame interpolation runs first. |
@@ -183,10 +183,10 @@ Luau can add `nsmbu.hud` later.
 It is not required to retire v2.
 
 Game calls use guest addresses from the public headers (`references/headers`, see [names.md](../names.md)).
-The Luau runtime should ship a generated `nsmbu.fn` table of those names.
+The Luau runtime should ship a generated `nsmbu.Fn` table of those names.
 A mod can still pass a raw address.
 USA addresses are the authoring target.
-The European build map in SDK v2 (`tools/recomp/builds`) must still translate hook targets and `nsmbu.hooks.call` targets.
+The European build map in SDK v2 (`tools/recomp/builds`) must still translate hook targets and `nsmbu.Hooks.call` targets.
 Object field offsets are not translated.
 That limit is the same as in SDK v2.
 
@@ -244,13 +244,13 @@ A real mod uses a named field from the generated address table.
 ```luau
 local step = 0
 
-function nsmbu.hooks.on_logic_step(logic_step)
+function nsmbu.Hooks.onLogicStep(logic_step)
   step = step + 1
   if step % 30 ~= 0 then
     return
   end
-  local coins = nsmbu.guest.read_u32(nsmbu.fn.example_coin_count)
-  local prefix = nsmbu.config.string("label", "Coins")
+  local coins = nsmbu.Guest.read_u32(nsmbu.Fn.example_coin_count)
+  local prefix = nsmbu.Config.string("label", "Coins")
   nsmbu.status(prefix .. ": " .. tostring(coins))
 end
 ```
@@ -258,18 +258,18 @@ end
 A hook that replaces the guest `cLib_addCalc2` example looks like this.
 The address is `0200ED84` (`NSMBU_ADDR_cLib_addCalc2`).
 The body is illustrative.
-`nsmbu.fn.cLib_addCalc2` is a generated name.
+`nsmbu.Fn.cLib_addCalc2` is a generated name.
 It exists only when the header export includes that function.
 
 ```luau
-nsmbu.hooks.replace(nsmbu.fn.cLib_addCalc2, function(ctx)
-  nsmbu.hooks.original()
+nsmbu.Hooks.replace(nsmbu.Fn.cLib_addCalc2, function(ctx)
+  nsmbu.Hooks.original()
 end)
 ```
 
 `ctx` holds r3–r10 and f1–f8.
 A return hook sees those registers after the original function.
-A replacement that does not call `nsmbu.hooks.original` skips the game body.
+A replacement that does not call `nsmbu.Hooks.original` skips the game body.
 The port's own hooks in `hooks*.txt` stay outside this call.
 
 ### Files the package may contain
@@ -279,7 +279,7 @@ The port's own hooks in `hooks*.txt` stay outside this call.
 | `manifest.json` | Required. |
 | `main.luau` and other `.luau` files | Script. `require` searches only inside the package. Optional when `content_dir` is set. |
 | `content/...` | Optional file replacements. Same layout rules as today. |
-| `mod-data/<id>/` | Created by the runtime for `nsmbu.data`. Not shipped in the zip. |
+| `mod-data/<id>/` | Created by the runtime for `nsmbu.Data`. Not shipped in the zip. |
 
 Reject `.so`, `.dll`, `.dylib`, `.elf`, `.rpx`, `patches.txt`, `.asm`, shader files, and `rules.txt` inside a Luau package.
 Reject `code/`, `meta/`, and DLC trees inside `content/`, as the content importer does today.
@@ -304,7 +304,7 @@ Do not abort the process.
 A package with `content_dir` needs a restart so the file map and any script start together.
 A script-only package (no `content_dir`) still loads live on enable.
 With **Hot reload Luau scripts** on in the Mods tab, a script-only package also reloads while enabled when its `.luau` files change.
-Reload runs `nsmbu.hooks.on_unload`, then creates a new Luau state and runs the entry script again.
+Reload runs `nsmbu.Hooks.onUnload`, then creates a new Luau state and runs the entry script again.
 A failed reload disables that package the same way a failed first load does.
 
 ### Hooks without a PowerPC toolchain
@@ -349,7 +349,7 @@ A bad address returns an error to Luau.
 It does not crash the host.
 Do not expose a raw pointer into guest RAM to Luau.
 
-`nsmbu.guest.alloc` is optional.
+`nsmbu.Guest.alloc` is optional.
 Use it only when the game must hold a pointer to mod bytes.
 The block lives in a per-mod guest heap with the same caps SDK v2 planned (default 256 KiB, maximum 8 MiB).
 Pure Luau data stays in the Luau heap and is not part of the guest save image.
@@ -371,13 +371,13 @@ A content-only package is valid.
 
 ### Data files and input
 
-`nsmbu.data.read` and `nsmbu.data.write` use `mod-data/<id>/` under the host config directory.
+`nsmbu.Data.read` and `nsmbu.Data.write` use `mod-data/<id>/` under the host config directory.
 Flat names only.
 No `..`, symlinks, or absolute paths.
 Maximum 1 MiB per call.
 This matches the guest v2 file service.
 
-`nsmbu.input` returns the current pad snapshot.
+`nsmbu.Input` returns the current pad snapshot.
 It is read-only.
 It does not inject buttons.
 Button injection can be a later API with its own design.
@@ -417,7 +417,7 @@ This proposal does not include that hatch.
 Guest mods record enabled mod id and version in the portable state (`runtime/src/portable_state.cpp`, section handled with `guestmods::ModIdentity`).
 Replace that list with enabled Luau packages (id and version).
 Keep the warning when the set differs.
-Drop guest RAM regions for mod code and the guest heap from the state format, unless `nsmbu.guest.alloc` exists.
+Drop guest RAM regions for mod code and the guest heap from the state format, unless `nsmbu.Guest.alloc` exists.
 If the heap exists, store it as a per-id blob with a size cap.
 A content-only package is part of the set because it changes what the game reads.
 Cemu packs stay out of that list unless they already affect a state.
@@ -494,7 +494,7 @@ Cemu packages load as they do now.
 
 ## Tests to add before deletion
 
-- Load a Luau package, run `nsmbu.hooks.on_logic_step`, and read an option.
+- Load a Luau package, run `nsmbu.Hooks.onLogicStep`, and read an option.
 - A script error unloads that package only.
 - `require` cannot escape the package directory.
 - `io` and `os` are nil.
@@ -542,7 +542,7 @@ Do not ship Luau hooks without a hook test.
 | --- | --- | --- |
 | Luau on a hot function | A replacement of a per-particle or per-draw function can miss the frame time. | Document the cost. Offer `nsmbu.original`. Measure one hot hook before calling the API done. |
 | Sandbox holes | Guest write is a gameplay tool and also a crash tool. | Bound sizes. No FFI. Fault one package. |
-| Address drift | USA v1.3.0 addresses will not match another update. | Keep `game_id` and the RPX check. Generate `nsmbu.fn` from the headers. |
+| Address drift | USA v1.3.0 addresses will not match another update. | Keep `game_id` and the RPX check. Generate `nsmbu.Fn` from the headers. |
 | European builds | Hook addresses differ. | Keep the build map from SDK v2. Refuse an unmapped target. |
 | Function pointers into mod code | Luau functions have no guest address. | State the limit. Do not revive the guest ELF heap for code. |
 | Content and script restart split | A script that expects new files can run before the map updates. | One restart when `content_dir` is set. |
@@ -555,7 +555,7 @@ Do not ship Luau hooks without a hook test.
   LuaJIT is retired.
 - Whether `format_version` 2 is required, or `kind: luau` is enough on version 1.
 - Whether content-only packages show as "Luau" or as "Files" in the Mods list while the manifest kind stays `luau`.
-- Whether `nsmbu.guest.alloc` is in the first hook release or a later one.
+- Whether `nsmbu.Guest.alloc` is in the first hook release or a later one.
 - Whether button injection exists at all.
 - Named parameters on hooks, taken from header signatures.
   API v1 uses registers only.

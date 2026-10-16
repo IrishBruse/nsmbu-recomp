@@ -3,5 +3,10 @@
   "luau-lsp.types.definitionFiles": {
     "@nsmbu": "modding/sdk/nsmbu.d.luau"
   },
-  "luau-lsp.types.hotReload": true
+  "luau-lsp.types.hotReload": true,
+  "[luau]": {
+    "editor.defaultFormatter": "JohnnyMorganz.stylua",
+    "editor.formatOnSave": true
+  },
+  "stylua.searchParentConfig": true
 }

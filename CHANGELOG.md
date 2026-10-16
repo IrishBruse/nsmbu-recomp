@@ -65,12 +65,12 @@ At release, move those notes to a version heading and leave Unreleased empty.
     `open_file_select` returns `"scene busy"`, `"menu missing"`, `"state not ready"`, or `"file not ready"` when it cannot run.
     The script sends the same call again.
     The script stops when `file_index()` is 0.
--   **Change**: Lifecycle callbacks live on `nsmbu.hooks` as assignable fields (`on_logic_step`, `on_config_changed`, `on_loaded`, `on_unload`) instead of `nsmbu.on_*` register helpers and `unlisten`.
--   **Add**: Mod API `nsmbu.scene`: boot-flow phase probes (`title`, `file_select`, `map_phase`, `course`, `course_select`, `phase`) and transitions (`open_title`, `open_file_select`, `open_course_select`, `confirm_file`, `load_story`) that call `Scene::setNextScene` / `Scene::setCourse_Story` inside the port.
--   **Add**: Mod API `nsmbu.hooks.on_loaded` fires once right after a package is loaded, as soon as the game can be called into.
-    `nsmbu.input.press(...)` injects buttons for N logic steps.
+-   **Change**: Lifecycle callbacks live on `nsmbu.Hooks` as assignable fields (`onLogicStep`, `onConfigChanged`, `onLoaded`, `onUnload`) instead of `nsmbu.on_*` register helpers and `unlisten`.
+-   **Add**: Mod API `nsmbu.Scene`: boot-flow phase probes (`title`, `file_select`, `map_phase`, `course`, `course_select`, `phase`) and transitions (`open_title`, `open_file_select`, `open_course_select`, `confirm_file`, `load_story`) that call `Scene::setNextScene` / `Scene::setCourse_Story` inside the port.
+-   **Add**: Mod API `nsmbu.Hooks.onLoaded` fires once right after a package is loaded, as soon as the game can be called into.
+    `nsmbu.Input.press(...)` injects buttons for N logic steps.
     Example `example.intro-skip` stops on save slot 0 without input.
-    From `on_logic_step` it calls `nsmbu.scene.open_file_select`, then it reads `file_index()`.
+    From `onLogicStep` it calls `nsmbu.Scene.open_file_select`, then it reads `file_index()`.
     It does not open the time-attack scene.
     It never presses buttons or reads guest memory.
 -   **Docs**: `docs/names.md` maps the function names in `references/headers` and `references/decomp` to the guest addresses and the port names (`f_…`, `hook_…`, `GC`/`GD`, `kName`).
@@ -83,9 +83,9 @@ At release, move those notes to a version heading and leave Unreleased empty.
 -   **Add**: Luau mod packages: mods are Luau scripts (`kind: luau`) with the host API, logic-step callbacks, optional `content_dir` content, and hot reload.
     The mod SDK, type definitions, and example packages live under `modding/`.
     The old guest and native SDKs are removed.
--   **Add**: Runtime level editing for Luau mods: `nsmbu.level.actors()` lists live actors and `nsmbu.level.spawn(...)` spawns them.
+-   **Add**: Runtime level editing for Luau mods: `nsmbu.Level.actors()` lists live actors and `nsmbu.Level.spawn(...)` spawns them.
     Example `example.level-editor` shows both.
--   **Add**: High-level game helpers `nsmbu.level` and `nsmbu.player` for cheats and game state.
+-   **Add**: High-level game helpers `nsmbu.Level` and `nsmbu.Player` for cheats and game state.
 -   **Add**: Settings overlay Audio tab: mute, volume, and TV / GamePad / Auto output, saved in `settings.ini`.
 -   **Add**: Performance overlay detail (lag breakdown) shows bar rows for GPU, renderer CPU, vsync, waits, and idle, sorted by cost.
 -   **Change**: Faster guest texture decode (Vulkan) and parallel save-state memory capture and restore.

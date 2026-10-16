@@ -1,7 +1,7 @@
 # Cheats
 
 Phase 2 Luau package for common NSMBU course assists.
-It uses the high-level `nsmbu.level` and `nsmbu.player` APIs each logic step.
+It uses the high-level `nsmbu.Level` and `nsmbu.Player` APIs each logic step.
 Those helpers also cover course coins/score and player pos/speed/grounded (see `docs/modding/api.md`).
 It does not need hooks.
 

@@ -4,10 +4,10 @@ type LogicStepCallback = (step: number) -> ()
 type VoidCallback = () -> ()
 
 type Hooks = {
-	on_logic_step: LogicStepCallback,
-	on_config_changed: VoidCallback,
-	on_loaded: VoidCallback,
-	on_unload: VoidCallback,
+	onLogicStep: LogicStepCallback,
+	onConfigChanged: VoidCallback,
+	onLoaded: VoidCallback,
+	onUnload: VoidCallback,
 }
 
 type Package = {
@@ -208,7 +208,7 @@ type Players = {
 type Empty = {}
 
 declare nsmbu: {
-	package: Package,
+	Package: Package,
 
 	log: (message: string) -> (boolean?, string?),
 	log_int: (label: string, value: number) -> (boolean?, string?),
@@ -219,17 +219,17 @@ declare nsmbu: {
 	logic_step: () -> number,
 	logic_dt: () -> number,
 
-	config: Config,
-	guest: Guest,
-	fn: Fn,
-	hooks: Hooks,
-	input: Input,
-	data: Data,
-	enemy: Empty,
-	boss: Empty,
-	blocks: Empty,
-	env: Empty,
-	level: Level,
-	player: Players,
-	scene: Scene,
+	Config: Config,
+	Guest: Guest,
+	Fn: Fn,
+	Hooks: Hooks,
+	Input: Input,
+	Data: Data,
+	Enemy: Empty,
+	Boss: Empty,
+	Blocks: Empty,
+	Env: Empty,
+	Level: Level,
+	Player: Players,
+	Scene: Scene,
 }

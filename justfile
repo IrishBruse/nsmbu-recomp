@@ -66,8 +66,9 @@ profile *args:
 perf *args:
     python3 tools/perf.py {{args}}
 
-# Type-check example Luau mods with the SDK definitions. Needs luau-lsp on PATH.
+# Format and type-check example Luau mods. Needs stylua and luau-lsp on PATH.
 lint:
+    stylua --config-path modding/.stylua.toml modding/examples
     find modding/examples -type f -name '*.luau' -print0 | xargs -0 luau-lsp analyze \
         --definitions:@nsmbu=modding/sdk/nsmbu.d.luau
 

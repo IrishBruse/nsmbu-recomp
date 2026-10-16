@@ -71,11 +71,11 @@ int main(int argc, char** argv) {
         assert(install(luau_pack("luau.status",
             "assert(type(rawget(_G,\"nsmbu\"))==\"table\")\n"
             "assert(nsmbu==require(\"nsmbu\"))\n"
-            "assert(nsmbu.config==require(\"nsmbu.config\"))\n"
-            "assert(type(nsmbu.level)==\"table\")\n"
-            "assert(type(nsmbu.player)==\"table\")\n"
-            "function nsmbu.hooks.on_logic_step(step)\n"
-            "  nsmbu.status(nsmbu.config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
+            "assert(nsmbu.Config==require(\"nsmbu.Config\"))\n"
+            "assert(type(nsmbu.Level)==\"table\")\n"
+            "assert(type(nsmbu.Player)==\"table\")\n"
+            "function nsmbu.Hooks.onLogicStep(step)\n"
+            "  nsmbu.status(nsmbu.Config.string(\"label\",\"x\")..\":\"..tostring(step))\n"
             "end\n",
             ",\"options\":[{\"id\":\"label\",\"name\":\"Label\",\"type\":\"string\",\"default\":\"Hi\"}]"),error));
         assert(enable("luau.status",true,error));frame(1);
@@ -86,23 +86,23 @@ int main(int argc, char** argv) {
 
         assert(install(luau_pack("luau.pack",
             "local nsmbu=require(\"nsmbu\")\n"
-            "local scene=nsmbu.scene\n"
+            "local Scene=nsmbu.Scene\n"
             "local function expect(want,a,b)\n"
             "  return a==nil and b==want\n"
             "end\n"
-            "function nsmbu.hooks.on_logic_step(step)\n"
+            "function nsmbu.Hooks.onLogicStep(step)\n"
             "  local ok=true\n"
-            "  local a,b=scene.load_pack(\"1-23\")\n"
+            "  local a,b=Scene.load_pack(\"1-23\")\n"
             "  if not expect(\"no guest cpu\",a,b) then ok=false end\n"
-            "  a,b=scene.load_pack(\"nope\")\n"
+            "  a,b=Scene.load_pack(\"nope\")\n"
             "  if not expect(\"bad pack\",a,b) then ok=false end\n"
-            "  a,b=scene.load_pack(\"1-0\")\n"
+            "  a,b=Scene.load_pack(\"1-0\")\n"
             "  if not expect(\"bad pack\",a,b) then ok=false end\n"
-            "  a,b=scene.load_story(0,22)\n"
+            "  a,b=Scene.load_story(0,22)\n"
             "  if not expect(\"no guest cpu\",a,b) then ok=false end\n"
-            "  a,b=scene.load_story(0,256)\n"
+            "  a,b=Scene.load_story(0,256)\n"
             "  if not expect(\"bad course\",a,b) then ok=false end\n"
-            "  a,b=scene.load_story(9,0)\n"
+            "  a,b=Scene.load_story(9,0)\n"
             "  if not expect(\"bad world\",a,b) then ok=false end\n"
             "  nsmbu.status(ok and \"pack-ok\" or \"pack-fail\")\n"
             "end\n",""),error));
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
 
         assert(install(luau_pack("luau.loaded",
             "local nsmbu=require(\"nsmbu\")\n"
-            "function nsmbu.hooks.on_loaded()\n"
+            "function nsmbu.Hooks.onLoaded()\n"
             "  nsmbu.status(\"loaded\")\n"
             "end\n",""),error));
         assert(enable("luau.loaded",true,error));frame(4);
@@ -121,12 +121,12 @@ int main(int argc, char** argv) {
 
         assert(install(luau_pack("luau.boom",
             "local nsmbu=require(\"nsmbu\")\n"
-            "function nsmbu.hooks.on_logic_step(step)\n"
+            "function nsmbu.Hooks.onLogicStep(step)\n"
             "  error(\"boom\")\n"
             "end\n",""),error));
         assert(install(luau_pack("luau.ok",
             "local nsmbu=require(\"nsmbu\")\n"
-            "function nsmbu.hooks.on_logic_step(step)\n"
+            "function nsmbu.Hooks.onLogicStep(step)\n"
             "  nsmbu.status(\"ok\")\n"
             "end\n",""),error));
         assert(enable("luau.boom",true,error));assert(enable("luau.ok",true,error));frame(10);
@@ -141,10 +141,10 @@ int main(int argc, char** argv) {
             "assert(type(utf8)==\"table\")\n"
             "assert(type(rawget(_G,\"nsmbu\"))==\"table\")\n"
             "local nsmbu=require(\"nsmbu\")\n"
-            "local guest=require(\"nsmbu.guest\")\n"
+            "local guest=require(\"nsmbu.Guest\")\n"
             "assert(type(guest.read_u32)==\"function\")\n"
             "local sib=require(\"sib\")\n"
-            "function nsmbu.hooks.on_logic_step(step)\n"
+            "function nsmbu.Hooks.onLogicStep(step)\n"
             "  nsmbu.status(sib.tag)\n"
             "end\n","",
             "return {tag=\"sib-ok\"}\n"),error));
@@ -174,8 +174,8 @@ int main(int argc, char** argv) {
         mods::luau_guest::set_base(reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(slab.data())-0x10000000u));
         assert(install(luau_pack("luau.guest",
             "local nsmbu=require(\"nsmbu\")\n"
-            "local guest=require(\"nsmbu.guest\")\n"
-            "function nsmbu.hooks.on_logic_step(step)\n"
+            "local guest=require(\"nsmbu.Guest\")\n"
+            "function nsmbu.Hooks.onLogicStep(step)\n"
             "  local addr=0x10000000\n"
             "  local ok=guest.write_u32(addr,0x11223344)\n"
             "  local v=guest.read_u32(addr)\n"
@@ -220,9 +220,9 @@ int main(int argc, char** argv) {
         }
         assert(install(luau_pack("luau.game",
             "local nsmbu=require(\"nsmbu\")\n"
-            "local level=require(\"nsmbu.level\")\n"
-            "local player=require(\"nsmbu.player\")\n"
-            "function nsmbu.hooks.on_logic_step(step)\n"
+            "local level=require(\"nsmbu.Level\")\n"
+            "local player=require(\"nsmbu.Player\")\n"
+            "function nsmbu.Hooks.onLogicStep(step)\n"
             "  if not level.active() then nsmbu.status('no-course') return end\n"
             "  level.set_time(999)\n"
             "  level.set_coins(88)\n"
@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
 
         auto both=root/"luau.both";fs::create_directories(both/"content"/"Common");
         std::ofstream(both/"content"/"Common"/"b.bin")<<"x";
-        std::ofstream(both/"main.luau")<<"function nsmbu.hooks.on_logic_step(step) nsmbu.status(\"both\") end\n";
+        std::ofstream(both/"main.luau")<<"function nsmbu.Hooks.onLogicStep(step) nsmbu.status(\"both\") end\n";
         std::ofstream(both/"manifest.json")<<R"({"format_version":2,"id":"luau.both","name":"Both","version":"1.0.0","game_id":"nsmbu-usa","kind":"luau","luau":{"api_version":1,"entry":"main.luau"},"content_dir":"content"})";
         assert(install(both.string(),error));
         assert(enable("luau.both",true,error));frame(42);
@@ -298,7 +298,7 @@ int main(int argc, char** argv) {
         assert(!hot_reload());
         assert(install(luau_pack("luau.reload",
             "local nsmbu=require(\"nsmbu\")\n"
-            "function nsmbu.hooks.on_logic_step(step)\n"
+            "function nsmbu.Hooks.onLogicStep(step)\n"
             "  nsmbu.status(\"before\")\n"
             "end\n",""),error));
         assert(enable("luau.reload",true,error));frame(50);
@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
             auto script=storage/"mods"/"luau.reload"/"main.luau";
             std::ofstream(script)
                 <<"local nsmbu=require(\"nsmbu\")\n"
-                <<"function nsmbu.hooks.on_logic_step(step)\n"
+                <<"function nsmbu.Hooks.onLogicStep(step)\n"
                 <<"  nsmbu.status(\"after\")\n"
                 <<"end\n";
             auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(2);
@@ -336,7 +336,7 @@ int main(int argc, char** argv) {
             auto script=storage/"mods"/"luau.both"/"main.luau";
             std::ofstream(script)
                 <<"local nsmbu=require(\"nsmbu\")\n"
-                <<"function nsmbu.hooks.on_logic_step(step)\n"
+                <<"function nsmbu.Hooks.onLogicStep(step)\n"
                 <<"  nsmbu.status(\"hot-both\")\n"
                 <<"end\n";
             auto stamp=fs::file_time_type::clock::now()+std::chrono::seconds(2);

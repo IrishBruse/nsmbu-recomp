@@ -13,7 +13,7 @@ Applying the save during the logo sends the flow into course select before that 
 That call does not open the world map.
 `file` is the option minus 1.
 
-`hooks.on_logic_step` drives the skip while the boot flow runs.
+`Hooks.onLogicStep` drives the skip while the boot flow runs.
 
 1. While `file_select()` is true, pulse **A** (up to four times), then retry `open_title()` if needed.
 2. After the boot logo, call `apply_save` until the save is applied.

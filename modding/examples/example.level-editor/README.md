@@ -1,6 +1,6 @@
 # Level editor
 
-Runtime level editing on top of the `nsmbu.level` actor APIs.
+Runtime level editing on top of the `nsmbu.Level` actor APIs.
 It spawns the selected object near player 1, and on option also deletes actors of that profile (see `docs/modding/api.md`).
 Actor handles come from `level.actors()`, spawns go through `level.spawn(profile_id, x, y, z)`.
 

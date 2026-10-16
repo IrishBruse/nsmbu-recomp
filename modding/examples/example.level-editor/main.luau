@@ -1,7 +1,7 @@
-const level = nsmbu.level
-const player = nsmbu.player
-const config = nsmbu.config
-const hooks = nsmbu.hooks
+const Level = nsmbu.Level
+const Player = nsmbu.Player
+const Config = nsmbu.Config
+const Hooks = nsmbu.Hooks
 
 local PROFILE_IDS: { [string]: number } = {
 	["coin"] = 395,
@@ -16,7 +16,7 @@ local spawned = 0
 local spawned_failed = 0
 
 local function spawn_id(): number?
-	local name = config.string("spawn_kind", "off")
+	local name = Config.string("spawn_kind", "off")
 	if not name or name == "off" then
 		return nil
 	end
@@ -24,7 +24,7 @@ local function spawn_id(): number?
 end
 
 local function spawn_countdown(step: number): boolean
-	local every = config.number("spawn_every", 2) or 1
+	local every = Config.number("spawn_every", 2) or 1
 	return step % math.floor(math.max(every, 1) * 30) == 0
 end
 
@@ -33,7 +33,7 @@ local function spawn_near_player()
 	if not id then
 		return
 	end
-	local p = player.get_player(0)
+	local p = Player.get_player(0)
 	if not p or not p:entered() then
 		return
 	end
@@ -41,9 +41,9 @@ local function spawn_near_player()
 	if not pos then
 		return
 	end
-	local ox = config.number("spawn_offset_x", 0) or 0
-	local oy = config.number("spawn_offset_y", 0) or 0
-	local done, err = level.spawn(id, pos.x + ox, pos.y + oy + 32, pos.z)
+	local ox = Config.number("spawn_offset_x", 0) or 0
+	local oy = Config.number("spawn_offset_y", 0) or 0
+	local done, err = Level.spawn(id, pos.x + ox, pos.y + oy + 32, pos.z)
 	if done then
 		spawned = spawned + 1
 	else
@@ -59,7 +59,7 @@ local function clear_kind_actors()
 	if not id then
 		return
 	end
-	for _, a in level.actors() do
+	for _, a in Level.actors() do
 		local pid = a:profile_id()
 		if pid ~= id then
 			continue
@@ -68,19 +68,19 @@ local function clear_kind_actors()
 	end
 end
 
-function hooks.on_logic_step(step: number)
-	if not level.active() then
+function Hooks.onLogicStep(step: number)
+	if not Level.active() then
 		return
 	end
-	if config.bool("clear_kind", false) then
+	if Config.bool("clear_kind", false) then
 		clear_kind_actors()
 	end
 	if spawn_countdown(step) then
 		spawn_near_player()
-		nsmbu.status(("spawned %d, live %d"):format(spawned, level.count() or 0))
+		nsmbu.status(("spawned %d, live %d"):format(spawned, Level.count() or 0))
 	end
 end
 
-function hooks.on_unload()
+function Hooks.onUnload()
 	nsmbu.log_int("spawned", spawned)
 end
