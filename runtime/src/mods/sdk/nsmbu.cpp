@@ -1725,38 +1725,75 @@ bool continue_source(uint32_t& out, std::string& err) {
     return scene_app_object(out, err);
 }
 
-int l_scene_open_first_save(lua_State* L) {
-    uint32_t file = 0;
+bool save_file_arg(lua_State* L, uint32_t& file, std::string& err) {
+    file = 0;
     if (lua_gettop(L) >= 1 && !lua_isnil(L, 1)) {
-        if (!lua_isnumber(L, 1)) return fail(L, "bad type");
+        if (!lua_isnumber(L, 1)) {
+            err = "bad type";
+            return false;
+        }
         lua_Number n = lua_tonumber(L, 1);
-        if (n < 0 || n >= (lua_Number)kSaveFileCount || n != (lua_Number)(uint32_t)n) return fail(L, "bad file");
+        if (n < 0 || n >= (lua_Number)kSaveFileCount || n != (lua_Number)(uint32_t)n) {
+            err = "bad file";
+            return false;
+        }
         file = (uint32_t)n;
     }
-    std::string err;
-    if (!scene_change_open(err)) return fail(L, err.c_str());
+    return true;
+}
+
+bool apply_save_file(uint32_t file, std::string& err) {
+    if (!scene_change_open(err)) return false;
     uint32_t mgr = 0;
-    if (!luau_guest::read_u32(kSaveMgr, mgr, err)) return fail(L, err.c_str());
-    if (mgr == 0) return fail(L, "file not ready");
+    if (!luau_guest::read_u32(kSaveMgr, mgr, err)) return false;
+    if (mgr == 0) {
+        err = "file not ready";
+        return false;
+    }
     uint32_t savedata = 0;
-    if (!luau_guest::read_u32(mgr + kSaveDataOff, savedata, err)) return fail(L, err.c_str());
-    if (savedata == 0) return fail(L, "file not ready");
-    if (!luau_guest::write_u8(savedata + kLastFileOff, (uint8_t)file, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u32(mgr + kSaveDataOff, savedata, err)) return false;
+    if (savedata == 0) {
+        err = "file not ready";
+        return false;
+    }
+    if (!luau_guest::write_u8(savedata + kLastFileOff, (uint8_t)file, err)) return false;
     uint32_t field = 0;
-    if (!luau_guest::read_u32(kFieldGameSingleton, field, err)) return fail(L, err.c_str());
-    if (field == 0) return fail(L, "file not ready");
+    if (!luau_guest::read_u32(kFieldGameSingleton, field, err)) return false;
+    if (field == 0) {
+        err = "file not ready";
+        return false;
+    }
     uint32_t gate = 0;
-    if (!luau_guest::read_u32(kSaveApplyFlag, gate, err)) return fail(L, err.c_str());
-    if (gate != 0 && !luau_guest::write_u8(gate + kSaveApplyFlagOff, 0, err)) return fail(L, err.c_str());
+    if (!luau_guest::read_u32(kSaveApplyFlag, gate, err)) return false;
+    if (gate != 0 && !luau_guest::write_u8(gate + kSaveApplyFlagOff, 0, err)) return false;
     guest_call(t_guest_cpu, kApplySaveFile, {mgr, file});
+    uint32_t game = 0;
+    if (!luau_guest::read_u32(kMainGame, game, err)) return false;
+    if (game == 0) {
+        err = "file not ready";
+        return false;
+    }
+    if (!luau_guest::write_u8(game + kSinglePlayerDrc, input::pro_controller() ? 0 : 1, err)) return false;
+    return true;
+}
+
+int l_scene_apply_save(lua_State* L) {
+    uint32_t file = 0;
+    std::string err;
+    if (!save_file_arg(L, file, err)) return fail(L, err.c_str());
+    if (!apply_save_file(file, err)) return fail(L, err.c_str());
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+int l_scene_open_first_save(lua_State* L) {
+    uint32_t file = 0;
+    std::string err;
+    if (!save_file_arg(L, file, err)) return fail(L, err.c_str());
+    if (!apply_save_file(file, err)) return fail(L, err.c_str());
     uint32_t src = 0;
     if (!continue_source(src, err)) return fail(L, err.c_str());
     guest_call(t_guest_cpu, kOpenFirstSave, {src});
-    uint32_t game = 0;
-    if (!luau_guest::read_u32(kMainGame, game, err)) return fail(L, err.c_str());
-    if (game == 0) return fail(L, "file not ready");
-    if (!luau_guest::write_u8(game + kSinglePlayerDrc, input::pro_controller() ? 0 : 1, err))
-        return fail(L, err.c_str());
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -1900,6 +1937,7 @@ void install_game(lua_State* L) {
     bind_guest(L, "course_select", l_scene_course_select);
     bind_guest(L, "course", l_scene_course);
     bind_guest(L, "open_title", l_scene_open_title);
+    bind_guest(L, "apply_save", l_scene_apply_save);
     bind_guest(L, "open_first_save", l_scene_open_first_save);
     bind_guest(L, "open_file_select", l_scene_open_file_select);
     bind_guest(L, "open_course_select", l_scene_open_course_select);

@@ -2,6 +2,8 @@ local scene = nsmbu.scene
 local hooks = nsmbu.hooks
 local config = nsmbu.config
 
+local k_boot = 0x0202930C
+
 local done = false
 local opened = false
 local requested = false
@@ -61,25 +63,26 @@ function hooks.on_logic_step(step: number)
     return
   end
 
-  if scene.title() or scene.map_phase() then
-    local picked = config.string("save_file", "1")
-    local save = 1
-    if picked == "2" then
-      save = 2
-    elseif picked == "3" then
-      save = 3
-    end
-    local ok, err = scene.open_first_save(save - 1)
-    if ok == true then
-      opened = true
-      note(step, string.format("open save %d", save))
-      return
-    end
-    note(step, string.format("open_first_save %s phase=%s", err or "refused", phase_text()))
+  if scene.phase() == k_boot then
+    note(step, "wait boot")
     return
   end
 
-  if scene.file_select() then
+  local picked = config.string("save_file", "1")
+  local save = 1
+  if picked == "2" then
+    save = 2
+  elseif picked == "3" then
+    save = 3
+  end
+  local ok, err = scene.apply_save(save - 1)
+  if ok == true then
+    opened = true
+    note(step, string.format("apply save %d", save))
+    return
+  end
+
+  if scene.file_select() and err == "file not ready" then
     file_select_steps += 1
     if popup_pulses < 4 then
       if file_select_steps % 30 == 0 then
@@ -104,7 +107,7 @@ function hooks.on_logic_step(step: number)
 
   file_select_steps = 0
   popup_pulses = 0
-  note(step, string.format("wait boot phase=%s", phase_text()))
+  note(step, string.format("apply_save %s phase=%s", err or "refused", phase_text()))
 end
 
 function hooks.on_unload()

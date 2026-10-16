@@ -15,19 +15,20 @@ An empty Course pack also uses `1-1`.
 A non-empty pack calls `scene.load_pack` after the save opens.
 While the boot GamePad setup popup is current (`file_select()`, factory `0x0298AD3C`), it pulses confirm with `nsmbu.input.press("A", 3)` about every 30 logic steps.
 After four pulses, if the popup is still current, it retries `scene.open_title()` until the title or map phase is current.
-Then it calls `open_first_save(file)` with `file` equal to the option minus 1.
-That call writes the selected save file and runs guest `0x029872BC`.
-`0x029872BC` requests `CourseSelectTask` `0x0202B86C` when the file has a record.
-An empty file follows the game branch to factory `0x0202B570`.
-After the save opens, the example calls `scene.load_pack` and stops when `course_task()` is true.
+It waits out the boot logo.
+`BootScene` does not leave until its own timer finishes.
+It calls `apply_save(file)` once that scene is gone.
+`file` is the option minus 1.
+That call writes the selected save and does not run guest `0x029872BC`.
+It then calls `scene.load_pack` once and stops when `course_task()` is true.
 `nsmbu.level.active()` is already true while the title scene is coming up, so the skip does not use it as the stop.
 
 `hooks.on_logic_step` runs this sequence.
 
 1. While `file_select()` is true, pulse `press("A", 3)` every 30 logic steps (up to four times).
 2. If the popup is still current after four pulses, retry `open_title()` until `title()` or `map_phase()` is true.
-3. Read the Save file option and call `open_first_save(file)` until it returns true.
-4. Call `scene.load_pack` for the Course pack option until `course_task()` is true.
+3. After the boot logo, call `apply_save(file)` until it returns true.
+4. Call `scene.load_pack` once, then wait until `course_task()` is true.
 
 Do not call `open_file_select()` for this skip.
 Forcing menu factory `0x0202B61C` early shows the time-attack trial layout.
