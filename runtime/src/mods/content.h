@@ -1,4 +1,5 @@
 #pragma once
+#include "mod_json.h"
 #include <filesystem>
 #include <map>
 #include <string>
@@ -11,7 +12,7 @@ std::string pack_language(const std::string& filename);
 
 void set_game_root(const std::filesystem::path& game);
 void import_legacy(const std::filesystem::path& stage,const std::string& source_name);
-void synthesize_cemu_content(const std::filesystem::path& pack,const std::string& folder_name);
+json::Value synthesize_cemu_content(const std::filesystem::path& pack,const std::string& folder_name);
 Files index(const std::filesystem::path& directory);
 
 void activate(Files files);

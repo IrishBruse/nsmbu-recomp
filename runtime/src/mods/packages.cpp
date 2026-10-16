@@ -86,8 +86,8 @@ void migrate_content_alias(const fs::path& path){
     f.close();
     require(bool(f)&&host::replace_file(tmp.string(),(path/"manifest.json").string()),"Cannot migrate content package");
 }
-Manifest manifest(const fs::path& path){
-    auto v=json::parse(read_text(path/"manifest.json"));require(v.type==Value::Object,"Manifest must be an object");
+Manifest manifest(const fs::path& path,Value v){
+    require(v.type==Value::Object,"Manifest must be an object");
     Manifest m;m.id=string_field(v,"id",false,64);require(id_ok(m.id),"Invalid mod ID");
     m.name=string_field(v,"name",false,128);require(!m.name.empty(),"Mod name is empty");
     m.version=string_field(v,"version",false,64);version(m.version);
@@ -147,6 +147,7 @@ Manifest manifest(const fs::path& path){
     if(m.kind=="content")require(m.dependencies.empty()&&m.options.empty(),"Content packages do not support dependencies or runtime options yet");
     return m;
 }
+Manifest manifest(const fs::path& path){return manifest(path,json::parse(read_text(path/"manifest.json")));}
 bool wanted(const std::string& id){const auto& v=database.get("enabled").get(id);return v.type==Value::Bool&&v.boolean;}
 
 Value config(const Manifest& m){Value out;out.type=Value::Object;for(const auto& o:m.options){const auto& saved=database.get("config").get(m.id).get(o.id);out[o.id]=valid_option(o,saved)?saved:o.default_value;}return out;}
@@ -210,8 +211,8 @@ bool looks_like_graphics_rules(const std::string& text){
     auto rules=text;for(char& c:rules)if(c>='A'&&c<='Z')c+='a'-'A';
     return rules.find("[preset]")!=std::string::npos||rules.find("[textureredefine]")!=std::string::npos||rules.find("[control]")!=std::string::npos||rules.find("[default]")!=std::string::npos;
 }
-void synthesize_missing_manifest(const fs::path& path,const std::string& folder){
-    if(fs::exists(path/"manifest.json"))return;
+Manifest load_manifest(const fs::path& path,const std::string& folder){
+    if(fs::exists(path/"manifest.json")){migrate_content_alias(path);return manifest(path);}
     bool graphics=false;std::error_code ec;
     for(const auto& file:fs::recursive_directory_iterator(path,ec)){
         if(ec||!file.is_regular_file())continue;
@@ -219,10 +220,11 @@ void synthesize_missing_manifest(const fs::path& path,const std::string& folder)
         if(name.ends_with("_vs.txt")||name.ends_with("_ps.txt"))graphics=true;
         if(name=="rules.txt")graphics=graphics||looks_like_graphics_rules(read_text(file.path()));
     }
-    if(graphics){cemu::import_legacy(path,folder);return;}
-    if(fs::exists(path/"rules.txt"))content::synthesize_cemu_content(path,folder);
+    if(graphics)return manifest(path,cemu::synthesize_legacy_manifest(path,folder));
+    if(fs::exists(path/"rules.txt"))return manifest(path,content::synthesize_cemu_content(path,folder));
+    return manifest(path);
 }
-void scan(){records.clear();if(!ready)return;fs::create_directories(root/"mods");for(const auto& e:fs::directory_iterator(root/"mods")){std::error_code ec;auto folder=e.path().filename().string();if(!e.is_directory(ec)||ec||folder.empty()||folder[0]=='.')continue;Record r;r.path=fs::weakly_canonical(e.path(),ec);if(ec||r.path.empty())r.path=e.path();try{synthesize_missing_manifest(r.path,folder);migrate_content_alias(r.path);r.manifest=manifest(r.path);}catch(const std::exception& ex){r.manifest.id=folder;r.manifest.name=folder;r.manifest.problem=ex.what();}if(records.contains(r.manifest.id)){if(r.manifest.problem.empty())r.manifest.problem="Duplicate package ID";if(r.manifest.id==folder)continue;r.manifest.id=folder;}records.emplace(r.manifest.id,std::move(r));}}
+void scan(){records.clear();if(!ready)return;fs::create_directories(root/"mods");for(const auto& e:fs::directory_iterator(root/"mods")){std::error_code ec;auto folder=e.path().filename().string();if(!e.is_directory(ec)||ec||folder.empty()||folder[0]=='.')continue;Record r;r.path=fs::weakly_canonical(e.path(),ec);if(ec||r.path.empty())r.path=e.path();try{r.manifest=load_manifest(r.path,folder);}catch(const std::exception& ex){r.manifest.id=folder;r.manifest.name=folder;r.manifest.problem=ex.what();}if(records.contains(r.manifest.id)){if(r.manifest.problem.empty())r.manifest.problem="Duplicate package ID";if(r.manifest.id==folder)continue;r.manifest.id=folder;}records.emplace(r.manifest.id,std::move(r));}}
 std::vector<std::string> order(const std::set<std::string>& enabled){
     std::map<std::string,int> mark;std::vector<std::string> result;
     std::function<void(const std::string&)> visit=[&](const std::string& id){require(mark[id]!=1,"Dependency cycle at "+id);if(mark[id]==2)return;mark[id]=1;auto it=records.find(id);require(it!=records.end(),"Missing dependency: "+id);const auto& m=it->second.manifest;require(m.problem.empty(),m.name+": "+m.problem);for(const auto& dep:m.dependencies){auto d=records.find(dep.id);require(d!=records.end(),"Missing dependency: "+dep.id);require(version(d->second.manifest.version)>=version(dep.version),"Dependency "+dep.id+" needs version "+dep.version);require(enabled.contains(dep.id),"Dependency is disabled: "+dep.id);visit(dep.id);}mark[id]=2;result.push_back(id);};

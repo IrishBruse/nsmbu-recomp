@@ -32,6 +32,7 @@ struct Pack {
 };
 Pack parse(const std::filesystem::path& folder);
 json::Value options(const Pack& pack);
+json::Value synthesize_legacy_manifest(const std::filesystem::path& stage,const std::string& source_name);
 void import_legacy(const std::filesystem::path& stage,const std::string& source_name);
 struct Selection {std::string id;Pack pack;json::Value config;};
 void validate(const std::vector<Selection>& selections);

@@ -80,7 +80,7 @@ bool under_ignored(const fs::path& root,const fs::path& path){
     for(const auto& part:rel){auto name=lower(part.string());if(name=="meta")return true;}
     return false;
 }
-void write_content_manifest(const fs::path& stage,const std::string& folder_name,const fs::path& content_dir,const Definition& def,const std::string& mapped,const std::string& ignored){
+json::Value content_manifest_value(const fs::path& stage,const std::string& folder_name,const fs::path& content_dir,const Definition& def,const std::string& mapped,const std::string& ignored){
     auto name=def.name.empty()?fs::path(folder_name).stem().string():def.name;
     require(!name.empty(),"Missing mod name");if(name.size()>128)name.resize(128);
     std::string id=folder_name;
@@ -101,6 +101,10 @@ void write_content_manifest(const fs::path& stage,const std::string& folder_name
     json::Value m;m["format_version"]=2;m["id"]=id;m["name"]=name;m["version"]=version;m["game_id"]="nsmbu-usa";m["kind"]="luau";m["minimum_manager_version"]="1.0.0";
     m["content_dir"]=content_dir.lexically_relative(stage).generic_string();
     m["description"]=description;
+    return m;
+}
+void write_content_manifest(const fs::path& stage,const std::string& folder_name,const fs::path& content_dir,const Definition& def,const std::string& mapped,const std::string& ignored){
+    auto m=content_manifest_value(stage,folder_name,content_dir,def,mapped,ignored);
     std::ofstream out(stage/"manifest.json");out<<json::dump(m)<<'\n';out.close();require(bool(out),"Cannot write imported manifest");
 }
 }
@@ -132,7 +136,7 @@ std::multimap<std::string,std::string> game_names(){
 }
 }
 void set_game_root(const fs::path& game){game_root=game;}
-void synthesize_cemu_content(const fs::path& pack,const std::string& folder_name){
+json::Value synthesize_cemu_content(const fs::path& pack,const std::string& folder_name){
     std::vector<fs::path> candidates;
     std::error_code ec;
     for(fs::recursive_directory_iterator it(pack,ec),end;!ec&&it!=end;it.increment(ec)){
@@ -158,7 +162,7 @@ void synthesize_cemu_content(const fs::path& pack,const std::string& folder_name
         std::ifstream f(rules);std::string text{std::istreambuf_iterator<char>(f),{}};
         def=parse_definition(text);
     }
-    write_content_manifest(pack,folder_name,candidates.front(),def,{},{});
+    return content_manifest_value(pack,folder_name,candidates.front(),def,{},{});
 }
 void import_legacy(const fs::path& stage,const std::string& source_name){
     std::vector<fs::path> candidates,loose_packs;

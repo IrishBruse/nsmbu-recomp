@@ -6,7 +6,7 @@ An example is a pack such as Cloudy SMBU 2: a pack root with `rules.txt`, a `con
 
 The Mods tab has no import UI.
 Players copy package folders into the mods directory ([mod-manager.md](mod-manager.md)).
-On scan, the port detects a file-only Cemu content pack from Definition-only `rules.txt` and the `content/` tree, and writes `manifest.json`.
+On scan, the port detects a file-only Cemu content pack from Definition-only `rules.txt` and the `content/` tree and keeps synthesized package metadata in memory only.
 See live file-replacement behaviour in [content.md](content.md) and graphics-only Cemu packs in [cemu.md](cemu.md).
 
 ## Player workflow
@@ -30,8 +30,8 @@ When scanning `mods/<entry>/`, classify as follows.
 3. Else if `rules.txt` is Definition-only (or Definition plus ignored non-load sections) **and** exactly one `content/` tree exists under the pack, treat it as a **Cemu content pack**.
 4. Else leave the folder as a broken package with a clear problem string (same as a missing manifest today).
 
-For step 3 the host writes `manifest.json` into that mods folder entry.
-The player did not author that file.
+For step 3 the host synthesizes manifest fields in memory.
+It does not create or update `manifest.json` in the player's pack folder.
 
 Fields from `[Definition]`:
 
@@ -55,7 +55,6 @@ mods/cloudy-smbu-2/
   rules.txt          # [Definition] only; titleIds includes 0005000010101d00
   content/           # game-relative replacements
   meta/              # ignored (boot/icon TGA, meta.xml); not mapped into /vol/content
-  manifest.json      # written by scan when missing
 ```
 
 Rules:

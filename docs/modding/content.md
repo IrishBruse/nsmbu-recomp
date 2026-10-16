@@ -19,7 +19,7 @@ Active content is deliberately immutable for the session.
 Script-only Luau packages (no `content_dir`) still load live; a package with `content_dir` always needs a restart.
 
 There is no in-game file picker or import step.
-Build the package layout yourself, or drop in a Cemu file-only pack root as in [cemu-content.md](cemu-content.md) (Definition-only `rules.txt` + `content/`; the host writes `manifest.json` on scan).
+Build the package layout yourself, or drop in a Cemu file-only pack root as in [cemu-content.md](cemu-content.md) (Definition-only `rules.txt` + `content/`; the host detects the pack on scan without writing into the folder).
 
 ## Package layouts
 

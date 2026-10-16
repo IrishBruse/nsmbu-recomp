@@ -537,9 +537,7 @@ int main(int argc, char** argv) {
         assert(v.compatible&&v.kind=="luau"&&v.name=="Cloudy Level Pack"&&v.version=="1.0.0");
         assert(v.description.find("Cemu pack version 6")!=std::string::npos);
         assert(v.restart_required&&!v.enabled);
-        std::ifstream mf(cloudy/"manifest.json");std::string text{std::istreambuf_iterator<char>(mf),{}};
-        assert(text.find("\"content_dir\":\"content\"")!=std::string::npos);
-        assert(text.find("\"kind\":\"luau\"")!=std::string::npos);
+        assert(!fs::exists(cloudy/"manifest.json"));
     }
     assert(enable("content.cloudy-level-pack",true,error));
     assert(enable("content.cloudy-level-pack",false,error));

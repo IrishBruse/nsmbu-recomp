@@ -5,6 +5,8 @@ At release, move those notes to a version heading and leave Unreleased empty.
 
 ## Unreleased
 
+-   **Fix**: Scanning a dropped Cemu content or graphics pack no longer writes `manifest.json` into the player's pack folder.
+    Synthesized metadata stays in memory until install stages a managed package.
 -   **Fix**: `open_file_select` no longer calls `0x0297D58C` and no longer creates menu factory `0x0202B61C`.
     Creating that factory early shows the time-attack trial layout.
     `0x0297D58C` enters the challenge-select state whose initialize opens `ChallengeSelectScene`.
