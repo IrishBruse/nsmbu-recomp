@@ -24,7 +24,7 @@ In 0.3.0 World 1 are playable so far not fully tested yet and performance is ~60
 
 ## Install
 
-Download the zip for your system from the [Releases](https://github.com/IrishBruse/nsmbu-recomp/releases) page.
+Download the zip for your system from the [Releases](https://github.com/nsmbu-recomp/nsmbu-recomp/releases) page.
 Unzip it into a folder that you can write to.
 Start **NSMBU**.
 
