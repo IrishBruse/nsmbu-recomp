@@ -5,6 +5,12 @@
 02ACD218  # frame allocator: wait for the ring at this+0x4A8 on nested grow
 024D752C  # draw queues: drop items whose model pointer at node+0x28 is null
 @022A79C4  # DistantViewMgr::calcView_: scale the flicker before it is added to the projection
-02994164  # Scene::setNextScene: intro-skip probe (BootScene, MenuScene, ChallengeSelectScene)
+02994164  # Scene::setNextScene: onSceneChange and scene src for mod API transitions
 029CBBB4  # error viewer: this port does not draw it, so the call must not pause the game
-022656E0  # CourseSelectTask ctor: intro-skip probe, log the caller of the natural start
+024BAD4C  # course enter: refill banner digit glyphs after the 0xFF clear (load_pack / no map node)
+@024BD96C  # course enter: always refill glyph bytes before BCFAC (BADCC match skips BAD4C)
+@024BE280  # course enter: after PreGame open, apply digit frames from CourseTask glyphs
+025D8B28  # course enter banner: refill CourseTask digit glyphs before the Multi2D apply
+02672C90  # PreGame WorldCourse text: seed MainGame tag params before MSBT expand
+02681BFC  # TextBox message expand: seed course tags and remember WorldCourse pane
+0267CB3C  # WorldCourse digit tag: use CourseInfo course when MainGame+0x1A8 is unset

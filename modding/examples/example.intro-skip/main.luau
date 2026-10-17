@@ -2,11 +2,7 @@ const Scene = nsmbu.Scene
 const Hooks = nsmbu.Hooks
 const Config = nsmbu.Config
 const Input = nsmbu.Input
-
-local kBoot = 0x0202930C
-local kFileSelect = 0x0298AD3C
-local kCourseTask = 0x0202B4C8
-local kSaveSelect = 0x024C11F4
+const Factory = Scene.Factory
 
 local done = false
 local opened = false
@@ -101,25 +97,25 @@ function Hooks.onSceneChange(factory: number)
 	if done then
 		return
 	end
-	if factory == kSaveSelect then
+	if factory == Factory.SaveSelect then
 		note(logic_step, "unexpected challenge select")
 		done = true
 		return
 	end
-	if factory == kCourseTask then
+	if factory == Factory.CourseTask then
 		if requested then
 			pending_course_up = true
 		end
 		return
 	end
-	if factory == kFileSelect then
+	if factory == Factory.FileSelect then
 		pending_popup = true
 		pending_apply = true
 		file_select_steps = 0
 		popup_pulses = 0
 		return
 	end
-	if factory == kBoot then
+	if factory == Factory.Boot then
 		note(logic_step, "wait boot")
 		return
 	end

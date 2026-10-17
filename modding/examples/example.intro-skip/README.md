@@ -16,14 +16,14 @@ That call does not open the world map.
 `Hooks.onSceneChange` only sets pending flags from factory transitions.
 `Hooks.onLogicStep` runs `apply_save`, `load_pack`, and `open_title`, and pulses **A** while the file-select popup is pending.
 
-1. On factory `0x0298AD3C`, enter popup mode: pulse **A** (up to four times), then retry `open_title()` if needed.
-2. After the boot logo (`0x0202930C` is gone), call `apply_save` until the save is applied.
+1. On factory `Scene.Factory.FileSelect`, enter popup mode: pulse **A** (up to four times), then retry `open_title()` if needed.
+2. After the boot logo (`Scene.Factory.Boot` is gone), call `apply_save` until the save is applied.
 3. Call `scene.load_pack` once. The default pack is `1-1`.
-4. Stop when factory `0x0202B4C8` is current or `course_task()` is true.
+4. Stop when factory `Scene.Factory.CourseTask` is current or `course_task()` is true.
 
-Forcing menu factory `0x0202B61C` early shows the time-attack trial layout.
+Forcing menu factory `Scene.Factory.Menu` early shows the time-attack trial layout.
 This example never requests that factory.
-Factory `0x024C11F4` (`ChallengeSelectScene`) logs as unexpected and stops the skip.
+Factory `Scene.Factory.SaveSelect` (`ChallengeSelectScene`) logs as unexpected and stops the skip.
 
 [docs/modding/intro-skip.md](../../../docs/modding/intro-skip.md) records the boot tasks behind these probes.
 That doc also covers open work on which confirm button the popup layout uses.

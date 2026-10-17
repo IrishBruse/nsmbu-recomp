@@ -182,6 +182,15 @@ The example requests the pack once, then waits for `course_task()`.
 `load_pack` shipped in the runtime.
 The example uses it with the Course pack option.
 
+### Course enter banner digits
+
+The green world–course number on the pre-level banner is not MSBT text.
+Course setup (`f_024BD86C`) copies `FieldGameData` and writes picture-pane glyph indices from bytes at the course-task entry `+0x10` (three slots; `0xFF` is blank).
+Entering from the world map fills those bytes via the save/map path (`f_024BADF4`).
+A direct `load_pack` / `load_story` skips that fill, so the glyph bytes stay `0xFF` and the number font shows garbage (often a comma).
+When the copied `FieldGameData` already matches the current world/course, setup skips `f_024BAD4C` entirely (`f_024BADCC` hit), so a hook only on that clear is not enough.
+The runtime site at `0x024BD96C` (and the `0x024BAD4C` hook) refill the three glyph bytes from `CourseInfo` course `+0x11` as 1-based decimal digits mapped to picture frames `0..4` (`'1'` → `0`, …, `'5'` → `4`), matching the map path clamp at `0x0250C65C`.
+
 ### Normal enter path
 
 1. Intro skip → `apply_save` → optional `load_pack` → `CourseTask`.

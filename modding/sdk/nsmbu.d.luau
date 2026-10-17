@@ -62,7 +62,20 @@ type Fn = {
 	course_quit_to_map: GuestAddr?,
 }
 
+type SceneFactory = {
+	Boot: number,
+	Flow: number,
+	FileSelect: number,
+	SaveSelect: number,
+	Title: number,
+	Menu: number,
+	Map: number,
+	CourseTask: number,
+	CourseSelect: number,
+}
+
 type Scene = {
+	Factory: SceneFactory,
 	title: () -> boolean,
 	file_select: () -> boolean,
 	save_select: () -> boolean,

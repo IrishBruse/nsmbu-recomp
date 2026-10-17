@@ -144,7 +144,6 @@ grep -rn "setNextScene" references/headers
 | `0x0297F3CC` | `ChallengeSelectScene::ChallengeSelectScene` (ctor) | time-attack scene body |
 | `0x024CD904` | `SubjectMgr::clearSubject` | clears `mMode` |
 | `0x024CE594` | `SubjectMgr::selectSaveFile` | sets `mSelectedFile` and `mMode` |
-| `0x022656E0` | `CourseSelectTask::CourseSelectTask` (ctor) | `hook_022656E0`, intro-skip probe |
 | `0x022A7760` | `DistantViewMgr::calcView_` | the site `@022A79C4` sits inside it |
 | `0x024BBE40` | `CoinBattleScoreMgr::createInstance` | not used here; shape example |
 | `0x02994164` | `Scene::setNextScene` | `hook_02994164`, `kSetNextScene`, mod API |

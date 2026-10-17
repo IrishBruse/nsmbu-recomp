@@ -77,7 +77,7 @@ end
 | Field | Type | When it runs |
 | --- | --- | --- |
 | `onLogicStep` | `(step: number) -> ()` | Once per original logic step, after actor execution. Interpolated draws do not call it. `step` is the full logic-step counter. |
-| `onSceneChange` | `(factory: number) -> ()` | After guest `Scene::setNextScene` returns. `factory` is the class creator id of the **requested** next scene, not a guarantee that scene is already current. Do not call `nsmbu.Scene` transition helpers from this callback; set flags and act on `onLogicStep` so a nested `setNextScene` cannot re-enter the handler mid-transition. |
+| `onSceneChange` | `(factory: number) -> ()` | After guest `Scene::setNextScene` returns. `factory` is the class creator id of the **requested** next scene, not a guarantee that scene is already current. Compare it to `nsmbu.Scene.Factory` names instead of hardcoding USA hex. Do not call `nsmbu.Scene` transition helpers from this callback; set flags and act on `onLogicStep` so a nested `setNextScene` cannot re-enter the handler mid-transition. |
 | `onConfigChanged` | `() -> ()` | After the player edits an option for this package. |
 | `onLoaded` | `() -> ()` | Once right after the entry script returns, before the first logic step. |
 | `onUnload` | `() -> ()` | When the package is disabled or the profile changes. Process exit does not promise this call. |
@@ -351,12 +351,13 @@ The boot flow runs the menus, the save select, and the world map as sead tasks.
 `nsmbu.Scene` reads the current phase and requests transitions the same way the
 game's own menus do.
 
-| Function | Result |
+| Field / function | Result |
 | --- | --- |
-| `phase()` | The current boot-flow task class id, or `nil` and a message before the scene exists. |
+| `Factory` | Named class creator ids (`Boot`, `Flow`, `FileSelect`, `SaveSelect`, `Title`, `Menu`, `Map`, `CourseTask`, `CourseSelect`) for comparing with `onSceneChange(factory)` and `phase()`. Values are remapped for the running build; do not hardcode USA v1.3.0 hex in mods. |
+| `phase()` | The current boot-flow task class id, or `nil` and a message before the scene exists. Same remapped ids as `Factory`. |
 | `title()` | `true` when the title layout phase is current. |
 | `file_select()` | `true` when the small file-select task is the current scene. |
-| `save_select()` | `true` when the current scene factory is `0x024C11F4` (`ChallengeSelectScene`). |
+| `save_select()` | `true` when the current scene factory is `Factory.SaveSelect` (`ChallengeSelectScene`). |
 | `course_task()` | `true` when the `CourseTask` scene is current. |
 | `file_index()` | The save file index after the save select has applied a file. `nil` and a message before that. |
 | `flow_phase()` | `true` when the application flow phase is current. |
@@ -365,7 +366,7 @@ game's own menus do.
 | `course_select()` | `true` when the world map select task is alive; the world map is up and interactive. |
 | `open_title()` | Requests a scene change into the title task. The game continues its own flow. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
 | `apply_save(file?)` | Writes `file` and applies that save the same way `open_first_save` does, including the GamePad / Pro flag. It does not request the world map. `file` is `0`, `1`, or `2`. Returns `nil` and `"scene busy"` or `"file not ready"` when it cannot run. |
-| `open_first_save(file?)` | Writes `file` to `SaveData.header.last_file` on `SaveMgr` (`0x101E7DA4`), applies that save file with guest `0x029D7648`, then calls guest `0x029872BC`. `file` is `0`, `1`, or `2`. A missing argument uses `0`. A value outside that range returns `nil` and `"bad file"`. That function requests `CourseSelectTask` (`0x0202B86C`) when the file has a record, and factory `0x0202B570` when the file is empty. After the call, `MainGame.mIsSinglePlayerDRC` (`0x101E7D7C` + `0x14`) is `1` for the GamePad and `0` for the Pro Controller, so the map reads the same device as the host. Returns `nil` and `"scene busy"` or `"file not ready"` when it cannot run. Returns true after the call. |
+| `open_first_save(file?)` | Writes `file` to `SaveData.header.last_file` on `SaveMgr` (`0x101E7DA4`), applies that save file with guest `0x029D7648`, then calls guest `0x029872BC`. `file` is `0`, `1`, or `2`. A missing argument uses `0`. A value outside that range returns `nil` and `"bad file"`. That function requests `CourseSelectTask` (`Factory.CourseSelect`) when the file has a record, and factory `0x0202B570` when the file is empty. After the call, `MainGame.mIsSinglePlayerDRC` (`0x101E7D7C` + `0x14`) is `1` for the GamePad and `0` for the Pro Controller, so the map reads the same device as the host. Returns `nil` and `"scene busy"` or `"file not ready"` when it cannot run. Returns true after the call. |
 | `open_file_select()` | Selects save file 0 through `SubjectMgr::selectSaveFile` on an existing menu task, then enters menu state `0x1022C0E4` (`0x0297D268`). It does not create the menu factory and does not enter the challenge-select state (`0x0297D58C`). Returns `nil` and `"scene busy"`, `"menu missing"`, `"state not ready"`, or `"file not ready"` when it cannot run. Returns true when the file select runs. |
 | `open_course_select()` | Requests the world map select task. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy. |
 | `confirm_file()` | Confirms the save select. The routine sets the file and story gates on the flow object and tells the app to confirm, the way the save select does after a file is chosen. Returns `nil` and `"scene busy"` while a scene change is queued or the fader is busy, and does not write the gates in that case. |

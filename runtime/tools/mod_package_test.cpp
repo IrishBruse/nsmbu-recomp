@@ -84,6 +84,17 @@ int main(int argc, char** argv) {
         {auto v=view("luau.status");assert(v.active&&v.status.find("Yo")!=std::string::npos&&v.status.find("Hi")==std::string::npos);}
         assert(enable("luau.status",false,error));frame(3);assert(remove("luau.status",error));
 
+        assert(install(luau_pack("luau.factory",
+            "local nsmbu=require(\"nsmbu\")\n"
+            "local F=nsmbu.Scene.Factory\n"
+            "function nsmbu.Hooks.onLoaded()\n"
+            "  local ok=type(F)==\"table\" and type(F.Boot)==\"number\" and type(F.FileSelect)==\"number\"\n"
+            "  nsmbu.status(ok and \"factory-ok\" or \"factory-fail\")\n"
+            "end\n",""),error));
+        assert(enable("luau.factory",true,error));frame(4);
+        {auto v=view("luau.factory");assert(v.active&&v.enabled&&v.status=="factory-ok");}
+        assert(enable("luau.factory",false,error));frame(5);assert(remove("luau.factory",error));
+
         assert(install(luau_pack("luau.pack",
             "local nsmbu=require(\"nsmbu\")\n"
             "local Scene=nsmbu.Scene\n"

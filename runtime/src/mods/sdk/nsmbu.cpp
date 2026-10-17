@@ -14,6 +14,8 @@
 #include "lua.h"
 #include "lualib.h"
 
+extern "C" void nsmbu_fill_course_banner_digits(void);
+
 namespace mods::luau_sdk {
 namespace {
 using luau_mod::Instance;
@@ -1874,6 +1876,7 @@ bool scene_load_story_transition(int32_t world, int32_t course, std::string& err
         err = "scene busy";
         return false;
     }
+    ::nsmbu_fill_course_banner_digits();
     return true;
 }
 
@@ -1944,6 +1947,26 @@ void install_game(lua_State* L) {
     bind_guest(L, "confirm_file", l_scene_confirm_file);
     bind_guest(L, "load_story", l_scene_load_story);
     bind_guest(L, "load_pack", l_scene_load_pack);
+    lua_newtable(L);
+    lua_pushnumber(L, (lua_Number)kCreatorBoot);
+    lua_setfield(L, -2, "Boot");
+    lua_pushnumber(L, (lua_Number)kCreatorFlow);
+    lua_setfield(L, -2, "Flow");
+    lua_pushnumber(L, (lua_Number)kCreatorFileSelect);
+    lua_setfield(L, -2, "FileSelect");
+    lua_pushnumber(L, (lua_Number)kCreatorSaveSelect);
+    lua_setfield(L, -2, "SaveSelect");
+    lua_pushnumber(L, (lua_Number)kCreatorTitle);
+    lua_setfield(L, -2, "Title");
+    lua_pushnumber(L, (lua_Number)kCreatorMenu);
+    lua_setfield(L, -2, "Menu");
+    lua_pushnumber(L, (lua_Number)kCreatorMap);
+    lua_setfield(L, -2, "Map");
+    lua_pushnumber(L, (lua_Number)kCreatorCourseTask);
+    lua_setfield(L, -2, "CourseTask");
+    lua_pushnumber(L, (lua_Number)kCreatorCourseSelect);
+    lua_setfield(L, -2, "CourseSelect");
+    lua_setfield(L, -2, "Factory");
     set_loaded(L, "nsmbu.Scene");
 }
 
