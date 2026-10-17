@@ -39,6 +39,7 @@ namespace gfxvk { bool buffer_cache_enabled(); }
 #include "../input.h"
 #include "../input_map.h"
 #include "../mods/mods.h"
+#include "../mods/sdk/nsmbu.h"
 #include "../mods/packages.h"
 #include "../motion/motion.h"
 #include "../platform/keycodes.h"
@@ -124,9 +125,9 @@ ImGuiKey imgui_key(int code) {
     }
 }
 
-enum Tab { kSaves, kGraphics, kDisplay, kAudio, kMods, kControls, kAbout, kTabs };
-const char* const kTabNames[kTabs] = {"Saves", "Graphics", "Display", "Audio", "Mods", "Controls", "Language / About"};
-const char* const kTabIds[kTabs] = {"saves", "graphics", "display", "audio", "mods", "controls", "about"};
+enum Tab { kSaves, kGraphics, kDisplay, kAudio, kMods, kControls, kAbout, kDebug, kTabs };
+const char* const kTabNames[kTabs] = {"Saves", "Graphics", "Display", "Audio", "Mods", "Controls", "Language / About", "debug"};
+const char* const kTabIds[kTabs] = {"saves", "graphics", "display", "audio", "mods", "controls", "about", "debug"};
 
 struct Ui {
     bool init = false;
@@ -1360,6 +1361,9 @@ void choose_language(int language, int region) {
     });
 }
 
+void tab_debug() {
+}
+
 void tab_about() {
     const char* env = getenv("NSMBU_LANGUAGE");
     const bool env_set = env && *env;
@@ -1557,7 +1561,8 @@ void settings_window() {
                     case kAudio: tab_audio(); break;
                     case kMods: tab_mods(); break;
                     case kControls: tab_controls(); break;
-                    default: tab_about(); break;
+                    case kAbout: tab_about(); break;
+                    case kDebug: tab_debug(); break;
                     }
                     ImGui::EndChild();
                     ImGui::EndTabItem();
@@ -1685,6 +1690,25 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         if (test.open) set_open(true);
         if (test.perf) g_perf = true;
         LOG("[overlay] test switch: %s", getenv("NSMBU_TEST_OVERLAY"));
+    }
+    {
+        static bool test_load_done = false;
+        const char* ls = getenv("NSMBU_TEST_LOAD_STORY");
+        if (!test_load_done && ls && *ls) {
+            int w = 0;
+            int c = 0;
+            uint64_t at = 1;
+            std::string spec = ls;
+            if (size_t atp = spec.find('@'); atp != std::string::npos) {
+                at = strtoull(spec.c_str() + atp + 1, nullptr, 10);
+                spec.resize(atp);
+            }
+            if (sscanf(spec.c_str(), "%d,%d", &w, &c) == 2 && render::frame_count() + 1 >= at) {
+                test_load_done = true;
+                mods::luau_sdk::request_load_story(w, c);
+                LOG("[overlay] test load story %d-%d", w + 1, c + 1);
+            }
+        }
     }
 #ifdef NSMBU_HAS_VULKAN
 

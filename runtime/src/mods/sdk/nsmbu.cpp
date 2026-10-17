@@ -5,9 +5,11 @@
 #include "guest_addr.h"
 #include "input.h"
 #include "runtime.h"
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -17,6 +19,7 @@
 extern "C" void nsmbu_fill_course_banner_digits(void);
 
 namespace mods::luau_sdk {
+std::atomic<bool> g_story_leave_queued{false};
 namespace {
 using luau_mod::Instance;
 using json::Value;
@@ -1458,6 +1461,7 @@ int l_scene_course_select(lua_State* L) { return l_scene_installed(L, kCourseSel
 int l_scene_course(lua_State* L) { return l_scene_installed(L, kCourseTaskInstance); }
 
 uint32_t g_scene_request_src = 0;
+uint32_t g_match_factory = 0;
 
 extern "C" void nsmbu_note_scene_src(uint32_t src, uint32_t factory) {
     if (src == 0) return;
@@ -1858,20 +1862,109 @@ bool parse_course_pack(const char* s, size_t len, int32_t& world, int32_t& cours
     return scene_story_bounds(world, course);
 }
 
+bool task_factory_match(uint32_t task, bool& match, std::string& err) {
+    match = false;
+    uint32_t factory = 0;
+    if (!luau_guest::read_u32(task + kTaskClassFactoryOff, factory, err)) return false;
+    match = factory != 0 && factory == g_match_factory;
+    return true;
+}
+
+bool singleton_task(uint32_t addr, uint32_t& out, std::string& err) {
+    uint32_t task = 0;
+    if (!luau_guest::read_u32(addr, task, err)) return false;
+    if (task == 0) return false;
+    uint32_t vt = 0;
+    if (!luau_guest::read_u32(task + kTaskVtblOff, vt, err)) return false;
+    if (vt == 0) return false;
+    out = task;
+    return true;
+}
+
+bool scene_story_source(uint32_t& out, std::string& err) {
+    if (scene_app_object(out, err)) return true;
+    if (err != "flow task missing") return false;
+    err.clear();
+    uint32_t scene = 0;
+    if (!scene_object(scene, err)) return false;
+    uint32_t creator = 0;
+    if (!luau_guest::read_u32(scene + kSceneNowCreatorOff, creator, err)) return false;
+    if (creator == kCreatorCourseSelect && singleton_task(kCourseSelectInstance, out, err)) return true;
+    if (!err.empty()) return false;
+    if (creator == kCreatorCourseTask && singleton_task(kCourseTaskInstance, out, err)) return true;
+    if (!err.empty()) return false;
+    if (creator != 0) {
+        g_match_factory = creator;
+        uint32_t mgr = 0;
+        if (!luau_guest::read_u32(scene + kSceneTaskMgrOff, mgr, err)) return false;
+        bool saw = false;
+        if (mgr != 0) {
+            const uint32_t lists[] = {
+                kTaskMgrPrepareOff, kTaskMgrPrepareDoneOff, kTaskMgrActiveOff, kTaskMgrStaticOff,
+            };
+            for (uint32_t off : lists) {
+                if (find_task_in_list(mgr + off, task_factory_match, 0, out, saw, err)) return true;
+                if (!err.empty()) return false;
+            }
+            uint32_t root = 0;
+            if (!luau_guest::read_u32(mgr + kTaskMgrRootOff, root, err)) return false;
+            if (find_task_in_tree(root, task_factory_match, out, err)) return true;
+            if (!err.empty()) return false;
+        }
+        uint32_t area = 0;
+        if (!luau_guest::read_u32(kAreaTaskInstance, area, err)) return false;
+        if (find_task_in_tree(area, task_factory_match, out, err)) return true;
+        if (!err.empty()) return false;
+    }
+    if (singleton_task(kCourseSelectInstance, out, err)) return true;
+    if (!err.empty()) return false;
+    if (singleton_task(kCourseTaskInstance, out, err)) return true;
+    if (!err.empty()) return false;
+    err = "flow task missing";
+    return false;
+}
+
 bool scene_load_story_transition(int32_t world, int32_t course, std::string& err) {
     if (!t_guest_cpu) {
         err = "no guest cpu";
+        return false;
+    }
+    uint32_t live_course = 0;
+    std::string live_err;
+    luau_guest::read_u32(kCourseTaskInstance, live_course, live_err);
+    if (live_course != 0) {
+        if (!g_story_leave_queued.load(std::memory_order_acquire)) {
+            if (!scene_change_open(err)) return false;
+            uint32_t scene = 0;
+            uint32_t app = 0;
+            if (!scene_object(scene, err)) return false;
+            if (!scene_story_source(app, err)) return false;
+            if (app == 0) {
+                err = "flow task missing";
+                return false;
+            }
+            uint32_t pair = mem::host_alloc(8, 4);
+            st32(pair, kClassIdTask);
+            st32(pair + 4, kCreatorTitle);
+            if (guest_call(t_guest_cpu, kSetNextScene, {scene, app, pair, 0, 0}) == 0) {
+                err = "scene busy";
+                return false;
+            }
+            g_story_leave_queued.store(true, std::memory_order_release);
+        }
+        err = "leaving course";
         return false;
     }
     if (!scene_change_open(err)) return false;
     uint32_t scene = 0;
     uint32_t app = 0;
     if (!scene_object(scene, err)) return false;
-    if (!scene_app_object(app, err)) return false;
+    if (!scene_story_source(app, err)) return false;
     if (app == 0) {
         err = "flow task missing";
         return false;
     }
+    g_story_leave_queued.store(false, std::memory_order_release);
     if (guest_call(t_guest_cpu, kSetCourseStory, {scene, app, (uint32_t)world, (uint32_t)course}) == 0) {
         err = "scene busy";
         return false;
@@ -2060,8 +2153,53 @@ void install(lua_State* L, Instance* inst) {
     install_global(L);
 }
 
+std::atomic<int> g_load_story{-1};
+std::mutex g_load_story_mu;
+std::string g_load_story_status;
+
+bool story_leave_pending() {
+    return g_story_leave_queued.load(std::memory_order_acquire);
+}
+
+void request_load_story(int world, int course) {
+    if (world < 0 || world > 8 || course < 0 || course > 255) return;
+    {
+        std::lock_guard<std::mutex> lk(g_load_story_mu);
+        g_load_story_status.clear();
+    }
+    g_load_story.store((world << 8) | course, std::memory_order_release);
+    LOG("[overlay] load story requested %d-%d", world + 1, course + 1);
+}
+
+void drain_load_story() {
+    const int req = g_load_story.exchange(-1, std::memory_order_acq_rel);
+    if (req < 0) return;
+    std::string err;
+    const int world = req >> 8;
+    const int course = req & 0xff;
+    if (!scene_load_story_transition(world, course, err)) {
+        int expected = -1;
+        g_load_story.compare_exchange_strong(expected, req, std::memory_order_acq_rel);
+        std::lock_guard<std::mutex> lk(g_load_story_mu);
+        if (g_load_story_status != err) {
+            g_load_story_status = err;
+            LOG("[overlay] load story %d-%d: %s", world + 1, course + 1, err.c_str());
+        }
+        return;
+    }
+    std::lock_guard<std::mutex> lk(g_load_story_mu);
+    g_load_story_status.clear();
+    LOG("[overlay] load story %d-%d", world + 1, course + 1);
+}
+
+std::string load_story_status() {
+    std::lock_guard<std::mutex> lk(g_load_story_mu);
+    return g_load_story_status;
+}
+
 void set_cpu(Cpu* c) {
     t_guest_cpu = c;
+    if (c) drain_load_story();
 }
 
 Cpu* cpu() {

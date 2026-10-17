@@ -8,9 +8,12 @@
 02994164  # Scene::setNextScene: onSceneChange and scene src for mod API transitions
 029CBBB4  # error viewer: this port does not draw it, so the call must not pause the game
 024BAD4C  # course enter: refill banner digit glyphs after the 0xFF clear (load_pack / no map node)
+024BD86C  # course setup: skip while a debug load is leaving the live course
 @024BD96C  # course enter: always refill glyph bytes before BCFAC (BADCC match skips BAD4C)
 @024BE280  # course enter: after PreGame open, apply digit frames from CourseTask glyphs
 025D8B28  # course enter banner: refill CourseTask digit glyphs before the Multi2D apply
 02672C90  # PreGame WorldCourse text: seed MainGame tag params before MSBT expand
 02681BFC  # TextBox message expand: seed course tags and remember WorldCourse pane
 0267CB3C  # WorldCourse digit tag: use CourseInfo course when MainGame+0x1A8 is unset
+0252F900  # course HUD: AreaTask is null while a course change replaces the area
+025CF020  # course HUD helper: AreaTask is null during course teardown

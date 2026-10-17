@@ -1,5 +1,6 @@
 #include "runtime.h"
 #include "mods/packages.h"
+#include "mods/sdk/nsmbu.h"
 #include "guest_addr.h"
 
 #include <cstdio>
@@ -9,15 +10,19 @@
 extern "C" void f_02994164_orig(Cpu* c);
 extern "C" void nsmbu_note_scene_src(uint32_t src, uint32_t factory);
 extern "C" void f_024BAD4C_orig(Cpu* c);
+extern "C" void f_024BD86C_orig(Cpu* c);
 extern "C" void f_025D8B28_orig(Cpu* c);
 extern "C" void f_02672C90_orig(Cpu* c);
 extern "C" void f_02681BFC_orig(Cpu* c);
 extern "C" void f_0267CB3C_orig(Cpu* c);
+extern "C" void f_0252F900_orig(Cpu* c);
+extern "C" void f_025CF020_orig(Cpu* c);
 
 namespace threads {
 Cpu* current();
 }
 
+static const uint32_t kAreaTask = GD(0x101D1598);
 static const uint32_t kCourseInfo = GD(0x101D18EC);
 static const uint32_t kCourseTask = GD(0x101D15F0);
 static const uint32_t kFieldGame = GD(0x101D1604);
@@ -36,6 +41,12 @@ static bool read_course_info(uint8_t* world_out, uint8_t* course_out) {
     if (info == 0) return false;
     uint8_t world = ld8(info + 0x10);
     uint8_t course = ld8(info + 0x11);
+    if (world == 0xFFu || course == 0xFFu || course > 40u) {
+        const uint8_t now_world = ld8(info + 0x00);
+        const uint8_t now_course = ld8(info + 0x01);
+        if ((world == 0xFFu || world > 8u) && now_world != 0xFFu) world = now_world;
+        if ((course == 0xFFu || course > 40u) && now_course != 0xFFu) course = now_course;
+    }
     if (world_out) *world_out = world;
     if (course_out) *course_out = course;
     return true;
@@ -129,6 +140,7 @@ static void reapply_world_course_textbox(Cpu* c) {
 }
 
 static void fill_course_banner_digits(Cpu* c, uint32_t glyph_base, bool refresh) {
+    if (mods::luau_sdk::story_leave_pending()) return;
     uint8_t g[3];
     uint8_t world = 0;
     uint8_t course = 0;
@@ -166,6 +178,19 @@ extern "C" void nsmbu_fill_course_banner_digits(void) {
     fill_course_banner_digits(threads::current(), 0, true);
 }
 
+extern "C" void hook_025CF020(Cpu* c) {
+    if (ld32(kAreaTask) == 0) {
+        c->r[3] = 0;
+        return;
+    }
+    f_025CF020_orig(c);
+}
+
+extern "C" void hook_0252F900(Cpu* c) {
+    if (ld32(kAreaTask) == 0) return;
+    f_0252F900_orig(c);
+}
+
 extern "C" void hook_02994164(Cpu* c) {
     uint32_t factory = ld32(c->r[5] + 4);
     nsmbu_note_scene_src(c->r[4], factory);
@@ -174,6 +199,11 @@ extern "C" void hook_02994164(Cpu* c) {
 }
 
 extern "C" void hook_029CBBB4(Cpu*) {}
+
+extern "C" void hook_024BD86C(Cpu* c) {
+    if (mods::luau_sdk::story_leave_pending() && ld32(kCourseTask) != 0) return;
+    f_024BD86C_orig(c);
+}
 
 extern "C" void hook_024BAD4C(Cpu* c) {
     uint32_t dest = c->r[3];
@@ -198,9 +228,15 @@ extern "C" void hook_025D8B28(Cpu* c) {
 }
 
 extern "C" void hook_0267CB3C(Cpu* c) {
+    if (mods::luau_sdk::story_leave_pending()) return;
     uint8_t course = 0;
     uint32_t before = c->r[4];
-    if (read_course_info(nullptr, &course) && course <= 11) c->r[4] = course;
+    if (read_course_info(nullptr, &course)) {
+        if (before == 0xFFFFFFFFu || (int32_t)before < 0)
+            c->r[4] = course;
+        else if (course <= 11)
+            c->r[4] = course;
+    }
     static int logged = 0;
     if (logged++ < 40)
         LOG("[banner-cb3c] in=%u out=%u course=%u lr=%08X", before, c->r[4], course, c->lr);
@@ -208,6 +244,7 @@ extern "C" void hook_0267CB3C(Cpu* c) {
 }
 
 extern "C" void hook_02681BFC(Cpu* c) {
+    if (mods::luau_sdk::story_leave_pending()) return;
     uint32_t textbox = c->r[3];
     uint8_t world = 0;
     uint8_t course = 0;
