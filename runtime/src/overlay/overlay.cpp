@@ -660,9 +660,6 @@ void tab_graphics() {
 
     heading("Effects");
     bool v;
-    if (check("Full-size occlusion depth", render::ao_hires(), &v, render::feature_available(render::kFeatureAOHires)))
-        post_changed([v] { render::set_ao_hires(v); });
-    ImGui::SameLine(0, 30);
     if (check("16x anisotropic filtering", render::aniso(), &v, render::feature_available(render::kFeatureAniso)))
         post_changed([v] { render::set_aniso(v); });
     ImGui::SameLine(0, 30);

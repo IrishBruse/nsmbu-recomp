@@ -100,9 +100,9 @@ static void load_options() {
 
 }
 
-@interface WWDrcView : NSView
+@interface NsmbuDrcView : NSView
 @end
-@implementation WWDrcView
+@implementation NsmbuDrcView
 - (BOOL)acceptsFirstMouse:(NSEvent*)e { return YES; }
 - (void)touch:(NSEvent*)e down:(bool)down {
     NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
@@ -119,10 +119,10 @@ static void load_options() {
 - (void)mouseUp:(NSEvent*)e { [self touch:e down:false]; }
 @end
 
-@interface WWTvView : NSView
+@interface NsmbuTvView : NSView
 @property bool touching;
 @end
-@implementation WWTvView
+@implementation NsmbuTvView
 - (bool)map:(NSEvent*)e x:(float*)tx y:(float*)ty clamp:(bool)c {
     NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
     NSSize sz = self.bounds.size;
@@ -363,7 +363,7 @@ static void create_windows() {
         [[NSNotificationCenter defaultCenter] addObserverForName:n object:NSApp queue:nil
                                                       usingBlock:^(NSNotification*) { update_app_focus(); }];
     NSWindow* tv = make_window(0, @"New Super Mario Bros. U (recompiled)",
-                               [[WWTvView alloc] initWithFrame:NSMakeRect(0, 0, 1280, 720)], 1280, 720, NSMakePoint(0, 0));
+                               [[NsmbuTvView alloc] initWithFrame:NSMakeRect(0, 0, 1280, 720)], 1280, 720, NSMakePoint(0, 0));
     g_tv_window = tv;
     install_menu(tv);
     install_quit_prompt(tv);
@@ -375,7 +375,7 @@ static void create_windows() {
     if (!getenv("NSMBU_NO_GAMEPAD")) {
 
         NSRect f = tv.frame;
-        NSWindow* drc = make_window(1, @"GamePad", [[WWDrcView alloc] initWithFrame:NSMakeRect(0, 0, 427, 240)], 427, 240,
+        NSWindow* drc = make_window(1, @"GamePad", [[NsmbuDrcView alloc] initWithFrame:NSMakeRect(0, 0, 427, 240)], 427, 240,
                                     NSMakePoint(NSMaxX(f) + 8, NSMinY(f)));
         g_drc_window = drc;
         g_has_drc_window = true;
@@ -970,9 +970,9 @@ bool drc_overlay_hit(void* window, double wx, double wy) {
 // ---------------------------------------------------------------- Display menu
 }  // namespace gfx
 
-@interface WWDisplayMenu : NSObject <NSMenuItemValidation, NSMenuDelegate>
+@interface NsmbuDisplayMenu : NSObject <NSMenuItemValidation, NSMenuDelegate>
 @end
-@implementation WWDisplayMenu
+@implementation NsmbuDisplayMenu
 - (void)fullScreen:(NSMenuItem*)item { [gfx::g_tv_window toggleFullScreen:nil]; }
 - (void)setFilter:(NSMenuItem*)item { gfx::g_filter = (int)item.tag; gfx::save_options(); }
 - (void)setMode:(NSMenuItem*)item { gfx::set_drc_mode((int)item.tag); }
@@ -1036,11 +1036,11 @@ bool drc_overlay_hit(void* window, double wx, double wy) {
 
 namespace gfx {
 
-static WWDisplayMenu* g_display_menu;
+static NsmbuDisplayMenu* g_display_menu;
 
 // the Display menu, added to the menu bar by install_menu (menu.mm)
 void install_display_menu(NSMenu* bar) {
-    g_display_menu = [WWDisplayMenu new];
+    g_display_menu = [NsmbuDisplayMenu new];
     NSMenuItem* top = [bar addItemWithTitle:@"Display" action:nil keyEquivalent:@""];
     NSMenu* m = [[NSMenu alloc] initWithTitle:@"Display"];
     auto add = [&](NSMenu* menu, NSString* title, SEL sel, NSInteger tag = 0, NSString* key = @"",

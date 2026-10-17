@@ -169,41 +169,6 @@ struct DrawBatchState {
 };
 DrawBatchState drawBatchState;
 uint64_t drawBatchSubmissions = 0;
-bool aoPrivateReplay = false;
-uint32_t aoPrivateSource = 0;
-uint64_t aoPrivateFrame = ~0ull;
-Surface aoPrivateColor, aoPrivateDepth;
-Surface* private_ao_surface(Surface& dst, const Surface* like) {
-  const uint64_t logicalWidth = uint64_t(like->width) * 3 / 2;
-  const uint64_t logicalHeight = uint64_t(like->height) * 3 / 2;
-  const uint64_t physicalWidth = uint64_t(like->extent.width) * 3 / 2;
-  const uint64_t physicalHeight = uint64_t(like->extent.height) * 3 / 2;
-  const auto limit = R.properties.limits.maxImageDimension2D;
-  if (!logicalWidth || !logicalHeight || logicalWidth > UINT32_MAX ||
-      logicalHeight > UINT32_MAX || !physicalWidth || !physicalHeight ||
-      physicalWidth > limit || physicalHeight > limit)
-    throw std::runtime_error("private AO image dimensions exceed device limits");
-  const uint32_t width = uint32_t(logicalWidth), height = uint32_t(logicalHeight);
-  const VkExtent3D extent{uint32_t(physicalWidth), uint32_t(physicalHeight), 1};
-  if (!dst.image || dst.width != width || dst.height != height ||
-      dst.extent.width != extent.width || dst.extent.height != extent.height ||
-      dst.fmt.pixel != like->fmt.pixel) {
-    end_encoder();
-    destroy_surface_image(&dst);
-    dst = *like;
-    dst.mipChain.reset();
-    dst.image = VK_NULL_HANDLE; dst.memory = VK_NULL_HANDLE;
-    dst.view = VK_NULL_HANDLE;
-    dst.layerViews.clear(); dst.sampledViews.clear(); dst.guestLayout.reset();
-    dst.addr = dst.mipAddr = 0;
-    dst.width = width; dst.height = height; dst.slices = dst.mips = 1;
-    dst.dim = uint32_t(Latte::E_DIM::DIM_2D);
-    dst.gpuWritten = true;
-    dst.dirty = false;
-    create_surface_image(&dst, false, extent);
-  }
-  return &dst;
-}
 
 float f32(uint32_t v) {
   float f;
@@ -1722,21 +1687,6 @@ StageResources bind_stage(const uint32_t *r, vk::Shader *sh,
   else
     supportUniforms.clear();
 
-  if (!sh->vertex && (r[mmSQ_PGM_START_PS] << 8) == 0x44F91200 &&
-      sh->uniforms.offset_remapped >= 0 && size_t(sh->uniforms.offset_remapped) < supportUniforms.size())
-    render::scale_bloom_uniforms(supportUniforms.data() + sh->uniforms.offset_remapped,
-                                supportUniforms.size() - sh->uniforms.offset_remapped);
-
-  const int remapped = sh->uniforms.offset_remapped;
-  if (sh->vertex && ao_mode() == 2 &&
-      sh->kind == gfx::ProgramKind::OcclusionVertex && remapped >= 0 &&
-      size_t(remapped) + 16 <= supportUniforms.size()) {
-    float noiseScale;
-    memcpy(&noiseScale, supportUniforms.data() + remapped + 12, sizeof noiseScale);
-    noiseScale *= 1.5f;
-    memcpy(supportUniforms.data() + remapped + 12, &noiseScale, sizeof noiseScale);
-  }
-
   uint32_t block =
       sh->vertex ? mmSQ_VTX_UNIFORM_BLOCK_START : mmSQ_PS_UNIFORM_BLOCK_START;
   for (int i = 0; i < 16; i++)
@@ -1765,10 +1715,6 @@ StageResources bind_stage(const uint32_t *r, vk::Shader *sh,
     if (!s) {
       sampledView = null_texture_view(sh->dec->textureUnitDim[unit], sh->dec->textureUsesDepthCompare[unit]);
     } else {
-      if (!sh->vertex && ao_hires_enabled() && aoPrivateSource &&
-          s->addr == aoPrivateSource && aoPrivateFrame == R.frame &&
-          sh->kind == gfx::ProgramKind::OcclusionPixel)
-        s = &aoPrivateColor;
       upload_surface(s);
       int scaleOffset = sh->uniforms.offset_texScale[unit];
       if (scaleOffset >= 0 && size_t(scaleOffset) + 8 <= supportUniforms.size()) {
@@ -1801,13 +1747,6 @@ StageResources bind_stage(const uint32_t *r, vk::Shader *sh,
     auto &info = imageInfos[imageCount++];
     const uint32_t* samplerWords = r + REGADDR::SQ_TEX_SAMPLER_WORD0_0 +
                                     (samplerBase + samplerId) * 3;
-    uint32_t patchedSampler[3];
-    if (!sh->vertex && ao_mode() >= 1 && unit == 0 &&
-        sh->kind == gfx::ProgramKind::OcclusionPixel) {
-      memcpy(patchedSampler, samplerWords, sizeof patchedSampler);
-      patchedSampler[0] = (patchedSampler[0] & ~0x7E00u) | (1u << 9) | (1u << 12);
-      samplerWords = patchedSampler;
-    }
     info = {sampler(samplerWords, sh->dec->textureUsesDepthCompare[unit],
                    integerSampler,
                    allowAniso),
@@ -1890,7 +1829,6 @@ UploadSlice vertex_window_smoke_snapshot(uint32_t binding,uint32_t address,
                                 windowLength,data,poisonUnused);
 }
 
-void reset_ao_private_cache() { aoPrivateFrame = ~0ull; aoPrivateSource = 0; }
 void reset_pipeline_lookup_cache() { lastPipelineLookup = {}; pipelineLookaside = {}; samplerMemo = {}; drawBatchState = {}; }
 uint64_t draw_batch_submissions() { return drawBatchSubmissions; }
 void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
@@ -2077,17 +2015,6 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
                        ? depth_target(r, &depthSlice)
                        : nullptr;
   if (depth && depth->width == 1280 && depth->height == 720) R.mainDepthAddr = depth->addr;
-  const uint32_t guestWidth = colors[0] ? colors[0]->width : 0;
-  const uint32_t guestHeight = colors[0] ? colors[0]->height : 0;
-  if (aoPrivateReplay && colors[0]) {
-    aoPrivateSource = colors[0]->addr;
-    colors[0] = private_ao_surface(aoPrivateColor, colors[0]);
-    slices[0] = 0;
-    if (depth) {
-      depth = private_ao_surface(aoPrivateDepth, depth);
-      depthSlice = 0;
-    }
-  }
   Surface *target = depth;
   for (auto *c : colors)
     if (c) {
@@ -2098,16 +2025,9 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
     return;
   uint32_t width = target->extent.width, height = target->extent.height;
   float sx = target->sx, sy = target->sy;
-  if (aoPrivateReplay && guestWidth) {
-
-    sx = float(colors[0]->extent.width) / guestWidth;
-    sy = guestHeight ? float(colors[0]->extent.height) / guestHeight : sx;
-  }
   for (auto *&c : colors)
-    if (c && (c->extent.width != width || c->extent.height != height)) {
-      if (aoPrivateReplay) c = nullptr;
-      else throw std::runtime_error("mismatched Vulkan attachments");
-    }
+    if (c && (c->extent.width != width || c->extent.height != height))
+      throw std::runtime_error("mismatched Vulkan attachments");
   if (depth && (depth->extent.width < width || depth->extent.height < height))
     depth = nullptr;
   rprof::mark(rprof::kTargets);
@@ -2462,18 +2382,6 @@ void draw(const uint32_t *r, uint32_t prim, uint32_t count, uint32_t indexType,
     if (color) mark_gpu_written(color);
   if (depth) mark_gpu_written(depth);
   R.drawCount++;
-  if (aoPrivateReplay) {
-    aoPrivateFrame = R.frame;
-    return;
-  }
-  if (ao_hires_enabled() && colors[0] &&
-      ps->kind == gfx::ProgramKind::DepthDownsample) {
-    struct ReplayGuard {
-      ReplayGuard() { aoPrivateReplay = true; aoPrivateFrame = ~0ull; }
-      ~ReplayGuard() { aoPrivateReplay = false; }
-    } guard;
-    draw(r, prim, count, indexType, indexAddr, baseVertex, instances);
-  }
   static const uint32_t drawBatch = parse_draw_batch(std::getenv("NSMBU_VK_DRAW_BATCH"));
   static const uint32_t drawBatchCap =
       parse_draw_batch_cap(std::getenv("NSMBU_VK_DRAW_BATCH_CAP"));

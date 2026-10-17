@@ -36,7 +36,7 @@ filter), and `gfx/vulkan/present.cpp` draws it. The TV window title starts with 
 | --- | --- | --- |
 | TV / GamePad windows, full screen, display modes, PiP, automatic PiP | yes | yes |
 | Scaling smooth / sharp / integer, FXAA | yes | yes |
-| Internal resolution, AO modes, full-size AO depth, 16x AF | yes | yes |
+| Internal resolution, 16x AF | yes | yes |
 | Aspect ratio (16:10, 21:9, 32:9, match window) | yes | yes |
 | 60 fps interpolation | yes | yes |
 | Save states (menu, Shift+F1..F5 / F1..F5) | yes | yes (a state loads with either renderer) |
@@ -183,12 +183,12 @@ mapping, uniform offsets, descriptor ranks) share one shader and its pipelines.
 once per distinct wider key, translates again under the current registers and compares
 the result with the shader the narrow key returned; any difference is logged as
 `[vulkan shader key] VIOLATION` and counted in the stats (`=N` checks one wider key in N).
-Outset and Windfall figures are the old Wind Waker measurement record.
-The current repro is the 1-1 command in [docs/performance.md](performance.md).
-That command sets `NSMBU_STATE_LOAD_AT=700:1`.
+WWHD Outset and WWHD Windfall figures are historical Wind Waker HD measurement records.
+The current NSMBU repro is `just run 1-1` with `NSMBU_STATE_LOAD_AT=700:1` (slot 1); see
+[docs/performance.md](performance.md).
 
 Sharing shaders whose translation is identical is the idea of PR #46 by rhemfur, who found that
-5,072 translations in Outset (Galaxy S25) had only 686 distinct GLSL texts and that the resulting
+5,072 translations in WWHD Outset (Galaxy S25) had only 686 distinct GLSL texts and that the resulting
 pipelines (7,500 in two minutes, about 0.12 MB each) eventually exhausted memory.
 
 Measured on macOS (MoltenVK), 60-second scripted runs from a save state with empty shader caches,
@@ -196,12 +196,12 @@ devel against the narrow keys (PR #46 alone in brackets):
 
 | | before | PR #46 | narrow keys |
 | --- | --- | --- | --- |
-| Outset translations / pipelines | 6,127–6,670 / 3,229–3,525 | 6,670 / 339 | 569 / 204 |
-| Windfall translations / pipelines | 4,337–4,981 / 2,323–2,672 | 4,981 / 501 | 829 / 236 |
-| Frames over 50 ms, Outset / Windfall | 21–26 / 18 | | 15–16 / 11–13 |
+| WWHD Outset (hist.) translations / pipelines | 6,127–6,670 / 3,229–3,525 | 6,670 / 339 | 569 / 204 |
+| WWHD Windfall (hist.) translations / pipelines | 4,337–4,981 / 2,323–2,672 | 4,981 / 501 | 829 / 236 |
+| Frames over 50 ms, WWHD Outset / WWHD Windfall | 21–26 / 18 | | 15–16 / 11–13 |
 
 Peak resident memory was 100–115 MB lower. Without a frame limit render-thread CPU time fell by
-11–12% and the 99th-percentile frame interval from 39 to 20 ms (Outset) and 26 to 15 ms (Windfall);
+11–12% and the 99th-percentile frame interval from 39 to 20 ms (WWHD Outset) and 26 to 15 ms (WWHD Windfall);
 with 8–10 ms of artificial render-thread load at paced 60 fps, CPU time fell by 4–7% and slow
 frames by about 40%. The verify mode found no violations and the Khronos validation layer reported
 nothing.
@@ -226,7 +226,7 @@ entries are bounded to 128 MiB. New programs compile once when
 encountered; this does not precompute every unvisited scene or warm all device
 pipelines before gameplay.
 
-An isolated Outset startup through frame480 originally compiled 2,135 variants
+An isolated WWHD Outset startup through frame480 originally compiled 2,135 variants
 in 2.44 seconds. Deduplication compiled 412 distinct programs in 0.59 seconds;
 closing at frame500 saved 415 programs in a 9.8 MB cache. A fresh-process reload
 hit every variant with zero SPIR-V compilation and about 17.5 ms cache-load time.
@@ -273,7 +273,7 @@ wait timers disabled. CPU time excludes sleeping and GPU waits.
 
 | Environment option | Scope and correctness constraints |
 | --- | --- |
-| `NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS` | Reuses immutable uniform slices after full fresh byte comparison within the same device/submission generation. Support uniforms are packed and texture/AO patches applied before lookup; allocation alignment and zero padding remain unchanged. |
+| `NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS` | Reuses immutable uniform slices after full fresh byte comparison within the same device/submission generation. Support uniforms are packed before lookup; allocation alignment and zero padding remain unchanged. |
 | `NSMBU_VK_REUSE_FEEDBACK_IMAGES` | Retains compatible feedback-copy images in separate shader-stage/texture-unit slots, bounded to 128 MiB of retained image allocations. Every attachment alias still receives a fresh copy, with barriers preserving prior reads before overwrite. Replaced resources remain fence-retired. |
 | `NSMBU_VK_SKIP_REDUNDANT_BINDS` | Omits only exact consecutive descriptor bindings, including layout, sets, dynamic offsets, command buffer, and submission generation. It can bind just the changed stage; resource preparation still runs. Pass changes reset the tracked state. |
 | `NSMBU_VK_DESCRIPTOR_RANKS` | Precomputes descriptor binding ranks and compacts active writes/offsets in binding order. Invalid or duplicate metadata falls back to the original sorting path. |
@@ -290,7 +290,7 @@ wait timers disabled. CPU time excludes sleeping and GPU waits.
 
 The four additional paths together with the previous ten and vertex snapshot
 reuse passed a 2,400-frame Khronos game run with a guarded wide-view save-state
-restore, resolution transitions, FXAA, anisotropy, and high-resolution AO.
+restore, resolution transitions, FXAA, and anisotropy.
 The run exited normally without validation errors, and its actual presentation
 capture was inspected. In this scene the 256-entry sparse memo matched all
 roughly 170 checks per frame after warming; secondary vertex reuse avoided about
@@ -387,13 +387,13 @@ Measured 2026-10-07 on an Apple M3 Max (Vulkan via MoltenVK), against the then-n
 (lazy DrawDone, async present, the 15 CPU paths), 6 interleaved runs per variant, hidden windows,
 `tools/bench/run_bench.py` (state load at frame 450, 40 s scripted walk), medians:
 
-| Scene, mode | Render-thread CPU ms/frame off → on | Swaps/s off → on | Uploads MiB/frame off → on |
+| WWHD scene (hist.), mode | Render-thread CPU ms/frame off → on | Swaps/s off → on | Uploads MiB/frame off → on |
 | --- | --- | --- | --- |
-| Outset, 60 fps paced | 5.32 → 4.98 | 59.7 → 59.7 | 18.2 → 10.3 (hold frames too) |
-| Windfall, 60 fps paced | 5.48 → 4.75 | 59.7 → 59.7 | 25.9 → 9.3 (hold frames too) |
+| WWHD Outset, 60 fps paced | 5.32 → 4.98 | 59.7 → 59.7 | 18.2 → 10.3 (hold frames too) |
+| WWHD Windfall, 60 fps paced | 5.48 → 4.75 | 59.7 → 59.7 | 25.9 → 9.3 (hold frames too) |
 
 Page write faults rise from about 2 to 9-15 per frame (about 3.7 µs each on this machine). With an
-artificial 10 ms render-thread load (Windfall, paced 60, visible windows) the cache raised swaps/s from
+artificial 10 ms render-thread load (WWHD Windfall, paced 60, visible windows) the cache raised swaps/s from
 57.8 to 59.2 and drawn in-between frames from 99.2% to 100%, and lowered the p95 swap interval from
 20.6 to 19.0 ms. The snapshot-reuse defaults (`NSMBU_VK_REUSE_VERTEX_SNAPSHOTS`,
 `NSMBU_VK_VERTEX_HISTORY_REUSE`, `NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS`) are complementary: the cache supersedes
@@ -414,25 +414,20 @@ controls remain disabled until the renderer reports support.
 | Control | Behavior |
 | --- | --- |
 | `R` | Cycle internal resolution through 1×, 1.5×, 2×, and 3×: 1280×720, 1920×1080, 2560×1440, and 3840×2160. The menu also selects each preset directly. |
-| `O` | Cycle AO mode: 0 original Wii U behavior, 1 centre-depth filtering fix, 2 centre fix plus corrected noise tiling. |
-| `M` | Toggle full-size AO depth. A private 1.5× replay of the game's depth-downsample pass supplies the AO pass without changing guest surface metadata. |
 | `N` | Toggle anisotropic filtering up to 16×, bounded by device support, for eligible mipmapped asset textures. |
 | `8` | Toggle FXAA in final screen presentation. This is post-process antialiasing; it does not enable multisampled guest surfaces. |
 | `6` | Toggle 60 FPS interpolation mode. Selecting it does not guarantee its target frame rate. |
 | Graphics menu: Scaling | Select smooth, sharp, or integer scaling for presentation. |
 
 Startup overrides match Metal: `NSMBU_RES_SCALE` selects the initial internal scale
-(1–4); `NSMBU_AO_MODE` selects AO mode 0–2. If `NSMBU_AO_MODE` is absent, presence of
-`NSMBU_NO_AO_QUIRK` selects mode 0, otherwise mode 2 is the default. The explicit AO
-mode takes precedence over the legacy flag, whose value is ignored.
-`NSMBU_AO_HIRES` defaults to on (off on Android, where the phone GPU is the limit in heavy views, issue #56); `0` disables it, `1` enables it. `NSMBU_ANISO` defaults to off and a
+(1–4). `NSMBU_ANISO` defaults to off and a
 nonzero value enables it. `NSMBU_FXAA` defaults to off and its presence enables it,
 including a value of `0`, matching Metal's existing behavior.
 `NSMBU_SCALE_FILTER=smooth|sharp|integer` selects the initial presentation filter;
 smooth is the default. Live settings currently apply to this process.
 
 A full-game Khronos validation run passed internal-scale transitions
-1× → 1.5× → 2× → 3× → 1× with FXAA, anisotropy, AO mode 2, and full-size AO depth
+1× → 1.5× → 2× → 3× → 1× with FXAA and anisotropy
 enabled. Four CTest host regressions and the GPU smoke test passed. The native
 macOS Graphics menu was verified through its accessibility item list. Captures of
 actual swap output with FXAA on and off differed at 31,446 pixels, verifying that
@@ -482,7 +477,7 @@ Buffers the CPU is meant to read (captures, the GamePad overlay signatures) come
 
 **Unless it is host-cached.** Where the arena's memory type is both `HOST_CACHED` and `HOST_COHERENT`,
 CPU reads cost what heap reads cost and the copies are pure overhead (on an M3 Max about 0.2 ms of
-render-thread time per frame at Outset, 60 fps). That is every memory type on Apple silicon (MoltenVK),
+render-thread time per frame at WWHD Outset, 60 fps). That is every memory type on Apple silicon (MoltenVK),
 and the usual case on UMA drivers (many Android GPUs, integrated GPUs that expose cached host memory).
 `allocate_upload` records the type of each arena block it creates (`R.uploadCached`, true only while
 every block is CACHED and COHERENT) and sets `R.uploadReadsDirect`; then:
@@ -550,7 +545,7 @@ reuse is on by default on every platform since 2026-10-07 (see "CPU paths").
 | `MVK_CONFIG_PREFILL_METAL_COMMAND_BUFFERS` | macOS defaults to `3`; an explicit MoltenVK override, including `0`, is respected. Normal macOS render batches use an autorelease pool. Other platforms receive no application override. |
 | `NSMBU_VK_DRAW_BATCH` | Defaults to `2048` when unset, on every platform. Set `0` to disable. Positive decimal values up to 1,048,576 select the batch size; malformed or out-of-range values disable batching. |
 | `NSMBU_VK_DRAW_BATCH_CAP` | Accepts `1`, `2`, or `3`. When unset, defaults to `3`. An explicitly invalid value falls back to `2`. Has no effect with batching disabled. |
-| `NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=1` | Reuse a bounded vertex snapshot only after exact guest-byte comparison within the same fenced submission generation. On by default since 2026-10-07 (`0` turns it off); measured as a small net CPU gain and 3.3 MiB/frame fewer uploads on Outset. |
+| `NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=1` | Reuse a bounded vertex snapshot only after exact guest-byte comparison within the same fenced submission generation. On by default since 2026-10-07 (`0` turns it off); measured as a small net CPU gain and 3.3 MiB/frame fewer uploads on WWHD Outset (hist.). |
 
 Draw batching keeps the four-slot fence retirement contract. More submissions can
 reduce the final GPU tail, but add attachment LOAD/STORE boundaries and descriptor
@@ -594,8 +589,8 @@ warmup cost from steady gameplay.
 Earlier macOS/MoltenVK checkpoints passed four CTest host regressions and the GPU smoke
 test with Khronos validation enabled, including upload-arena fence reuse and
 interior mip invalidation, asynchronous slot wrap, and dynamic-UBO binding order
-and reuse after pool reset. Actual Outset Island gameplay and scripted keyboard
-movement render correctly on an Apple M3 Max through MoltenVK. Earlier warm gameplay builds
+and reuse after pool reset. Historical WWHD Outset Island gameplay and scripted keyboard
+movement rendered correctly on an Apple M3 Max through MoltenVK in that checkpoint. Earlier warm gameplay builds
 ran approximately 29.4–30.0 FPS, with median frame intervals near 33.4 ms and
 95th percentiles around 36–37 ms; occasional longer frames remain. A bounded
 20-frame trace measured a median 17.53 ms from vsync wake to the next swap,
@@ -701,7 +696,7 @@ See [Android device checks](android-device-checklist.md) for the pending Mali/Ad
 ### Desktop barrier measurement
 
 On Apple M3 Max with MoltenVK, seven interleaved conservative/precise pairs used the
-same warmed Outset route, restored-clock inputs and paced 60 fps presentation.
+same warmed WWHD Outset route (hist.), restored-clock inputs and paced 60 fps presentation.
 The first five pairs met the inconclusive-result extension criterion; four additional
 measurements completed before the remaining six were cancelled at the user's request.
 Only quiet runs (load below 12 throughout, no competing game) were accepted.

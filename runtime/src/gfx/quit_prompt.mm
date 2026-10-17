@@ -130,9 +130,9 @@ bool quit_request(const char* from) {
 }
 }
 
-@interface WWTvWindow : NSWindow
+@interface NsmbuTvWindow : NSWindow
 @end
-@implementation WWTvWindow
+@implementation NsmbuTvWindow
 - (void)performClose:(id)sender {
     if (quit_request("TV window closed")) [NSApp terminate:nil];
 }
@@ -153,7 +153,7 @@ bool quit_request(const char* from) {
 @end
 
 namespace gfx {
-Class tv_window_class() { return [WWTvWindow class]; }
+Class tv_window_class() { return [NsmbuTvWindow class]; }
 
 void install_quit_prompt(NSWindow* tv) {
     static NsmbuQuitDelegate* d = [NsmbuQuitDelegate new];

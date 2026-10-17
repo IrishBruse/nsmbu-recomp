@@ -130,7 +130,7 @@ there; `file_slot` only drives the notice above).
 
 `runtime/tools/portable_state_scenario.py <nsmbu> <game> <save> <workdir> [--boat-save <dir>]
 [--event-save <dir>]` (headless, copies of the saves only): from a copy of a save, warps into
-Link's house (and, second case, stays on Outset), walks, saves a portable state; cold boot, changes
+Link's house (and, second case, stays on WWHD Outset Island in the historical Wind Waker scenario), walks, saves a portable state; cold boot, changes
 the rupees, loads the state, saves again once Link has arrived, and compares stage, room, position,
 angle and the HD sections. Further cases:
 the house state loaded while Quest Log 2 is played (notice, data in Quest Log 2); with a save that

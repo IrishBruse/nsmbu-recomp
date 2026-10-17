@@ -3,7 +3,6 @@
 #include <array>
 #include <string>
 #include <vector>
-#include "../shader_identity.h"
 #include "Cafe/HW/Latte/LegacyShaderDecompiler/LatteDecompiler.h"
 
 struct LatteFetchShader;
@@ -21,7 +20,6 @@ DescriptorRankPlan make_descriptor_rank_plan(const LatteDecompilerShaderResource
 
 struct Shader {
     uint64_t key = 0;
-    gfx::ProgramKind kind = gfx::ProgramKind::Other;
     uint64_t pipelineId = 0;
     bool vertex = false;
     LatteDecompilerShader* dec = nullptr;

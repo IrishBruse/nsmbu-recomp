@@ -8,10 +8,10 @@
 
 namespace gfx { void* display_tv_window(); }
 
-@interface WWTextClient : NSObject <NSTextInputClient>
+@interface NsmbuTextClient : NSObject <NSTextInputClient>
 @end
 
-@implementation WWTextClient {
+@implementation NsmbuTextClient {
     NSString* _marked;
 }
 static NSString* plain(id s) { return [s isKindOfClass:[NSAttributedString class]] ? [(NSAttributedString*)s string] : (NSString*)s; }
@@ -61,7 +61,7 @@ static NSString* plain(id s) { return [s isKindOfClass:[NSAttributedString class
 namespace gfx {
 
 bool text_input_key(void* event) {
-    static WWTextClient* client;
+    static NsmbuTextClient* client;
     static NSTextInputContext* context;
     static bool activated = false;
     NSEvent* e = (__bridge NSEvent*)event;
@@ -75,7 +75,7 @@ bool text_input_key(void* event) {
         return false;
     }
     if (!context) {
-        client = [[WWTextClient alloc] init];
+        client = [[NsmbuTextClient alloc] init];
         context = [[NSTextInputContext alloc] initWithClient:client];
     }
     if (!activated) {

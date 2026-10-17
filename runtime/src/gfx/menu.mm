@@ -83,10 +83,7 @@ static void load_prefs() {
     if (!g_prefs) return;
     auto saved = [&](NSString* key, std::initializer_list<const char*> env) { return !env_set(env) && pref(key) != nil; };
     if (saved(@"resScale", {"NSMBU_RES_SCALE"})) set_res([pref(@"resScale") floatValue]);
-    if (saved(@"aoMode", {"NSMBU_AO_MODE", "NSMBU_NO_AO_QUIRK"})) render::set_ao_mode([pref(@"aoMode") intValue]);
-    if (saved(@"aoHires", {"NSMBU_AO_HIRES"})) render::set_ao_hires([pref(@"aoHires") boolValue]);
     if (saved(@"aniso", {"NSMBU_ANISO"})) render::set_aniso([pref(@"aniso") boolValue]);
-    if (saved(@"bloomStrength", {"NSMBU_BLOOM_STRENGTH"})) render::set_bloom_strength([pref(@"bloomStrength") floatValue]);
     if (saved(@"fxaa", {"NSMBU_FXAA"})) render::set_fxaa([pref(@"fxaa") boolValue]);
 
     if (saved(@"interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps([pref(@"interpFps") intValue]);
@@ -100,10 +97,7 @@ static void load_prefs() {
 static void save_prefs() {
     if (!g_prefs || !g_prefs_loaded) return;
     if (!env_set({"NSMBU_RES_SCALE"})) set_pref(@"resScale", @(current_res_scale()));
-    if (!env_set({"NSMBU_AO_MODE", "NSMBU_NO_AO_QUIRK"})) set_pref(@"aoMode", @(render::ao_mode()));
-    if (!env_set({"NSMBU_AO_HIRES"})) set_pref(@"aoHires", @(render::ao_hires()));
     if (!env_set({"NSMBU_ANISO"})) set_pref(@"aniso", @(render::aniso()));
-    if (!env_set({"NSMBU_BLOOM_STRENGTH"})) set_pref(@"bloomStrength", @(render::bloom_strength()));
     if (!env_set({"NSMBU_FXAA"})) set_pref(@"fxaa", @(render::fxaa()));
     if (!env_set({"NSMBU_INTERP", "NSMBU_INTERP_FPS"})) set_pref(@"fps60", @(interp::mode()));
     if (!env_set({"NSMBU_INTERP_FPS"})) set_pref(@"interpFps", @(interp::fps()));
@@ -119,7 +113,6 @@ static void save_prefs() {
 
 static void update_title() {
     save_prefs();
-    static const char* ao[3] = {"original", "centre fix", "centre + noise fix"};
     NSString* res = current_res_scale() != 1.0f ? [NSString stringWithFormat:@" \u00b7 %gx res", current_res_scale()] : @"";
     if (aspect::mode() != aspect::kOriginal) res = [res stringByAppendingFormat:@" \u00b7 %s", aspect::mode_name(aspect::mode())];
     NSString* rnd = @(render::api_name(render::active()));
@@ -128,8 +121,7 @@ static void update_title() {
     else if (render::restart_pending())
         rnd = [rnd stringByAppendingFormat:@" (%s after restart)", render::api_name(render::preferred())];
 
-    NSString* t = [NSString stringWithFormat:@"%@ \u2014 %@ \u00b7 %.0f fps%@ \u00b7 AO: %s%s \u00b7 AF: %s%@%@", kTitle, rnd, g_fps, res,
-                                             ao[render::ao_mode()], render::ao_hires() ? " + full-size depth" : "",
+    NSString* t = [NSString stringWithFormat:@"%@ \u2014 %@ \u00b7 %.0f fps%@ \u00b7 AF: %s%@%@", kTitle, rnd, g_fps, res,
                                              render::aniso() ? "16x" : "game",
                                              interp::mode() ? [@" \u00b7 " stringByAppendingString:@(interp::mode_name())] : @"", render::fxaa() ? @" \u00b7 FXAA" : @""];
     if (gx2::uncapped()) t = [t stringByAppendingString:@" \u00b7 UNCAPPED (debug)"];
@@ -166,9 +158,9 @@ static void choose_renderer(render::Api a) {
     }];
 }
 
-@interface WWStateMenu : NSObject <NSMenuDelegate>
+@interface NsmbuStateMenu : NSObject <NSMenuDelegate>
 @end
-@implementation WWStateMenu
+@implementation NsmbuStateMenu
 - (void)save:(NSMenuItem*)item { ss::request_save((int)item.tag); }
 - (void)load:(NSMenuItem*)item { ss::request_load((int)item.tag); }
 - (void)toggleCrashRecovery:(NSMenuItem*)item { crashrec::set_enabled(!crashrec::enabled()); }
@@ -229,14 +221,12 @@ static void choose_renderer(render::Api a) {
     }
 }
 @end
-static WWStateMenu* g_state_menu;
+static NsmbuStateMenu* g_state_menu;
 
-@interface WWGraphicsMenu : NSObject <NSMenuItemValidation>
+@interface NsmbuGraphicsMenu : NSObject <NSMenuItemValidation>
 @end
 
-@implementation WWGraphicsMenu
-- (void)setBloom:(NSMenuItem*)item { render::set_bloom_strength(item.tag / 100.0f); update_title(); }
-- (void)setAO:(NSMenuItem*)item { render::set_ao_mode((int)item.tag); update_title(); }
+@implementation NsmbuGraphicsMenu
 - (void)toggleAniso:(NSMenuItem*)item { render::set_aniso(!render::aniso()); update_title(); }
 - (void)capture:(NSMenuItem*)item { render::request_capture(); }
 - (void)screenshot:(NSMenuItem*)item { screenshot::request(); }
@@ -259,17 +249,12 @@ static WWStateMenu* g_state_menu;
 - (void)toggleInterpFps:(NSMenuItem*)item { interp::toggle_fps((int)item.tag); update_title(); }
 - (void)toggleDrcWindow:(NSMenuItem*)item { gfx::show_drc_window(!gfx::drc_window_shown()); }
 - (void)toggleFxaa:(NSMenuItem*)item { render::set_fxaa(!render::fxaa()); update_title(); }
-- (void)toggleHires:(NSMenuItem*)item { render::set_ao_hires(!render::ao_hires()); update_title(); }
 - (void)setRes:(NSMenuItem*)item { set_res(kResScales[item.tag]); update_title(); }
 - (void)setAspect:(NSMenuItem*)item { aspect::set_mode((int)item.tag); update_title(); }
 - (BOOL)validateMenuItem:(NSMenuItem*)item {
     if (item.action == @selector(setRes:))
         item.state = fabsf(kResScales[item.tag] - current_res_scale()) < 0.01f ? NSControlStateValueOn : NSControlStateValueOff;
     if (item.action == @selector(setAspect:)) item.state = item.tag == aspect::mode() ? NSControlStateValueOn : NSControlStateValueOff;
-    if (item.action == @selector(setAO:)) {
-        item.state = item.tag == render::ao_mode() ? NSControlStateValueOn : NSControlStateValueOff;
-        return render::feature_available(render::kFeatureAO);
-    }
     if (item.action == @selector(setRenderer:)) {
         render::Api a = (render::Api)item.tag;
         item.state = a == render::preferred() ? NSControlStateValueOn : NSControlStateValueOff;
@@ -291,15 +276,9 @@ static WWStateMenu* g_state_menu;
         item.state = gfx::drc_window_shown() ? NSControlStateValueOn : NSControlStateValueOff;
         return gfx::drc_window_available();
     }
-    if (item.action == @selector(setBloom:))
-        item.state = fabsf(render::bloom_strength() * 100.0f - item.tag) < 0.5f ? NSControlStateValueOn : NSControlStateValueOff;
     if (item.action == @selector(toggleFxaa:)) {
         item.state = render::fxaa() ? NSControlStateValueOn : NSControlStateValueOff;
         return render::feature_available(render::kFeatureFXAA);
-    }
-    if (item.action == @selector(toggleHires:)) {
-        item.state = render::ao_hires() ? NSControlStateValueOn : NSControlStateValueOff;
-        return render::feature_available(render::kFeatureAOHires);
     }
     if (item.action == @selector(toggleAniso:)) {
         item.state = render::aniso() ? NSControlStateValueOn : NSControlStateValueOff;
@@ -319,7 +298,7 @@ static WWStateMenu* g_state_menu;
 }
 @end
 
-static WWGraphicsMenu* g_target;
+static NsmbuGraphicsMenu* g_target;
 
 static NSMenuItem* add(NSMenu* m, NSString* title, SEL action, NSString* key, NSInteger tag = 0) {
     NSMenuItem* it = [m addItemWithTitle:title action:action keyEquivalent:@""];
@@ -334,7 +313,7 @@ namespace gfx {
 
 void install_menu(NSWindow* tv) {
     g_tv = tv;
-    g_target = [WWGraphicsMenu new];
+    g_target = [NsmbuGraphicsMenu new];
     NSMenu* bar = [NSMenu new];
 
     NSMenuItem* appItem = [bar addItemWithTitle:@"" action:nil keyEquivalent:@""];
@@ -373,20 +352,6 @@ void install_menu(NSWindow* tv) {
     add(g, @"    21:9", @selector(setAspect:), @"", aspect::k21x9);
     add(g, @"    32:9", @selector(setAspect:), @"", aspect::k32x9);
     [g addItem:[NSMenuItem separatorItem]];
-    [g addItemWithTitle:@"Ambient occlusion (O cycles)" action:nil keyEquivalent:@""].enabled = NO;
-    add(g, @"    Original (as on Wii U)", @selector(setAO:), @"O", 0);
-    add(g, @"    Centre fix", @selector(setAO:), @"O", 1);
-    add(g, @"    Centre + noise fix", @selector(setAO:), @"O", 2);
-    add(g, @"Full-size occlusion depth (M)", @selector(toggleHires:), @"M");
-    [g addItem:[NSMenuItem separatorItem]];
-    NSMenuItem* bloomItem = [g addItemWithTitle:@"Bloom strength" action:nil keyEquivalent:@""];
-    NSMenu* bloomMenu = [[NSMenu alloc] initWithTitle:@"Bloom strength"];
-    bloomItem.submenu = bloomMenu;
-    add(bloomMenu, @"Off", @selector(setBloom:), @"", 0);
-    add(bloomMenu, @"50%", @selector(setBloom:), @"", 50);
-    add(bloomMenu, @"100% (default)", @selector(setBloom:), @"", 100);
-    add(bloomMenu, @"150%", @selector(setBloom:), @"", 150);
-    add(bloomMenu, @"200%", @selector(setBloom:), @"", 200);
     add(g, @"16x anisotropic filtering (N)", @selector(toggleAniso:), @"N");
     add(g, @"Edge smoothing, FXAA (8)", @selector(toggleFxaa:), @"8");
     add(g, @"60 fps: frame interpolation (6)", @selector(toggleInterpFps:), @"6", 60);
@@ -427,7 +392,7 @@ void install_menu(NSWindow* tv) {
     NSMenuItem* ssItem = [bar addItemWithTitle:@"Save States" action:nil keyEquivalent:@""];
     NSMenu* sm = [[NSMenu alloc] initWithTitle:@"Save States"];
     sm.autoenablesItems = NO;
-    g_state_menu = [WWStateMenu new];
+    g_state_menu = [NsmbuStateMenu new];
     sm.delegate = g_state_menu;
     ssItem.submenu = sm;
 
@@ -467,9 +432,7 @@ void menu_options_changed() { update_title(); }
 
 bool menu_hotkey(uint16_t code) {
     switch (code) {
-    case kVK_ANSI_O: if (render::feature_available(render::kFeatureAO)) render::set_ao_mode((render::ao_mode() + 1) % 3); break;
     case kVK_ANSI_N: if (render::feature_available(render::kFeatureAniso)) render::set_aniso(!render::aniso()); break;
-    case kVK_ANSI_M: if (render::feature_available(render::kFeatureAOHires)) render::set_ao_hires(!render::ao_hires()); break;
     case kVK_ANSI_6: interp::toggle_fps(60); break;
     case kVK_ANSI_8: if (render::feature_available(render::kFeatureFXAA)) render::set_fxaa(!render::fxaa()); break;
     case kVK_ANSI_R: cycle_res(); break;

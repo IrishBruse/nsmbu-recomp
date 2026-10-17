@@ -153,10 +153,7 @@ void graphics_changed() {
     char res[16];
     snprintf(res, sizeof res, "%g", gfxvk::requested_res_scale());
     put("resScale", {"NSMBU_RES_SCALE"}, res);
-    put("aoMode", {"NSMBU_AO_MODE", "NSMBU_NO_AO_QUIRK"}, std::to_string(gfxvk::ao_mode()));
-    put("aoHires", {"NSMBU_AO_HIRES"}, gfxvk::ao_hires_enabled() ? "1" : "0");
     put("aniso", {"NSMBU_ANISO"}, gfxvk::aniso_enabled() ? "1" : "0");
-    put("bloomStrength", {"NSMBU_BLOOM_STRENGTH"}, std::to_string(render::bloom_strength()));
     put("fxaa", {"NSMBU_FXAA"}, gfxvk::fxaa_enabled() ? "1" : "0");
 #ifdef __ANDROID__
 
@@ -186,10 +183,7 @@ void load_saved_options() {
     auto saved = [&](const char* key, std::initializer_list<const char*> env) { return !env_set(env) && v.count(key); };
     auto num = [&](const char* key) { return atof(v[key].c_str()); };
     if (saved("resScale", {"NSMBU_RES_SCALE"})) gfxvk::set_res_scale((float)num("resScale"));
-    if (saved("aoMode", {"NSMBU_AO_MODE", "NSMBU_NO_AO_QUIRK"})) gfxvk::set_ao_mode((int)num("aoMode"));
-    if (saved("aoHires", {"NSMBU_AO_HIRES"})) gfxvk::set_ao_hires(num("aoHires") != 0);
     if (saved("aniso", {"NSMBU_ANISO"})) gfxvk::set_aniso(num("aniso") != 0);
-    if (saved("bloomStrength", {"NSMBU_BLOOM_STRENGTH"})) render::set_bloom_strength((float)num("bloomStrength"));
     if (saved("fxaa", {"NSMBU_FXAA"})) gfxvk::set_fxaa(num("fxaa") != 0);
     if (saved("interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps((int)num("interpFps"));
     if (saved("fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"})) interp::set_mode((int)num("fps60"));

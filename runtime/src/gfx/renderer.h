@@ -44,10 +44,6 @@ struct Backend {
 
     float (*res_scale)();
     void (*set_res_scale)(float);
-    int (*ao_mode)();
-    void (*set_ao_mode)(int);
-    bool (*ao_hires)();
-    void (*set_ao_hires)(bool);
     bool (*aniso)();
     void (*set_aniso)(bool);
     bool (*fxaa)();
@@ -57,7 +53,7 @@ struct Backend {
 
     std::string (*device)();
 };
-enum Feature : int { kFeatureAO, kFeatureAOHires, kFeatureAniso, kFeatureFXAA, kFeatureScaleFilter, kFeatureCapture,
+enum Feature : int { kFeatureAniso, kFeatureFXAA, kFeatureScaleFilter, kFeatureCapture,
                      kFeatureShaderHeadStart };
 
 extern const Backend* g_backend;
@@ -116,17 +112,9 @@ void shutdown();
 
 inline float res_scale() { return g_backend->res_scale(); }
 inline void set_res_scale(float f) { g_backend->set_res_scale(f); }
-inline int ao_mode() { return g_backend->ao_mode(); }
-inline void set_ao_mode(int m) { g_backend->set_ao_mode(m); }
-inline bool ao_hires() { return g_backend->ao_hires(); }
-inline void set_ao_hires(bool v) { g_backend->set_ao_hires(v); }
 inline bool aniso() { return g_backend->aniso(); }
 inline void set_aniso(bool v) { g_backend->set_aniso(v); }
 
-float bloom_strength();
-void set_bloom_strength(float strength);
-
-void scale_bloom_uniforms(void* remapped, size_t size);
 inline bool fxaa() { return g_backend->fxaa(); }
 inline void set_fxaa(bool v) { g_backend->set_fxaa(v); }
 inline bool feature_available(Feature f) { return g_backend->feature_available(f); }

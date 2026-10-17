@@ -17,7 +17,7 @@ optimizations have been adapted:
   sleep phase of precise vsync waits. Guest core release, freeze gates and
   completion callbacks retain their existing order.
 - Index conversion retains thread-local scratch capacity. Immutable GPU uploads
-  are copied before that scratch can be reused, including recursive AO replay.
+  are copied before that scratch can be reused.
 - Full texture content checks use BSD-licensed xxHash v0.8.3. Every mip and byte
   is still checked; sparse-check cadence and disk cache formats are unchanged.
   (Since 2026-10-06 both renderers decide when to check by page write tracking,
@@ -42,7 +42,7 @@ standard-library mean/p95 lateness of 0.639/1.011 ms and SDL mean/p95 lateness o
 CTest checks and the GPU renderer smoke test with synchronization validation
 passed on the RX 9070 XT, with no reported validation errors.
 
-Steady 60 fps at 3x resolution and full-resolution AO remains
+Steady 60 fps at 3x resolution remains
 unverified. Compare the same scene, camera and settings with warm caches;
 disable validation and detailed profiling for FPS comparisons. Frame
 interpolation increases displayed frames but still needs each rendered frame
@@ -54,9 +54,8 @@ Windows now enables the existing bounded 2,048-draw asynchronous batching by
 default, with a maximum of two mid-frame submissions. Explicit values of
 `NSMBU_VK_DRAW_BATCH` and `NSMBU_VK_DRAW_BATCH_CAP` retain their existing behavior.
 
-This saved Outset scene is a record from the Wind Waker port.
-An isolated saved Outset scene at 3x resolution, AO mode 2, high-resolution AO
-and anisotropy compared the same native Release executable with batching enabled
+This saved WWHD Outset scene is a historical Wind Waker HD record.
+An isolated saved WWHD Outset scene at 3x resolution and anisotropy compared the same native Release executable with batching enabled
 and disabled. VulkanProfiler and validation were disabled, implicit Vulkan
 layers were disabled equally, presentation was immediate, and GamePad/input
 were disabled. Each run restored the same state at renderer frame 1,200 and
@@ -108,12 +107,21 @@ The "Sort by top of stack" section shows where the CPU time goes.
 
 ### Fixed-scene benchmark
 
-Outset and Windfall figures are the old Wind Waker measurement record.
-Use the 1-1 command in How to profile for the current repro.
+WWHD Outset and WWHD Windfall figures are historical Wind Waker HD measurement records.
+Use `just run 1-1` and `NSMBU_STATE_LOAD_AT=700:1` (slot 1) in How to profile for the current NSMBU repro.
 
 `tools/bench/run_bench.py` runs the game headless (or with `--visible` windows, which presentation
 and vsync pacing need) from a save state with scripted input, one game at a time, with a fresh copy
 of the save and its own caches and settings files. A/B variants run interleaved:
+
+```sh
+just build-release
+just run 1-1
+```
+
+For historical WWHD A/B runs, `tools/bench/run_bench.py` still accepts `--scene outset` or
+`--scene windfall` when `--state-dir` holds the old Wind Waker slot files (outset: slot 3,
+windfall: slot 2, or `--slot`).
 
 ```sh
 tools/bench/run_bench.py --binary build/cmake/nsmbu --state-dir my_states --scene outset \
@@ -121,8 +129,7 @@ tools/bench/run_bench.py --binary build/cmake/nsmbu --state-dir my_states --scen
     --variant old:NSMBU_VK_LAZY_DRAW_DONE=0,NSMBU_VK_ASYNC_PRESENT=0 --variant new:
 ```
 
-`--state-dir` holds `slot<N>.bin` files made with the game's save-state keys (outset: slot 3,
-windfall: slot 2, or `--slot`). `--fps 60|120|240`, `--display-hz n` (the refresh rate
+`--fps 60|120|240`, `--display-hz n` (the refresh rate
 120/240 fps are capped to; 0: no cap, for hidden-window runs), `--uncapped` (throughput),
 `--renderer metal`.
 The state is loaded at TV frame 450 (A presses from frame 120 skip the intro), the input starts 200
@@ -134,7 +141,8 @@ kind, unique guest bytes and draw classes. The load average before and after eac
 
 ## 120 and 240 fps frame interpolation (2026-10-07)
 
-Apple M3 Max, 120 Hz ProMotion display, Outset (slot 3, walking and turning), 40 s per run,
+Historical WWHD Outset (Wind Waker HD slot 3, walking and turning).
+Apple M3 Max, 120 Hz ProMotion display, 40 s per run,
 `tools/bench/run_bench.py` (one game at a time), Vulkan (MoltenVK) unless noted. Hidden runs present
 nothing; visible runs present to the 120 Hz display. "In-between" is the share of the planned
 in-between frames drawn (paced), frames per step is interpolation's own count.
@@ -171,37 +179,38 @@ in-between frames drawn (paced), frames per step is interpolation's own count.
 
 ## Desktop CPU/GPU overlap and CPU path defaults (2026-10-07)
 
-Apple M3 Max, MoltenVK, Vulkan renderer, `tools/bench/run_bench.py`, Outset (slot 3) and Windfall
-(slot 2) saved scenes, 40 s of scripted walking, variants interleaved, medians [min..max] over 4-6
-runs per variant. "old" = `NSMBU_VK_LAZY_DRAW_DONE=0 NSMBU_VK_ASYNC_PRESENT=0` (the previous desktop
+Historical WWHD Outset (slot 3) and WWHD Windfall (slot 2) saved scenes.
+Apple M3 Max, MoltenVK, Vulkan renderer, `tools/bench/run_bench.py`, 40 s of scripted walking,
+variants interleaved, medians [min..max] over 4-6 runs per variant.
+"old" = `NSMBU_VK_LAZY_DRAW_DONE=0 NSMBU_VK_ASYNC_PRESENT=0` (the previous desktop
 behaviour: vkDeviceWaitIdle at every GX2DrawDone, a drained queue at every present).
 
 **Lazy DrawDone and asynchronous presentation** (visible windows):
 
-| Scene | old | new |
+| WWHD scene (hist.) | old | new |
 |---|---|---|
-| Outset 60 fps (vsync) | 59.35 swaps/s, GPU wait 3.36 ms/frame, game waits 6.22 ms at DrawDone | 59.49, 0.37 ms, 3.20 ms |
-| Windfall 60 fps (vsync) | 59.72, GPU wait 4.22 ms, render thread in ops 11.06 ms | 59.74, 0.00 ms, 6.78 ms |
-| Outset uncapped, immediate present | 102.5 [96.6..105.2] swaps/s | 115.7 [115.0..143.5] |
-| Windfall uncapped, immediate present | 103.2 [101.9..103.6] swaps/s | 157.5 [143.5..158.5] |
-| Outset paced 60 fps, render thread +7 ms | 40.3 swaps/s, 48.7% in-between frames, 27.4 steps/s | 59.2, 99.7%, 29.6 |
-| Outset paced 60 fps, render thread +8 ms | 35.3 swaps/s, 33.2% in-between frames, 27.4 steps/s | 59.05, 99.7%, 29.55 |
+| WWHD Outset 60 fps (vsync) | 59.35 swaps/s, GPU wait 3.36 ms/frame, game waits 6.22 ms at DrawDone | 59.49, 0.37 ms, 3.20 ms |
+| WWHD Windfall 60 fps (vsync) | 59.72, GPU wait 4.22 ms, render thread in ops 11.06 ms | 59.74, 0.00 ms, 6.78 ms |
+| WWHD Outset uncapped, immediate present | 102.5 [96.6..105.2] swaps/s | 115.7 [115.0..143.5] |
+| WWHD Windfall uncapped, immediate present | 103.2 [101.9..103.6] swaps/s | 157.5 [143.5..158.5] |
+| WWHD Outset paced 60 fps, render thread +7 ms | 40.3 swaps/s, 48.7% in-between frames, 27.4 steps/s | 59.2, 99.7%, 29.6 |
+| WWHD Outset paced 60 fps, render thread +8 ms | 35.3 swaps/s, 33.2% in-between frames, 27.4 steps/s | 59.05, 99.7%, 29.55 |
 
 Render-thread CPU time is unchanged; the GPU drain was idle time on both sides. The +7/+8 ms rows
 add a busy-wait to the render thread per frame (a local evaluation aid, not in the code), the regime
 of slower machines (upstream issue #7): there the old path dropped most 60 fps frames and the game
 ran 9% slow. The SDL host (Vulkan-only build, the Windows/Linux window host) shows the same:
-uncapped Outset 105.5 -> 144.1 swaps/s, GPU wait 2.96 -> 0.43 ms.
+uncapped WWHD Outset 105.5 -> 144.1 swaps/s, GPU wait 2.96 -> 0.43 ms.
 
 **CPU paths** (`docs/vulkan.md`, all 15 off vs all on, new sync defaults, headless):
 
-| Scene | render-thread CPU off -> on | uploads MiB/frame |
+| WWHD scene (hist.) | render-thread CPU off -> on | uploads MiB/frame |
 |---|---|---|
-| Outset 60 fps | 6.23 -> 5.56 ms (-10.8%) | 22.4 -> 18.6 |
-| Windfall 60 fps | 5.83 -> 5.36 ms (-8.0%) | 28.2 -> 26.3 |
-| Outset uncapped | 6.37 -> 5.46 ms (-14.3%), 150 -> 166 swaps/s | 21.9 -> 18.4 |
+| WWHD Outset 60 fps | 6.23 -> 5.56 ms (-10.8%) | 22.4 -> 18.6 |
+| WWHD Windfall 60 fps | 5.83 -> 5.36 ms (-8.0%) | 28.2 -> 26.3 |
+| WWHD Outset uncapped | 6.37 -> 5.46 ms (-14.3%), 150 -> 166 swaps/s | 21.9 -> 18.4 |
 
-Leaving one path out (Outset 60, 2 runs each, run spread about 0.4 ms) costs: specialized index
+Leaving one path out (WWHD Outset 60 fps, 2 runs each, run spread about 0.4 ms) costs: specialized index
 conversion 0.31 ms, shader state memo 0.28, uniform snapshot reuse 0.25, sampler memo 0.09, sparse
 hash memo 0.09, vertex bind skipping 0.08, redundant bind skipping 0.06, feedback image reuse 0.06,
 shader address memo 0.05, vertex snapshot reuse 0.03 (and 3.3 MiB/frame of uploads); descriptor
@@ -216,13 +225,13 @@ gameplay run reports no errors (one known warning: a fragment output without att
 the old settings); `--renderer-smoke` passes with validation in both builds, with and without the
 CPU paths.
 
-**Where the render-thread time goes** (all defaults on, Outset 60 fps, per frame; `[prof]` lines):
+**Where the render-thread time goes** (all defaults on, WWHD Outset 60 fps, per frame; `[prof]` lines):
 draws 5.3 ms of 6.5 ms in ops (3,230 draws, 1.74 us each), register writes 0.9 ms (39,000 writes).
 Per draw phase: submit/draw command 1.03 ms (includes the batched queue submissions), shader lookup
 0.62, uniforms 0.63, vertex snapshots 0.62, textures 0.44, pass 0.40, pipeline 0.38, descriptors
 0.37, record 0.31, indices 0.23, targets 0.20. Uploads are 18.6 MiB per frame, 15.7 of them vertex
 copies, but the copied guest ranges hold only 2.2 MiB of unique bytes; an interpolation hold frame
-copies the same 18.6 MiB again. 55% of Outset draws (12% on Windfall) change only buffer pointers
+copies the same 18.6 MiB again. 55% of WWHD Outset draws (12% on WWHD Windfall) change only buffer pointers
 or ALU constants since the previous draw.
 
 ## Where the time goes
@@ -342,8 +351,7 @@ gather returns the previous result after a `memcmp`. Same input, same key, by co
 Indices were converted with a switch on the index format for every index and `insert` calls for every
 triangle, into a vector allocated per draw. The format is now resolved once per draw (a template over
 the reader), output is written into a presized buffer, and the draw reuses one vector (render thread
-only; the one nested `draw` call, the full-size occlusion redraw, comes after the indices are
-submitted). Old and new produce identical output for 12,675 cases (every primitive type, index format,
+only). Old and new produce identical output for 12,675 cases (every primitive type, index format,
 with and without an index buffer, counts 0–64); the new one is ~5× faster on large lists.
 
 | Metal, same 20 s run | before | after |
@@ -485,7 +493,7 @@ The 300-frame `[gfx]` report (Metal) and the `[vulkan textures]` line (`NSMBU_VK
 full checks, hashed bytes (Metal), uploads, page write faults and pages protected;
 `NSMBU_LOG_TEXCHECK=1` (Metal) logs which textures were re-checked because of a write.
 
-Cost, Outset beach (states slot 4, 45 s explore walk), render-thread CPU ms/frame, two runs each,
+Cost, WWHD Outset beach (hist., states slot 4, 45 s explore walk), render-thread CPU ms/frame, two runs each,
 devel vs this change. Indicative only: measured while the machine ran other long jobs (load 5-9 on
 16 cores). Metal 5.50 / 5.53 before, 5.31 / 5.69 after; Vulkan (AppKit) 6.73 / 7.02 before,
 6.79 / 6.52 after: within run-to-run noise. About 2 write faults and 2 full checks of small

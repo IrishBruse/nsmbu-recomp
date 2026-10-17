@@ -7,9 +7,9 @@
 #include <cmath>
 #include "../../interp.h"
 static constexpr float scales[]={1,1.5f,2,3};
-@interface WWVulkanStateMenu : NSObject <NSMenuDelegate>
+@interface NsmbuVulkanStateMenu : NSObject <NSMenuDelegate>
 @end
-@implementation WWVulkanStateMenu
+@implementation NsmbuVulkanStateMenu
 - (void)save:(NSMenuItem*)item { ss::request_save((int)item.tag); }
 - (void)load:(NSMenuItem*)item { ss::request_load((int)item.tag); }
 - (void)toggleCrashRecovery:(NSMenuItem*)item { crashrec::set_enabled(!crashrec::enabled()); }
@@ -59,12 +59,10 @@ static constexpr float scales[]={1,1.5f,2,3};
     }
 }
 @end
-@interface WWVulkanGraphicsMenu : NSObject <NSMenuItemValidation>
+@interface NsmbuVulkanGraphicsMenu : NSObject <NSMenuItemValidation>
 @end
-@implementation WWVulkanGraphicsMenu
+@implementation NsmbuVulkanGraphicsMenu
 - (void)resolution:(NSMenuItem*)i { gfxvk::set_res_scale(scales[i.tag]); }
-- (void)ao:(NSMenuItem*)i { gfxvk::set_ao_mode((int)i.tag); }
-- (void)hires:(NSMenuItem*)i { gfxvk::set_ao_hires(!gfxvk::ao_hires_enabled()); }
 - (void)aniso:(NSMenuItem*)i { gfxvk::set_aniso(!gfxvk::aniso_enabled()); }
 - (void)fxaa:(NSMenuItem*)i { gfxvk::set_fxaa(!gfxvk::fxaa_enabled()); }
 - (void)filter:(NSMenuItem*)i { gfxvk::set_scale_filter((int)i.tag); }
@@ -73,8 +71,6 @@ static constexpr float scales[]={1,1.5f,2,3};
 - (BOOL)validateMenuItem:(NSMenuItem*)i {
     BOOL on=NO; bool available=true;
     if(i.action==@selector(resolution:))on=std::fabs(gfxvk::requested_res_scale()-scales[i.tag])<0.01f;
-    if(i.action==@selector(ao:)){on=gfxvk::ao_mode()==i.tag;available=gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::AO);}
-    if(i.action==@selector(hires:)){on=gfxvk::ao_hires_enabled();available=gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::AOHires);}
     if(i.action==@selector(aniso:)){on=gfxvk::aniso_enabled();available=gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::Anisotropy);}
     if(i.action==@selector(fxaa:)){on=gfxvk::fxaa_enabled();available=gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::FXAA);}
     if(i.action==@selector(filter:)){on=gfxvk::scale_filter()==i.tag;available=gfxvk::graphics_feature_available(gfxvk::GraphicsFeature::ScaleFilter);}
@@ -87,9 +83,9 @@ namespace gfxvk {
 void install_graphics_menu(SDL_Window* window) {
 
     if(!window || ![NSThread isMainThread])return;
-    static WWVulkanGraphicsMenu* target;
+    static NsmbuVulkanGraphicsMenu* target;
     if(target)return;
-    target=[WWVulkanGraphicsMenu new];
+    target=[NsmbuVulkanGraphicsMenu new];
     NSMenu* bar=NSApp.mainMenu;
     if(!bar){bar=[[NSMenu alloc]initWithTitle:@""];NSApp.mainMenu=bar;}
     NSMenuItem* root=[[NSMenuItem alloc]initWithTitle:@"Graphics" action:nil keyEquivalent:@""];
@@ -100,10 +96,6 @@ void install_graphics_menu(SDL_Window* window) {
     add(@"2560 × 1440 (2×)",@selector(resolution:),2);
     add(@"3840 × 2160 (3×)",@selector(resolution:),3);
     [menu addItem:NSMenuItem.separatorItem];
-    add(@"AO: Original — O cycles",@selector(ao:),0);
-    add(@"AO: Centre fix",@selector(ao:),1);
-    add(@"AO: Centre + noise fix",@selector(ao:),2);
-    add(@"AO full-size depth — M",@selector(hires:),0);
     add(@"16× anisotropic filtering — N",@selector(aniso:),0);
     add(@"FXAA — 8",@selector(fxaa:),0);
     [menu addItem:NSMenuItem.separatorItem];
@@ -114,7 +106,7 @@ void install_graphics_menu(SDL_Window* window) {
     add(@"60 FPS interpolation — 6",@selector(interpolation:),60);
     add(@"120 FPS interpolation",@selector(interpolation:),120);
     add(@"240 FPS interpolation",@selector(interpolation:),240);
-    static WWVulkanStateMenu* stateTarget=[WWVulkanStateMenu new];
+    static NsmbuVulkanStateMenu* stateTarget=[NsmbuVulkanStateMenu new];
     NSMenuItem* stateRoot=[[NSMenuItem alloc]initWithTitle:@"Save States" action:nil keyEquivalent:@""];
     NSMenu* stateMenu=[[NSMenu alloc]initWithTitle:@"Save States"];
     stateMenu.autoenablesItems=NO;

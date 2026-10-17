@@ -130,7 +130,7 @@ list(APPEND RUNTIME_SOURCES ${NSMBU_GUEST_STUBS})
 list(APPEND RUNTIME_SOURCES ${NSMBU_BUILD_INFO})
 file(GLOB GX2_SOURCES CONFIGURE_DEPENDS runtime/src/gx2/*.cpp)
 
-set(GFX_SOURCES runtime/src/gfx/renderer.cpp runtime/src/gfx/display_modes.cpp)
+set(GFX_SOURCES runtime/src/gfx/renderer.cpp runtime/src/gfx/display_modes.cpp runtime/src/gfx/depth_peek.cpp)
 set(MOD_GFX_SOURCES)
 if(NSMBU_HAS_METAL)
 

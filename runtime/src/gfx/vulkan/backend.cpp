@@ -2143,8 +2143,6 @@ static void init_device(std::vector<const char *> extensions,
       make_swapchain(*s);
     }
   vk::select_renderer();
-  set_graphics_feature_available(GraphicsFeature::AO);
-  set_graphics_feature_available(GraphicsFeature::AOHires);
   set_graphics_feature_available(GraphicsFeature::Anisotropy,
                                  R.enabledFeatures.samplerAnisotropy);
   if (const char* path = getenv("NSMBU_CAPTURE_PATH")) {

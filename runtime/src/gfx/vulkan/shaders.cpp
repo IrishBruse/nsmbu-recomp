@@ -779,7 +779,6 @@ Shader* translate(const uint32_t* regs, bool vertex, LatteFetchShader* fetch, ui
     auto owned = std::make_unique<Shader>();
     Shader* shader = owned.get();
     shader->vertex = vertex;
-    shader->kind = gfx::program_kind(ppc_ptr(address), size, vertex);
     if (!decompile(*shader, regs, vertex, fetch, address, size, base, true, link)) {
 
         shader->key = shader->pipelineId = linkage ^ 0xFA17EDull;
@@ -818,7 +817,7 @@ Shader* translate(const uint32_t* regs, bool vertex, LatteFetchShader* fetch, ui
 
     const uint64_t output = output_hash(*shader);
     for (auto [it, end] = shadersByOutput.equal_range(output); it != end; ++it)
-        if (it->second->kind == shader->kind && same_output(*it->second, *shader)) {
+        if (same_output(*it->second, *shader)) {
             ++stats.variantAliases;
             free_decompiler(shader->dec);
             variants.emplace(key, it->second);

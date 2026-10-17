@@ -71,7 +71,7 @@ From the decompilation (`nsmbu_src`):
 - Every item aim goes through that camera; no item code reads the gyro itself.
 
 So what matters is how the direction matrix turns from one frame to the next, in the GamePad's own
-frame. Measured in R3 look (`NSMBU_TEST_GYRO`, Outset): a GamePad turn of 60° right turned the view
+frame. Measured in R3 look on historical WWHD Outset (`NSMBU_TEST_GYRO`): a GamePad turn of 60° right turned the view
 113° right, a tilt of 20° up 29° up.
 
 ## How the port does it

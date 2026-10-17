@@ -180,10 +180,10 @@ struct UIState {
     bool padConnected = false;
 };
 
-@class WWControls;
+@class NsmbuControls;
 
-@interface WWPadView : NSView
-@property(weak) WWControls* owner;
+@interface NsmbuPadView : NSView
+@property(weak) NsmbuControls* owner;
 @property(assign) UIState* st;
 @property(assign) int hoverAction;
 @property(assign) int hoverSlot;
@@ -191,9 +191,9 @@ struct UIState {
 - (void)invalidateGeo;
 @end
 
-@interface WWControls : NSObject <NSWindowDelegate>
+@interface NsmbuControls : NSObject <NSWindowDelegate>
 @property(strong) NSWindow* window;
-@property(strong) WWPadView* padView;
+@property(strong) NsmbuPadView* padView;
 @property(strong) NSTextField* status;
 @property(strong) NSTextField* padInfo;
 @property(strong) NSSegmentedControl* which;
@@ -211,10 +211,10 @@ struct UIState {
 - (void)releaseLocalKeys;
 @end
 
-@interface WWControlsWindow : NSWindow
-@property(weak) WWControls* controls;
+@interface NsmbuControlsWindow : NSWindow
+@property(weak) NsmbuControls* controls;
 @end
-@implementation WWControlsWindow
+@implementation NsmbuControlsWindow
 - (void)sendEvent:(NSEvent*)e {
     if ((e.type == NSEventTypeKeyDown || e.type == NSEventTypeKeyUp || e.type == NSEventTypeFlagsChanged) &&
         [self.controls handleKeyEvent:e])
@@ -223,16 +223,16 @@ struct UIState {
 }
 @end
 
-@interface WWRootView : NSView
+@interface NsmbuRootView : NSView
 @end
-@implementation WWRootView
+@implementation NsmbuRootView
 - (void)drawRect:(NSRect)r {
     [NSColor.windowBackgroundColor setFill];
     NSRectFill(r);
 }
 @end
 
-@implementation WWPadView {
+@implementation NsmbuPadView {
     Geo _g;
 }
 
@@ -917,7 +917,7 @@ static NSRect x_rect(NSRect chip) { return NSMakeRect(NSMaxX(chip) - 7, chip.ori
 
 @end
 
-@implementation WWControls {
+@implementation NsmbuControls {
     UIState _st;
     uint32_t _gen;
     bool _localKeys[256];
@@ -946,7 +946,7 @@ static NSTextField* label(NSString* s) {
 }
 
 - (void)build {
-    WWControlsWindow* w = [[WWControlsWindow alloc] initWithContentRect:NSMakeRect(0, 0, 1060, 610)
+    NsmbuControlsWindow* w = [[NsmbuControlsWindow alloc] initWithContentRect:NSMakeRect(0, 0, 1060, 610)
                                                               styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                                                                         NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable
                                                                 backing:NSBackingStoreBuffered
@@ -959,7 +959,7 @@ static NSTextField* label(NSString* s) {
 
     if (!getenv("NSMBU_NO_HOST_INPUT") && !host::portable()) w.frameAutosaveName = @"NSMBUControls2";
     self.window = w;
-    WWRootView* root = [[WWRootView alloc] init];
+    NsmbuRootView* root = [[NsmbuRootView alloc] init];
     w.contentView = root;
 
     NSSegmentedControl* which = [NSSegmentedControl segmentedControlWithLabels:@[@"Wii U GamePad", @"Wii U Pro Controller"]
@@ -984,7 +984,7 @@ static NSTextField* label(NSString* s) {
     self.padInfo = pi;
     [pi setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
 
-    WWPadView* pv = [[WWPadView alloc] init];
+    NsmbuPadView* pv = [[NsmbuPadView alloc] init];
     pv.translatesAutoresizingMaskIntoConstraints = NO;
     pv.owner = self;
     pv.st = &_st;
@@ -1073,7 +1073,7 @@ static NSTextField* label(NSString* s) {
 - (void)refreshStatus {
     NSString* s;
     int level = 0;
-    WWPadView* pv = self.padView;
+    NsmbuPadView* pv = self.padView;
     double now = CACurrentMediaTime();
     bool recent = _message && now - _messageTime < (_messageLevel ? 8 : 4);
     if (_st.capAction >= 0 && !(recent && _messageLevel == 2)) {
@@ -1456,7 +1456,7 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
 
 @end
 
-static WWControls* g_controls;
+static NsmbuControls* g_controls;
 
 static NSEvent* key_event(NSWindow* w, uint16_t code, NSString* chars) {
     return [NSEvent keyEventWithType:NSEventTypeKeyDown location:NSZeroPoint modifierFlags:0 timestamp:0
@@ -1469,7 +1469,7 @@ static void self_test() {
         LOG("[controls-test] needs NSMBU_CONTROLS=<scratch file>");
         return;
     }
-    WWControls* c = g_controls;
+    NsmbuControls* c = g_controls;
     NSWindow* w = c.window;
     int fails = 0;
     auto expect = [&](bool ok, const char* what) {
@@ -1535,7 +1535,7 @@ static void self_test() {
 namespace gfx {
 
 void show_controls_window() {
-    if (!g_controls) g_controls = [[WWControls alloc] init];
+    if (!g_controls) g_controls = [[NsmbuControls alloc] init];
     [g_controls show:true];
 }
 
@@ -1543,22 +1543,22 @@ bool controls_window_is_key() { return g_controls && g_controls.window.isKeyWind
 
 }
 
-@interface WWControlsMenuTarget : NSObject
+@interface NsmbuControlsMenuTarget : NSObject
 @end
-@implementation WWControlsMenuTarget
+@implementation NsmbuControlsMenuTarget
 - (void)open:(id)sender { gfx::show_controls_window(); }
 @end
 
 namespace gfx {
 
 NSMenuItem* controls_menu_item() {
-    static WWControlsMenuTarget* target = [WWControlsMenuTarget new];
+    static NsmbuControlsMenuTarget* target = [NsmbuControlsMenuTarget new];
     NSMenuItem* it = [[NSMenuItem alloc] initWithTitle:@"Controls…" action:@selector(open:) keyEquivalent:@""];
     it.target = target;
     bool selftest = getenv("NSMBU_CONTROLS_SELFTEST"), show = getenv("NSMBU_SHOW_CONTROLS"), snap = getenv("NSMBU_CONTROLS_SNAPSHOT");
     if (selftest || show || snap)
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-            if (!g_controls) g_controls = [[WWControls alloc] init];
+            if (!g_controls) g_controls = [[NsmbuControls alloc] init];
 
             [g_controls show:!getenv("NSMBU_NO_HOST_INPUT")];
             if (selftest) self_test();
