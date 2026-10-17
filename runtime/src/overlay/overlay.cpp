@@ -1105,8 +1105,8 @@ void gyro_window(bool& open) {
     motion::Settings g = motion::settings(), before = g;
     bool v;
     ImGui::PushTextWrapPos(ImGui::GetFontSize() * 34);
-    note("On the Wii U you aim in first person (bow, hookshot, boomerang, telescope, Picto Box, grappling hook) by "
-         "moving the GamePad. This works with the GamePad and the Pro Controller choice alike. The game's own "
+    note("Moving the GamePad looks around in first person. "
+         "This works with the GamePad and the Pro Controller choice alike. The game's own "
          "Options > Gyro switch still decides whether it uses the motion, and it ignores the motion while the right "
          "stick is pushed.");
     for (int i = 0; i < motion::kSourceCount; i++)

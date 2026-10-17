@@ -23,8 +23,7 @@ Where the shaders are (NSMBU, USA):
       binary section: section size, count, then entries {entry size, type (0 VS, 1 PS, 2 GS), unknown,
         data size, data[]}. The data is the GX2VertexShader / GX2PixelShader structure stored
         little-endian, pointers as offsets from the start of the data. The microcode is stored
-        byte-for-byte as the game later hands it to the GPU (95% of the programs the game uses from boot
-        to Outset Island are found this way).
+        byte-for-byte as the game later hands it to the GPU.
       program section: named programs referencing binaries (variations = macro combinations).
   - GX2VertexShader: 52 register words (0x00..0xCC), shader size @0xD0, shader offset @0xD4.
     GX2PixelShader: 41 register words (0x00..0xA0), shader size @0xA4, shader offset @0xA8.

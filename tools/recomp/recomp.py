@@ -15,7 +15,7 @@ Code-quality passes (each on by default; the variable set to 0 when generating t
   NSMBU_RECOMP_SINGLE_IP    ... with entry states and return summaries across functions (singleflow.py)
   NSMBU_RECOMP_GQR          paired-single loads/stores through GQRs the game never writes skip the GQR check
 NSMBU_RECOMP_PLAIN=1 turns them all off: the output is then the same as without these passes (the
-plain c->r[N] form that tools/verify read).
+plain c->r[N] form).
 Checking builds (set to 1): NSMBU_RECOMP_CR_CHECK (a dropped CR bit that is read aborts),
 NSMBU_RECOMP_LEAF_POISON (scratch registers get garbage at returns), NSMBU_RECOMP_SINGLE_CHECK (an
 operand left unrounded that round25 would change is logged).

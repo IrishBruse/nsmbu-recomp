@@ -220,7 +220,7 @@ def report(m):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("rpx", nargs="*", help="the canonical (USA) cking.rpx and the other build's")
+    ap.add_argument("rpx", nargs="*", help="the canonical (USA) red-pro2.rpx and the other build's")
     ap.add_argument("--name", help="short name of the other build, e.g. EU")
     ap.add_argument("--title", help="its title id, e.g. 0005000010101e00")
     ap.add_argument("--canonical-name", default="USA")

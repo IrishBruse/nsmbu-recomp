@@ -505,9 +505,9 @@ extern "C" void hook_027F5018(Cpu* c) {
 }
 
 namespace interp {
-void fx_pass_start();
-void fx_hold_blend(float t);
-void fx_ss_reset();
+void fx_pass_start() {}
+void fx_hold_blend(float) {}
+void fx_ss_reset() {}
 
 void ss_reset() {
     for (auto& p : g_prev) p = Prev{};
@@ -804,7 +804,7 @@ extern "C" void hook_02617AF4(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_chi
 extern "C" void hook_02614F74(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_child(5)) f_02614F74_orig(c); }
 extern "C" void hook_0273841C(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_child(6)) f_0273841C_orig(c); }
 extern "C" void hook_0270870C(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_child(7)) f_0270870C_orig(c); }
-namespace interp { void light_trace_add(const char* fmt, ...); }
+namespace interp { void light_trace_add(const char*, ...) {} }
 
 namespace {
 const uint32_t kSetLightTarget = GD(0x101E8EC8), kSetLightEfTarget = GD(0x101E8ECC), kLightStatusPt = GD(0x101E8CC8);

@@ -126,17 +126,4 @@ Link starts standing, or sitting in the boat with the sail down; the camera star
 the file is loaded into the current Quest Log of the session (saving in game afterwards writes it
 there; `file_slot` only drives the notice above).
 
-## Scenario test
-
-`runtime/tools/portable_state_scenario.py <nsmbu> <game> <save> <workdir> [--boat-save <dir>]
-[--event-save <dir>]` (headless, copies of the saves only): from a copy of a save, warps into
-Link's house (and, second case, stays on WWHD Outset Island in the historical Wind Waker scenario), walks, saves a portable state; cold boot, changes
-the rupees, loads the state, saves again once Link has arrived, and compares stage, room, position,
-angle and the HD sections. Further cases:
-the house state loaded while Quest Log 2 is played (notice, data in Quest Log 2); with a save that
-has the boat (gametest `ghost`): swim to the boat, climb aboard, set sail, save at sea, cold boot,
-load, Link is on the boat and the boat at its place and heading; with gametest `helm`: a portable
-save while the King of Red Lions talks is refused and writes nothing, a full save at the same
-moment works, a portable save after the dialogue works. Last, full save states still save and load.
-
 Controller metadata: format 1 accepts optional `controller = 1` (GamePad) or `controller = 2` (Pro Controller). Loading restores that host input mode. Missing metadata or `0` leaves the current mode unchanged. Unknown values are refused; the existing field and total-size guards still apply.

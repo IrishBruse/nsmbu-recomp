@@ -525,10 +525,6 @@ target_compile_options(crash_redact_test PRIVATE -UNDEBUG)
 add_test(NAME crash_redact COMMAND crash_redact_test)
 
 if(Python3_Interpreter_FOUND)
-  add_test(NAME medli_scenario_evidence COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/runtime/tools/medli_scenario_test.py")
-endif()
-
-if(Python3_Interpreter_FOUND)
   add_test(NAME release_sdk_package COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/release/test_sdk_package.py")
 endif()
 

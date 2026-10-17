@@ -87,13 +87,8 @@ folder).
   has itself are skipped) and offers them in the Language tab.
 * **Console language** (`hle/coreinit_misc.cpp`): with a source language chosen, the game gets
   that language code (3 for German, ...).
-* **Region** (`language_region.cpp`, hook on 0x025F9448 in `tools/recomp/hooks_language.txt`):
-  after the USA reader, the source's region (4 or 1) and language are written to the setting object
-  and the options byte as the European game would keep them (the European reader, 0x025F9738, stores
-  region 4, keeps languages 1..5 and maps them through its table 0x100E0D7E: 0 0 2 1 4 3, the same
-  as `options_language()`). The game then asks for `permanent_2d_EuGerman.pack`, through its
-  "local" file device, as `/vol/content/Cafe/JP/Pack/permanent_2d_EuGerman.pack` (a folder no disc
-  has; the redirect and the content mods match the pack under any `Pack/` folder).
+* **Region**: no guest hook writes the source region into the setting object.
+  The file redirect still matches a pack name under any `Pack/` folder.
 * **File system** (`hle/fs.cpp`): a read of the active source's pack name (any case, any prefix) is
   served from the language source; a content mod's file of the same name still comes first;
   writers are never redirected. Nothing else is redirected.
@@ -120,12 +115,12 @@ and its key; 57 MB taken, five packs):
   save prompt, the Pictograph Box prompt, the opening text, name entry with "Größe", "Niccolò",
   "Żółć". No missing glyphs, no overflow, no allocation problems in the logs. The name keyboard is
   asked for in the chosen language (swkbd language 3 for German).
-* **European-only code** (a comparison of the two executables: 18 functions differ). Ported:
+* **European-only code** (a comparison of the two executables: 18 functions differ).
+  Not ported (open, need a comparison with the European game running on a console or in Cemu):
   * the German genitive of the player's name in messages 0xC8B, 0x1D21 and 0x31D7 ("Links Oase",
     "Lukas' Oase"): the European code appends "s", or "'" after s/x/z, when the language is
-    German (0x025F85AC for the name string, 0x025FC700 putPlayerName). `language_region.cpp` does
-    the same at 0x025F8720 and 0x025FC668.
-  Not ported (open, need a comparison with the European game running on a console or in Cemu):
+    German (0x025F85AC for the name string, 0x025FC700 putPlayerName).
+    Those sites are not installed in this tree.
   * four message-window branches that the European code takes only for English and the USA code
     always takes: a pane at +0x12C shown except for messages 0x1076..0x1078 (USA 0x026AEDF4), the
     text pane `T_Msg_00` at +0x130 shown (USA 0x026B6C4C; seen at the start of a shop talk), panes

@@ -45,7 +45,7 @@ baseline limitation separate and do not report the full emulator smoke as passin
      ftrace_events: "sched/sched_wakeup"
      ftrace_events: "power/cpu_frequency"
      atrace_categories: "gfx"
-     atrace_apps: "org.wwhdrecomp.wwhd"
+     atrace_apps: "org.nsmbrecomp.nsmbu"
    } } }
    data_sources { config { name: "android.surfaceflinger.frametimeline" } }
    data_sources { config { name: "gpu.renderstages" } }

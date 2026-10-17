@@ -1098,7 +1098,7 @@ def installed_build(game_dir):
 def check_language_source_allowed(game_dir):
     """A language source lends the text of a European or Japanese game to the USA game's code
     (docs/language-packs.md). Only the USA build needs and can use one: the European build has those
-    five languages itself, and the port's region patch (hooks_language.txt) is for the USA code."""
+    five languages itself."""
     build = installed_build(game_dir)
     if build is None or build.canonical:
         return
