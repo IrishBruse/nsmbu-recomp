@@ -7,6 +7,7 @@
 #include "../motion/motion.h"
 #include "../mods/luau_press.h"
 
+#include "env.h"
 namespace interp { bool repeat_input(); void trace_read(const char*); uint64_t logic_steps(); }
 
 static constexpr uint32_t kResultOk = 0;
@@ -105,7 +106,7 @@ HLE(vpad, VPADRead) {
 
     uint32_t chan = arg(c, 0), st = arg(c, 1), count = arg(c, 2), err = arg(c, 3);
 
-    static int trace = getenv("NSMBU_TRACE_VPAD") ? atoi(getenv("NSMBU_TRACE_VPAD")) : 0;
+    static int trace = env::TRACE_VPAD.integer_or(0);
     if (trace > 0) {
         trace--;
         char buf[256];
@@ -154,7 +155,7 @@ HLE(vpad, VPADRead) {
     st32(st + 0x08, last_hold & ~hold);
     last_hold = hold;
     {
-        static FILE* pt = getenv("NSMBU_PAD_TRACE") ? fopen(getenv("NSMBU_PAD_TRACE"), "w") : nullptr;
+        static FILE* pt = env::PAD_TRACE() ? fopen(env::PAD_TRACE(), "w") : nullptr;
         if (pt) { fprintf(pt, "%llu %d %08X %08X\n", (unsigned long long)interp::logic_steps(), (int)repeat, hold, ld32(st + 4)); fflush(pt); }
     }
     stf32(st + 0x0C, p.lx); stf32(st + 0x10, p.ly);

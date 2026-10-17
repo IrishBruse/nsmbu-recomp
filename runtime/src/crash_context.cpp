@@ -53,10 +53,10 @@ void environment(std::ostringstream& out) {
 }
 }
 void initialize() {
-    const char* home = std::getenv("HOME");
-    if (!home) home = std::getenv("USERPROFILE");
-    const char* user = std::getenv("USER");
-    if (!user) user = std::getenv("USERNAME");
+    const char* home = getenv("HOME");
+    if (!home) home = getenv("USERPROFILE");
+    const char* user = getenv("USER");
+    if (!user) user = getenv("USERNAME");
     redactor.initialize(home, user);
     std::ostringstream out; out << "\n--- crash context (startup) ---\n"; environment(out);
     publish(out.str());

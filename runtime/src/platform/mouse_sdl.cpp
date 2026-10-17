@@ -4,13 +4,14 @@
 #include "../runtime.h"
 #include <cstdlib>
 
+#include "env.h"
 namespace mods {
 namespace {
 SDL_Window* tv = nullptr;
 bool gyro_capture = false;
 void update_gyro_capture() {
     const bool want = tv && motion::mouse_drives_gyro() && !overlay::captures() && SDL_GetKeyboardFocus() == tv &&
-                      !getenv("NSMBU_NO_HOST_INPUT");
+                      !env::NO_HOST_INPUT();
     if (want && !gyro_capture) {
         gyro_capture = true;
         if (SDL_SetWindowRelativeMouseMode(tv, true)) LOG("[gyro] mouse captured while the game aims");
@@ -29,7 +30,7 @@ void mouse_init(void* window) {
 void update_mouse() { update_gyro_capture(); }
 bool handle_mouse_event(const SDL_Event& event) {
     update_mouse();
-    if (!tv || getenv("NSMBU_NO_HOST_INPUT")) return false;
+    if (!tv || env::NO_HOST_INPUT()) return false;
     const SDL_WindowID id = SDL_GetWindowID(tv);
     if (event.type == SDL_EVENT_MOUSE_MOTION && event.motion.windowID == id) {
         motion::mouse_motion(event.motion.xrel, event.motion.yrel);

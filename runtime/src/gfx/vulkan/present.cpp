@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include "env.h"
 namespace gfxvk {
 namespace {
 const char* vertexSource = R"glsl(#version 450
@@ -100,8 +101,8 @@ struct PresentCapture {
 PresentCapture& present_capture() {
  static PresentCapture capture=[] {
   PresentCapture result;
-  const char* path=std::getenv("NSMBU_PRESENT_CAPTURE_PATH");
-  const char* frame=std::getenv("NSMBU_PRESENT_CAPTURE_FRAME");
+  const char* path=env::PRESENT_CAPTURE_PATH();
+  const char* frame=env::PRESENT_CAPTURE_FRAME();
   if(!path||!*path||!frame||!*frame)return result;
   uint64_t value=0;
   for(const char* p=frame;*p;++p) {

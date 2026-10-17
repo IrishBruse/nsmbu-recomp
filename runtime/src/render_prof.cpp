@@ -13,6 +13,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "env.h"
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -30,16 +31,16 @@ namespace rprof {
 
 bool enabled() {
     static const bool on = [] {
-        const char* e = getenv("NSMBU_PROFILE");
+        const char* e = env::PROFILE();
         return !e || strcmp(e, "0") != 0;
     }();
     return on;
 }
 static bool log_reports() {
     static const bool on = [] {
-        const char* p = getenv("NSMBU_PROFILE");
-        const char* c = getenv("NSMBU_VK_CPU_ONLY_STATS");
-        return (p && !strcmp(p, "1")) || getenv("NSMBU_VK_STATS") || (c && !strcmp(c, "1"));
+        const char* p = env::PROFILE();
+        const char* c = env::VK_CPU_ONLY_STATS();
+        return (p && !strcmp(p, "1")) || env::VK_STATS() || (c && !strcmp(c, "1"));
     }();
     return on;
 }

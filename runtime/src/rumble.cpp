@@ -8,6 +8,7 @@
 #include <cstring>
 #include <mutex>
 
+#include "env.h"
 namespace rumble {
 
 void Motor::gamepad_pattern(const uint8_t* bits, uint32_t nbits, uint64_t now) {
@@ -53,12 +54,12 @@ uint64_t now_us() {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-const char* env() { return getenv("NSMBU_RUMBLE"); }
+const char* env() { return env::RUMBLE(); }
 std::atomic<bool> g_enabled{!env() || atoi(env()) != 0};
 }
 
 bool log_enabled() {
-    static const bool on = getenv("NSMBU_LOG_RUMBLE") || getenv("NSMBU_RUMBLE_LOG");
+    static const bool on = env::LOG_RUMBLE() || env::RUMBLE_LOG();
     return on;
 }
 

@@ -1,3 +1,4 @@
+#include "env.h"
 #ifndef VK_ENABLE_BETA_EXTENSIONS
 #define VK_ENABLE_BETA_EXTENSIONS
 #endif
@@ -67,12 +68,12 @@ namespace gfxvk {
 Renderer R;
 namespace {
 bool perf_enabled() {
-  static const bool enabled = std::getenv("NSMBU_VK_STATS") != nullptr;
+  static const bool enabled = env::VK_STATS() != nullptr;
   return enabled;
 }
 bool cpu_only_stats_enabled() {
   static const bool enabled = [] {
-    const char* value = std::getenv("NSMBU_VK_CPU_ONLY_STATS");
+    const char* value = env::VK_CPU_ONLY_STATS();
     return value && !std::strcmp(value, "1");
   }();
   return enabled;
@@ -130,7 +131,7 @@ bool unpack_pipeline_cache(std::vector<uint8_t>& file) {
   return compatible_pipeline_cache(file);
 }
 void init_pipeline_cache() try {
-  if (const char* explicitPath=std::getenv("NSMBU_VK_PIPELINE_CACHE")) {
+  if (const char* explicitPath=env::VK_PIPELINE_CACHE()) {
     if (std::strcmp(explicitPath,"0")) {
       pipelineCachePath=explicitPath;
 #ifdef __ANDROID__
@@ -141,7 +142,7 @@ void init_pipeline_cache() try {
       pipelineCachePath = drivers::pipeline_directory()+"/"+key;
 #endif
     }
-  } else if (const char* shaderPath=std::getenv("NSMBU_SHADER_CACHE");
+  } else if (const char* shaderPath=env::SHADER_CACHE();
              !shaderPath || std::strcmp(shaderPath,"0")) {
     char ids[32];
     std::snprintf(ids,sizeof ids,"vulkan-%08x-%08x-",R.properties.vendorID,R.properties.deviceID);
@@ -375,7 +376,7 @@ namespace {
 enum class UploadReads { Auto, Shadow, Direct };
 UploadReads upload_reads_mode() {
   static const UploadReads mode = [] {
-    const char* e = std::getenv("NSMBU_VK_UPLOAD_READS");
+    const char* e = env::VK_UPLOAD_READS();
     if (!e || !*e || !std::strcmp(e, "auto")) return UploadReads::Auto;
     if (!std::strcmp(e, "shadow")) return UploadReads::Shadow;
     if (!std::strcmp(e, "direct")) return UploadReads::Direct;
@@ -480,8 +481,8 @@ static void destroy_gpu_timestamp_queries() {
   }
 }
 static void init_gpu_timestamp_queries() {
-  const char* requested = std::getenv("NSMBU_VK_GPU_TIMESTAMPS");
-  const char* passes = std::getenv("NSMBU_VK_GPU_PASS_TIMESTAMPS");
+  const char* requested = env::VK_GPU_TIMESTAMPS();
+  const char* passes = env::VK_GPU_PASS_TIMESTAMPS();
   const bool passRequested = passes && !std::strcmp(passes, "1");
   if ((!requested || std::strcmp(requested, "1")) && !passRequested) return;
   if (!timestamp_capable(R.gpuTimestampValidBits, R.properties.limits.timestampPeriod)) {
@@ -682,7 +683,7 @@ void end_encoder() {
 }
 bool narrow_barriers() {
   static const bool enabled = [] {
-    const char* e = std::getenv("NSMBU_VK_NARROW_BARRIERS");
+    const char* e = env::VK_NARROW_BARRIERS();
 
     if (e && *e) return std::strcmp(e, "0") != 0;
 #ifdef __ANDROID__
@@ -1071,7 +1072,7 @@ static bool SDLCALL lifecycle_watch(void *, SDL_Event *event) {
 
 static bool async_present() {
   static const bool on = [] {
-    const char *e = std::getenv("NSMBU_VK_ASYNC_PRESENT");
+    const char *e = env::VK_ASYNC_PRESENT();
     return !e || std::atoi(e) != 0;
   }();
   return on;
@@ -1321,7 +1322,7 @@ void request_capture() { captureRequested = true; }
 static void frame_dumps(uint64_t frame) {
   static const std::vector<uint64_t> frames = [] {
     std::vector<uint64_t> f;
-    if (const char *e = getenv("NSMBU_DUMP_FRAMES"))
+    if (const char *e = env::DUMP_FRAMES())
       for (const char *p = e; *p;) {
         f.push_back(strtoull(p, (char **)&p, 10));
         while (*p == ',') p++;
@@ -1331,13 +1332,13 @@ static void frame_dumps(uint64_t frame) {
   if (std::find(frames.begin(), frames.end(), frame) != frames.end()) {
     dump_scan(R.tv, "frame_" + std::to_string(frame) + ".png");
     dump_scan(R.drc, "frame_" + std::to_string(frame) + "_drc.png");
-    if (getenv("NSMBU_DUMP_PRESENT"))
+    if (env::DUMP_PRESENT())
       request_present_dump("frame_" + std::to_string(frame) + "_present.png");
   }
 
   static const std::vector<uint64_t> loadFrames = [] {
     std::vector<uint64_t> f;
-    if (const char* e = getenv("NSMBU_DUMP_LOAD_FRAMES"))
+    if (const char* e = env::DUMP_LOAD_FRAMES())
       for (const char* p = e; *p;) {
         char* end;
         auto value = strtoull(p, &end, 10);
@@ -1354,14 +1355,14 @@ static void frame_dumps(uint64_t frame) {
     const auto stem = "load_frame_" + std::to_string(frame - loaded);
     dump_scan(R.tv, stem + ".png");
     dump_scan(R.drc, stem + "_drc.png");
-    if (getenv("NSMBU_DUMP_PRESENT")) request_present_dump(stem + "_present.png");
+    if (env::DUMP_PRESENT()) request_present_dump(stem + "_present.png");
     LOG("[gfx] load-relative capture: load frame %llu, frame %llu, offset %llu",
         (unsigned long long)loaded, (unsigned long long)frame,
         (unsigned long long)(frame - loaded));
   }
 
-  static const uint64_t scripted = getenv("NSMBU_CAPTURE") && !getenv("NSMBU_CAPTURE_PATH")
-                                       ? strtoull(getenv("NSMBU_CAPTURE"), nullptr, 10) : ~0ull;
+  static const uint64_t scripted = env::CAPTURE() && !env::CAPTURE_PATH()
+                                       ? strtoull(env::CAPTURE(), nullptr, 10) : ~0ull;
   if (captureRequested.exchange(false) || frame == scripted) {
     char stamp[32];
     time_t t = time(nullptr);
@@ -1754,7 +1755,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_message(
 static uint32_t device_api_version(const VkPhysicalDeviceProperties &p) {
   static const uint32_t forced = [] {
     unsigned major, minor;
-    const char *e = getenv("NSMBU_VK_FORCE_API");
+    const char *e = env::VK_FORCE_API();
     return e && sscanf(e, "%u.%u", &major, &minor) == 2 ? VK_MAKE_API_VERSION(0, major, minor, 0) : ~0u;
   }();
   return forced < VK_MAKE_API_VERSION(0, VK_API_VERSION_MAJOR(p.apiVersion), VK_API_VERSION_MINOR(p.apiVersion), 0)
@@ -1766,7 +1767,7 @@ static std::vector<VkExtensionProperties> device_extensions(VkPhysicalDevice dev
   std::vector<VkExtensionProperties> des(n);
   vkEnumerateDeviceExtensionProperties(device, nullptr, &n, des.data());
   des.resize(n);
-  if (const char *hide = getenv("NSMBU_VK_HIDE_EXTENSIONS"))
+  if (const char *hide = env::VK_HIDE_EXTENSIONS())
     std::erase_if(des, [&](const VkExtensionProperties &e) {
       for (const char *p = hide; *p;) {
         size_t len = strcspn(p, ",");
@@ -1910,7 +1911,7 @@ static void init_device(std::vector<const char *> extensions,
   VkValidationFeaturesEXT validation{VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT};
   validation.enabledValidationFeatureCount = 1;
   validation.pEnabledValidationFeatures = &syncFeature;
-  if (getenv("NSMBU_VK_VALIDATION")) {
+  if (env::VK_VALIDATION()) {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
     ci.enabledLayerCount = 1;
@@ -1934,7 +1935,7 @@ static void init_device(std::vector<const char *> extensions,
            "create Vulkan instance");
   debug.pNext = nullptr;
   load_instance_functions(R.instance);
-  if (getenv("NSMBU_VK_VALIDATION")) {
+  if (env::VK_VALIDATION()) {
     auto create = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
         R.instance, "vkCreateDebugUtilsMessengerEXT");
     VkDebugUtilsMessengerEXT messenger;
@@ -2145,15 +2146,15 @@ static void init_device(std::vector<const char *> extensions,
   vk::select_renderer();
   set_graphics_feature_available(GraphicsFeature::Anisotropy,
                                  R.enabledFeatures.samplerAnisotropy);
-  if (const char* path = getenv("NSMBU_CAPTURE_PATH")) {
-    const char* frame = getenv("NSMBU_CAPTURE");
+  if (const char* path = env::CAPTURE_PATH()) {
+    const char* frame = env::CAPTURE();
     request_tv_dump(path, frame ? std::max(0, atoi(frame)) : 120);
   }
 }
 
 #ifdef NSMBU_SDL_HOST
 static bool hidden_windows() {
-  static const bool hidden = [] { const char* e = getenv("NSMBU_HIDDEN_WINDOWS"); return e && *e && strcmp(e, "0"); }();
+  static const bool hidden = [] { const char* e = env::HIDDEN_WINDOWS(); return e && *e && strcmp(e, "0"); }();
   return hidden;
 }
 
@@ -2223,7 +2224,7 @@ void init() {
 #ifdef __ANDROID__
 
 #else
-  if (!getenv("NSMBU_NO_GAMEPAD")) {
+  if (!env::NO_GAMEPAD()) {
 
     R.drc.window = SDL_CreateWindow("GamePad - Vulkan", 854, 480, windowFlags | SDL_WINDOW_HIDDEN);
     if (!R.drc.window)
@@ -2444,9 +2445,9 @@ static bool test_frame_due(const std::vector<uint64_t> &frames, size_t &i) {
   i++;
   return true;
 }
-static std::vector<uint64_t> test_frames(const char *var) {
+static std::vector<uint64_t> test_frames(env::Var var) {
   std::vector<uint64_t> f;
-  if (const char *e = getenv(var))
+  if (const char *e = (var)())
     for (const char *p = e; *p;) {
       f.push_back(strtoull(p, (char **)&p, 10));
       while (*p == ',') p++;
@@ -2455,7 +2456,7 @@ static std::vector<uint64_t> test_frames(const char *var) {
 }
 
 static void test_drc_key() {
-  static const std::vector<uint64_t> frames = test_frames("NSMBU_TEST_DRC_KEY");
+  static const std::vector<uint64_t> frames = test_frames(env::TEST_DRC_KEY);
   static size_t i = 0;
   if (test_frame_due(frames, i)) {
     LOG("[display] test: Ctrl+G at frame %llu", (unsigned long long)frame_count());
@@ -2486,7 +2487,7 @@ static bool fullscreen_key(const SDL_Event& event) {
 }
 
 static void test_fullscreen_key() {
-  static const std::vector<uint64_t> frames = test_frames("NSMBU_TEST_FULLSCREEN_KEY");
+  static const std::vector<uint64_t> frames = test_frames(env::TEST_FULLSCREEN_KEY);
   static size_t i = 0;
   if (test_frame_due(frames, i)) {
     LOG("[display] test: F11 at frame %llu", (unsigned long long)frame_count());
@@ -2513,7 +2514,7 @@ void run_main_loop() {
   auto titleTime = std::chrono::steady_clock::now();
   uint64_t titleFrames = gx2::flips_presented();
 
-  const char* exitAt=getenv("NSMBU_EXIT_AT_FRAME");
+  const char* exitAt=env::EXIT_AT_FRAME();
   const uint64_t exitFrame=exitAt ? std::strtoull(exitAt,nullptr,10) : 0;
   for (;;) {
     SDL_Event event;
@@ -2605,7 +2606,7 @@ static bool image_loaded(const char *part) {
   return false;
 }
 void init_appkit(void *tvLayer, void *drcLayer) {
-  if (const char *e = getenv("NSMBU_VK_FORCE_INIT_FAIL"); e && *e && strcmp(e, "0"))
+  if (const char *e = env::VK_FORCE_INIT_FAIL(); e && *e && strcmp(e, "0"))
     throw std::runtime_error("Vulkan start-up failure forced for testing (NSMBU_VK_FORCE_INIT_FAIL)");
 
   if (!image_loaded("/libvulkan"))

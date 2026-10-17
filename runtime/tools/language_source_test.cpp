@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include "env.h"
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -106,11 +107,7 @@ int main() {
     config::game_dir = game.string();
     config::save_dir = (root / "save").string();
     fs::create_directories(root / "save");
-#ifdef _WIN32
-    _putenv_s("NSMBU_LANG_DIR", "");
-#else
-    unsetenv("NSMBU_LANG_DIR");
-#endif
+    env::unset(env::LANG_DIR);
 
     assert(fs::path(game_lang::sources_dir()) == lang);
     assert((game_lang::available() == std::vector<int>{1, 2, 5}));

@@ -16,8 +16,8 @@ static int g_failed = 0;
     } while (0)
 
 static std::map<std::string, std::string> g_env;
-static const char* fake_env(const char* name) {
-    auto it = g_env.find(name);
+static const char* fake_env(const env::Var& var) {
+    auto it = g_env.find((var).name());
     return it == g_env.end() ? nullptr : it->second.c_str();
 }
 
@@ -33,32 +33,32 @@ int main() {
 
     g_env.clear();
     CHECK(!suppressed(fake_env));
-    for (const char* v : {"NSMBU_HIDDEN_WINDOWS", "NSMBU_EXIT_AT_FRAME"}) {
-        g_env = {{v, "1"}};
+    for (env::Var v : {env::HIDDEN_WINDOWS, env::EXIT_AT_FRAME}) {
+        g_env = {{(v).name(), "1"}};
         CHECK(suppressed(fake_env));
-        g_env = {{v, "0"}};
+        g_env = {{(v).name(), "0"}};
         CHECK(!suppressed(fake_env));
     }
-    g_env = {{"NSMBU_EXIT_AT_FRAME", "4000"}};
+    g_env = {{env::EXIT_AT_FRAME.name(), "4000"}};
     CHECK(suppressed(fake_env));
-    g_env = {{"NSMBU_NO_HOST_INPUT", "1"}};
+    g_env = {{env::NO_HOST_INPUT.name(), "1"}};
     CHECK(suppressed(fake_env));
-    g_env = {{"NSMBU_CONTROLS_SELFTEST", "1"}};
+    g_env = {{env::CONTROLS_SELFTEST.name(), "1"}};
     CHECK(suppressed(fake_env));
-    g_env = {{"NSMBU_QUIT_PROMPT", "0"}};
+    g_env = {{env::QUIT_PROMPT.name(), "0"}};
     CHECK(suppressed(fake_env));
-    g_env = {{"NSMBU_QUIT_PROMPT", "1"}};
+    g_env = {{env::QUIT_PROMPT.name(), "1"}};
     CHECK(!suppressed(fake_env));
 
     g_env.clear();
     CHECK(test_answer(fake_env) == Answer::None);
-    g_env = {{"NSMBU_TEST_QUIT_ANSWER", "quit"}};
+    g_env = {{env::TEST_QUIT_ANSWER.name(), "quit"}};
     CHECK(test_answer(fake_env) == Answer::Quit);
-    g_env = {{"NSMBU_TEST_QUIT_ANSWER", "cancel"}};
+    g_env = {{env::TEST_QUIT_ANSWER.name(), "cancel"}};
     CHECK(test_answer(fake_env) == Answer::Cancel);
-    g_env = {{"NSMBU_TEST_QUIT_ANSWER", "save"}};
+    g_env = {{env::TEST_QUIT_ANSWER.name(), "save"}};
     CHECK(test_answer(fake_env) == Answer::SaveAndQuit);
-    g_env = {{"NSMBU_TEST_QUIT_ANSWER", "maybe"}};
+    g_env = {{env::TEST_QUIT_ANSWER.name(), "maybe"}};
     CHECK(test_answer(fake_env) == Answer::None);
 
     Request playing;

@@ -1,6 +1,7 @@
 
 #include "audio_out.h"
 
+#include "env.h"
 #if defined(__APPLE__) && !defined(NSMBU_SDL_HOST)
 #include <AudioToolbox/AudioToolbox.h>
 #else
@@ -133,17 +134,17 @@ void silent_clock() {
 
 void load_prefs() {
     std::string v;
-    if (const char* e = getenv("NSMBU_AUDIO_VOLUME")) {
+    if (const char* e = env::AUDIO_VOLUME()) {
         g_volume.store(clamp_volume((float)atof(e)), std::memory_order_relaxed);
     } else if (hostui::get("audioVolume", v) && !v.empty()) {
         g_volume.store(clamp_volume((float)atof(v.c_str())), std::memory_order_relaxed);
     }
-    if (getenv("NSMBU_NO_AUDIO")) {
+    if (env::NO_AUDIO()) {
         g_muted.store(true, std::memory_order_relaxed);
     } else if (hostui::get("audioMute", v)) {
         g_muted.store(v == "1", std::memory_order_relaxed);
     }
-    if (const char* e = getenv("NSMBU_AUDIO_OUTPUT")) {
+    if (const char* e = env::AUDIO_OUTPUT()) {
         g_source.store((int)OutputSelect::parse(e), std::memory_order_relaxed);
     } else if (hostui::get("audioOutput", v) && !v.empty()) {
         g_source.store((int)OutputSelect::parse(v.c_str()), std::memory_order_relaxed);
@@ -155,14 +156,14 @@ void load_prefs() {
 void init() {
     if (g_started.exchange(true)) return;
     load_prefs();
-    if (const char* p = getenv("NSMBU_AUDIO_DUMP")) {
+    if (const char* p = env::AUDIO_DUMP()) {
         g_dump = fopen(p, "wb");
         if (g_dump) {
             write_wav_header();
             fseek(g_dump, 44, SEEK_SET);
         }
     }
-    if (getenv("NSMBU_NO_AUDIO")) {
+    if (env::NO_AUDIO()) {
         g_silent.store(true, std::memory_order_release);
         std::thread(silent_clock).detach();
         LOG("[audio] output off");
@@ -262,7 +263,7 @@ void set_muted(bool on) {
         apply_device_gain();
     }
 }
-bool mute_env_override() { return getenv("NSMBU_NO_AUDIO") != nullptr; }
+bool mute_env_override() { return env::NO_AUDIO() != nullptr; }
 
 float volume() { return g_volume.load(std::memory_order_relaxed); }
 void set_volume(float v) {
@@ -271,7 +272,7 @@ void set_volume(float v) {
     float prev = g_volume.exchange(n, std::memory_order_relaxed);
     if (prev != n) apply_device_gain();
 }
-bool volume_env_override() { return getenv("NSMBU_AUDIO_VOLUME") != nullptr; }
+bool volume_env_override() { return env::AUDIO_VOLUME() != nullptr; }
 
 OutputSelect::Source output_source() {
     return (OutputSelect::Source)g_source.load(std::memory_order_relaxed);
@@ -281,7 +282,7 @@ void set_output_source(OutputSelect::Source s) {
     int prev = g_source.exchange((int)s, std::memory_order_relaxed);
     if (prev != (int)s) LOG("[audio] output %s", output_source_label(s));
 }
-bool output_env_override() { return getenv("NSMBU_AUDIO_OUTPUT") != nullptr; }
+bool output_env_override() { return env::AUDIO_OUTPUT() != nullptr; }
 
 const char* output_source_id(OutputSelect::Source s) {
     switch (s) {

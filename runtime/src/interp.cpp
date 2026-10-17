@@ -19,6 +19,7 @@
 #include "runtime.h"
 #include "savestate.h"
 
+#include "env.h"
 extern "C" {
 void f_025F172C_orig(Cpu* c);
 void f_0203593C_orig(Cpu* c);
@@ -64,10 +65,10 @@ void f_027F5018_orig(Cpu* c);
 namespace interp {
 
 using pacing::valid_fps;
-static const int g_env_fps = [] { const char* e = getenv("NSMBU_INTERP_FPS"); return e ? valid_fps(atoi(e)) : 0; }();
+static const int g_env_fps = [] { const char* e = env::INTERP_FPS(); return e ? valid_fps(atoi(e)) : 0; }();
 static std::atomic<int> g_fps{g_env_fps ? g_env_fps : 60};
 static std::atomic<bool> g_on{[] {
-    const char* e = getenv("NSMBU_INTERP");
+    const char* e = env::INTERP();
     return (e ? atoi(e) != 0 : g_env_fps != 0);
 }()};
 bool interp_on() { return g_on.load(std::memory_order_relaxed); }
@@ -75,7 +76,7 @@ bool interp_on() { return g_on.load(std::memory_order_relaxed); }
 bool enabled() { return interp_on(); }
 int fps() { return g_fps.load(std::memory_order_relaxed); }
 
-static const int g_env_hz = getenv("NSMBU_DISPLAY_HZ") ? atoi(getenv("NSMBU_DISPLAY_HZ")) : -1;
+static const int g_env_hz = env::DISPLAY_HZ.integer_or(-1);
 static std::atomic<int> g_display_hz{0};
 static std::atomic<bool> g_present_vsync{true};
 int display_hz() { return g_env_hz >= 0 ? g_env_hz : g_display_hz.load(std::memory_order_relaxed); }
@@ -181,7 +182,7 @@ using pacing::lerp_s16;
 float g_last_step = 0;
 
 bool cam_snap(const CamState& a, const CamState& b) {
-    static const float kCut = getenv("NSMBU_INTERP_CUT") ? (float)atof(getenv("NSMBU_INTERP_CUT")) : 800.0f;
+    static const float kCut = (float)env::INTERP_CUT.real_or(800.0f);
     float step = std::max(dist(a.eye, b.eye), dist(a.center, b.center));
     float prev = g_last_step;
     g_last_step = step;
@@ -288,7 +289,7 @@ bool record_pass() { return g_hold && g_phase >= g_step_n; }
 }
 
 static void cam_trace(uint32_t cam, const char* what) {
-    static int left = getenv("NSMBU_INTERP_CAM_TRACE") ? atoi(getenv("NSMBU_INTERP_CAM_TRACE")) : 0;
+    static int left = env::INTERP_CAM_TRACE.integer_or(0);
     if (left <= 0 || !interp::enabled()) return;
     left--;
     interp::CamState s = interp::read_cam(cam);
@@ -348,8 +349,8 @@ float wf(uint32_t w) { return u32_as_f32(__builtin_bswap32(w)); }
 uint32_t fw(float f) { return __builtin_bswap32(f32_as_u32(f)); }
 
 void trace_model(const char* what, uint32_t jnt, uint32_t n, const uint32_t* w) {
-    static int left = getenv("NSMBU_INTERP_MODEL_TRACE") ? atoi(getenv("NSMBU_INTERP_MODEL_TRACE")) : 0;
-    static const uint32_t min_joints = getenv("NSMBU_INTERP_MODEL_TRACE_JOINTS") ? atoi(getenv("NSMBU_INTERP_MODEL_TRACE_JOINTS")) : 40;
+    static int left = env::INTERP_MODEL_TRACE.integer_or(0);
+    static const uint32_t min_joints = env::INTERP_MODEL_TRACE_JOINTS.integer_or(40);
     static uint32_t which = 0;
     if (left <= 0 || n < min_joints || (which && which != jnt)) return;
     which = jnt;
@@ -417,7 +418,7 @@ void blend_mtx(const float* a, const float* b, float* out, float t) {
 
 extern "C" void hook_027F55FC(Cpu* c) {
     using namespace interp;
-    static const bool off = getenv("NSMBU_INTERP_MODELS") && !atoi(getenv("NSMBU_INTERP_MODELS"));
+    static const bool off = env::INTERP_MODELS() && !atoi(env::INTERP_MODELS());
     if (!enabled() || off || (!g_hold && g_exact_step)) {
         f_027F55FC_orig(c);
         return;
@@ -457,7 +458,7 @@ extern "C" void hook_027F55FC(Cpu* c) {
         f_027F55FC_orig(c);
         return;
     }
-    static const float kCut = getenv("NSMBU_INTERP_MODEL_CUT") ? (float)atof(getenv("NSMBU_INTERP_MODEL_CUT")) : 400.0f;
+    static const float kCut = (float)env::INTERP_MODEL_CUT.real_or(400.0f);
     const float t = pass_t();
     std::vector<uint32_t> saved(cur, cur + words);
     std::vector<uint32_t> mid(words);
@@ -524,7 +525,7 @@ void ss_reset() {
     fx_ss_reset();
 }
 
-static const char* const g_env_paced = getenv("NSMBU_INTERP_PACED");
+static const char* const g_env_paced = env::INTERP_PACED();
 static std::atomic<bool> g_paced{[] {
 #ifdef __ANDROID__
     return !g_env_paced || atoi(g_env_paced) != 0;
@@ -673,7 +674,7 @@ struct PassCpu {
 };
 PassCpu g_pass_cpu;
 bool pass_stats() {
-    static const bool on = getenv("NSMBU_INTERP_PASS_STATS") != nullptr;
+    static const bool on = env::INTERP_PASS_STATS() != nullptr;
     return on;
 }
 double thread_cpu_ms() { return rprof::thread_cpu_ns() / 1e6; }
@@ -707,7 +708,7 @@ extern "C" void hook_0203593C(Cpu* c) {
     g_passes++;
 
     static uint64_t passes = 0;
-    static const uint64_t at = getenv("NSMBU_INTERP_AT_STEP") ? strtoull(getenv("NSMBU_INTERP_AT_STEP"), nullptr, 10) : 0;
+    static const uint64_t at = env::INTERP_AT_STEP.u64_or(0);
     if (at && ++passes == at) set_enabled(true);
     paced_pass_start();
     if (!enabled() || !g_hold_next) {
@@ -793,7 +794,7 @@ static bool called_from_frame_function() {
 }
 static bool hold_skip_child(int i) {
 
-    static const uint32_t run = (getenv("NSMBU_HOLD_RUN") ? (uint32_t)strtoul(getenv("NSMBU_HOLD_RUN"), nullptr, 0) : 0x7FCC) | 1;
+    static const uint32_t run = (uint32_t)env::HOLD_RUN.ul_or(0x7FCC, 0) | 1;
     return interp::g_hold_frame && !(run & (1u << i)) && called_from_frame_function();
 }
 extern "C" void hook_02032FE8(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_child(0)) f_02032FE8_orig(c); }
@@ -851,7 +852,7 @@ extern "C" void hook_02728A74(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_chi
 extern "C" void hook_02039834(Cpu* c) { g_hold_child_cpu = c; if (!hold_skip_child(14)) f_02039834_orig(c); }
 
 static bool skip(int bit) {
-    static const int run = getenv("NSMBU_INTERP_RUN") ? atoi(getenv("NSMBU_INTERP_RUN")) : 0;
+    static const int run = env::INTERP_RUN.integer_or(0);
     return interp::g_hold && !(run & bit);
 }
 static bool g_in_execute = false;
@@ -881,7 +882,7 @@ namespace interp {
 
 void trace_read(const char* who) {
 
-    static int n = getenv("NSMBU_TRACE_INPUT_PHASE") ? atoi(getenv("NSMBU_TRACE_INPUT_PHASE")) : 0;
+    static int n = env::TRACE_INPUT_PHASE.integer_or(0);
     if (n > 0 && enabled()) {
         n--;
         LOG("[interp] %s read: logic_pass=%d hold=%d hold_next=%d", who, g_logic_pass, g_hold, g_hold_next);
@@ -908,19 +909,19 @@ uint64_t pass_count() { return g_passes; }
 const char* phase_name() { return !enabled() ? "interp off" : g_hold ? "IN-BETWEEN" : g_logic_pass ? "logic" : "other"; }
 
 bool repeat_input() {
-    static const bool off = getenv("NSMBU_INTERP_NO_REPEAT") != nullptr;
+    static const bool off = env::INTERP_NO_REPEAT() != nullptr;
     return enabled() && g_hold_next && !off;
 }
 }
 
 static void se_trace(int fn, Cpu* c) {
-    static FILE* f = getenv("NSMBU_SE_TRACE") ? fopen(getenv("NSMBU_SE_TRACE"), "w") : nullptr;
+    static FILE* f = env::SE_TRACE() ? fopen(env::SE_TRACE(), "w") : nullptr;
     if (!f || interp::g_hold) return;
     fprintf(f, "%llu %d %d %08X %08X\n", (unsigned long long)interp::g_logic_steps, interp::g_hold ? 0 : 1, fn, c->r[4], c->lr);
     fflush(f);
 }
 static void se_stat(int fn) {
-    static const bool on = getenv("NSMBU_SE_STATS") != nullptr;
+    static const bool on = env::SE_STATS() != nullptr;
     if (!on) return;
     static uint32_t n[7][4];
     int ph = !interp::enabled() ? 0 : interp::g_hold ? 1 : interp::g_logic_pass ? 2 : 3;

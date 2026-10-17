@@ -20,6 +20,7 @@
 #include <set>
 #include <stdexcept>
 
+#include "env.h"
 namespace mods::packages {
 namespace {
 namespace fs=std::filesystem;
@@ -293,7 +294,7 @@ bool reload_live(const std::string& id,const Record& record,const Value& cfg){
 
 
 void initialize(){
-    std::lock_guard guard(mutex);if(ready)return;const char* override=std::getenv("NSMBU_MOD_MANAGER_DIR");if(std::getenv("NSMBU_NO_HOST_INPUT")&&!override)return;
+    std::lock_guard guard(mutex);if(ready)return;const char* override=env::MOD_MANAGER_DIR();if(env::NO_HOST_INPUT()&&!override)return;
     root=override?fs::path(override):fs::path(host::config_dir());ready=true;defaults();
     try{fs::create_directories(root);auto path=root/"mods.json";if(!fs::exists(path)&&fs::exists(root/"profiles.json"))path=root/"profiles.json";if(fs::exists(path)){database=json::parse(read_text(path));normalize_database();}scan();
         try { auto enabled=enabled_set();auto sequence=order(enabled);validate_conflicts(enabled);

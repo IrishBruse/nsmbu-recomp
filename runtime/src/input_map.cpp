@@ -17,6 +17,7 @@
 #include <memory>
 #include <mutex>
 
+#include "env.h"
 namespace input_map {
 
 namespace {
@@ -570,7 +571,7 @@ bool save_file(const std::string& path, const Mapping& m) {
 
 std::string default_path() {
 
-    if (const char* e = getenv("NSMBU_CONTROLS"); e && *e) return e;
+    if (const char* e = env::CONTROLS(); e && *e) return e;
     return host::config_dir() + "/controls.json";
 }
 

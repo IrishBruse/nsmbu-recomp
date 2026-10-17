@@ -9,6 +9,7 @@
 #include "../overlay/text_entry.h"
 #include "../runtime.h"
 
+#include "env.h"
 namespace {
 
 constexpr int kMaxForm = 4096;
@@ -87,7 +88,7 @@ void read_config(uint32_t a) {
 
 void start_prompt() {
     S.decided = S.cancelled = S.pending = S.live_pending = false;
-    if (const char* t = getenv("NSMBU_SWKBD_TEXT")) {
+    if (const char* t = env::SWKBD_TEXT()) {
         S.pending_text = utf8_to_u16(t);
         if ((int)S.pending_text.size() > S.max_len) S.pending_text.resize(S.max_len);
         S.pending_ok = S.pending = true;

@@ -14,6 +14,7 @@
 
 #include "dsu.h"
 
+#include "env.h"
 void log_msg(const char* fmt, ...);
 namespace mods { double game_time(); }
 
@@ -30,7 +31,7 @@ Settings g_settings;
 bool g_aiming = false;
 int g_gyro_controllers = 0;
 float g_mouse_dx = 0, g_mouse_dy = 0;
-const bool g_log = getenv("NSMBU_GYRO_LOG") != nullptr;
+const bool g_log = env::GYRO_LOG() != nullptr;
 
 struct Device {
     Fusion fusion;
@@ -144,7 +145,7 @@ struct TestTurn { double from, to; float yaw, pitch; };
 const std::vector<TestTurn>& test_turns() {
     static const std::vector<TestTurn> v = [] {
         std::vector<TestTurn> out;
-        const char* e = getenv("NSMBU_TEST_GYRO");
+        const char* e = env::TEST_GYRO();
         double a, b; float y, p; int n;
         while (e && sscanf(e, "%lf-%lf:%f:%f%n", &a, &b, &y, &p, &n) == 4) {
             out.push_back({a, b, y, p});
@@ -227,7 +228,7 @@ Settings settings() {
 
 bool env_override() {
     static const bool e = [] {
-        const char* v = getenv("NSMBU_GYRO");
+        const char* v = env::GYRO();
         return v && source_from_id(v) >= 0;
     }();
     return e;
@@ -235,7 +236,7 @@ bool env_override() {
 
 void set_settings(const Settings& in) {
     Settings s = in;
-    if (env_override()) s.source = source_from_id(getenv("NSMBU_GYRO"));
+    if (env_override()) s.source = source_from_id(env::GYRO());
     bool restart_dsu;
     {
         std::lock_guard lk(g_mu);

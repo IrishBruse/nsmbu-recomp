@@ -10,6 +10,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include "env.h"
 #ifdef _WIN32
 #define strcasecmp _stricmp
 #else
@@ -114,7 +115,7 @@ void choose(int argc, char** argv) {
     std::string saved;
     if (gfx::host_setting("renderer", saved)) why = "saved setting";
 #endif
-    if (parse(getenv("NSMBU_RENDERER_RUNTIME"), a)) why = "NSMBU_RENDERER_RUNTIME";
+    if (parse(env::RENDERER_RUNTIME(), a)) why = "NSMBU_RENDERER_RUNTIME";
     for (int i = 1; i < argc; i++) {
         const char* v = nullptr;
         if (!strncmp(argv[i], "--renderer=", 11)) v = argv[i] + 11;
@@ -165,7 +166,7 @@ void init() {
 
         LOG("FATAL: %s renderer could not start: %s", api_name(b->api), g_reason.c_str());
         const std::string text = std::string("The ") + api_name(b->api) + " renderer could not start.\n\n" + g_reason;
-        const char* hidden = getenv("NSMBU_HIDDEN_WINDOWS");
+        const char* hidden = env::HIDDEN_WINDOWS();
 #ifdef __ANDROID__
 
         if ((!hidden || !*hidden || !strcmp(hidden, "0")) && g_reason.find("Adreno") != std::string::npos) {
@@ -239,7 +240,7 @@ bool restart() {
     for (auto& s : g_args) av.push_back(const_cast<char*>(s.c_str()));
     av.push_back(nullptr);
 
-    unsetenv("NSMBU_RENDERER_RUNTIME");
+    env::unset(env::RENDERER_RUNTIME);
     fflush(stdout);
     fflush(stderr);
     execv(exe.c_str(), av.data());

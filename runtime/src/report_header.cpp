@@ -1,5 +1,6 @@
 
 #include "app_title.h"
+#include "env.h"
 #include "report_header.h"
 
 #include <cstdio>
@@ -23,13 +24,6 @@
 #endif
 
 namespace reporthdr {
-
-const char* const kVulkanCpuPaths[kVulkanCpuPathCount] = {
-    "NSMBU_VK_REUSE_UNIFORM_SNAPSHOTS", "NSMBU_VK_REUSE_FEEDBACK_IMAGES", "NSMBU_VK_SKIP_REDUNDANT_BINDS",
-    "NSMBU_VK_DESCRIPTOR_RANKS",        "NSMBU_VK_PIPELINE_LOOKASIDE",    "NSMBU_VK_SHADER_ADDRESS_MEMO",
-    "NSMBU_VK_FETCH_MEMO",              "NSMBU_VK_SPECIALIZE_INDICES",    "NSMBU_VK_SHADER_STATE_MEMO",
-    "NSMBU_VK_SKIP_VERTEX_BINDS",       "NSMBU_VK_SAMPLER_MEMO",          "NSMBU_VK_SPARSE_HASH_MEMO",
-    "NSMBU_VK_SHADER_KEY_DIRTY",        "NSMBU_VK_REUSE_VERTEX_SNAPSHOTS", "NSMBU_VK_VERTEX_HISTORY_REUSE"};
 
 std::string vk_version(uint32_t v) {
 
@@ -165,14 +159,17 @@ std::string os_description() {
 
 std::vector<std::string> vulkan_overrides(GetEnv env) {
     std::vector<std::string> out;
-    for (const char* name : kVulkanCpuPaths) {
-        const char* v = env(name);
+    for (int i = 0; i < env::vulkan_cpu_path_count; ++i) {
+        env::Var var = env::vulkan_cpu_paths[i];
+        const char* name = var.name();
+        const char* v = env(var);
         if (!v) out.push_back(std::string(name) + " unset");
         else if (strcmp(v, "1") != 0) out.push_back(std::string(name) + "=" + v);
     }
 
-    for (const char* name : {"NSMBU_VK_LAZY_DRAW_DONE", "NSMBU_VK_ASYNC_PRESENT"}) {
-        const char* v = env(name);
+    for (env::Var var : {env::VK_LAZY_DRAW_DONE, env::VK_ASYNC_PRESENT}) {
+        const char* name = var.name();
+        const char* v = env(var);
         if (v && atoi(v) == 0) out.push_back(std::string(name) + "=" + v);
     }
     return out;

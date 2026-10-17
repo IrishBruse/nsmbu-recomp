@@ -24,6 +24,7 @@
 #include "runtime.h"
 #include "savestate.h"
 
+#include "env.h"
 namespace screenshot {
 namespace {
 
@@ -53,7 +54,7 @@ constexpr size_t kMaxQueued = 6;
 
 std::vector<uint64_t> scripted_frames() {
     std::vector<uint64_t> v;
-    if (const char* e = getenv("NSMBU_TEST_SCREENSHOT"))
+    if (const char* e = env::TEST_SCREENSHOT())
         for (const char* p = e; *p;) {
             char* end;
             uint64_t f = strtoull(p, &end, 10);
@@ -147,7 +148,7 @@ int bound_pad() {
 std::string dir() {
     static const std::string d = [] {
         std::string p;
-        if (const char* e = getenv("NSMBU_SCREENSHOT_DIR"); e && *e) p = e;
+        if (const char* e = env::SCREENSHOT_DIR(); e && *e) p = e;
         else if (host::portable()) p = host::portable_user_dir() + "/screenshots";
         else {
 #ifdef __APPLE__
@@ -200,7 +201,7 @@ void poll_controller(const float* values) {
 bool gamepad_too() {
     std::lock_guard<std::mutex> lk(g_mu);
     if (g_gamepad < 0) {
-        if (const char* e = getenv("NSMBU_SCREENSHOT_GAMEPAD"); e && *e) g_gamepad = atoi(e) != 0;
+        if (const char* e = env::SCREENSHOT_GAMEPAD(); e && *e) g_gamepad = atoi(e) != 0;
         else {
             std::string v;
             g_gamepad = hostui::get("screenshotGamePad", v) && v == "1";

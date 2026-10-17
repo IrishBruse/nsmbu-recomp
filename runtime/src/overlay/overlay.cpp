@@ -3,6 +3,7 @@
 #include "app_title.h"
 #include "overlay.h"
 #include "perf_average.h"
+#include "env.h"
 #ifdef __ANDROID__
 #include "android_telemetry.h"
 #endif
@@ -68,9 +69,9 @@ PerfAverage g_average;
 std::atomic<float> g_density{1.0f};
 std::atomic<bool> g_wait_release{false};
 std::atomic<double> g_last_frame{0};
-const bool g_no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
+const bool g_no_host = env::NO_HOST_INPUT() != nullptr;
 
-const bool g_no_host_keys = g_no_host && !getenv("NSMBU_TEST_POST_KEYS");
+const bool g_no_host_keys = g_no_host && !env::TEST_POST_KEYS();
 bool g_pad_b_used = false;
 
 struct Event {
@@ -274,7 +275,7 @@ struct TestSwitch {
 };
 TestSwitch parse_test() {
     TestSwitch t;
-    const char* e = getenv("NSMBU_TEST_OVERLAY");
+    const char* e = env::TEST_OVERLAY();
     if (!e || !*e) { t.done = true; return t; }
     std::string s = e;
     if (size_t at = s.find('@'); at != std::string::npos) {
@@ -294,7 +295,7 @@ void test_pad(float* v) {
     struct Hold { uint64_t from, to; int pad; float value; };
     static const std::vector<Hold> holds = [] {
         std::vector<Hold> out;
-        const char* e = getenv("NSMBU_TEST_PAD");
+        const char* e = env::TEST_PAD();
         while (e && *e) {
             unsigned long long a, b;
             int n;
@@ -623,7 +624,7 @@ void tab_graphics() {
     }
     if (m == 1) {
         bool paced;
-        if (check("Keep game speed (recommended)", interp::paced_interpolation(), &paced, !getenv("NSMBU_INTERP_PACED")))
+        if (check("Keep game speed (recommended)", interp::paced_interpolation(), &paced, !env::INTERP_PACED()))
             post_changed([paced] { interp::set_paced_interpolation(paced); });
         help("When the computer cannot draw all frames, skip in-between frames instead of slowing the\n"
              "whole game down. The performance overlay shows how many are drawn.\n"
@@ -684,7 +685,7 @@ void tab_graphics() {
             else help(tips[i]);
         }
         if (!vk) note("Used by the Vulkan renderer only (Metal always presents with vsync).");
-        else if (env) note("NSMBU_VK_PRESENT_MODE=%s is set for this start and takes precedence.", getenv("NSMBU_VK_PRESENT_MODE"));
+        else if (env) note("NSMBU_VK_PRESENT_MODE=%s is set for this start and takes precedence.", env::VK_PRESENT_MODE());
         else {
             std::string missing;
             for (int i = 1; i < gfxvk::kPresentModes; i++)
@@ -720,7 +721,7 @@ void tab_graphics() {
 #ifdef NSMBU_HAS_VULKAN
         if (render::vulkan()) {
             h.bufferCache = gfxvk::buffer_cache_enabled();
-            h.overrides = reporthdr::vulkan_overrides([](const char* n) -> const char* { return getenv(n); });
+            h.overrides = reporthdr::vulkan_overrides([](const env::Var& n) -> const char* { return n(); });
         }
 #endif
         if (const int g = motion::settings().source; g != motion::kOff) h.gyro = motion::source_id(g);
@@ -766,7 +767,7 @@ void tab_audio() {
         hostui::post([] { hostui::set("audioVolume", "1"); });
     }
     ImGui::EndDisabled();
-    if (vol_locked) note("NSMBU_AUDIO_VOLUME=%s is set for this start and takes precedence.", getenv("NSMBU_AUDIO_VOLUME"));
+    if (vol_locked) note("NSMBU_AUDIO_VOLUME=%s is set for this start and takes precedence.", env::AUDIO_VOLUME());
     help("Host output gain. 100% is full level. Applies at once.");
 
     heading("Output");
@@ -782,7 +783,7 @@ void tab_audio() {
             hostui::post([s] { hostui::set("audioOutput", audio::output_source_id(s)); });
         }
     }
-    if (out_locked) note("NSMBU_AUDIO_OUTPUT=%s is set for this start and takes precedence.", getenv("NSMBU_AUDIO_OUTPUT"));
+    if (out_locked) note("NSMBU_AUDIO_OUTPUT=%s is set for this start and takes precedence.", env::AUDIO_OUTPUT());
     help("Auto follows the game's Off-TV Play faders (TV, then TV + GamePad when the GamePad is audible).\n"
          "TV and GamePad force one mix to the host speakers.");
 }
@@ -858,7 +859,7 @@ void package_controls() {
     using namespace mods::packages;
     static std::string error;
 
-    static const char* test_enable = g_no_host ? getenv("NSMBU_TEST_MOD_ENABLE") : nullptr;
+    static const char* test_enable = g_no_host ? env::TEST_MOD_ENABLE() : nullptr;
     {
         static double last_scan = -1;
         double now = ImGui::GetTime();
@@ -1112,7 +1113,7 @@ void gyro_window(bool& open) {
          "stick is pushed.");
     for (int i = 0; i < motion::kSourceCount; i++)
         if (radio(motion::source_label(i), g.source == i)) g.source = i;
-    if (motion::env_override()) note("NSMBU_GYRO=%s overrides the saved source.", getenv("NSMBU_GYRO"));
+    if (motion::env_override()) note("NSMBU_GYRO=%s overrides the saved source.", env::GYRO());
     if (g.source == motion::kOff && motion::gyro_controllers() > 0) note("A controller with a gyro is connected: choose Controller gyro to use it.");
     if (g.source == motion::kController || g.source == motion::kCemuhook) {
         ImGui::TextUnformatted("Turn left/right by");
@@ -1365,7 +1366,7 @@ void tab_debug() {
 }
 
 void tab_about() {
-    const char* env = getenv("NSMBU_LANGUAGE");
+    const char* env = env::LANGUAGE();
     const bool env_set = env && *env;
     char* end = nullptr;
     const long env_value = env_set ? strtol(env, &end, 10) : 1;
@@ -1671,7 +1672,7 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         if (hostui::get("perfOverlay", v)) g_perf = v == "1";
         if (hostui::get("perfDetail", v)) g_perf_detail = v == "1";
 
-        if (!getenv("NSMBU_PRO_CONTROLLER") && hostui::get("proController", v))
+        if (!env::PRO_CONTROLLER() && hostui::get("proController", v))
             hostui::post([pro = v == "1"] { hostui::set_pro_controller(pro); });
 
         if (!rumble::env_override() && hostui::get("rumble", v)) rumble::set_enabled(v != "0");
@@ -1689,11 +1690,11 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         if (test.tab >= 0) U.select_tab = U.tab = test.tab;
         if (test.open) set_open(true);
         if (test.perf) g_perf = true;
-        LOG("[overlay] test switch: %s", getenv("NSMBU_TEST_OVERLAY"));
+        LOG("[overlay] test switch: %s", env::TEST_OVERLAY());
     }
     {
         static bool test_load_done = false;
-        const char* ls = getenv("NSMBU_TEST_LOAD_STORY");
+        const char* ls = env::TEST_LOAD_STORY();
         if (!test_load_done && ls && *ls) {
             int w = 0;
             int c = 0;
@@ -1712,7 +1713,7 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
     }
 #ifdef NSMBU_HAS_VULKAN
 
-    static const char* tpm = getenv("NSMBU_TEST_PRESENT_MODE");
+    static const char* tpm = env::TEST_PRESENT_MODE();
     if (tpm) {
         const char* at = strchr(tpm, '@');
         if (render::frame_count() + 1 >= (at ? strtoull(at + 1, nullptr, 10) : 1)) {

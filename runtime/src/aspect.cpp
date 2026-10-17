@@ -16,12 +16,13 @@
 #include "gx2/gx2_cmd.h"
 #include "runtime.h"
 
+#include "env.h"
 namespace aspect {
 namespace {
 constexpr float kBase = 16.0f / 9.0f;
 
 int parse_env_mode(float& custom) {
-    const char* e = getenv("NSMBU_ASPECT");
+    const char* e = env::ASPECT();
     if (!e || !*e) return kOriginal;
     if (!strcmp(e, "window") || !strcmp(e, "match")) return kWindow;
     if (!strcmp(e, "16:9")) return kOriginal;
@@ -121,7 +122,7 @@ float on_swap() {
     static uint64_t swaps = 0;
     static std::vector<std::pair<uint64_t, float>> at = [] {
         std::vector<std::pair<uint64_t, float>> v;
-        if (const char* e = getenv("NSMBU_ASPECT_AT"))
+        if (const char* e = env::ASPECT_AT())
             for (char* p = (char*)e; *p;) {
                 uint64_t f = strtoull(p, &p, 10);
                 if (*p++ != ':') break;
@@ -263,7 +264,7 @@ extern "C" void hook_028766CC(Cpu* c) {
         float tx = (float)ldf32(pane + kPaneTrans), ty = (float)ldf32(pane + kPaneTrans + 4);
         bool placed = t_anchor && (tx != 0.0f || ty != 0.0f) && has_world_anchor(pane);
 
-        static const bool log_roots = getenv("NSMBU_ASPECT_LOG") != nullptr;
+        static const bool log_roots = env::ASPECT_LOG() != nullptr;
         if (log_roots && placed) {
             static std::mutex mu;
             static std::unordered_map<std::string, int> seen;
@@ -303,7 +304,7 @@ extern "C" void hook_028766CC(Cpu* c) {
         if (panes::fill(std::string_view((const char*)mem::ptr(pane+kPaneName), strnlen((const char*)mem::ptr(pane+kPaneName),24)), true, tx, ty, w, h)) {
             auto stretched = panes::transform(panes::Role::Fill, tx, ty, sx, sy, kx, ky);
             nsx = stretched.sx; nsy = stretched.sy;
-            static const bool log_st = getenv("NSMBU_ASPECT_LOG") != nullptr;
+            static const bool log_st = env::ASPECT_LOG() != nullptr;
             if (log_st) {
                 static std::mutex mu;
                 static std::unordered_map<std::string, int> seen;
@@ -315,7 +316,7 @@ extern "C" void hook_028766CC(Cpu* c) {
         }
     }
     bool moved = nx != tx || ny != ty, scaled = nsx != sx || nsy != sy;
-    static const bool log_moves = getenv("NSMBU_ASPECT_LOG") != nullptr;
+    static const bool log_moves = env::ASPECT_LOG() != nullptr;
     if (log_moves && moved && parent == t_root) {
         static std::mutex mu;
         static std::unordered_map<std::string, int> seen;
@@ -336,7 +337,7 @@ extern "C" void hook_028766CC(Cpu* c) {
 extern "C" void hook_02877100(Cpu* c) {
     using namespace aspect;
     uint32_t pane = c->r[3];
-    static const uint64_t trace_frame = getenv("NSMBU_ASPECT_TRACE_FRAME") ? strtoull(getenv("NSMBU_ASPECT_TRACE_FRAME"), nullptr, 10) : 0;
+    static const uint64_t trace_frame = env::ASPECT_TRACE_FRAME.u64_or(0);
     if (trace_frame && game_frame() == trace_frame) {
         auto trace = [](auto&& self, uint32_t p, int depth) -> void {
             if (depth > 32) return;

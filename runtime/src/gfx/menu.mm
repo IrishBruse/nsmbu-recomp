@@ -1,5 +1,6 @@
 
 
+#include "env.h"
 #import <Cocoa/Cocoa.h>
 #include <Carbon/Carbon.h>
 #include "../input.h"
@@ -50,11 +51,11 @@ static NSWindow* g_tv;
 static double g_fps = 0;
 static NSString* const kTitle = @"New Super Mario Bros. U (recompiled)";
 
-static const bool g_prefs = getenv("NSMBU_NO_HOST_INPUT") == nullptr;
+static const bool g_prefs = env::NO_HOST_INPUT() == nullptr;
 static bool g_prefs_loaded = false;
-static bool env_set(std::initializer_list<const char*> env) {
-    for (const char* e : env)
-        if (getenv(e)) return true;
+static bool env_set(std::initializer_list<env::Var> vars) {
+    for (env::Var v : vars)
+        if ((v)()) return true;
     return false;
 }
 
@@ -81,32 +82,32 @@ static void set_pref(NSString* key, id value) {
 static void load_prefs() {
     g_prefs_loaded = true;
     if (!g_prefs) return;
-    auto saved = [&](NSString* key, std::initializer_list<const char*> env) { return !env_set(env) && pref(key) != nil; };
-    if (saved(@"resScale", {"NSMBU_RES_SCALE"})) set_res([pref(@"resScale") floatValue]);
-    if (saved(@"aniso", {"NSMBU_ANISO"})) render::set_aniso([pref(@"aniso") boolValue]);
-    if (saved(@"fxaa", {"NSMBU_FXAA"})) render::set_fxaa([pref(@"fxaa") boolValue]);
+    auto saved = [&](NSString* key, std::initializer_list<env::Var> vars) { return !env_set(vars) && pref(key) != nil; };
+    if (saved(@"resScale", {env::RES_SCALE})) set_res([pref(@"resScale") floatValue]);
+    if (saved(@"aniso", {env::ANISO})) render::set_aniso([pref(@"aniso") boolValue]);
+    if (saved(@"fxaa", {env::FXAA})) render::set_fxaa([pref(@"fxaa") boolValue]);
 
-    if (saved(@"interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps([pref(@"interpFps") intValue]);
-    if (saved(@"fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"})) interp::set_mode([pref(@"fps60") intValue]);
-    if (saved(@"fps60Paced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(60, [pref(@"fps60Paced") boolValue]);
-    if (saved(@"fpsHighPaced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(120, [pref(@"fpsHighPaced") boolValue]);
+    if (saved(@"interpFps", {env::INTERP_FPS})) interp::set_fps([pref(@"interpFps") intValue]);
+    if (saved(@"fps60", {env::INTERP, env::INTERP_FPS})) interp::set_mode([pref(@"fps60") intValue]);
+    if (saved(@"fps60Paced", {env::INTERP_PACED})) interp::set_paced_interpolation_at(60, [pref(@"fps60Paced") boolValue]);
+    if (saved(@"fpsHighPaced", {env::INTERP_PACED})) interp::set_paced_interpolation_at(120, [pref(@"fpsHighPaced") boolValue]);
 #ifdef NSMBU_HAS_VULKAN
-    if (saved(@"vkPresentMode", {"NSMBU_VK_PRESENT_MODE"})) gfxvk::set_present_mode([pref(@"vkPresentMode") intValue]);
+    if (saved(@"vkPresentMode", {env::VK_PRESENT_MODE})) gfxvk::set_present_mode([pref(@"vkPresentMode") intValue]);
 #endif
 }
 static void save_prefs() {
     if (!g_prefs || !g_prefs_loaded) return;
-    if (!env_set({"NSMBU_RES_SCALE"})) set_pref(@"resScale", @(current_res_scale()));
-    if (!env_set({"NSMBU_ANISO"})) set_pref(@"aniso", @(render::aniso()));
-    if (!env_set({"NSMBU_FXAA"})) set_pref(@"fxaa", @(render::fxaa()));
-    if (!env_set({"NSMBU_INTERP", "NSMBU_INTERP_FPS"})) set_pref(@"fps60", @(interp::mode()));
-    if (!env_set({"NSMBU_INTERP_FPS"})) set_pref(@"interpFps", @(interp::fps()));
-    if (!env_set({"NSMBU_INTERP_PACED"})) {
+    if (!env_set({env::RES_SCALE})) set_pref(@"resScale", @(current_res_scale()));
+    if (!env_set({env::ANISO})) set_pref(@"aniso", @(render::aniso()));
+    if (!env_set({env::FXAA})) set_pref(@"fxaa", @(render::fxaa()));
+    if (!env_set({env::INTERP, env::INTERP_FPS})) set_pref(@"fps60", @(interp::mode()));
+    if (!env_set({env::INTERP_FPS})) set_pref(@"interpFps", @(interp::fps()));
+    if (!env_set({env::INTERP_PACED})) {
         set_pref(@"fps60Paced", @(interp::paced_interpolation_at(60)));
         set_pref(@"fpsHighPaced", @(interp::paced_interpolation_at(120)));
     }
 #ifdef NSMBU_HAS_VULKAN
-    if (!env_set({"NSMBU_VK_PRESENT_MODE"})) set_pref(@"vkPresentMode", @(gfxvk::present_mode()));
+    if (!env_set({env::VK_PRESENT_MODE})) set_pref(@"vkPresentMode", @(gfxvk::present_mode()));
 #endif
     if (NSString* p = portable_prefs_path()) [g_portable_prefs writeToFile:p atomically:YES];
 }
@@ -127,7 +128,7 @@ static void update_title() {
     if (gx2::uncapped()) t = [t stringByAppendingString:@" \u00b7 UNCAPPED (debug)"];
     std::string msg = ss::last_message();
     if (!msg.empty()) t = [NSString stringWithFormat:@"%@ \u2014 %@ \u2014 %s", kTitle, rnd, msg.c_str()];
-    if (getenv("NSMBU_LOG_TITLE") && ![t isEqualToString:g_tv.title]) {
+    if (env::LOG_TITLE() && ![t isEqualToString:g_tv.title]) {
         NSString* noFps = [t stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"%.0f fps", g_fps] withString:@"N fps"];
         static NSString* last;
         if (![noFps isEqualToString:last]) LOG("[display] title: %s", noFps.UTF8String);
@@ -141,7 +142,7 @@ static void choose_renderer(render::Api a) {
     render::set_preferred(a);
     update_title();
     if (a == render::active()) return;
-    if (getenv("NSMBU_NO_HOST_INPUT")) return;
+    if (env::NO_HOST_INPUT()) return;
     NSAlert* alert = [NSAlert new];
     alert.messageText = [NSString stringWithFormat:@"The game will use %s after a restart.", render::api_name(a)];
     alert.informativeText = @"Restart now? Progress since your last save (in-game save or save state) is lost.";

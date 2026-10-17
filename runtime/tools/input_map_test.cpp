@@ -11,6 +11,7 @@
 
 #include "input_map.h"
 
+#include "env.h"
 using namespace input_map;
 
 static int g_fail = 0, g_pass = 0;
@@ -225,9 +226,9 @@ static void test_files() {
     CHECK(!load_file(std::string(dir) + "/missing.json", r, &err));
     // the live mapping: NSMBU_CONTROLS points it at our file
 #ifdef _WIN32
-    _putenv_s("NSMBU_CONTROLS",path.c_str());
+    _putenv_s(env::CONTROLS.name(), path.c_str());
 #else
-    setenv("NSMBU_CONTROLS", path.c_str(), 1);
+    setenv(env::CONTROLS.name(), path.c_str(), 1);
 #endif
     CHECK(default_path() == path);
     load_startup();

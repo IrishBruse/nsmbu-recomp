@@ -5,11 +5,13 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include "input.h"
 #include "input_map.h"
 #include "rumble.h"
 #include "platform/input_sdl.h"
+#include "env.h"
 static int savedSlot=0, loadedSlot=0, saveRequests=0, loadRequests=0;
 namespace ss { void request_save(int slot){savedSlot=slot;++saveRequests;} void request_load(int slot){loadedSlot=slot;++loadRequests;} }
 static int graphicsRequests=0; static char graphicsKey=0;
@@ -17,7 +19,8 @@ namespace render { uint64_t frame_count(){return 0;} }
 namespace gfxvk { bool graphics_hotkey(char key,bool activate){if(activate){++graphicsRequests;graphicsKey=key;}return true;} }
 namespace gfx { int plusPresses=0; void display_plus_pressed(){++plusPresses;} }
 namespace mods { double game_time(){return 0;} }
-namespace interp { void set_mode(int){} uint64_t logic_steps(){return 0;} }
+static uint64_t g_logic_steps=0;
+namespace interp { void set_mode(int){} uint64_t logic_steps(){return g_logic_steps;} }
 namespace timebase { uint64_t now(){return 0;} }
 void log_msg(const char*,...){}
 
@@ -32,11 +35,15 @@ namespace hostui { void graphics_changed(){} }
 static int shots=0;
 namespace screenshot { bool key_down(int code){for(int k:input_map::current().keys[input_map::kScreenshot])if(k==code){++shots;return true;}return false;} void poll_controller(const float*){} }
 
-static void set_env(const char* name,const char* value){
+static void set_env(const env::Var& name, const char* value) {
+    if (!value) {
+        env::unset(name);
+        return;
+    }
 #ifdef _WIN32
- _putenv_s(name,value?value:"");
+    _putenv_s(name.name(), value);
 #else
- if(value)setenv(name,value,1);else unsetenv(name);
+    setenv(name.name(), value, 1);
 #endif
 }
 int main(){
@@ -92,7 +99,7 @@ int main(){
  {auto m=input_map::current();m.keys[input_map::kScreenshot]={input_map::key_from_id("F9"),input_map::kNoKey};input_map::set_current(m,false);
   graphicsEvent(SDL_SCANCODE_F10,game);assert(shots==1);graphicsEvent(SDL_SCANCODE_F9,game);assert(shots==2);
   m.keys[input_map::kScreenshot]={input_map::key_from_id("F10"),input_map::kNoKey};input_map::set_current(m,false);input::release_keys();}
- set_env("NSMBU_NO_HOST_INPUT","1");graphicsEvent(SDL_SCANCODE_R,game);assert(graphicsRequests==7);set_env("NSMBU_NO_HOST_INPUT",nullptr);
+ set_env(env::NO_HOST_INPUT,"1");graphicsEvent(SDL_SCANCODE_R,game);assert(graphicsRequests==7);set_env(env::NO_HOST_INPUT,nullptr);
 
  promptShown=true;input::update();
  SDL_Event typed{};typed.type=SDL_EVENT_TEXT_INPUT;typed.text.text="Link";input::handle_event(typed);assert(promptText=="Link");
@@ -133,6 +140,38 @@ int main(){
   assert(motorLow==0);puts("input_sdl_test: no window has the keyboard here, rumble checked with the motors still only");
  }
  rumble::reset();
+ {
+  const char* rec="input_record_test.txt";
+  remove(rec);
+  set_env(env::RECORD_INPUT,rec);
+  g_logic_steps=4;
+  input::release_keys();
+  input::read();
+  set_env(env::RECORD_INPUT,nullptr);
+  FILE* rf=fopen(rec,"r");
+  assert(rf);
+  char buf[512]={};
+  assert(fread(buf,1,sizeof buf-1,rf)>0);
+  fclose(rf);
+  assert(strstr(buf,"# nsmbu-input 1"));
+  assert(strstr(buf,"\n4 "));
+  remove(rec);
+  const char* rep="input_replay_test.txt";
+  FILE* wf=fopen(rep,"w");
+  assert(wf);
+  fputs("# nsmbu-input 1\n0 00000000 0 0 0 0 0 0 0\n10 00008000 0.5 -1 0 0 1 0.25 0.5\n",wf);
+  fclose(wf);
+  set_env(env::REPLAY_INPUT,rep);
+  g_logic_steps=0;
+  auto early=input::read();
+  assert(early.buttons==0&&early.lx==0&&!early.touch);
+  g_logic_steps=10;
+  auto played=input::read();
+  assert(played.buttons==input::kA&&played.lx==0.5f&&played.ly==-1.f&&played.touch&&played.tx==0.25f&&played.ty==0.5f);
+  g_logic_steps=11;
+  assert(input::read().buttons==input::kA);
+  remove(rep);
+ }
  SDL_DestroyWindow(controls);SDL_DestroyWindow(game);input::set_prompt_window(nullptr);
  SDL_Quit();puts("input_sdl_test: keyboard mapping, focus, touch, Pro mode, guarded save-state shortcuts, screenshot binding, text prompt routing, rumble passed");
 }

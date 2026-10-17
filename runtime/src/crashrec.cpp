@@ -16,6 +16,7 @@
 #include "runtime.h"
 #include "savestate.h"
 
+#include "env.h"
 namespace crashrec {
 namespace {
 
@@ -69,7 +70,7 @@ void update_note(int latest, const char* when) {
 }
 
 bool read_cfg() {
-    if (const char* e = getenv("NSMBU_CRASH_RECOVERY")) return atoi(e) != 0;
+    if (const char* e = env::CRASH_RECOVERY()) return atoi(e) != 0;
     if (FILE* f = fopen(cfg_path().c_str(), "r")) {
         int v = 0;
         bool ok = fscanf(f, "%d", &v) == 1;
@@ -95,8 +96,8 @@ bool enabled() {
     if (v < 0) {
         v = read_cfg() ? 1 : 0;
         g_enabled = v;
-        if (const char* r = getenv("NSMBU_REPLAY")) g_replay = atoi(r);
-        if (const char* a = getenv("NSMBU_REPLAY_AT")) g_replay_at = strtoull(a, nullptr, 10);
+        if (const char* r = env::REPLAY()) g_replay = atoi(r);
+        if (const char* a = env::REPLAY_AT()) g_replay_at = strtoull(a, nullptr, 10);
         if (g_replay < 1 || g_replay > kAutoSlots) g_replay = 0;
         if (g_replay) LOG("[crashrec] replay of automatic state %d from frame %llu", g_replay, (unsigned long long)g_replay_at);
         if (v && !g_replay) LOG("[crashrec] on: automatic state every %d s", interval_seconds());
@@ -118,7 +119,7 @@ void set_enabled(bool on) {
 
 int interval_seconds() {
     static const int s = [] {
-        const char* e = getenv("NSMBU_CRASH_RECOVERY_INTERVAL");
+        const char* e = env::CRASH_RECOVERY_INTERVAL();
         int v = e ? atoi(e) : 120;
         return v < 10 ? 10 : v;
     }();
@@ -134,7 +135,7 @@ void service() {
     }
     bool on = enabled();
 
-    static const uint64_t crash_at = getenv("NSMBU_TEST_CRASH_AT") ? strtoull(getenv("NSMBU_TEST_CRASH_AT"), nullptr, 10) : 0;
+    static const uint64_t crash_at = env::TEST_CRASH_AT.u64_or(0);
     if (crash_at && render::frame_count() >= crash_at) {
         LOG("[crashrec] NSMBU_TEST_CRASH_AT: crashing on purpose");
         *(volatile uint32_t*)(uintptr_t)0x10 = 0;

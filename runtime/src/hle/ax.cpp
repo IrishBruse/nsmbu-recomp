@@ -16,6 +16,7 @@
 #include "../audio_out.h"
 #include "../runtime.h"
 
+#include "env.h"
 namespace interp { const char* phase_name(); }
 
 namespace {
@@ -228,7 +229,7 @@ void mix_into(const float* in, float* out, ChMix& m) {
 }
 
 void log_stats() {
-    static bool on = getenv("NSMBU_AX_STATS") != nullptr;
+    static bool on = env::AX_STATS() != nullptr;
     static int frame = 0;
     if (!on || ++frame % 333) return;
     int n = 0, fmt[3] = {}, filt[3] = {}, loops = 0, streams = 0;
@@ -341,7 +342,7 @@ void update_output_mode() {
     bool before = g_output.play_drc;
     g_output.source = audio::output_source();
     g_output.update(ok, tv, drc);
-    static bool stats = getenv("NSMBU_AX_STATS") != nullptr;
+    static bool stats = env::AX_STATS() != nullptr;
     if (stats && g_output.play_drc != before)
         LOG("[ax] host output: %s (TV fader %.2f -> %.2f, GamePad fader %.2f -> %.2f)",
             g_output.play_drc ? "TV + GamePad (Off-TV Play)" : "TV", tv.value, tv.goal(), drc.value, drc.goal());
@@ -599,7 +600,7 @@ HLE(snd_core, AXInit) {
         audio::init();
         g_running = true;
     }
-    if (getenv("NSMBU_NO_AUDIO")) threads::wait_prefix_parked("Audio", 1000);
+    if (env::NO_AUDIO()) threads::wait_prefix_parked("Audio", 1000);
     std::thread(frame_thread).detach();
     LOG("[ax] initialized, %d voices", kMaxVoices);
 }
@@ -721,7 +722,7 @@ enum { kAxStatCount = 15 };
 static const char* kAxStatNames[kAxStatCount] = {"AXAcquireVoiceEx", "AXFreeVoice", "AXSetVoiceState", "AXSetVoiceOffsets", "AXSetVoiceLoop", "AXSetVoiceEndOffsetEx", "AXSetVoiceLoopOffsetEx", "AXSetVoiceSrcRatio", "AXSetVoiceSrc", "AXSetVoiceVe", "AXSetVoiceDeviceMix", "AXSetVoiceAdpcm", "AXSetVoiceAdpcmLoop", "AXSetVoiceType", "AXSetVoicePriority"};
 static std::atomic<uint32_t> g_ax_stats[kAxStatCount];
 static void ax_stat(int i) {
-    static const bool on = getenv("NSMBU_AX_STATS") != nullptr;
+    static const bool on = env::AX_STATS() != nullptr;
     if (!on) return;
     g_ax_stats[i]++;
     static std::atomic<uint64_t> t0{timebase::now()};
@@ -741,7 +742,7 @@ static void sound_trace_env() {
     static bool done = false;
     if (done) return;
     done = true;
-    if (const char* e = getenv("NSMBU_SOUND_TRACE")) ax::start_sound_trace(e, 60.0);
+    if (const char* e = env::SOUND_TRACE()) ax::start_sound_trace(e, 60.0);
 }
 
 HLE(snd_core, AXAcquireVoiceEx) {
@@ -749,7 +750,7 @@ HLE(snd_core, AXAcquireVoiceEx) {
     sound_trace_env();
     {
 
-        static const bool rate = getenv("NSMBU_VOICE_RATE") != nullptr;
+        static const bool rate = env::VOICE_RATE() != nullptr;
         if (rate) {
             static uint64_t n = 0, t0 = timebase::now();
             n++;
@@ -761,7 +762,7 @@ HLE(snd_core, AXAcquireVoiceEx) {
             }
         }
 
-        static int trace = getenv("NSMBU_TRACE_VOICE") ? atoi(getenv("NSMBU_TRACE_VOICE")) : 0;
+        static int trace = env::TRACE_VOICE.integer_or(0);
         if (trace > 0) {
             trace--;
             char buf[256];

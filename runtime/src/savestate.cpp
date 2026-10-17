@@ -5,6 +5,7 @@
 #include "full_state_header.h"
 #include "input.h"
 
+#include "env.h"
 #ifdef __APPLE__
 #include <compression.h>
 #include <mach-o/ldsyms.h>
@@ -164,7 +165,7 @@ void report_done(int slot, bool ok, const std::string& why) {
 std::string state_dir() {
     static const std::string dir = [] {
         std::string d;
-        if (const char* e = getenv("NSMBU_STATE_DIR")) d = e;
+        if (const char* e = env::STATE_DIR()) d = e;
         else {
 #ifdef __APPLE__
             d=std::string(getenv("HOME")?getenv("HOME"):".")+"/Library/Application Support/nsmbu/states";
@@ -245,7 +246,7 @@ uint64_t game_id() {
 
 const uint32_t kStageName = GD(0x1046F0B0) + 0x5134;
 std::string stage_name() {
-    if (const char* e = getenv("NSMBU_STATE_STAGE_ADDR")) {
+    if (const char* e = env::STATE_STAGE_ADDR()) {
         uint32_t a = (uint32_t)strtoul(e, nullptr, 16);
         return std::string((const char*)mem::ptr(a), strnlen((const char*)mem::ptr(a), 8));
     }
@@ -525,7 +526,7 @@ bool do_load(const std::shared_ptr<Snapshot>& s) {
     std::string busy, why;
     auto t0 = std::chrono::steady_clock::now();
     static const int wait_for_threads = [] {
-        const char* timed = getenv("NSMBU_STATE_LOAD_AT");
+        const char* timed = env::STATE_LOAD_AT();
         return timed && *timed ? 2400 : 30;
     }();
     if (!threads_ss_present(s->section(kSecThreads), why)) {
@@ -1033,9 +1034,9 @@ int g_full_setting = -1;
 std::string full_cfg_path() { return state_dir() + "/full_save_states.cfg"; }
 int full_env() {
     static const int v = [] {
-        if (const char* e = getenv("NSMBU_FULL_SAVE_STATES")) return atoi(e) != 0 ? 1 : 0;
-        for (const char* t : {"NSMBU_STATE_SAVE_AT", "NSMBU_STATE_LOAD_AT", "NSMBU_TEST_SAVE", "NSMBU_TEST_LOAD"})
-            if (getenv(t)) return 1;
+        if (const char* e = env::FULL_SAVE_STATES()) return atoi(e) != 0 ? 1 : 0;
+        for (env::Var t : {env::STATE_SAVE_AT, env::STATE_LOAD_AT, env::TEST_SAVE, env::TEST_LOAD})
+            if ((t)()) return 1;
         return -1;
     }();
     return v;
@@ -1056,9 +1057,9 @@ bool newer_is_portable(int slot) {
 }
 
 struct Timed { uint64_t frame; int slot; };
-std::vector<Timed> parse_timed(const char* var) {
+std::vector<Timed> parse_timed(env::Var var) {
     std::vector<Timed> v;
-    const char* e = getenv(var);
+    const char* e = (var)();
     unsigned long long f;
     int s, n;
     while (e && sscanf(e, "%llu:%d%n", &f, &s, &n) == 2) {
@@ -1294,8 +1295,8 @@ std::string states_dir() { return state_dir(); }
 void service(Cpu* c) {
     crashrec::service();
 
-    static const std::vector<Timed> save_at = parse_timed("NSMBU_STATE_SAVE_AT"), load_at = parse_timed("NSMBU_STATE_LOAD_AT"),
-                                    psave_at = parse_timed("NSMBU_PORTABLE_SAVE_AT"), pload_at = parse_timed("NSMBU_PORTABLE_LOAD_AT");
+    static const std::vector<Timed> save_at = parse_timed(env::STATE_SAVE_AT), load_at = parse_timed(env::STATE_LOAD_AT),
+                                    psave_at = parse_timed(env::PORTABLE_SAVE_AT), pload_at = parse_timed(env::PORTABLE_LOAD_AT);
     if (!save_at.empty() || !load_at.empty() || !psave_at.empty() || !pload_at.empty()) {
         static uint64_t last = 0;
         uint64_t f = render::frame_count();
@@ -1310,7 +1311,7 @@ void service(Cpu* c) {
         last = f;
     }
     static bool env_load = [] {
-        if (const char* e = getenv("NSMBU_PORTABLE_LOAD")) request_load_portable_file(e);
+        if (const char* e = env::PORTABLE_LOAD()) request_load_portable_file(e);
         return true;
     }();
     (void)env_load;
@@ -1319,7 +1320,7 @@ void service(Cpu* c) {
     service_portable_load(c);
     watch_arrival(c);
 
-    static const int dump = getenv("NSMBU_STATE_DUMP") ? atoi(getenv("NSMBU_STATE_DUMP")) : 0;
+    static const int dump = env::STATE_DUMP.integer_or(0);
     if (int slot = g_save_req.load()) {
         if (do_save(slot)) {
             g_save_req = 0;

@@ -1,5 +1,6 @@
 
 
+#include "env.h"
 #import <Cocoa/Cocoa.h>
 #import <GameController/GameController.h>
 #include <Carbon/Carbon.h>
@@ -957,7 +958,7 @@ static NSTextField* label(NSString* s) {
     w.releasedWhenClosed = NO;
     w.contentMinSize = NSMakeSize(960, 570);
 
-    if (!getenv("NSMBU_NO_HOST_INPUT") && !host::portable()) w.frameAutosaveName = @"NSMBUControls2";
+    if (!env::NO_HOST_INPUT() && !host::portable()) w.frameAutosaveName = @"NSMBUControls2";
     self.window = w;
     NsmbuRootView* root = [[NsmbuRootView alloc] init];
     w.contentView = root;
@@ -1130,7 +1131,7 @@ static NSTextField* label(NSString* s) {
 - (void)tick:(NSTimer*)t { [self poll]; }
 
 - (void)poll {
-    static const bool no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
+    static const bool no_host = env::NO_HOST_INPUT() != nullptr;
     bool dirty = false;
     if (generation() != _gen && _st.capAction < 0) {
         _st.m = current();
@@ -1423,7 +1424,7 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f, bool* known) {
     [self reloadFromModel];
     [self startTimer];
     [self poll];
-    const char* hidden = getenv("NSMBU_HIDDEN_WINDOWS");
+    const char* hidden = env::HIDDEN_WINDOWS();
     if (hidden && *hidden && strcmp(hidden, "0")) return;
     if (takeFocus) [self.window makeKeyAndOrderFront:nil];
     else [self.window orderFront:nil];
@@ -1465,7 +1466,7 @@ static NSEvent* key_event(NSWindow* w, uint16_t code, NSString* chars) {
 }
 
 static void self_test() {
-    if (!getenv("NSMBU_CONTROLS")) {
+    if (!env::CONTROLS()) {
         LOG("[controls-test] needs NSMBU_CONTROLS=<scratch file>");
         return;
     }
@@ -1555,20 +1556,20 @@ NSMenuItem* controls_menu_item() {
     static NsmbuControlsMenuTarget* target = [NsmbuControlsMenuTarget new];
     NSMenuItem* it = [[NSMenuItem alloc] initWithTitle:@"Controls…" action:@selector(open:) keyEquivalent:@""];
     it.target = target;
-    bool selftest = getenv("NSMBU_CONTROLS_SELFTEST"), show = getenv("NSMBU_SHOW_CONTROLS"), snap = getenv("NSMBU_CONTROLS_SNAPSHOT");
+    bool selftest = env::CONTROLS_SELFTEST(), show = env::SHOW_CONTROLS(), snap = env::CONTROLS_SNAPSHOT();
     if (selftest || show || snap)
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             if (!g_controls) g_controls = [[NsmbuControls alloc] init];
 
-            [g_controls show:!getenv("NSMBU_NO_HOST_INPUT")];
+            [g_controls show:!env::NO_HOST_INPUT()];
             if (selftest) self_test();
-            if (const char* h = getenv("NSMBU_CONTROLS_HOVER")) {
+            if (const char* h = env::CONTROLS_HOVER()) {
                 g_controls.padView.hoverAction = action_from_id(h);
                 g_controls.padView.hoverSlot = -1;
                 [g_controls hoverChanged];
             }
-            if (const char* path = getenv("NSMBU_CONTROLS_SNAPSHOT")) {
-                double at = getenv("NSMBU_CONTROLS_SNAPSHOT_AT") ? atof(getenv("NSMBU_CONTROLS_SNAPSHOT_AT")) : 3;
+            if (const char* path = env::CONTROLS_SNAPSHOT()) {
+                double at = env::CONTROLS_SNAPSHOT_AT.real_or(3);
                 NSString* prefix = ns(path);
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(std::max(0.0, at - 1) * NSEC_PER_SEC)),
                                dispatch_get_main_queue(), ^{ [g_controls snapshotTo:prefix]; });

@@ -1,5 +1,6 @@
 #include "gfx/depth_peek.h"
 
+#include "env.h"
 #import <AppKit/AppKit.h>
 #import <ImageIO/ImageIO.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -67,7 +68,7 @@ void display_init();
 void present_screens();
 void request_present_dump(const std::string& path);
 
-static std::atomic<bool> g_fxaa{[] { const char* e = getenv("NSMBU_FXAA"); return e && atoi(e) != 0; }()};
+static std::atomic<bool> g_fxaa{[] { const char* e = env::FXAA(); return e && atoi(e) != 0; }()};
 bool fxaa_enabled() { return g_fxaa.load(std::memory_order_relaxed); }
 void set_fxaa(bool v) { g_fxaa = v; LOG("[gfx] edge smoothing (FXAA) %s", v ? "on" : "off"); }
 
@@ -110,7 +111,7 @@ void end_encoder() {
         [R.enc endEncoding];
         R.enc = nil;
 
-        static const bool chunked = getenv("NSMBU_NO_CHUNK") == nullptr;
+        static const bool chunked = env::NO_CHUNK() == nullptr;
         if (chunked && g_draws_since_commit >= 256 && R.cmd) {
             void pool_retire(id<MTLCommandBuffer> cmd);
             pool_retire(R.cmd);
@@ -246,7 +247,7 @@ void copy_to_scan(uint32_t cb, uint32_t target) {
 
 static std::set<uint64_t> g_dump_frames = [] {
     std::set<uint64_t> f;
-    if (const char* e = getenv("NSMBU_DUMP_FRAMES"))
+    if (const char* e = env::DUMP_FRAMES())
         for (const char* p = e; *p;) {
             f.insert(strtoull(p, (char**)&p, 10));
             while (*p == ',') p++;
@@ -412,7 +413,7 @@ static void dump_tv(uint64_t frame) {
         snprintf(name, sizeof name, "frame_%llu_drc.png", (unsigned long long)frame);
         dump_texture(R.drc.tex, name, true, R.drc.srgb);
     }
-    static const bool present = getenv("NSMBU_DUMP_PRESENT") != nullptr;
+    static const bool present = env::DUMP_PRESENT() != nullptr;
     if (present) {
         snprintf(name, sizeof name, "frame_%llu_present.png", (unsigned long long)frame);
         request_present_dump(name);
@@ -432,7 +433,7 @@ void cache_warm_step();
 
 void swap() {
     cache_warm_step();
-    static bool sync_gpu = getenv("NSMBU_SYNC_GPU") != nullptr;
+    static bool sync_gpu = env::SYNC_GPU() != nullptr;
     if (sync_gpu) wait_idle();
     end_encoder();
     if (log_this_frame()) LOG("[frame] end %llu", (unsigned long long)R.frame);
@@ -473,7 +474,7 @@ extern uint64_t g_stat_invalidates, g_stat_invalidated_surfaces;
 void invalidate(uint32_t flags, uint32_t addr, uint32_t size) {
     g_stat_invalidates++;
     static int logged = 0;
-    if (getenv("NSMBU_LOG_INVALIDATE") && (flags & 0x2) && logged++ < 400)
+    if (env::LOG_INVALIDATE() && (flags & 0x2) && logged++ < 400)
         LOG("[inval] frame %llu flags %X addr %08X size %X", (unsigned long long)R.frame, flags, addr, size);
 
     if (!(flags & 0x2)) return;
@@ -494,7 +495,7 @@ void invalidate(uint32_t flags, uint32_t addr, uint32_t size) {
             s->dirty = true;
             g_stat_invalidated_surfaces++;
             static int lg = 0;
-            if (getenv("NSMBU_LOG_INVALIDATE") && lg++ < 300)
+            if (env::LOG_INVALIDATE() && lg++ < 300)
                 LOG("[inval]   marks %08X %ux%u fmt %X size %X (range %08X+%X)", a, s->width, s->height, s->format, s->dataSize, addr, size);
         }
 }

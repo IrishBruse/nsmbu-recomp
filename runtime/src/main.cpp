@@ -1,3 +1,4 @@
+#include "env.h"
 #ifndef _WIN32
 #include <dlfcn.h>
 #include <fcntl.h>
@@ -7,6 +8,7 @@
 #else
 #include <fcntl.h>
 #include <io.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #endif
 #include <ctime>
@@ -243,27 +245,28 @@ static void apply_portable_mode() {
     const std::string u = host::portable_user_dir();
     std::error_code ec;
     std::filesystem::create_directories(u, ec);
-    auto set = [](const char* k, const std::string& v) {
-        if (getenv(k)) return;
+    auto set = [](const env::Var& k, const std::string& v) {
 #ifdef _WIN32
-        _putenv_s(k, v.c_str());
+        if (getenv(k.name())) return;
+        _putenv_s(k.name(), v.c_str());
 #else
-        setenv(k, v.c_str(), 0);
+        setenv(k.name(), v.c_str(), 0);
 #endif
     };
-    set("NSMBU_STATE_DIR", u + "/states");
+    set(env::STATE_DIR, u + "/states");
 #ifdef __APPLE__
-    set("NSMBU_DISPLAY_SETTINGS", u + "/display.plist");
-    set("NSMBU_SHADER_CACHE", u + "/shaders.bin");
+    set(env::DISPLAY_SETTINGS, u + "/display.plist");
+    set(env::SHADER_CACHE, u + "/shaders.bin");
 #endif
 }
 
 static void default_vulkan_cpu_paths() {
-    for (const char* name : reporthdr::kVulkanCpuPaths) {
+    for (const env::Var& var : env::vulkan_cpu_paths) {
+        if (var()) continue;
 #ifdef _WIN32
-        if (!getenv(name)) _putenv_s(name, "1");
+        _putenv_s(var.name(), "1");
 #else
-        setenv(name, "1", 0);
+        setenv(var.name(), "1", 0);
 #endif
     }
 }
@@ -292,7 +295,7 @@ static void log_file_sink(const char* s, size_t n) {
     }
 }
 static void start_log_file() {
-    const char* e = getenv("NSMBU_LOG_FILE");
+    const char* e = env::LOG_FILE();
     if (e && !strcmp(e, "0")) return;
 #ifdef __ANDROID__
     if (!e || !*e) return;
@@ -329,9 +332,9 @@ int main(int argc, char** argv) {
         if (chdir(dir) != 0) fprintf(stderr, "cannot enter %s\n", dir);
         setenv("XDG_CONFIG_HOME", (std::string(dir) + "/config").c_str(), 1);
 
-        setenv("NSMBU_VK_DRAW_BATCH", "2048", 0);
+        setenv(env::VK_DRAW_BATCH.name(), "2048", 0);
 
-        if (!getenv("NSMBU_INTERP")) interp::set_mode(1);
+        if (!env::INTERP()) interp::set_mode(1);
 
         if (FILE* f = fopen("env.txt", "r")) {
             char line[512];
@@ -366,7 +369,7 @@ int main(int argc, char** argv) {
 
     LOG("[boot] %s %s (%s), %s", app_title::kName, build::version(), build::commit(), reporthdr::os_description().c_str());
 
-    if (getenv("NSMBU_TEST_HOST_CRASH")) {
+    if (env::TEST_HOST_CRASH()) {
         LOG("[boot] NSMBU_TEST_HOST_CRASH: crashing on purpose in the C library");
         size_t (*volatile len)(const char*) = strlen;
 #ifndef _WIN32

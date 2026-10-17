@@ -4,6 +4,7 @@
 #include "shaders.h"
 #include "runtime.h"
 #include "render_prof.h"
+#include "env.h"
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -14,7 +15,7 @@ namespace {
 VkDescriptorSetLayout descriptors = VK_NULL_HANDLE;
 VkPipelineLayout layout = VK_NULL_HANDLE;
 VkPipeline pipeline = VK_NULL_HANDLE;
-bool env_on(const char* key) { const char* s=std::getenv(key); return s && std::strcmp(s,"0"); }
+bool env_on(env::Var key) { const char* s=(key)(); return s && std::strcmp(s,"0"); }
 void initialize() {
     if(pipeline)return;
     if(!R.computeQueue)throw std::runtime_error("BC fallback requires a compute-capable graphics queue");
@@ -81,7 +82,7 @@ void verify(Buffer output,const std::vector<uint8_t>& blocks,uint32_t w,uint32_t
 }
 bool bc_decode_required(const FormatInfo& fmt) {
     if(!fmt.compressed)return false;
-    if(env_on("NSMBU_VK_FORCE_BC_DECODE")||!R.enabledFeatures.textureCompressionBC)return true;
+    if(env_on(env::VK_FORCE_BC_DECODE)||!R.enabledFeatures.textureCompressionBC)return true;
     VkFormatProperties p{};vkGetPhysicalDeviceFormatProperties(R.physicalDevice,fmt.pixel,&p);
     constexpr auto needed=VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT|VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT|
         VK_FORMAT_FEATURE_TRANSFER_SRC_BIT|VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
@@ -91,7 +92,7 @@ void bc_decode_upload(Surface* s,uint32_t level,const std::vector<uint8_t>& bloc
     auto start=std::chrono::steady_clock::now();
     uint32_t type=(s->format&63)-0x30;
     uint32_t mode=type|((type>=4&&(s->format&0x200))?256:0);
-    bool check=env_on("NSMBU_VK_BC_VERIFY");
+    bool check=env_on(env::VK_BC_VERIFY);
     Buffer output=dispatch(blocks,w,h,slices,mode,check);
     VkBufferImageCopy copy{};bool volume=s->imageType==VK_IMAGE_TYPE_3D;
     copy.imageSubresource={VK_IMAGE_ASPECT_COLOR_BIT,level,0,volume?1:slices};copy.imageExtent={w,h,volume?slices:1};
@@ -99,7 +100,7 @@ void bc_decode_upload(Surface* s,uint32_t level,const std::vector<uint8_t>& bloc
     if(check)verify(output,blocks,w,h,slices,mode);
     defer_buffer(output);
     rprof::add_upload(rprof::kUpTexture,blocks.size());
-    if(env_on("NSMBU_VK_BC_TIMING"))LOG("[vulkan BC] mode=%u %ux%ux%u bytes=%zu CPU-upload-us=%.1f%s",mode,w,h,slices,blocks.size(),
+    if(env_on(env::VK_BC_TIMING))LOG("[vulkan BC] mode=%u %ux%ux%u bytes=%zu CPU-upload-us=%.1f%s",mode,w,h,slices,blocks.size(),
         std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-start).count(),check?" (includes GPU drain/verify)":" (dispatch recording only)");
 }
 void bc_decode_shutdown() {

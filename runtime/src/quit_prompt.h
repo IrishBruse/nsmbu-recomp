@@ -1,6 +1,6 @@
 
-
 #pragma once
+#include "env.h"
 #include <cstring>
 #include <string>
 
@@ -10,18 +10,18 @@ constexpr int kSaveSlot = 1;
 
 inline bool gameplay_stage(const std::string& stage) { return !stage.empty() && stage != "sea_T" && stage != "Name"; }
 
-using Env = const char* (*)(const char*);
+using Env = const char* (*)(const env::Var&);
 inline bool env_on(const char* v) { return v && *v && strcmp(v, "0") != 0; }
 
 inline bool suppressed(Env env) {
-    const char* opt = env("NSMBU_QUIT_PROMPT");
-    return env_on(env("NSMBU_HIDDEN_WINDOWS")) || env_on(env("NSMBU_EXIT_AT_FRAME")) || env("NSMBU_NO_HOST_INPUT") ||
-           env("NSMBU_CONTROLS_SELFTEST") || (opt && !env_on(opt));
+    const char* opt = env(env::QUIT_PROMPT);
+    return env_on(env(env::HIDDEN_WINDOWS)) || env_on(env(env::EXIT_AT_FRAME)) || env(env::NO_HOST_INPUT) ||
+           env(env::CONTROLS_SELFTEST) || (opt && !env_on(opt));
 }
 
 enum class Answer { None, Quit, Cancel, SaveAndQuit };
 inline Answer test_answer(Env env) {
-    const char* v = env("NSMBU_TEST_QUIT_ANSWER");
+    const char* v = env(env::TEST_QUIT_ANSWER);
     if (!v) return Answer::None;
     if (!strcmp(v, "quit")) return Answer::Quit;
     if (!strcmp(v, "cancel")) return Answer::Cancel;

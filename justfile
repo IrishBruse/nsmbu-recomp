@@ -58,6 +58,10 @@ installer *args:
     fi
     exec "$rel/nsmbu-setup" --setup
 
+# Play replays/<course>.txt with that course pack (for example: just replay 1-1).
+replay course *args:
+    NSMBU_REPLAY_INPUT="{{justfile_directory()}}/replays/{{course}}.txt" just launch {{course}} {{args}}
+
 # Fixed-scene profile (slot 1 @ TV 700, exit 1100, log .tmp/repro/nsmbu.log). Use a Release build.
 profile *args:
     python3 tools/profile.py {{args}}

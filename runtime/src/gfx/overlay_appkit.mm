@@ -1,5 +1,6 @@
 
 
+#include "env.h"
 #import <AppKit/AppKit.h>
 
 #include "../input.h"
@@ -89,7 +90,7 @@ void open_folder(const std::string& path) {
 void run_posted() {}
 void load_saved_options() {
     std::string v;
-    if (const char* e = getenv("NSMBU_RUN_IN_BACKGROUND"))
+    if (const char* e = env::RUN_IN_BACKGROUND())
         g_run_in_background.store(atoi(e) != 0, std::memory_order_relaxed);
     else if (gfx::host_setting("runInBackground", v))
         g_run_in_background.store(v != "0", std::memory_order_relaxed);
@@ -111,7 +112,7 @@ void install_overlay_input() {
     density();
     [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidChangeBackingPropertiesNotification object:tv queue:nil
                                                   usingBlock:^(NSNotification*) { density(); }];
-    if (getenv("NSMBU_NO_HOST_INPUT")) return;
+    if (env::NO_HOST_INPUT()) return;
     tv.acceptsMouseMovedEvents = YES;
     NSEventMask mask = NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged | NSEventMaskOtherMouseDragged |
                        NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp | NSEventMaskRightMouseDown | NSEventMaskRightMouseUp |

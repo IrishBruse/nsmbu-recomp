@@ -7,6 +7,7 @@
 #include "guest_addr.h"
 #include "runtime.h"
 
+#include "env.h"
 extern "C" void f_0281B4EC_orig(Cpu* c);
 extern "C" void f_0281B970_orig(Cpu* c);
 
@@ -64,7 +65,7 @@ void mix_ramp(Cpu* c) {
 }
 
 const bool g_check = [] {
-    const char* e = getenv("NSMBU_HOOK_CHECK");
+    const char* e = env::HOOK_CHECK();
     return e && *e && strcmp(e, "0") != 0;
 }();
 

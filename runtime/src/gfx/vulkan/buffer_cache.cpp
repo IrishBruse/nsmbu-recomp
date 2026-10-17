@@ -13,11 +13,12 @@
 #include "runtime.h"
 #include "write_watch.h"
 
+#include "env.h"
 namespace gfxvk {
 namespace {
 
-bool env_is(const char* name, const char* value) {
-  const char* e = std::getenv(name);
+bool env_is(env::Var name, const char* value) {
+  const char* e = (name)();
   return e && !std::strcmp(e, value);
 }
 
@@ -79,7 +80,7 @@ State& state() {
   if (State* s = g_state.load(std::memory_order_acquire)) return *s;
   State* created = new State;
   auto& b = created->backing;
-  if (const char* mb = std::getenv("NSMBU_VK_BUFFER_CACHE_MB"))
+  if (const char* mb = env::VK_BUFFER_CACHE_MB())
     b.budget = std::max<uint64_t>(std::strtoull(mb, nullptr, 10), 64) << 20;
   VkPhysicalDeviceMemoryProperties p;
   vkGetPhysicalDeviceMemoryProperties(R.physicalDevice, &p);
@@ -99,9 +100,9 @@ State& state() {
   LOG("[vulkan buffer cache] on%s: budget %llu MiB, %s memory, hints %s", buffer_cache_verify() ? " (verify mode)" : "",
       (unsigned long long)(b.budget >> 20),
       (b.flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ? "device-local host-visible" : "host-visible",
-      env_is("NSMBU_VK_BUFFER_CACHE_HINTS", "0") ? "off" : "on");
+      env_is(env::VK_BUFFER_CACHE_HINTS, "0") ? "off" : "on");
 
-  if (env_is("NSMBU_VK_BUFFER_CACHE_LOG", "1"))
+  if (env_is(env::VK_BUFFER_CACHE_LOG, "1"))
     created->cache.onDynamic = [](const bufcache::Key& k, const bufcache::Entry& e, bool hintOnly) {
       static int logged = 0;
       if (logged++ < 300)
@@ -115,7 +116,7 @@ State& state() {
 }
 
 bool buffer_cache_verify() {
-  static const bool verify = env_is("NSMBU_VK_BUFFER_CACHE_VERIFY", "1");
+  static const bool verify = env_is(env::VK_BUFFER_CACHE_VERIFY, "1");
   return verify;
 }
 
@@ -123,14 +124,14 @@ constexpr bool kBufferCacheDefault = true;
 
 bool buffer_cache_enabled() {
   static const bool enabled = [] {
-    bool want = kBufferCacheDefault || env_is("NSMBU_VK_BUFFER_CACHE", "1") || buffer_cache_verify();
-    if (env_is("NSMBU_VK_BUFFER_CACHE", "0")) want = false;
+    bool want = kBufferCacheDefault || env_is(env::VK_BUFFER_CACHE, "1") || buffer_cache_verify();
+    if (env_is(env::VK_BUFFER_CACHE, "0")) want = false;
     if (!want) return false;
     if (!wwatch::active()) {
       LOG("[vulkan buffer cache] off: page write tracking is unavailable");
       return false;
     }
-    if (!env_is("NSMBU_VK_BUFFER_CACHE_HINTS", "0")) wwatch::enable_hints();
+    if (!env_is(env::VK_BUFFER_CACHE_HINTS, "0")) wwatch::enable_hints();
     return true;
   }();
   return enabled;

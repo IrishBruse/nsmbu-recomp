@@ -11,6 +11,7 @@
 #include "metal.h"
 #include "runtime.h"
 
+#include "env.h"
 namespace gfx {
 
 bool headstart_translate(const uint32_t* regs, bool vertex, bool compileNow);
@@ -22,7 +23,7 @@ namespace {
 constexpr uint32_t kRecShader = 1, kRecPipeline = 2, kRecSpeculative = 3;
 
 std::string headstart_path() {
-    if (const char* e = getenv("NSMBU_HEADSTART")) return e;
+    if (const char* e = env::HEADSTART()) return e;
     return config::game_dir + "/shadercache/headstart.bin";
 }
 

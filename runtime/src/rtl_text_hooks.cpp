@@ -13,6 +13,7 @@
 #include "rtl_text.h"
 #include "runtime.h"
 
+#include "env.h"
 extern "C" {
 void f_02871328_orig(Cpu* c);
 void f_028709E0_orig(Cpu* c);
@@ -127,7 +128,7 @@ void finish(Print& p) {
             const float right = (origin == 0 && t_box_width >= 0 && t_prints.size() == 1) ? t_box_width : block_right;
             shift = right - (last.pen + last.advance);
         }
-        if (getenv("NSMBU_RTL_TRACE") && t_logged < 400) {
+        if (env::RTL_TRACE() && t_logged < 400) {
             std::string d;
             for (size_t k = 0; k < l.size(); k++) {
                 const Rec& r = p.recs[l[k]];
@@ -150,7 +151,7 @@ void finish(Print& p) {
 void language_pack_opened(const std::string& host_path) {
     std::lock_guard<std::mutex> lk(g_mu);
     if (g_on.load()) return;
-    const char* env = std::getenv("NSMBU_RTL");
+    const char* env = env::RTL();
     if (env && !strcmp(env, "0")) {
         LOG("[rtl] right-to-left text off (NSMBU_RTL=0)");
         return;
@@ -235,7 +236,7 @@ extern "C" void hook_028709E0(Cpu* c) {
     f_028709E0_orig(c);
 
     finish(*raw);
-    if (getenv("NSMBU_RTL_TRACE") && t_logged < 400) {
+    if (env::RTL_TRACE() && t_logged < 400) {
         t_logged++;
         std::string s;
         for (int32_t i = 0; i < len && i < 400; i++) {

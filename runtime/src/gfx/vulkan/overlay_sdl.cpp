@@ -1,5 +1,6 @@
 #include "../renderer.h"
 
+#include "env.h"
 #ifdef NSMBU_SDL_HOST
 #include "backend.h"
 #include "gfx/display_modes.h"
@@ -41,8 +42,8 @@ void apply_background_hint(bool on) {
 }
 
 std::string path() {
-    if (const char* e = getenv("NSMBU_SETTINGS")) return e;
-    if (getenv("NSMBU_NO_HOST_INPUT")) return {};
+    if (const char* e = env::SETTINGS()) return e;
+    if (env::NO_HOST_INPUT()) return {};
     return host::config_dir() + "/settings.ini";
 }
 void load_locked() {
@@ -72,16 +73,16 @@ void save_locked() {
     }
     if (!host::replace_file(tmp, p)) LOG("[settings] cannot write %s", p.c_str());
 }
-bool env_set(std::initializer_list<const char*> env) {
-    for (const char* e : env)
-        if (getenv(e)) return true;
+bool env_set(std::initializer_list<env::Var> vars) {
+    for (env::Var v : vars)
+        if ((v)()) return true;
     return false;
 }
 
 void save_display_locked() {
     using namespace gfx;
-    if (!env_set({"NSMBU_DRC_MODE"})) g_values["drcMode"] = kModeNames[display_saved_mode()];
-    if (!env_set({"NSMBU_DRC_PIP"})) {
+    if (!env_set({env::DRC_MODE})) g_values["drcMode"] = kModeNames[display_saved_mode()];
+    if (!env_set({env::DRC_PIP})) {
         char v[16];
         g_values["pipCorner"] = kCornerNames[g_corner];
         snprintf(v, sizeof v, "%g", g_pip_size.load());
@@ -102,7 +103,7 @@ void apply_drc_window() {
     if (!w) return;
     const bool want = gfx::drc_window_wanted();
     const bool shown = !(SDL_GetWindowFlags(w) & SDL_WINDOW_HIDDEN);
-    if (want && !shown && !getenv("NSMBU_HIDDEN_WINDOWS")) {
+    if (want && !shown && !env::HIDDEN_WINDOWS()) {
         SDL_ShowWindow(w);
         gfxvk::R.drc.visible = true;
     } else if (!want && shown) {
@@ -147,26 +148,26 @@ void set_res_scale(float s) { gfxvk::set_res_scale(s); }
 void graphics_changed() {
     std::lock_guard<std::mutex> lk(g_mu);
     load_locked();
-    auto put = [&](const char* key, std::initializer_list<const char*> env, const std::string& v) {
-        if (!env_set(env)) g_values[key] = v;
+    auto put = [&](const char* key, std::initializer_list<env::Var> vars, const std::string& v) {
+        if (!env_set(vars)) g_values[key] = v;
     };
     char res[16];
     snprintf(res, sizeof res, "%g", gfxvk::requested_res_scale());
-    put("resScale", {"NSMBU_RES_SCALE"}, res);
-    put("aniso", {"NSMBU_ANISO"}, gfxvk::aniso_enabled() ? "1" : "0");
-    put("fxaa", {"NSMBU_FXAA"}, gfxvk::fxaa_enabled() ? "1" : "0");
+    put("resScale", {env::RES_SCALE}, res);
+    put("aniso", {env::ANISO}, gfxvk::aniso_enabled() ? "1" : "0");
+    put("fxaa", {env::FXAA}, gfxvk::fxaa_enabled() ? "1" : "0");
 #ifdef __ANDROID__
 
-    put("fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"}, interp::mode() == 1 || perf_hint::fps60_chosen() ? "1" : "0");
+    put("fps60", {env::INTERP, env::INTERP_FPS}, interp::mode() == 1 || perf_hint::fps60_chosen() ? "1" : "0");
 #else
-    put("fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"}, std::to_string(interp::mode()));
+    put("fps60", {env::INTERP, env::INTERP_FPS}, std::to_string(interp::mode()));
 #endif
 
-    put("interpFps", {"NSMBU_INTERP_FPS"}, std::to_string(interp::fps()));
-    put("fps60Paced", {"NSMBU_INTERP_PACED"}, interp::paced_interpolation_at(60) ? "1" : "0");
-    put("fpsHighPaced", {"NSMBU_INTERP_PACED"}, interp::paced_interpolation_at(120) ? "1" : "0");
-    put("scaleFilter", {"NSMBU_SCALE_FILTER"}, std::to_string(gfxvk::scale_filter()));
-    if (!env_set({"NSMBU_VK_PRESENT_MODE"}) && gfxvk::present_mode_user_set()) {
+    put("interpFps", {env::INTERP_FPS}, std::to_string(interp::fps()));
+    put("fps60Paced", {env::INTERP_PACED}, interp::paced_interpolation_at(60) ? "1" : "0");
+    put("fpsHighPaced", {env::INTERP_PACED}, interp::paced_interpolation_at(120) ? "1" : "0");
+    put("scaleFilter", {env::SCALE_FILTER}, std::to_string(gfxvk::scale_filter()));
+    if (!env_set({env::VK_PRESENT_MODE}) && gfxvk::present_mode_user_set()) {
         g_values["vkPresentMode"] = std::to_string(gfxvk::present_mode());
         g_values["vkPresentChosen"] = "1";
     }
@@ -180,17 +181,17 @@ void load_saved_options() {
         load_locked();
         v = g_values;
     }
-    auto saved = [&](const char* key, std::initializer_list<const char*> env) { return !env_set(env) && v.count(key); };
+    auto saved = [&](const char* key, std::initializer_list<env::Var> vars) { return !env_set(vars) && v.count(key); };
     auto num = [&](const char* key) { return atof(v[key].c_str()); };
-    if (saved("resScale", {"NSMBU_RES_SCALE"})) gfxvk::set_res_scale((float)num("resScale"));
-    if (saved("aniso", {"NSMBU_ANISO"})) gfxvk::set_aniso(num("aniso") != 0);
-    if (saved("fxaa", {"NSMBU_FXAA"})) gfxvk::set_fxaa(num("fxaa") != 0);
-    if (saved("interpFps", {"NSMBU_INTERP_FPS"})) interp::set_fps((int)num("interpFps"));
-    if (saved("fps60", {"NSMBU_INTERP", "NSMBU_INTERP_FPS"})) interp::set_mode((int)num("fps60"));
-    if (saved("fps60Paced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(60, num("fps60Paced") != 0);
-    if (saved("fpsHighPaced", {"NSMBU_INTERP_PACED"})) interp::set_paced_interpolation_at(120, num("fpsHighPaced") != 0);
-    if (saved("scaleFilter", {"NSMBU_SCALE_FILTER"})) gfxvk::set_scale_filter((int)num("scaleFilter"));
-    if (saved("vkPresentMode", {"NSMBU_VK_PRESENT_MODE"})) {
+    if (saved("resScale", {env::RES_SCALE})) gfxvk::set_res_scale((float)num("resScale"));
+    if (saved("aniso", {env::ANISO})) gfxvk::set_aniso(num("aniso") != 0);
+    if (saved("fxaa", {env::FXAA})) gfxvk::set_fxaa(num("fxaa") != 0);
+    if (saved("interpFps", {env::INTERP_FPS})) interp::set_fps((int)num("interpFps"));
+    if (saved("fps60", {env::INTERP, env::INTERP_FPS})) interp::set_mode((int)num("fps60"));
+    if (saved("fps60Paced", {env::INTERP_PACED})) interp::set_paced_interpolation_at(60, num("fps60Paced") != 0);
+    if (saved("fpsHighPaced", {env::INTERP_PACED})) interp::set_paced_interpolation_at(120, num("fpsHighPaced") != 0);
+    if (saved("scaleFilter", {env::SCALE_FILTER})) gfxvk::set_scale_filter((int)num("scaleFilter"));
+    if (saved("vkPresentMode", {env::VK_PRESENT_MODE})) {
         const int mode = (int)num("vkPresentMode");
         const bool chosen = v.count("vkPresentChosen") && v["vkPresentChosen"] == "1";
         if (chosen || mode != gfxvk::kPresentFifo) gfxvk::set_present_mode(mode);
@@ -209,9 +210,9 @@ void load_saved_options() {
     g_shown = !input::pro_controller();
     apply_drc_window();
     LOG("[display] GamePad screen mode: %s%s", kModeNames[g_mode], g_shown ? "" : " (hidden)");
-    if (saved("runInBackground", {"NSMBU_RUN_IN_BACKGROUND"}))
+    if (saved("runInBackground", {env::RUN_IN_BACKGROUND}))
         g_run_in_background.store(num("runInBackground") != 0, std::memory_order_relaxed);
-    else if (const char* e = getenv("NSMBU_RUN_IN_BACKGROUND"))
+    else if (const char* e = env::RUN_IN_BACKGROUND())
         g_run_in_background.store(atoi(e) != 0, std::memory_order_relaxed);
     apply_background_hint(g_run_in_background.load(std::memory_order_relaxed));
 #ifndef __ANDROID__

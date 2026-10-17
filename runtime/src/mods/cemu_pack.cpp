@@ -15,6 +15,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
+#include "env.h"
 namespace mods::cemu {
 namespace fs=std::filesystem;
 namespace {
@@ -199,7 +200,7 @@ bool has_shaders(){return shader_present.load(std::memory_order_acquire)&&vulkan
 bool texture_extent(uint32_t width,uint32_t height,uint32_t format,uint32_t depth,uint32_t tile,uint32_t& ow,uint32_t& oh){
     if(!present.load(std::memory_order_acquire))return false;
     for(const auto& r:active.rules){if(r.shaders&&!vulkan())continue;if(r.width&&r.width!=width)continue;if(r.height&&r.height!=height)continue;if(r.depth&&r.depth!=depth)continue;if(!r.formats.empty()&&std::find(r.formats.begin(),r.formats.end(),format)==r.formats.end())continue;if(!r.tiles.empty()&&std::find(r.tiles.begin(),r.tiles.end(),tile)==r.tiles.end())continue;ow=r.out_width?r.out_width:width;oh=r.out_height?r.out_height:height;
-        if(std::getenv("NSMBU_TEST_CEMU_TRACE")){thread_local std::set<std::tuple<std::string,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t>> seen;if(seen.emplace(r.owner,width,height,format,ow,oh).second)std::fprintf(stderr,"[cemu-pack] %s target %ux%u format %x -> %ux%u\n",r.owner.c_str(),width,height,format,ow,oh);}
+        if(env::TEST_CEMU_TRACE()){thread_local std::set<std::tuple<std::string,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t>> seen;if(seen.emplace(r.owner,width,height,format,ow,oh).second)std::fprintf(stderr,"[cemu-pack] %s target %ux%u format %x -> %ux%u\n",r.owner.c_str(),width,height,format,ow,oh);}
         return true;}return false;
 }
 void report_shader(uint64_t base,uint64_t aux,bool vertex,bool accepted,const std::string& reason){

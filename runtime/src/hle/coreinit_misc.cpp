@@ -15,6 +15,7 @@
 
 #include "../runtime.h"
 
+#include "env.h"
 struct GuestArgs {
     Cpu* c = nullptr;
     int gpr = 0, fpr = 0;
@@ -101,7 +102,7 @@ static uint32_t console_language() {
     static const uint32_t lang = [] {
         const char* why = "NSMBU_LANGUAGE";
         std::string saved;
-        const char* e = getenv("NSMBU_LANGUAGE");
+        const char* e = env::LANGUAGE();
         if ((!e || !*e) && hostui::get("language", saved)) {
             e = saved.c_str();
             why = "saved setting";
@@ -119,8 +120,8 @@ static uint32_t console_language() {
         }
 
         std::string region_text;
-        const char* env_language = getenv("NSMBU_LANGUAGE");
-        if (const char* r = getenv("NSMBU_LANGUAGE_REGION"); r && *r) region_text = r;
+        const char* env_language = env::LANGUAGE();
+        if (const char* r = env::LANGUAGE_REGION(); r && *r) region_text = r;
         else if ((!env_language || !*env_language) && !hostui::get("language_region", region_text)) region_text.clear();
         const int region = game_lang::region_from_code(region_text);
         const game_lang::Start s = game_lang::choose((int)v, region);

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <string>
 #include "game_languages.h"
+#include "env.h"
 namespace config { std::string game_dir, save_dir; }
 void log_msg(const char*, ...) {}
 int main(int argc, char** argv) {
@@ -34,9 +35,9 @@ int main(int argc, char** argv) {
     config::game_dir = (root / "").string();
     assert(fs::path(game_lang::sources_dir()) == root.parent_path() / "game-lang");
 #ifdef _WIN32
-    _putenv_s("NSMBU_LANG_DIR", "elsewhere");
+    _putenv_s(env::LANG_DIR.name(), "elsewhere");
 #else
-    setenv("NSMBU_LANG_DIR", "elsewhere", 1);
+    setenv(env::LANG_DIR.name(), "elsewhere", 1);
 #endif
     assert(game_lang::sources_dir() == "elsewhere");
     assert(game_lang::region_from_code("EU") == game_lang::kEurope && game_lang::region_from_code("Japan") == game_lang::kJapan);

@@ -1,3 +1,4 @@
+#include "env.h"
 #import <AppKit/AppKit.h>
 #include "../overlay/overlay.h"
 #include "../motion/motion.h"
@@ -17,7 +18,7 @@ bool mouse_captured() { return false; }
 
 void update_gyro_mouse() {
     const bool want = g_tv && motion::mouse_drives_gyro() && !overlay::captures() && g_tv.isKeyWindow && NSApp.isActive &&
-                      !getenv("NSMBU_NO_HOST_INPUT");
+                      !env::NO_HOST_INPUT();
     if (want && !g_gyro_capture) {
         g_gyro_capture = true;
         CGAssociateMouseAndMouseCursorPosition(false);
@@ -34,7 +35,7 @@ void mouse_release() {}
 
 void mouse_init(void* tv_window) {
     g_tv = (__bridge NSWindow*)tv_window;
-    if (getenv("NSMBU_NO_HOST_INPUT")) return;
+    if (env::NO_HOST_INPUT()) return;
     g_tv.acceptsMouseMovedEvents = YES;
     NSEventMask mask = NSEventMaskMouseMoved | NSEventMaskLeftMouseDragged | NSEventMaskRightMouseDragged |
                        NSEventMaskOtherMouseDragged;

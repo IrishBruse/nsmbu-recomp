@@ -5,18 +5,19 @@
 #include <cstring>
 #include "../../interp.h"
 #include "gx2/gx2.h"
+#include "env.h"
 namespace gfxvk {
 namespace {
 int normalize(int v) { return (v % 3 + 3) % 3; }
 struct Settings {
-    std::atomic<bool> aniso{std::getenv("NSMBU_ANISO") && std::atoi(std::getenv("NSMBU_ANISO")) != 0};
-    std::atomic<bool> fxaa{std::getenv("NSMBU_FXAA") && std::atoi(std::getenv("NSMBU_FXAA")) != 0};
-    std::atomic<int> filter{[] { const char* e = std::getenv("NSMBU_SCALE_FILTER"); return e && !std::strcmp(e,"sharp") ? 1 : e && !std::strcmp(e,"integer") ? 2 : 0; }()};
+    std::atomic<bool> aniso{env::ANISO.enabled()};
+    std::atomic<bool> fxaa{env::FXAA.enabled()};
+    std::atomic<int> filter{[] { const char* e = env::SCALE_FILTER(); return e && !std::strcmp(e,"sharp") ? 1 : e && !std::strcmp(e,"integer") ? 2 : 0; }()};
     std::atomic<bool> available[static_cast<int>(GraphicsFeature::Count)]{};
 };
 Settings& settings() { static Settings s; return s; }
 int env_present_mode() {
-    const char* e = std::getenv("NSMBU_VK_PRESENT_MODE");
+    const char* e = env::VK_PRESENT_MODE();
     if (!e || !*e) return -1;
     return !std::strcmp(e, "mailbox") ? kPresentMailbox : !std::strcmp(e, "immediate") ? kPresentImmediate : kPresentFifo;
 }

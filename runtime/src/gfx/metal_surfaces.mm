@@ -14,6 +14,7 @@
 #include "metal.h"
 #include "runtime.h"
 #include "write_watch.h"
+#include "env.h"
 #define XXH_INLINE_ALL
 #include "../../third_party/xxhash/xxhash.h"
 
@@ -41,7 +42,7 @@ static float parse_scale(const char* e) {
     float f = e ? (float)atof(e) : 1.0f;
     return std::clamp(f > 0 ? f : 1.0f, 1.0f, 4.0f);
 }
-static std::atomic<float> g_res_requested{parse_scale(getenv("NSMBU_RES_SCALE"))};
+static std::atomic<float> g_res_requested{parse_scale(env::RES_SCALE())};
 static float g_res_frame = g_res_requested.load();
 static void latch_aspect();
 float res_scale() { return g_res_frame; }
@@ -53,7 +54,7 @@ void latch_res_scale() {
 
     static std::vector<std::pair<uint64_t, float>> at = [] {
         std::vector<std::pair<uint64_t, float>> v;
-        if (const char* e = getenv("NSMBU_RES_SCALE_AT"))
+        if (const char* e = env::RES_SCALE_AT())
             for (char* p = (char*)e; *p;) {
                 uint64_t f = strtoull(p, &p, 10);
                 if (*p++ != ':') break;
@@ -91,7 +92,7 @@ static float target_scale(const Surface* s) {
     uint32_t width,height;
     if(!s->fmt.compressed&&s->mips==1&&mods::cemu::texture_extent(s->width,s->height,s->format,s->slices,s->tileMode,width,height))return 1.0f;
     if (s->fmt.compressed || s->mips > 1) return 1.0f;
-    static const float shadow = getenv("NSMBU_SHADOW_SCALE") ? parse_scale(getenv("NSMBU_SHADOW_SCALE")) : 0.0f;
+    static const float shadow = env::SHADOW_SCALE() ? parse_scale(env::SHADOW_SCALE()) : 0.0f;
     if (shadow && s->isDepth && s->slices > 1) return shadow;
     return res_scale();
 }
@@ -163,7 +164,7 @@ static Surface* rescale(Surface* s) {
     resample(old, t, s->fmt, old.textureType == MTLTextureType2DArray ? (uint32_t)old.arrayLength : 1);
     s->tex = t;
     forget_texture_views();
-    if (getenv("NSMBU_LOG_RESCALE"))
+    if (env::LOG_RESCALE())
         LOG("[gfx] rescaled %08X %ux%u fmt %X to %lux%lu", s->addr, s->width, s->height, s->format, (unsigned long)t.width,
             (unsigned long)t.height);
     return s;
@@ -381,7 +382,7 @@ Surface* find_or_create_surface(const SurfaceDesc& d, bool forRendering) {
             (unsigned long)s->fmt.pixel);
         return nullptr;
     }
-    if (forRendering && getenv("NSMBU_LOG_RESCALE"))
+    if (forRendering && env::LOG_RESCALE())
         LOG("[gfx] render target %08X %ux%ux%u fmt %X%s -> %lux%lu", s->addr, s->width, s->height, s->slices, s->format,
             s->isDepth ? " depth" : "", (unsigned long)s->tex.width, (unsigned long)s->tex.height);
     Surface* raw = s.get();
@@ -496,7 +497,7 @@ uint64_t g_stat_full_checks, g_stat_uploads, g_stat_invalidates, g_stat_invalida
 // Companion mip chains: preserve AGL's own blurred levels instead of sampling only level 0.
 // Based on GreenNaugahyde/ZeldaWWHDRecompAndroid commit 73b54e1, adapted to Metal.
 static Surface* with_mip_chain(Surface* s, const SurfaceDesc& d) {
-    static const bool off = getenv("NSMBU_NO_RT_MIPS") != nullptr;
+    static const bool off = env::NO_RT_MIPS() != nullptr;
     if (off || !s || !s->tex || s->mips != 1 || d.mips <= 1 || s->fmt.depth || s->fmt.compressed ||
         s->fmt.kind != FormatInfo::FLOAT || s->tex.textureType != MTLTextureType2D || s->slices != 1) return s;
     uint32_t w = (uint32_t)s->tex.width, h = (uint32_t)s->tex.height, full = 1;
@@ -662,7 +663,7 @@ static void check_texture(Surface* s) {
                 if (wwatch::written_since(a, n, s->watchStamp)) {
                     full = true;
                     // debug: NSMBU_LOG_TEXCHECK=1 logs textures re-checked because their pages were written
-                    static const bool log = getenv("NSMBU_LOG_TEXCHECK") != nullptr;
+                    static const bool log = env::LOG_TEXCHECK() != nullptr;
                     static int logged = 0;
                     if (log && logged++ < 400)
                         LOG("[texcheck] frame %llu %08X %ux%u fmt %X mips %u: write at %08X+%X", (unsigned long long)R.frame, s->addr,
@@ -971,7 +972,7 @@ void copy_surface_impl(uint32_t srcAddr, uint32_t srcMip, uint32_t srcSlice, uin
     if (Latte::TM_IsMacroTiled(dtm))
         LatteAddrLib::SetupCachedSurfaceAddrInfo(&dci, dstSlice, 0, bpp, di.pitch, di.height, di.depth, 1, dtm, false, (dswz >> 8) & 1, (dswz >> 9) & 3);
     // debug: NSMBU_COPYDBG=1 logs each CPU-path copy (destination range, time); see GX2CopySurface
-    static const bool dbg = getenv("NSMBU_COPYDBG") != nullptr;
+    static const bool dbg = env::COPYDBG() != nullptr;
     if (dbg)
         LOG("[copydbg] exec cpu copy t=%.3f src %08X dst %08X..%08X (%ux%u fmt %X tm %u->%u)", timebase::now() / (double)timebase::kTicksPerSec,
             sbase, dbase, dbase + (uint32_t)di.surfSize, w, h, (uint32_t)s->format.value(), (uint32_t)stm, (uint32_t)dtm);

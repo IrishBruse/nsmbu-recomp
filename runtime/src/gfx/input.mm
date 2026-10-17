@@ -1,5 +1,6 @@
 
 
+#include "env.h"
 #import <AppKit/AppKit.h>
 #import <GameController/GameController.h>
 #import <QuartzCore/QuartzCore.h>
@@ -107,7 +108,7 @@ static bool modifier_down(uint16_t code, NSEventModifierFlags f) {
 
 static const NSTimeInterval kTestKeyTimestamp = 4242.0;
 static void start_test_keys() {
-    const char* e = getenv("NSMBU_TEST_POST_KEYS");
+    const char* e = env::TEST_POST_KEYS();
     if (!e || !*e) return;
     struct Press { uint64_t frame; uint16_t code; NSEventModifierFlags flags; NSString* chars; uint64_t hold; };
     auto presses = std::make_shared<std::vector<Press>>();
@@ -169,7 +170,7 @@ static void start_test_keys() {
 }
 
 static void update_motion_sensors() API_AVAILABLE(macos(11.0)) {
-    const bool want = motion::wants_controller_sensors() && !getenv("NSMBU_NO_HOST_INPUT");
+    const bool want = motion::wants_controller_sensors() && !env::NO_HOST_INPUT();
     static NSMutableSet* active = [NSMutableSet set];
     int n = 0;
     NSArray<GCController*>* connected = [GCController controllers];
@@ -205,7 +206,7 @@ static void update_motion_sensors() API_AVAILABLE(macos(11.0)) {
                 const float g = 9.80665f;
                 float gyro[3] = {(float)r.x, (float)r.z, (float)-r.y};
                 float acc[3] = {(float)-a.x * g, (float)-a.z * g, (float)a.y * g};
-                static const bool log = getenv("NSMBU_GYRO_LOG") != nullptr;
+                static const bool log = env::GYRO_LOG() != nullptr;
                 static double last_log = 0;
                 if (log && CACurrentMediaTime() - last_log > 0.5) {
                     last_log = CACurrentMediaTime();
@@ -233,7 +234,7 @@ void init() {
         if (gfx::controls_window_is_key()) return e;
         uint16_t code = e.keyCode & 0xFF;
         const bool posted = e.timestamp == kTestKeyTimestamp;
-        if (getenv("NSMBU_NO_HOST_INPUT") && !posted) return e;
+        if (env::NO_HOST_INPUT() && !posted) return e;
         {
 
             NSEventModifierFlags f = e.modifierFlags;
@@ -275,7 +276,7 @@ void init() {
 
         static int tick = 0;
         if (@available(macOS 11.0, *)) if (tick++ % 60 == 0) update_motion_sensors();
-        if (!overlay::blocks_input() && !getenv("NSMBU_NO_HOST_INPUT")) {
+        if (!overlay::blocks_input() && !env::NO_HOST_INPUT()) {
             bool keys[256];
             {
                 std::lock_guard<std::mutex> lk(g_mu);
@@ -291,7 +292,7 @@ void init() {
 struct Press { uint64_t from, to; uint32_t bits; };
 static std::vector<Press> scripted() {
     std::vector<Press> v;
-    if (const char* e = getenv("NSMBU_PRESS")) {
+    if (const char* e = env::PRESS()) {
         unsigned long long a, b; unsigned bits; int n;
         while (sscanf(e, "%llu-%llu:%x%n", &a, &b, &bits, &n) == 3) {
             v.push_back({a, b, bits});
@@ -306,7 +307,7 @@ static std::vector<Press> scripted() {
 struct KeyPress { uint64_t from, to; std::vector<int> codes; };
 static std::vector<KeyPress> scripted_keys() {
     std::vector<KeyPress> v;
-    if (const char* e = getenv("NSMBU_KEYS")) {
+    if (const char* e = env::KEYS()) {
         unsigned long long a, b; int n;
         while (sscanf(e, "%llu-%llu:%n", &a, &b, &n) == 2) {
             e += n;
@@ -329,9 +330,9 @@ static std::vector<KeyPress> scripted_keys() {
 }
 
 struct Stick { uint64_t from, to; float x, y; };
-static std::vector<Stick> scripted_stick(const char* var = "NSMBU_STICK") {
+static std::vector<Stick> scripted_stick(env::Var var = env::STICK) {
     std::vector<Stick> v;
-    if (const char* e = getenv(var)) {
+    if (const char* e = (var)()) {
         unsigned long long a, b; float x, y; int n;
         while (sscanf(e, "%llu-%llu:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
             v.push_back({a, b, x, y});
@@ -353,7 +354,7 @@ struct Scenario {
     int mode = -1;
     double mode_at = 0, end = 0;
     Scenario() {
-        if (const char* e = getenv("NSMBU_TEST_ORIGIN")) origin = strtoull(e, nullptr, 10);
+        if (const char* e = env::TEST_ORIGIN()) origin = strtoull(e, nullptr, 10);
         auto timed_sticks = [](const char* e, std::vector<TimedStick>& out) {
             double a, b; float x, y; int n;
             while (e && sscanf(e, "%lf-%lf:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
@@ -363,9 +364,9 @@ struct Scenario {
                 e++;
             }
         };
-        timed_sticks(getenv("NSMBU_TEST_STICK"), sticks);
-        timed_sticks(getenv("NSMBU_TEST_RSTICK"), rsticks);
-        if (const char* e = getenv("NSMBU_TEST_PRESS")) {
+        timed_sticks(env::TEST_STICK(), sticks);
+        timed_sticks(env::TEST_RSTICK(), rsticks);
+        if (const char* e = env::TEST_PRESS()) {
             double a, b; unsigned bits; int n;
             while (sscanf(e, "%lf-%lf:%x%n", &a, &b, &bits, &n) == 3) {
                 presses.push_back({a, b, bits});
@@ -374,8 +375,8 @@ struct Scenario {
                 e++;
             }
         }
-        if (const char* e = getenv("NSMBU_TEST_MODE")) sscanf(e, "%d@%lf", &mode, &mode_at);
-        if (const char* e = getenv("NSMBU_TEST_END")) end = atof(e);
+        if (const char* e = env::TEST_MODE()) sscanf(e, "%d@%lf", &mode, &mode_at);
+        if (const char* e = env::TEST_END()) end = atof(e);
     }
 };
 }
@@ -399,7 +400,7 @@ static void apply_scenario(PadState& s) {
     double t = (double)(interp::logic_steps() - s0) / 30.0;
     static std::atomic<bool> mode_set{false}, ended{false};
     static std::atomic<int> dbg{0};
-    if (getenv("NSMBU_TEST_DEBUG") && dbg++ % 30 == 0) LOG("[test] t=%.3f frame %llu", t, (unsigned long long)render::frame_count());
+    if (env::TEST_DEBUG() && dbg++ % 30 == 0) LOG("[test] t=%.3f frame %llu", t, (unsigned long long)render::frame_count());
     if (sc.mode >= 0 && t >= sc.mode_at && !mode_set.exchange(true)) {
         LOG("[test] t=%.3f s: 60 fps mode %d", t, sc.mode);
         interp::set_mode(sc.mode);
@@ -407,7 +408,7 @@ static void apply_scenario(PadState& s) {
 
     static std::vector<std::pair<double, int>> modes = [] {
         std::vector<std::pair<double, int>> v;
-        for (const char* e = getenv("NSMBU_TEST_MODES"); e && *e;) {
+        for (const char* e = env::TEST_MODES(); e && *e;) {
             int m; double at; int n;
             if (sscanf(e, "%d@%lf%n", &m, &at, &n) != 2) break;
             v.push_back({at, m});
@@ -435,7 +436,7 @@ static void apply_scenario(PadState& s) {
         if (t >= p.from && t < p.to) s.buttons |= p.bits;
     static std::vector<TimedStick> touches = [] {
         std::vector<TimedStick> v;
-        const char* e = getenv("NSMBU_TEST_TOUCH");
+        const char* e = env::TEST_TOUCH();
         double a, b; float x, y; int n;
         while (e && sscanf(e, "%lf-%lf:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
             v.push_back({a, b, x, y});
@@ -450,7 +451,7 @@ static void apply_scenario(PadState& s) {
         if (t >= p.from && t < p.to) g_test_touch = true, g_test_tx = p.x, g_test_ty = p.y;
 }
 
-static std::atomic<bool> g_pro{getenv("NSMBU_PRO_CONTROLLER") != nullptr};
+static std::atomic<bool> g_pro{env::PRO_CONTROLLER() != nullptr};
 bool pro_controller() { return g_pro.load(std::memory_order_relaxed); }
 void set_pro_controller(bool on) { g_pro = on; LOG("[input] keyboard/controller act as %s", on ? "Pro Controller" : "GamePad"); }
 
@@ -458,10 +459,10 @@ PadState read() {
     static const std::vector<Press> script = scripted();
     static const std::vector<Stick> sticks = scripted_stick();
     static const std::vector<KeyPress> keys = scripted_keys();
-    static const std::vector<Stick> rsticks = scripted_stick("NSMBU_RSTICK");
+    static const std::vector<Stick> rsticks = scripted_stick(env::RSTICK);
     std::lock_guard<std::mutex> lk(g_mu);
 
-    static const bool no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
+    static const bool no_host = env::NO_HOST_INPUT() != nullptr;
     if (!keys.empty()) {
         memset(g_script_keys, 0, sizeof g_script_keys);
         for (auto& p : keys)
@@ -485,7 +486,7 @@ PadState read() {
     s.ty = g_ty;
     if (g_test_touch) s.touch = true, s.tx = g_test_tx, s.ty = g_test_ty;
 
-    static const bool log_buttons = getenv("NSMBU_LOG_BUTTONS") != nullptr;
+    static const bool log_buttons = env::LOG_BUTTONS() != nullptr;
     static uint32_t last_buttons = 0;
     if (log_buttons && s.buttons != last_buttons) {
         LOG("[input] frame %llu buttons %04X", (unsigned long long)render::frame_count(), s.buttons);

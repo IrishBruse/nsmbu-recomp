@@ -1,4 +1,5 @@
 #pragma once
+#include "env.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -59,7 +60,7 @@ inline void set_thread_name(const char* name) {
 }
 
 inline void boost_thread_priority() {
- if(getenv("NSMBU_NO_QOS")) return;
+ if(env::NO_QOS()) return;
 #ifdef __APPLE__
  pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE,0);
 #elif defined(_WIN32)
@@ -133,7 +134,7 @@ inline bool memory_resident_supported() {
 #ifdef _WIN32
  return false;
 #else
- static const bool on=getenv("NSMBU_STATE_RESIDENT_OFF")==nullptr;
+ static const bool on=env::STATE_RESIDENT_OFF()==nullptr;
  return on;
 #endif
 }
@@ -181,7 +182,7 @@ inline const std::string& portable_user_dir() {
     return (s==std::string::npos?e:e.substr(0,s))+"/nsmbu";
    }
   }
-  if(const char* override=std::getenv("NSMBU_USER_DIR"))return std::string(override);
+  if(const char* override=env::USER_DIR())return std::string(override);
   return std::string();
  }();
  return dir;

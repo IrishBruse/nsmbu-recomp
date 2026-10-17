@@ -25,6 +25,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include "env.h"
 namespace render { uint64_t frame_count(); }
 namespace gfxvk { bool graphics_hotkey(char key, bool activate); }
 namespace gfx { void display_plus_pressed(); }
@@ -271,7 +272,7 @@ static void update_sensors(){
   if(g_sensors_on)LOG("[gyro] the game window %s the focus%s",focus?"has":"lost",focus?"":": SDL pauses controller events until it is back");
  }
  if(want==g_sensors_on){
-  if(!want||!focus||getenv("NSMBU_NO_HOST_INPUT"))return;
+  if(!want||!focus||env::NO_HOST_INPUT())return;
   const uint64_t now=SDL_GetTicks();
   for(auto [id,pad]:g_controllers){
    if(!SDL_GamepadConnected(pad)||!has_motion(pad))continue;
@@ -304,7 +305,7 @@ static void open_controller(SDL_JoystickID id){
 void init(){
  input_map::load_startup();
 
- if(!getenv("NSMBU_NO_CONTROLLERS")) {
+ if(!env::NO_CONTROLLERS()) {
   if(!SDL_InitSubSystem(SDL_INIT_GAMEPAD)){LOG("[input] SDL gamepad initialization: %s",SDL_GetError());return;}
   int count=0;auto* ids=SDL_GetGamepads(&count);for(int i=0;i<count;i++)open_controller(ids[i]);SDL_free(ids);
   SDL_AddEventWatch(rumble_quit_watch,nullptr);
@@ -359,7 +360,7 @@ static bool test_event(const SDL_Event& e){return e.common.timestamp==kTestEvent
 static void post_test_keys(){
  struct Post{uint64_t frame;SDL_Scancode code;bool down;std::string text;};
  static std::vector<Post> posts=[]{
-  std::vector<Post> v;const char* e=getenv("NSMBU_TEST_POST_KEYS");
+  std::vector<Post> v;const char* e=env::TEST_POST_KEYS();
   for(const char* p=e;p&&*p;){
    char* end;uint64_t f=strtoull(p,&end,10);if(*end!=':')break;p=end+1;
    size_t len=strcspn(p,",");std::string k(p,len);p+=len+(p[len]==',');
@@ -385,7 +386,7 @@ static void post_test_keys(){
 
 static bool text_entry_event(const SDL_Event& event){
  if(!text_entry::active()||overlay::is_open())return false;
- if(getenv("NSMBU_NO_HOST_INPUT")&&!test_event(event))return false;
+ if(env::NO_HOST_INPUT()&&!test_event(event))return false;
  switch(event.type){
  case SDL_EVENT_TEXT_INPUT:text_entry::text(event.text.text);return true;
  case SDL_EVENT_TEXT_EDITING:text_entry::preedit(event.edit.text);return true;
@@ -399,9 +400,9 @@ static bool text_entry_event(const SDL_Event& event){
 void handle_event(const SDL_Event& event){
  if(overlay::captures())mods::update_mouse();
  else if(mods::handle_mouse_event(event))return;
- if(event.type==SDL_EVENT_GAMEPAD_ADDED&&!getenv("NSMBU_NO_CONTROLLERS"))open_controller(event.gdevice.which);
+ if(event.type==SDL_EVENT_GAMEPAD_ADDED&&!env::NO_CONTROLLERS())open_controller(event.gdevice.which);
  if(event.type==SDL_EVENT_GAMEPAD_REMOVED){std::lock_guard lk(g_pads_mu);auto i=g_controllers.find(event.gdevice.which);if(i!=g_controllers.end()){SDL_CloseGamepad(i->second);g_controllers.erase(i);}g_rumble_controllers.erase(event.gdevice.which);g_rumble_sent.erase(event.gdevice.which);g_accel.erase(event.gdevice.which);g_sensor_seen.erase(event.gdevice.which);g_sensor_kick.erase(event.gdevice.which);motion::controller_gone(event.gdevice.which);}
- if(event.type==SDL_EVENT_GAMEPAD_SENSOR_UPDATE){g_sensor_seen[event.gsensor.which]=SDL_GetTicks();if(!getenv("NSMBU_NO_HOST_INPUT")&&!overlay::blocks_input())sensor_event(event.gsensor);return;}
+ if(event.type==SDL_EVENT_GAMEPAD_SENSOR_UPDATE){g_sensor_seen[event.gsensor.which]=SDL_GetTicks();if(!env::NO_HOST_INPUT()&&!overlay::blocks_input())sensor_event(event.gsensor);return;}
  if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST)release_keys();
  if(text_entry_event(event))return;
  if(g_done){
@@ -418,7 +419,7 @@ void handle_event(const SDL_Event& event){
    }show_prompt();
   }return;
  }
- if(getenv("NSMBU_NO_HOST_INPUT")&&!test_event(event))return;
+ if(env::NO_HOST_INPUT()&&!test_event(event))return;
  if(overlay_event(event))return;
 
  if(event.type==SDL_EVENT_KEY_DOWN&&!event.key.repeat){int code=keycode(event.key.scancode);if(code>=0&&screenshot::key_down(code))return;}
@@ -450,7 +451,7 @@ void handle_event(const SDL_Event& event){
  }
  #ifdef __ANDROID__
 
- static const bool keyboardPad=getenv("NSMBU_ANDROID_KEYBOARD")!=nullptr;
+ static const bool keyboardPad=env::ANDROID_KEYBOARD()!=nullptr;
  if(!keyboardPad&&(event.type==SDL_EVENT_KEY_DOWN||event.type==SDL_EVENT_KEY_UP))return;
  #endif
 
@@ -495,14 +496,14 @@ void update(){
 
  {static bool plus=false;const bool now=(state.buttons&input::kPlus)!=0;if(now&&!plus&&!overlay::blocks_input())gfx::display_plus_pressed();plus=now;}
  std::lock_guard lk(g_mu);std::copy(std::begin(v),std::end(v),g_values);g_pad=state;
- if(!overlay::blocks_input()&&!getenv("NSMBU_NO_HOST_INPUT")){motion::poll_recalibrate(v,g_keys);screenshot::poll_controller(v);}
+ if(!overlay::blocks_input()&&!env::NO_HOST_INPUT()){motion::poll_recalibrate(v,g_keys);screenshot::poll_controller(v);}
 }
 void prompt_text(const std::u16string& initial,int max_len,std::function<void(bool,std::u16string)> done){std::lock_guard lk(g_mu);g_initial=initial;g_pending_max_len=std::max(0,max_len);if(g_initial.size()>(size_t)g_pending_max_len)g_initial.resize(g_pending_max_len);g_pending=std::move(done);}
 
 struct Press { uint64_t from, to; uint32_t bits; };
 static std::vector<Press> scripted() {
     std::vector<Press> v;
-    if (const char* e = getenv("NSMBU_PRESS")) {
+    if (const char* e = env::PRESS()) {
         unsigned long long a, b; unsigned bits; int n;
         while (sscanf(e, "%llu-%llu:%x%n", &a, &b, &bits, &n) == 3) {
             v.push_back({a, b, bits});
@@ -517,7 +518,7 @@ static std::vector<Press> scripted() {
 struct KeyPress { uint64_t from, to; std::vector<int> codes; };
 static std::vector<KeyPress> scripted_keys() {
     std::vector<KeyPress> v;
-    if (const char* e = getenv("NSMBU_KEYS")) {
+    if (const char* e = env::KEYS()) {
         unsigned long long a, b; int n;
         while (sscanf(e, "%llu-%llu:%n", &a, &b, &n) == 2) {
             e += n;
@@ -540,9 +541,9 @@ static std::vector<KeyPress> scripted_keys() {
 }
 
 struct Stick { uint64_t from, to; float x, y; };
-static std::vector<Stick> scripted_stick(const char* var = "NSMBU_STICK") {
+static std::vector<Stick> scripted_stick(env::Var var = env::STICK) {
     std::vector<Stick> v;
-    if (const char* e = getenv(var)) {
+    if (const char* e = (var)()) {
         unsigned long long a, b; float x, y; int n;
         while (sscanf(e, "%llu-%llu:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
             v.push_back({a, b, x, y});
@@ -564,7 +565,7 @@ struct Scenario {
     int mode = -1;
     double mode_at = 0, end = 0;
     Scenario() {
-        if (const char* e = getenv("NSMBU_TEST_ORIGIN")) origin = strtoull(e, nullptr, 10);
+        if (const char* e = env::TEST_ORIGIN()) origin = strtoull(e, nullptr, 10);
         auto timed_sticks = [](const char* e, std::vector<TimedStick>& out) {
             double a, b; float x, y; int n;
             while (e && sscanf(e, "%lf-%lf:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
@@ -574,9 +575,9 @@ struct Scenario {
                 e++;
             }
         };
-        timed_sticks(getenv("NSMBU_TEST_STICK"), sticks);
-        timed_sticks(getenv("NSMBU_TEST_RSTICK"), rsticks);
-        if (const char* e = getenv("NSMBU_TEST_PRESS")) {
+        timed_sticks(env::TEST_STICK(), sticks);
+        timed_sticks(env::TEST_RSTICK(), rsticks);
+        if (const char* e = env::TEST_PRESS()) {
             double a, b; unsigned bits; int n;
             while (sscanf(e, "%lf-%lf:%x%n", &a, &b, &bits, &n) == 3) {
                 presses.push_back({a, b, bits});
@@ -585,14 +586,74 @@ struct Scenario {
                 e++;
             }
         }
-        if (const char* e = getenv("NSMBU_TEST_MODE")) sscanf(e, "%d@%lf", &mode, &mode_at);
-        if (const char* e = getenv("NSMBU_TEST_END")) end = atof(e);
+        if (const char* e = env::TEST_MODE()) sscanf(e, "%d@%lf", &mode, &mode_at);
+        if (const char* e = env::TEST_END()) end = atof(e);
     }
 };
 }
 }
 namespace interp { void set_mode(int m); uint64_t logic_steps(); }
 namespace input {
+static bool pad_same(const PadState& a, const PadState& b) {
+    return a.buttons == b.buttons && a.lx == b.lx && a.ly == b.ly && a.rx == b.rx && a.ry == b.ry
+        && a.touch == b.touch && a.tx == b.tx && a.ty == b.ty;
+}
+
+static void record_pad(const PadState& s) {
+    const char* path = env::RECORD_INPUT();
+    if (!path || !path[0] || env::REPLAY_INPUT()) return;
+    static FILE* f = nullptr;
+    static bool opened = false;
+    static PadState prev{};
+    static bool have = false;
+    if (!opened) {
+        opened = true;
+        f = fopen(path, "w");
+        if (!f) { LOG("[input] can't write %s", path); return; }
+        setvbuf(f, nullptr, _IONBF, 0);
+        fprintf(f, "# nsmbu-input 1\n# step buttons lx ly rx ry touch tx ty\n");
+        LOG("[input] recording %s", path);
+    }
+    if (!f || (have && pad_same(prev, s))) return;
+    prev = s;
+    have = true;
+    fprintf(f, "%llu %08X %.9g %.9g %.9g %.9g %d %.9g %.9g\n",
+        (unsigned long long)interp::logic_steps(), s.buttons, s.lx, s.ly, s.rx, s.ry, s.touch ? 1 : 0, s.tx, s.ty);
+}
+
+struct ReplaySample { uint64_t step; PadState pad; };
+static const std::vector<ReplaySample>& replay_samples() {
+    static std::vector<ReplaySample> samples;
+    static bool loaded = false;
+    if (loaded) return samples;
+    const char* path = env::REPLAY_INPUT();
+    if (!path || !path[0]) return samples;
+    loaded = true;
+    FILE* f = fopen(path, "r");
+    if (!f) { LOG("[input] can't read %s", path); return samples; }
+    char line[256];
+    while (fgets(line, sizeof line, f)) {
+        if (line[0] == '#' || line[0] == '\n') continue;
+        unsigned long long step; unsigned buttons; float lx, ly, rx, ry, tx, ty; int touch;
+        if (sscanf(line, "%llu %x %f %f %f %f %d %f %f", &step, &buttons, &lx, &ly, &rx, &ry, &touch, &tx, &ty) != 9) continue;
+        PadState p;
+        p.buttons = buttons; p.lx = lx; p.ly = ly; p.rx = rx; p.ry = ry; p.touch = touch != 0; p.tx = tx; p.ty = ty;
+        samples.push_back({step, p});
+    }
+    fclose(f);
+    LOG("[input] replaying %zu samples from %s", samples.size(), path);
+    return samples;
+}
+
+static void apply_replay(PadState& s) {
+    const std::vector<ReplaySample>& samples = replay_samples();
+    if (samples.empty()) return;
+    const uint64_t step = interp::logic_steps();
+    static size_t i = 0;
+    while (i + 1 < samples.size() && samples[i + 1].step <= step) i++;
+    if (samples[i].step <= step) s = samples[i].pad;
+}
+
 static void apply_scenario(PadState& s) {
     static Scenario sc;
 
@@ -606,7 +667,7 @@ static void apply_scenario(PadState& s) {
     double t = (double)(interp::logic_steps() - s0) / 30.0;
     static std::atomic<bool> mode_set{false}, ended{false};
     static std::atomic<int> dbg{0};
-    if (getenv("NSMBU_TEST_DEBUG") && dbg++ % 30 == 0) LOG("[test] t=%.3f frame %llu", t, (unsigned long long)render::frame_count());
+    if (env::TEST_DEBUG() && dbg++ % 30 == 0) LOG("[test] t=%.3f frame %llu", t, (unsigned long long)render::frame_count());
     if (sc.mode >= 0 && t >= sc.mode_at && !mode_set.exchange(true)) {
         LOG("[test] t=%.3f s: 60 fps mode %d", t, sc.mode);
         interp::set_mode(sc.mode);
@@ -623,7 +684,7 @@ static void apply_scenario(PadState& s) {
         if (t >= p.from && t < p.to) s.buttons |= p.bits;
 }
 
-static std::atomic<bool> g_pro{getenv("NSMBU_PRO_CONTROLLER") != nullptr};
+static std::atomic<bool> g_pro{env::PRO_CONTROLLER() != nullptr};
 bool pro_controller() { return g_pro.load(std::memory_order_relaxed); }
 void set_pro_controller(bool on) { g_pro = on; LOG("[input] keyboard/controller act as %s", on ? "Pro Controller" : "GamePad"); }
 
@@ -631,10 +692,10 @@ PadState read() {
     static const std::vector<Press> script = scripted();
     static const std::vector<Stick> sticks = scripted_stick();
     static const std::vector<KeyPress> keys = scripted_keys();
-    static const std::vector<Stick> rsticks = scripted_stick("NSMBU_RSTICK");
+    static const std::vector<Stick> rsticks = scripted_stick(env::RSTICK);
     std::lock_guard<std::mutex> lk(g_mu);
 
-    static const bool no_host = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
+    static const bool no_host = env::NO_HOST_INPUT() != nullptr;
     if (!keys.empty()) {
         memset(g_script_keys, 0, sizeof g_script_keys);
         for (auto& p : keys)
@@ -657,13 +718,15 @@ PadState read() {
     s.tx = g_tx;
     s.ty = g_ty;
 
-    static const bool log_buttons = getenv("NSMBU_LOG_BUTTONS") != nullptr;
+    static const bool log_buttons = env::LOG_BUTTONS() != nullptr;
     static uint32_t last_buttons = 0;
     if (log_buttons && s.buttons != last_buttons) {
         LOG("[input] frame %llu buttons %04X", (unsigned long long)render::frame_count(), s.buttons);
         last_buttons = s.buttons;
     }
     if (overlay::blocks_input()) s = PadState{};
+    record_pad(s);
+    apply_replay(s);
     return s;
 }
 

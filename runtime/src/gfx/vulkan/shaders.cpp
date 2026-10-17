@@ -29,6 +29,7 @@
 #include <future>
 #include <unordered_map>
 
+#include "env.h"
 LatteDecompilerShader* FinishDecompiledShader(LatteDecompilerOutput_t& output);
 LatteFetchShader* LatteShaderRecompiler_createFetchShader(LatteFetchShader::CacheHash hash,
     uint32* regs, uint32* code, uint32 size);
@@ -148,8 +149,8 @@ void initialize_disk_cache() {
     diskInitialized=true;
     auto start=std::chrono::steady_clock::now();
     try {
-        const char* overridePath=getenv("NSMBU_VK_SHADER_CACHE");
-        const char* general=getenv("NSMBU_SHADER_CACHE");
+        const char* overridePath=env::VK_SHADER_CACHE();
+        const char* general=env::SHADER_CACHE();
         if((overridePath && !strcmp(overridePath,"0")) ||
            (!overridePath && general && !strcmp(general,"0"))) return;
         std::string dir=overridePath ? overridePath : host::config_dir()+"/shadercache/vulkan-shaders";
@@ -447,7 +448,7 @@ void free_decompiler(LatteDecompilerShader* shader) {
 
 uint32_t key_verify_rate() {
     static const uint32_t rate = [] {
-        const char* value = getenv("NSMBU_VK_SHADER_KEY_VERIFY");
+        const char* value = env::VK_SHADER_KEY_VERIFY();
         if (!value || !*value) return 0u;
         long parsed = strtol(value, nullptr, 10);
         return parsed > 0 ? uint32_t(std::min<long>(parsed, 1 << 20)) : 0u;
@@ -483,7 +484,7 @@ bool decompile(Shader& shader, const uint32_t* regs, bool vertex, LatteFetchShad
         options.vsOutputSemantics = link.exports;
     }
 
-    static const bool strictMul = !getenv("NSMBU_STRICT_MUL") || strcmp(getenv("NSMBU_STRICT_MUL"), "0");
+    static const bool strictMul = !env::STRICT_MUL() || strcmp(env::STRICT_MUL(), "0");
     options.strictMul = strictMul;
     uint64_t packBase=0;
     if(mods::cemu::has_shaders()) {
@@ -682,7 +683,7 @@ LatteFetchShader* get_fetch_shader(const uint32_t* regs, uint64_t* keyOut, uint6
     ++stats.fetchLookups;
     if (keyOut) *keyOut = 0;
     static const bool memo = [] {
-        const char* e = std::getenv("NSMBU_VK_FETCH_MEMO");
+        const char* e = env::VK_FETCH_MEMO();
         return e && !std::strcmp(e, "1");
     }();
     const bool cacheLast = memo && frame != ~uint64_t{0};
@@ -744,7 +745,7 @@ Shader* translate(const uint32_t* regs, bool vertex, LatteFetchShader* fetch, ui
     const uint64_t seed = base ^ (vertex ? fsKey * 31 : 0);
     ++stats.stateHashLookups;
     static const bool memoEnabled = [] {
-        const char* value = getenv("NSMBU_VK_SHADER_STATE_MEMO");
+        const char* value = env::VK_SHADER_STATE_MEMO();
         return value && !strcmp(value,"1");
     }();
     uint64_t linkage;

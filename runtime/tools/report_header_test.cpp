@@ -7,6 +7,7 @@
 #include <string>
 
 #include "build_info.h"
+#include "env.h"
 #include "report_header.h"
 
 using namespace reporthdr;
@@ -22,14 +23,14 @@ static void expect(const std::string& got, const std::string& want, const char* 
 static uint32_t vk(uint32_t major, uint32_t minor, uint32_t patch) { return (major << 22) | (minor << 12) | patch; }
 
 static std::map<std::string, std::string> g_env;
-static const char* fake_env(const char* name) {
-    auto it = g_env.find(name);
+static const char* fake_env(const env::Var& var) {
+    auto it = g_env.find((var).name());
     return it == g_env.end() ? nullptr : it->second.c_str();
 }
 
 static void default_env() {
     g_env.clear();
-    for (const char* n : kVulkanCpuPaths) g_env[n] = "1";
+    for (int i = 0; i < env::vulkan_cpu_path_count; ++i) g_env[(env::vulkan_cpu_paths[i]).name()] = "1";
 }
 static std::string joined(const std::vector<std::string>& v) {
     std::string s;
@@ -72,21 +73,21 @@ int main() {
 
     default_env();
     expect(joined(vulkan_overrides(fake_env)), "", "defaults: no overrides");
-    g_env["NSMBU_VK_LAZY_DRAW_DONE"] = "1";
-    g_env["NSMBU_VK_ASYNC_PRESENT"] = "2";
+    g_env[env::VK_LAZY_DRAW_DONE.name()] = "1";
+    g_env[env::VK_ASYNC_PRESENT.name()] = "2";
     expect(joined(vulkan_overrides(fake_env)), "", "explicit defaults: no overrides");
-    g_env["NSMBU_VK_REUSE_VERTEX_SNAPSHOTS"] = "0";
-    g_env["NSMBU_VK_SAMPLER_MEMO"] = "yes";
-    g_env.erase("NSMBU_VK_FETCH_MEMO");
-    g_env["NSMBU_VK_LAZY_DRAW_DONE"] = "0";
-    g_env["NSMBU_VK_ASYNC_PRESENT"] = "off";
+    g_env[env::VK_REUSE_VERTEX_SNAPSHOTS.name()] = "0";
+    g_env[env::VK_SAMPLER_MEMO.name()] = "yes";
+    g_env.erase(env::VK_FETCH_MEMO.name());
+    g_env[env::VK_LAZY_DRAW_DONE.name()] = "0";
+    g_env[env::VK_ASYNC_PRESENT.name()] = "off";
     expect(joined(vulkan_overrides(fake_env)),
            "NSMBU_VK_FETCH_MEMO unset|NSMBU_VK_SAMPLER_MEMO=yes|NSMBU_VK_REUSE_VERTEX_SNAPSHOTS=0|"
            "NSMBU_VK_LAZY_DRAW_DONE=0|NSMBU_VK_ASYNC_PRESENT=off",
            "overrides in list order");
 
     default_env();
-    for (const char* n : kVulkanCpuPaths) g_env[n] = "0";
+    for (int i = 0; i < env::vulkan_cpu_path_count; ++i) g_env[(env::vulkan_cpu_paths[i]).name()] = "0";
     expect(std::to_string(vulkan_overrides(fake_env).size()), "15", "all 15 CPU paths off");
 
     Info in;

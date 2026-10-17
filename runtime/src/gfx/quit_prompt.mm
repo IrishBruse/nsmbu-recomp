@@ -1,5 +1,6 @@
 
 
+#include "env.h"
 #import <AppKit/AppKit.h>
 
 #include <cstdlib>
@@ -11,7 +12,7 @@
 #include "runtime.h"
 
 namespace {
-const char* env(const char* name) { return getenv(name); }
+const char* env(const env::Var& name) { return name(); }
 NSWindow* g_tv = nil;
 bool g_confirmed = false;
 bool g_asking = false;
@@ -160,7 +161,7 @@ void install_quit_prompt(NSWindow* tv) {
     g_tv = tv;
     tv.delegate = d;
     NSApp.delegate = d;
-    if (const char* e = getenv("NSMBU_TEST_CLOSE_TV_AT")) {
+    if (const char* e = env::TEST_CLOSE_TV_AT()) {
         uint64_t at = strtoull(e, nullptr, 10);
         [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer* t) {
             if (render::frame_count() < at) return;

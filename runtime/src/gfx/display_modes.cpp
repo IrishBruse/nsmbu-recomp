@@ -16,6 +16,7 @@
 #include "input.h"
 #include "runtime.h"
 
+#include "env.h"
 namespace gfx {
 
 const char* const kModeNames[kDrcModeCount] = {"window", "pip", "auto", "off", "gamepad"};
@@ -54,8 +55,8 @@ bool drc_mode_offered(int m) {
 }
 
 void display_env_overrides() {
-    if (const char* e = getenv("NSMBU_DRC_MODE")) g_mode = find_name(kModeNames, kDrcModeCount, e, g_mode);
-    if (const char* e = getenv("NSMBU_DRC_PIP")) {
+    if (const char* e = env::DRC_MODE()) g_mode = find_name(kModeNames, kDrcModeCount, e, g_mode);
+    if (const char* e = env::DRC_PIP()) {
         char c[8] = {};
         float sz = g_pip_size, op = g_pip_opacity;
         if (sscanf(e, "%2[a-z]:%f:%f", c, &sz, &op) >= 1) {
@@ -64,23 +65,23 @@ void display_env_overrides() {
             g_pip_opacity = std::clamp(op, 0.2f, 1.0f);
         }
     }
-    if (const char* e = getenv("NSMBU_SCALE_FILTER")) g_filter = find_name(kFilterNames, 3, e, g_filter);
+    if (const char* e = env::SCALE_FILTER()) g_filter = find_name(kFilterNames, 3, e, g_filter);
 }
 
 bool display_fullscreen_env() {
-    const char* e = getenv("NSMBU_FULLSCREEN");
+    const char* e = env::FULLSCREEN();
     return e && *e;
 }
 bool display_start_fullscreen(bool saved, bool hidden_windows) {
     const bool env = display_fullscreen_env();
-    const bool on = env ? atoi(getenv("NSMBU_FULLSCREEN")) != 0 : saved;
+    const bool on = env ? atoi(env::FULLSCREEN()) != 0 : saved;
     const char* why = env ? "NSMBU_FULLSCREEN" : "as it was left";
     if (!on) {
         LOG("[display] TV window starts windowed (%s)", env ? "NSMBU_FULLSCREEN=0" : "as it was left");
         return false;
     }
 
-    const bool test = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
+    const bool test = env::NO_HOST_INPUT() != nullptr;
     const bool apply = !hidden_windows && (!test || env);
     LOG("[display] TV window starts in full screen (%s)%s", why,
         apply ? "" : hidden_windows ? "; hidden windows: not switched" : "; test run: not switched");
@@ -91,7 +92,7 @@ int display_test_mode(uint64_t frame) {
     struct Switch { uint64_t at; int mode; };
     static const std::vector<Switch> script = [] {
         std::vector<Switch> v;
-        if (const char* e = getenv("NSMBU_TEST_DRC_MODE")) {
+        if (const char* e = env::TEST_DRC_MODE()) {
             unsigned long long at; char name[16]; int n;
             while (sscanf(e, "%llu:%15[a-z]%n", &at, name, &n) == 2) {
                 v.push_back({at, find_name(kModeNames, kDrcModeCount, name, -1)});
@@ -136,7 +137,7 @@ void display_set_mode(int m) {
 void display_touched() { g_auto_until = std::max<double>(g_auto_until, display_now() + 2.0); }
 
 static const bool g_pause_view = [] {
-    const char* e = getenv("NSMBU_DRC_PAUSE");
+    const char* e = env::DRC_PAUSE();
 #ifdef __ANDROID__
     return !e || atoi(e) != 0;
 #else
@@ -247,7 +248,7 @@ Box display_layout(float dw, float dh, float tw, float th) { return layout(dw, d
 static bool sim_screen(float* w, float* h) {
     static float sw = 0, sh = 0;
     static bool parsed = [] {
-        if (const char* e = getenv("NSMBU_SIM_SCREEN")) sscanf(e, "%fx%f", &sw, &sh);
+        if (const char* e = env::SIM_SCREEN()) sscanf(e, "%fx%f", &sw, &sh);
         return true;
     }();
     (void)parsed;
@@ -279,7 +280,7 @@ bool main_picture(float* x, float* y, float* w, float* h) {
 
 bool view_button_enabled() {
     static const bool on = [] {
-        const char* e = getenv("NSMBU_VIEW_BUTTON");
+        const char* e = env::VIEW_BUTTON();
 #ifdef __ANDROID__
         return !e || atoi(e) != 0;
 #else
@@ -337,11 +338,11 @@ void display_auto_signature(const std::vector<float>& cur_in, const std::vector<
     if (g_mode != kDrcAuto) { prev.clear(); return; }
     static float thresh = 0.12f, hold = 4.0f;
     static bool parsed = [] {
-        if (const char* e = getenv("NSMBU_DRC_AUTO")) sscanf(e, "%f:%f", &thresh, &hold);
+        if (const char* e = env::DRC_AUTO()) sscanf(e, "%f:%f", &thresh, &hold);
         return true;
     }();
     (void)parsed;
-    static const bool log = getenv("NSMBU_DRC_AUTO_LOG") != nullptr;
+    static const bool log = env::DRC_AUTO_LOG() != nullptr;
     std::vector<float> cur = cur_in;
     if (cur.size() != kSigN) return;
     float mean = 0, mirror_diff = 1;
@@ -384,7 +385,7 @@ struct TestTouch { uint64_t from, to; float x, y; };
 static void test_touch(uint64_t frame) {
     static const std::vector<TestTouch> script = [] {
         std::vector<TestTouch> v;
-        if (const char* e = getenv("NSMBU_TEST_TOUCH")) {
+        if (const char* e = env::TEST_TOUCH()) {
             unsigned long long a, b; float x, y; int n;
             while (sscanf(e, "%llu-%llu:%f:%f%n", &a, &b, &x, &y, &n) == 4) {
                 v.push_back({a, b, x, y});

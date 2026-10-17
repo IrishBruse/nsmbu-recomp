@@ -22,6 +22,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "env.h"
 namespace gfxvk {
 extern uint64_t g_stat_full_checks, g_stat_uploads;
 void request_tv_dump(const std::string&,int);
@@ -401,7 +402,7 @@ void vertex_window_check(Surface& s) {
  for(uint32_t i=100;i<108;++i) {const float xy[3][2]={{-0.8f,-0.8f},{0.8f,-0.8f},{0,0.8f}};data[i]={xy[(i-100)%3][0],xy[(i-100)%3][1],float(i),1,0,0,1};}
  const uint32_t address=0x73510000;
  auto sameSlice=[](const UploadSlice& a,const UploadSlice& b){return a.buffer==b.buffer && a.offset==b.offset;};
- const char* reuseEnv=std::getenv("NSMBU_VK_REUSE_VERTEX_SNAPSHOTS");
+ const char* reuseEnv=env::VK_REUSE_VERTEX_SNAPSHOTS();
  const bool reuse=reuseEnv && !std::strcmp(reuseEnv,"1");
  const uint32_t reserved=106*sizeof(Vertex),offset=100*sizeof(Vertex);
  auto original=vertex_window_smoke_snapshot(0,address,reserved,offset,reserved-offset,data.data(),true);
@@ -539,7 +540,7 @@ void dynamic_uniform_check(Surface& s) {
 int renderer_smoke_test() {
  try {
 
-  if(std::getenv("NSMBU_VK_SYNC_NEGATIVE_CONTROL")) {
+  if(env::VK_SYNC_NEGATIVE_CONTROL()) {
    Buffer b=create_buffer(16,VK_BUFFER_USAGE_TRANSFER_DST_BIT,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
    auto cmd=command_buffer();
    auto fill=reinterpret_cast<PFN_vkCmdFillBuffer>(vkGetDeviceProcAddr(R.device,"vkCmdFillBuffer"));

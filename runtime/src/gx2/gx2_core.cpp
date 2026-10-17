@@ -1,4 +1,5 @@
 #include "../platform/host.h"
+#include "env.h"
 #ifdef __APPLE__
 #include <pthread/qos.h>
 #endif
@@ -51,7 +52,7 @@ static bool raw_shader_irrelevant(uint32 reg) {
 #ifdef NSMBU_HAS_VULKAN
 
     static const bool addressMemo = [] {
-        const char* e = getenv("NSMBU_VK_SHADER_ADDRESS_MEMO");
+        const char* e = env::VK_SHADER_ADDRESS_MEMO();
         return render::vulkan() && e && !strcmp(e, "1");
     }();
     if (addressMemo)
@@ -88,10 +89,10 @@ ShaderKeyDirtyStats shader_key_dirty_stats() { return shaderKeyDirtyStats; }
 #ifdef NSMBU_HAS_VULKAN
 static void apply_small_regs(uint32 first, const uint32* v, uint32 n) {
     static const bool keyDirty = [] {
-        const char* e = getenv("NSMBU_VK_SHADER_KEY_DIRTY");
+        const char* e = env::VK_SHADER_KEY_DIRTY();
         return e && !strcmp(e, "1");
     }();
-    static const bool collectStats = getenv("NSMBU_VK_STATS") != nullptr;
+    static const bool collectStats = env::VK_STATS() != nullptr;
     const bool classify = rprof::enabled();
     bool changed = false, baselineBump = false, actualBump = false;
     uint64_t maskedWords = 0;
@@ -132,7 +133,7 @@ static void apply_regs(uint32 first, const uint32* v, uint32 n) {
 #ifdef NSMBU_HAS_VULKAN
 
     static const bool fusedSmall = [] {
-        const char* e = getenv("NSMBU_VK_FUSE_SMALL_REGS");
+        const char* e = env::VK_FUSE_SMALL_REGS();
 
         return render::vulkan() && (!e || strcmp(e, "0") != 0);
     }();
@@ -150,10 +151,10 @@ static void apply_regs(uint32 first, const uint32* v, uint32 n) {
                 }
 #ifdef NSMBU_HAS_VULKAN
         static const bool keyDirty = [] {
-            const char* value = getenv("NSMBU_VK_SHADER_KEY_DIRTY");
+            const char* value = env::VK_SHADER_KEY_DIRTY();
             return render::vulkan() && value && !strcmp(value, "1");
         }();
-        static const bool collectStats = render::vulkan() && getenv("NSMBU_VK_STATS") != nullptr;
+        static const bool collectStats = render::vulkan() && env::VK_STATS() != nullptr;
         if(keyDirty || collectStats) {
             bool baselineBump = false, actualBump = false;
             uint64_t maskedWords = 0;
@@ -191,7 +192,7 @@ static thread_local Recording t_rec;
 
 static void execute_one(Op op, const uint32* p, uint32 n);
 
-static const bool g_render_thread = getenv("NSMBU_NO_RENDER_THREAD") == nullptr;
+static const bool g_render_thread = env::NO_RENDER_THREAD() == nullptr;
 static std::mutex g_q_mutex;
 static std::condition_variable g_q_cv, g_q_done_cv;
 static std::vector<uint32> g_q_pending, g_q_work;
@@ -233,7 +234,7 @@ static void enqueue(Op op, const uint32* payload, uint32 n) {
 
 enum SyncSite { kSyncShutdown, kSyncFlip, kSyncDrawDone, kSyncVsyncUncapped, kSyncVsyncFlip, kSyncSaveState, kSyncCopySurface, kSyncSites };
 static void sync_stat(int site, std::chrono::steady_clock::duration waited) {
-    static const bool on = getenv("NSMBU_SYNC_STATS") != nullptr;
+    static const bool on = env::SYNC_STATS() != nullptr;
     if (!on) return;
     static std::mutex mu;
     static uint64_t count[kSyncSites], ns[kSyncSites];
@@ -363,7 +364,7 @@ static void set_context(uint32 ctx) {
         if (shader_irrelevant(reg)) return false;
 #ifdef NSMBU_HAS_VULKAN
         static const bool keyDirty = [] {
-            const char* e = getenv("NSMBU_VK_SHADER_KEY_DIRTY");
+            const char* e = env::VK_SHADER_KEY_DIRTY();
             return render::vulkan() && e && !strcmp(e, "1");
         }();
         uint32 mask;
@@ -386,7 +387,7 @@ static uint32 unpack_struct(const uint32* words, uint32 count, int slot) {
 
 static bool lazy_draw_done() {
     static const bool on = [] {
-        const char* e = getenv("NSMBU_VK_LAZY_DRAW_DONE");
+        const char* e = env::VK_LAZY_DRAW_DONE();
         return render::vulkan() && (!e || atoi(e) != 0);
     }();
     return on;
@@ -443,7 +444,7 @@ static void execute_op(Op op, const uint32* p, uint32 n) {
     }
     case OP_COPY_SURFACE: {
 
-        static const int delay = getenv("NSMBU_GX2_DELAY_COPY") ? atoi(getenv("NSMBU_GX2_DELAY_COPY")) : 0;
+        static const int delay = env::GX2_DELAY_COPY.integer_or(0);
         if (delay) std::this_thread::sleep_for(std::chrono::milliseconds(delay));
         uint32 src = unpack_struct(p, kSurfaceWords, 0);
         const uint32* q = p + kSurfaceWords;
@@ -577,8 +578,8 @@ static std::atomic<int> g_uncapped{-1};
 bool gx2::uncapped() {
     int v = g_uncapped.load(std::memory_order_relaxed);
     if (v < 0) {
-        const char* any = getenv("NSMBU_UNCAPPED");
-        const char* vk = getenv("NSMBU_VK_UNCAPPED");
+        const char* any = env::UNCAPPED();
+        const char* vk = env::VK_UNCAPPED();
         v = (any && !strcmp(any, "1")) || (vk && !strcmp(vk, "1") && render::vulkan()) ? 1 : 0;
         int expected = -1;
         g_uncapped.compare_exchange_strong(expected, v);
@@ -699,7 +700,7 @@ HLE(gx2, GX2SetClearDepthStencil) {
 }
 HLE(gx2, GX2CopySurface) {
 
-    static const bool dbg = getenv("NSMBU_COPYDBG") != nullptr;
+    static const bool dbg = env::COPYDBG() != nullptr;
     if (dbg)
         LOG("[copydbg] issue t=%.3f thread %08X lr %08X src %08X img %08X dst %08X img %08X size %X", timebase::now() / (double)timebase::kTicksPerSec,
             threads::current_thread(), c->lr, arg(c, 0), ld32(arg(c, 0) + 0x24), arg(c, 3), ld32(arg(c, 3) + 0x24), ld32(arg(c, 3) + 0x20));
@@ -734,7 +735,7 @@ HLE(gx2, GX2DrawDone) {
 }
 HLE(gx2, GX2SwapScanBuffers) {
 
-    static int trace = getenv("NSMBU_TRACE_SWAP") ? atoi(getenv("NSMBU_TRACE_SWAP")) : 0;
+    static int trace = env::TRACE_SWAP.integer_or(0);
     if (trace > 0) {
         trace--;
         char buf[256];
@@ -761,8 +762,8 @@ HLE(gx2, GX2SwapScanBuffers) {
         mods::packages::frame(steps);
     }
 
-    static const char* captureCounter = getenv("NSMBU_TEST_CAPTURE_LOAD_COUNTER");
-    static const char* captureStep = getenv("NSMBU_TEST_CAPTURE_LOAD_STEP");
+    static const char* captureCounter = env::TEST_CAPTURE_LOAD_COUNTER();
+    static const char* captureStep = env::TEST_CAPTURE_LOAD_STEP();
     bool capture = false;
     if ((captureCounter || captureStep) && ss::last_load_frame()) {
         static uint64_t capturedLoad = 0;
@@ -787,7 +788,7 @@ HLE(gx2, GX2SwapScanBuffers) {
         g_pending_flips.push_back({vsync_index(), g_swap_count});
     }
 
-    static const double slow_ms = getenv("NSMBU_LOG_SLOW_SWAP") ? atof(getenv("NSMBU_LOG_SLOW_SWAP")) : 0;
+    static const double slow_ms = env::LOG_SLOW_SWAP.real_or(0);
     if (slow_ms > 0) {
         static auto prev = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
@@ -802,7 +803,7 @@ HLE(gx2, GX2SwapScanBuffers) {
         double s = std::chrono::duration<double>(now - last).count();
         last = now;
         LOG("[gx2] frame %llu, %.1f swaps/s, swap interval %u", (unsigned long long)g_swap_count, 300 / s, g_swap_interval);
-        if (getenv("NSMBU_SCHED_STATS")) threads::report_sched();
+        if (env::SCHED_STATS()) threads::report_sched();
     }
 }
 HLE(gx2, GX2GetSwapStatus) {
@@ -830,7 +831,7 @@ HLE(gx2, GX2WaitForVsync) {
     }
 #ifdef NSMBU_HAS_VULKAN
     static const bool readyFlipWait = [] {
-        const char* value = getenv("NSMBU_VK_READY_FLIP_WAIT");
+        const char* value = env::VK_READY_FLIP_WAIT();
         return render::vulkan() && value && !strcmp(value, "1");
     }();
     if(readyFlipWait) {
@@ -859,7 +860,7 @@ HLE(gx2, GX2WaitForVsync) {
 #ifdef NSMBU_HAS_VULKAN
 
         if (!render::vulkan()) return false;
-        const char* value = getenv("NSMBU_VSYNC_PRECISE");
+        const char* value = env::VSYNC_PRECISE();
 #if defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__))
         return !value || atoi(value) != 0;
 #else
@@ -873,7 +874,7 @@ HLE(gx2, GX2WaitForVsync) {
     const auto deadline = tick_time((vsync_index() / granule + 1) * granule);
 #ifdef NSMBU_HAS_VULKAN
     static const bool readyFlipPark = [] {
-        const char* value = getenv("NSMBU_VK_READY_FLIP_PARK");
+        const char* value = env::VK_READY_FLIP_PARK();
         return render::vulkan() && value && !strcmp(value, "1");
     }();
     threads::park_sleep_until(deadline, preciseSleep,
@@ -884,7 +885,7 @@ HLE(gx2, GX2WaitForVsync) {
     std::lock_guard<std::mutex> lk(g_flip_mutex);
     update_flips();
     static uint64_t calls = 0;
-    if (getenv("NSMBU_LOG_VSYNC") && ++calls % 60 == 0)
+    if (env::LOG_VSYNC() && ++calls % 60 == 0)
         LOG("[gx2] vsync %llu: swaps %llu flips %llu pending %zu", (unsigned long long)vsync_index(),
             (unsigned long long)g_swap_count, (unsigned long long)g_flip_count, g_pending_flips.size());
 }

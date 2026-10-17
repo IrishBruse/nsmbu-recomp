@@ -3,6 +3,7 @@
 #include "../platform/filesystem.h"
 
 #include <cstdio>
+#include "env.h"
 #ifndef _WIN32
 #include <strings.h>
 #endif
@@ -136,7 +137,7 @@ std::string host_path(const std::string& guest) {
 
 std::string read_path(const std::string& guest,const std::string& mode="rb") {
     auto override=mods::content::replacement(guest,mode);
-    if(!override.empty())if(const char* trace=std::getenv("NSMBU_TEST_CONTENT_TRACE");trace&&std::string(trace)=="1")LOG("[content-mod] read %s -> %s",guest.c_str(),override.c_str());
+    if(!override.empty())if(const char* trace=env::TEST_CONTENT_TRACE();trace&&std::string(trace)=="1")LOG("[content-mod] read %s -> %s",guest.c_str(),override.c_str());
     if(override.empty()&&(mode=="r"||mode=="rb"))override=game_lang::redirect(guest);
     return override.empty()?host_path(guest):override;
 }

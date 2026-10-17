@@ -2,6 +2,7 @@
 
 #include "platform/host.h"
 #include <signal.h>
+#include "env.h"
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -50,7 +51,7 @@ extern "C" void ppc_trace_enter(uint32_t addr) {
             host::get_thread_name(tn, sizeof tn);
             log_msg("[watch] %s %08X lr=%08X r3=%08X r4=%08X r5=%08X r6=%08X r7=%08X r8=%08X | r28=%08X r29=%08X r30=%08X r31=%08X",
                     tn, addr, c->lr, c->r[3], c->r[4], c->r[5], c->r[6], c->r[7], c->r[8], c->r[28], c->r[29], c->r[30], c->r[31]);
-            if (const char* e = getenv("NSMBU_WATCH_DUMP")) {
+            if (const char* e = env::WATCH_DUMP()) {
                 unsigned reg = (unsigned)atoi(e) & 31;
                 uint32_t base = c->r[reg];
                 for (uint32_t o = 0; o < 0x100; o += 32) {
@@ -60,7 +61,7 @@ extern "C" void ppc_trace_enter(uint32_t addr) {
                     log_msg("%s", line);
                 }
             }
-            if (const char* e = getenv("NSMBU_WATCH_EXPR")) {
+            if (const char* e = env::WATCH_EXPR()) {
                 unsigned reg = 0, off = 0;
                 if (sscanf(e, "%u+%x", &reg, &off) == 2 && reg < 32) log_msg("[watch]   ld32(r%u+%X) = %08X", reg, off, ld32(c->r[reg] + off));
             }
@@ -93,18 +94,18 @@ static void on_usr1(int) {
 }
 
 __attribute__((constructor)) static void trace_init() {
-    if (const char* w = getenv("NSMBU_WATCH_R3")) { g_watch_r3 = (uint32_t)strtoul(w, nullptr, 16); g_ppc_trace = 1; }
-    if (const char* w = getenv("NSMBU_WATCH")) {
+    if (const char* w = env::WATCH_R3()) { g_watch_r3 = (uint32_t)strtoul(w, nullptr, 16); g_ppc_trace = 1; }
+    if (const char* w = env::WATCH()) {
         g_watch = (uint32_t)strtoul(w, nullptr, 16);
-        if (const char* l = getenv("NSMBU_WATCH_LIMIT")) g_watch_limit = atoi(l);
-        if (const char* f = getenv("NSMBU_WATCH_IF")) {
+        if (const char* l = env::WATCH_LIMIT()) g_watch_limit = atoi(l);
+        if (const char* f = env::WATCH_IF()) {
             unsigned reg; char val[32];
             if (sscanf(f, "%u=%31s", &reg, val) == 2) { g_watch_reg = (int)(reg & 31); g_watch_val = (uint32_t)strtoul(val, nullptr, 16); }
         }
         g_ppc_trace = 1;
     }
-    if (getenv("NSMBU_NAN_PROBE")) g_ppc_trace = 1;
-    if (getenv("NSMBU_TRACE_FUNCS")) {
+    if (env::NAN_PROBE()) g_ppc_trace = 1;
+    if (env::TRACE_FUNCS()) {
         g_ppc_trace = 1;
 #ifndef _WIN32
         signal(SIGUSR1, on_usr1);

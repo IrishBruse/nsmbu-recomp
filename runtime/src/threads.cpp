@@ -1,5 +1,6 @@
 
 
+#include "env.h"
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
@@ -117,7 +118,7 @@ static uint32_t core_from_affinity(uint32_t mask, uint32_t fallback) {
     return (uint32_t)__builtin_ctz(mask);
 }
 
-bool g_trace_msg = getenv("NSMBU_TRACE_MSG") != nullptr;
+bool g_trace_msg = env::TRACE_MSG() != nullptr;
 static std::mutex g_threads_mutex;
 static std::unordered_map<uint32_t, HostThread*> g_threads;
 static thread_local HostThread* t_self = nullptr;
@@ -131,7 +132,7 @@ uint32_t current_thread() { return t_self ? t_self->guest : 0; }
 }
 
 volatile int g_core_preempt[3];
-static const bool g_sched_on = getenv("NSMBU_NO_SCHED") == nullptr;
+static const bool g_sched_on = env::NO_SCHED() == nullptr;
 
 struct CoreSched {
     std::mutex m;
@@ -157,7 +158,7 @@ static void core_acquire(HostThread* t) {
     static std::once_flag tick;
     std::call_once(tick, [] {
         std::thread(sched_tick_thread).detach();
-        if (getenv("NSMBU_WATCH_MEM")) std::thread(mem_watch_thread).detach();
+        if (env::WATCH_MEM()) std::thread(mem_watch_thread).detach();
     });
     uint32_t core = t->core;
     CoreSched& k = g_sched[core];
@@ -239,7 +240,7 @@ static void mem_watch_thread() {
     host::set_thread_name("mem watch");
     struct W { bool deref; uint32_t a, off; uint32_t last; bool init = false; };
     std::vector<W> ws;
-    const char* e = getenv("NSMBU_WATCH_MEM");
+    const char* e = env::WATCH_MEM();
     while (e && *e) {
         W w{};
         if (*e == '*') { w.deref = true; e++; }
@@ -275,9 +276,9 @@ static void mem_watch_thread() {
 }
 static void sched_tick_thread() {
     host::set_thread_name("sched tick");
-    static const bool timed_stats = getenv("NSMBU_SCHED_STATS") && atoi(getenv("NSMBU_SCHED_STATS")) == 2;
+    static const bool timed_stats = env::SCHED_STATS() && atoi(env::SCHED_STATS()) == 2;
     auto next_report = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-    static const bool tick_stats = getenv("NSMBU_TICK_STATS") != nullptr;
+    static const bool tick_stats = env::TICK_STATS() != nullptr;
     auto tick_start = std::chrono::steady_clock::now();
     uint64_t tick_cpu = tick_stats ? rprof::thread_cpu_ns() : 0, tick_wakes = 0;
     for (;;) {
@@ -305,7 +306,7 @@ static void sched_tick_thread() {
     }
 }
 
-static const bool g_log_longwait = getenv("NSMBU_LOG_LONGWAIT") != nullptr;
+static const bool g_log_longwait = env::LOG_LONGWAIT() != nullptr;
 static thread_local std::chrono::steady_clock::time_point t_block_start;
 
 namespace threads {
@@ -465,7 +466,7 @@ __attribute__((noinline)) static void try_entry_park(HostThread* t, Cpu* c) {
         if (!ra || depth > 8192) break;
         uint32_t k = classify_ra(ra);
         if (k == 0) {
-            static const bool dbg = getenv("NSMBU_STATE_DEBUG") != nullptr;
+            static const bool dbg = env::STATE_DEBUG() != nullptr;
             static std::atomic<int> logged{0};
             if (dbg && logged++ < 20) {
 #ifdef _WIN32
@@ -511,7 +512,7 @@ void park_sleep_until(std::chrono::steady_clock::time_point tp, bool precise,
         if (precise) {
 
             using us = std::chrono::microseconds;
-            static const long fixedUs = getenv("NSMBU_VSYNC_SPIN_US") ? atol(getenv("NSMBU_VSYNC_SPIN_US")) : -1;
+            static const long fixedUs = env::VSYNC_SPIN_US() ? atol(env::VSYNC_SPIN_US()) : -1;
             static thread_local us window{fixedUs >= 0 ? fixedUs : 2000}, peak{0};
             static thread_local int wakes = 0;
             const auto sleepDeadline = tp - window;
@@ -650,7 +651,7 @@ void init(const LoadedModule& m) {
     g_sda_base = m.sda_base;
     g_sda2_base = m.sda2_base;
 
-    if (const char* e = getenv("NSMBU_THREAD_DUMP")) {
+    if (const char* e = env::THREAD_DUMP()) {
         int s = atoi(e);
         std::thread([s] { thread_dump_loop(s); }).detach();
     }

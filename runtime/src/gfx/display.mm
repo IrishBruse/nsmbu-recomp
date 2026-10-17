@@ -1,5 +1,6 @@
 
 
+#include "env.h"
 #import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
 
@@ -43,14 +44,14 @@ static int find_name(const char* const* names, int n, NSString* s, int def) {
     return find_name(names, n, [s isKindOfClass:[NSString class]] ? s.UTF8String : nullptr, def);
 }
 static bool hidden_windows() {
-    static const bool h = [] { const char* e = getenv("NSMBU_HIDDEN_WINDOWS"); return e && *e && strcmp(e, "0"); }();
+    static const bool h = [] { const char* e = env::HIDDEN_WINDOWS(); return e && *e && strcmp(e, "0"); }();
     return h;
 }
 
 static NSMutableDictionary* g_settings;
 static NSString* settings_path() {
-    if (const char* e = getenv("NSMBU_DISPLAY_SETTINGS")) return @(e);
-    if (getenv("NSMBU_NO_HOST_INPUT")) return nil;
+    if (const char* e = env::DISPLAY_SETTINGS()) return @(e);
+    if (env::NO_HOST_INPUT()) return nil;
     return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/nsmbu/display.plist"];
 }
 static void load_settings() {
@@ -302,7 +303,7 @@ static void apply_drc_window() {
 
         if (hidden_windows()) return;
         if (!g_drc_window.visible) {
-            if (getenv("NSMBU_NO_HOST_INPUT")) [g_drc_window orderBack:nil];
+            if (env::NO_HOST_INPUT()) [g_drc_window orderBack:nil];
             else [g_drc_window orderFront:nil];
         }
     } else if (g_drc_window.visible) {
@@ -354,7 +355,7 @@ static void create_windows() {
                           reason:@"game running"];
     (void)activity;
 
-    bool test = getenv("NSMBU_NO_HOST_INPUT") != nullptr;
+    bool test = env::NO_HOST_INPUT() != nullptr;
     [NSApp setActivationPolicy:test ? NSApplicationActivationPolicyAccessory : NSApplicationActivationPolicyRegular];
     load_settings();
     load_options();
@@ -372,7 +373,7 @@ static void create_windows() {
     else [tv center];
 
     track_window(tv, &g_tv_normal_frame, @"tvFrame", display_fullscreen_env() ? nil : @"tvFullScreen");
-    if (!getenv("NSMBU_NO_GAMEPAD")) {
+    if (!env::NO_GAMEPAD()) {
 
         NSRect f = tv.frame;
         NSWindow* drc = make_window(1, @"GamePad", [[NsmbuDrcView alloc] initWithFrame:NSMakeRect(0, 0, 427, 240)], 427, 240,
@@ -426,13 +427,13 @@ static void create_windows() {
         }
     }];
 
-    if (getenv("NSMBU_TEST_DRC_MODE"))
+    if (env::TEST_DRC_MODE())
         [NSTimer scheduledTimerWithTimeInterval:1.0 / 120 repeats:YES block:^(NSTimer*) {
             const int m = display_test_mode(render::frame_count());
             if (m >= 0) set_drc_mode(m);
         }];
 
-    if (const char* e = getenv("NSMBU_TEST_DRC_KEY")) {
+    if (const char* e = env::TEST_DRC_KEY()) {
         static std::vector<uint64_t> frames;
         for (const char* p = e; *p;) {
             frames.push_back(strtoull(p, (char**)&p, 10));
@@ -606,7 +607,7 @@ void run_appkit_loop() {
         std::_Exit(0);
     }];
     // test runs: NSMBU_EXIT_AT_FRAME=n quits (orderly) once the renderer reached frame n
-    if (const char* e = getenv("NSMBU_EXIT_AT_FRAME")) {
+    if (const char* e = env::EXIT_AT_FRAME()) {
         uint64_t at = strtoull(e, nullptr, 10);
         if (at)
             [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer* t) {
@@ -617,7 +618,7 @@ void run_appkit_loop() {
             }];
     }
     // test runs: NSMBU_TEST_RENDERER_SWITCH=frame:metal|vulkan does what Graphics > Renderer > Restart Now does
-    if (const char* e = getenv("NSMBU_TEST_RENDERER_SWITCH")) {
+    if (const char* e = env::TEST_RENDERER_SWITCH()) {
         uint64_t at = strtoull(e, nullptr, 10);
         const char* c = strchr(e, ':');
         render::Api a = c && !strcasecmp(c + 1, "vulkan") ? render::Api::Vulkan : render::Api::Metal;
@@ -625,7 +626,7 @@ void run_appkit_loop() {
             if (render::frame_count() < at) return;
             [t invalidate];
             LOG("[display] test: renderer %s, restart at frame %llu", render::api_name(a), (unsigned long long)render::frame_count());
-            unsetenv("NSMBU_TEST_RENDERER_SWITCH");  // once
+            env::unset(env::TEST_RENDERER_SWITCH);
             render::set_preferred(a);
             render::restart();
         }];
@@ -636,7 +637,7 @@ void run_appkit_loop() {
 // a message on the TV window that does not stop the game (renderer fallback); test runs only log it
 void show_startup_notice(const std::string& title, const std::string& text) {
     LOG("[display] %s: %s", title.c_str(), text.c_str());
-    if (getenv("NSMBU_NO_HOST_INPUT")) return;
+    if (env::NO_HOST_INPUT()) return;
     NSString* t = @(title.c_str()), *m = @(text.c_str());
     dispatch_async(dispatch_get_main_queue(), ^{
         NSAlert* a = [NSAlert new];

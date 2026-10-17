@@ -13,6 +13,7 @@
 
 #include "runtime.h"
 
+#include "env.h"
 namespace game_lang {
 namespace {
 
@@ -141,7 +142,7 @@ int usable(int language) {
 }
 
 std::string sources_dir() {
-    if (const char* e = getenv("NSMBU_LANG_DIR"); e && *e) return e;
+    if (const char* e = env::LANG_DIR(); e && *e) return e;
     fs::path game = fs::path(config::game_dir);
     if (game.filename().empty()) game = game.parent_path();
     const fs::path beside = game.parent_path() / "game-lang";

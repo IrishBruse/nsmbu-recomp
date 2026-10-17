@@ -9,6 +9,7 @@
 #include "shaders.h"
 #include "sparse_hash_memo.h"
 #include "write_watch.h"
+#include "env.h"
 #define XXH_INLINE_ALL
 #include "../../../third_party/xxhash/xxhash.h"
 #include "Cafe/HW/Latte/ISA/LatteReg.h"
@@ -83,7 +84,7 @@ static float parse_scale(const char* e) {
     float f = e ? (float)atof(e) : 1.0f;
     return std::clamp(f > 0 ? f : 1.0f, 1.0f, 4.0f);
 }
-static std::atomic<float> g_res_requested{parse_scale(getenv("NSMBU_RES_SCALE"))};
+static std::atomic<float> g_res_requested{parse_scale(env::RES_SCALE())};
 static float g_res_frame = g_res_requested.load();
 static void latch_aspect();
 float res_scale() { return g_res_frame; }
@@ -96,7 +97,7 @@ void latch_res_scale() {
 
     static std::vector<std::pair<uint64_t, float>> at = [] {
         std::vector<std::pair<uint64_t, float>> v;
-        if (const char* e = getenv("NSMBU_RES_SCALE_AT"))
+        if (const char* e = env::RES_SCALE_AT())
             for (char* p = (char*)e; *p;) {
                 uint64_t f = strtoull(p, &p, 10);
                 if (*p++ != ':') break;
@@ -149,7 +150,7 @@ static float target_scale(const Surface* s) {
     uint32_t width,height;
     if(!s->fmt.compressed&&s->mips==1&&mods::cemu::texture_extent(s->width,s->height,s->format,s->slices,s->tileMode,width,height))return 1.0f;
     if (s->fmt.compressed || s->mips > 1) return 1.0f;
-    static const float shadow = getenv("NSMBU_SHADOW_SCALE") ? parse_scale(getenv("NSMBU_SHADOW_SCALE")) : 0.0f;
+    static const float shadow = env::SHADOW_SCALE() ? parse_scale(env::SHADOW_SCALE()) : 0.0f;
     if (shadow && s->isDepth && s->slices > 1) return shadow;
     return res_scale();
 }
@@ -251,7 +252,7 @@ static uint64_t sparse_hash(Surface* s);
 uint64_t g_stat_full_checks, g_stat_uploads, g_stat_invalidates, g_stat_invalidated_surfaces;
 
 static Surface* with_mip_chain(Surface* s, const SurfaceDesc& d) {
-    static const bool off = getenv("NSMBU_NO_RT_MIPS") != nullptr;
+    static const bool off = env::NO_RT_MIPS() != nullptr;
     uint32_t mips = d.mips;
     if (off || mips <= 1 || s->fmt.depth || s->fmt.compressed || s->fmt.kind != FormatInfo::FLOAT || s->imageType != VK_IMAGE_TYPE_2D || s->arrayLayers != 1 ||
         s->mips != 1 || !s->image)
@@ -615,7 +616,7 @@ static void decode_level(Surface* s, uint32_t level, uint32_t base, std::vector<
     outH = h;
     outSlices = slices;
     out.assign((size_t)bw * bh * slices * f.hostBytesPerBlock, 0);
-    static const bool checkLevel = [] { const char* e = getenv("NSMBU_DECODE_CHECK"); return e && *e == '1'; }();
+    static const bool checkLevel = [] { const char* e = env::DECODE_CHECK(); return e && *e == '1'; }();
     if (!checkLevel) {
         if (decode_level_fast(s, level, base, out.data(), bw, bh, slices)) return;
         decode_level_slow(s, level, base, out, outW, outH, outSlices);
@@ -657,7 +658,7 @@ namespace {
   uint64_t uploads = 0;
   std::unordered_map<uint32_t, std::pair<uint64_t, uint64_t>> count;
   std::unordered_map<uint32_t, bool> seen;
-  static bool enabled() { static const bool on = getenv("NSMBU_UPLOAD_PROFILE") != nullptr; return on; }
+  static bool enabled() { static const bool on = env::UPLOAD_PROFILE() != nullptr; return on; }
   void record(const Surface* s, size_t bytes) {
     ++uploads;
     auto& e = count[s->addr & ~0x7FFull];
@@ -683,10 +684,10 @@ UploadProbe g_uploadProbe;
 
 static uint64_t sparse_hash(Surface* s) {
     static const bool enabled = [] {
-        const char* value = getenv("NSMBU_VK_SPARSE_HASH_MEMO");
+        const char* value = env::VK_SPARSE_HASH_MEMO();
         return value && !strcmp(value,"1");
     }();
-    static const bool collectStats = getenv("NSMBU_VK_STATS") != nullptr;
+    static const bool collectStats = env::VK_STATS() != nullptr;
     if(!enabled && !collectStats) {
 
         uint64_t h = 0xcbf29ce484222325ull;
@@ -724,7 +725,7 @@ static uint64_t sparse_hash(Surface* s) {
         return hash;
     }
     static const bool largerMemo = [] {
-        const char* value = getenv("NSMBU_VK_SPARSE_HASH_ENTRIES");
+        const char* value = env::VK_SPARSE_HASH_ENTRIES();
         return value && !strcmp(value,"256");
     }();
     auto runMemo = [&](auto& memo) {
@@ -901,7 +902,7 @@ VkImageView sampled_texture_view(Surface* s,const uint32_t* texWords) {
 }
 
 DepthCopyOverride g_depthCopyOverride=[]{
-    const char* e=getenv("NSMBU_VK_DEPTH_COPY");
+    const char* e=env::VK_DEPTH_COPY();
     return !e?DepthCopyOverride::None:!strcmp(e,"draw")?DepthCopyOverride::Draw:!strcmp(e,"none")?DepthCopyOverride::Unsupported:DepthCopyOverride::None;
 }();
 enum class ScaledCopy { Blit, Draw, Unsupported };

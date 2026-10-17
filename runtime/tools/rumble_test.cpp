@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <thread>
 
+#include "env.h"
 void log_msg(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -103,7 +104,7 @@ int main() {
     }
     {
 
-        assert(rumble::enabled() == !(getenv("NSMBU_RUMBLE") && !atoi(getenv("NSMBU_RUMBLE"))));
+        assert(rumble::enabled() == !(env::RUMBLE() && !atoi(env::RUMBLE())));
         rumble::set_enabled(true);
         const uint8_t on[15] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
         rumble::gamepad_pattern(0, on, 120);

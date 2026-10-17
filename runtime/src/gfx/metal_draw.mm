@@ -2,6 +2,7 @@
 #include "aspect_panes.h"
 #include "renderer.h"
 #include <chrono>
+#include "env.h"
 extern "C" uint64_t g_shader_state_gen;
 
 #include "Cafe/HW/Latte/Core/FetchShader.h"
@@ -41,7 +42,7 @@ static float bitsf_(uint32_t u) { float f; memcpy(&f, &u, 4); return f; }
 
 static uint64_t g_log_frame = ~0ull, g_log_frame_end = 0;
 static bool g_log_init = [] {
-    if (const char* e = getenv("NSMBU_LOG_FRAME")) {
+    if (const char* e = env::LOG_FRAME()) {
         g_log_frame = strtoull(e, (char**)&e, 10);
         g_log_frame_end = *e == '-' ? strtoull(e + 1, nullptr, 10) : g_log_frame;
     }
@@ -69,7 +70,7 @@ static void dlog(const char* fmt, ...) {
 
 const char* capture_begin_frame() {
     if (g_capture_log) { fclose(g_capture_log); g_capture_log = nullptr; }
-    static uint64_t envFrame = getenv("NSMBU_CAPTURE") ? strtoull(getenv("NSMBU_CAPTURE"), nullptr, 10) : ~0ull;
+    static uint64_t envFrame = env::CAPTURE.u64_or(~0ull);
     if (!g_capture_requested.exchange(false) && R.frame != envFrame) return nullptr;
     char stamp[32];
     time_t t = time(nullptr);
@@ -199,7 +200,7 @@ static LatteFetchShader* get_fetch_shader(const uint32_t* regs, uint64_t* keyOut
     return fs;
 }
 
-static const bool g_sync_shaders = getenv("NSMBU_SYNC_SHADERS") != nullptr;
+static const bool g_sync_shaders = env::SYNC_SHADERS() != nullptr;
 enum CompileState { CS_PENDING, CS_READY, CS_FAILED, CS_DEFERRED };
 
 static std::mutex g_compile_mu;
@@ -223,7 +224,7 @@ struct Shader {
 
 constexpr int kCompileAttempts = 4;
 constexpr uint64_t kRetryFrames = 30;
-static const int g_test_fail_compiles = getenv("NSMBU_TEST_FAIL_COMPILES") ? atoi(getenv("NSMBU_TEST_FAIL_COMPILES")) : 0;
+static const int g_test_fail_compiles = env::TEST_FAIL_COMPILES.integer_or(0);
 
 template <class T>
 static bool retry_due(T* x, bool now = false) {
@@ -256,7 +257,7 @@ static void report_compile_error(const char* src, uint64_t key, NSError* err, in
 }
 
 static std::string snap_texcoords(const char* src) {
-    static const bool off = getenv("NSMBU_NO_UV_SNAP") != nullptr;
+    static const bool off = env::NO_UV_SNAP() != nullptr;
     std::string s = src;
     if (off) return s;
 
@@ -326,7 +327,7 @@ static void compile_msl(Shader* sh, const char* rawSrc, uint64_t key) {
     NSString* source = [NSString stringWithUTF8String:src];
 
     NSString* entry = @"main0";
-    if (const char* nonce = getenv("NSMBU_MSL_NONCE")) {
+    if (const char* nonce = env::MSL_NONCE()) {
         std::string name = "main0_";
         for (const char* c = nonce; *c; c++) name += isalnum((unsigned char)*c) ? *c : '_';
         entry = [NSString stringWithUTF8String:name.c_str()];
@@ -454,7 +455,7 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
     LatteDecompilerOptions opt;
     if (!vertex) opt.areaSampledTextures = gfx::area_sample::units_for_pixel_shader(mem::ptr(addr), size);
 
-    static const bool strictMul = !getenv("NSMBU_STRICT_MUL") || strcmp(getenv("NSMBU_STRICT_MUL"), "0");
+    static const bool strictMul = !env::STRICT_MUL() || strcmp(env::STRICT_MUL(), "0");
     opt.strictMul = strictMul;
     LatteDecompilerOutput_t out{};
     if (vertex)
@@ -479,7 +480,7 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
     cache_record_shader(regs, vertex);
     double t1 = now_ms();
     g_t_decompile += t1 - t0;
-    if (getenv("NSMBU_DUMP_SHADERS")) {
+    if (env::DUMP_SHADERS()) {
         mkdir("shaders", 0755);
         char name[96];
         snprintf(name, sizeof name, "shaders/%s_%08X_%016llx.metal", vertex ? "vs" : "ps", addr, (unsigned long long)key);
@@ -558,7 +559,7 @@ static std::unordered_map<uint32_t, uint64_t> g_target_drawn;
 static uint64_t g_must_run_waits = 0;
 static double g_must_run_wait_ms = 0;
 static bool wait_compiled(const std::atomic<int>& st) {
-    static const double budgetMs = getenv("NSMBU_COMPILE_WAIT_MS") ? atof(getenv("NSMBU_COMPILE_WAIT_MS")) : 25.0;
+    static const double budgetMs = env::COMPILE_WAIT_MS.real_or(25.0);
     if (g_building_ahead) return st.load(std::memory_order_acquire) == CS_READY;
     static uint64_t frame = ~0ull;
     static double spent = 0;
@@ -778,7 +779,7 @@ static MTLSamplerAddressMode address_mode(uint32_t c) {
     }
 }
 
-static std::atomic<bool> g_aniso{[] { const char* e = getenv("NSMBU_ANISO"); return e && atoi(e) != 0; }()};
+static std::atomic<bool> g_aniso{[] { const char* e = env::ANISO(); return e && atoi(e) != 0; }()};
 bool aniso_enabled() { return g_aniso.load(std::memory_order_relaxed); }
 void set_aniso(bool v) { g_aniso = v; LOG("[gfx] anisotropic filtering %s", v ? "on" : "off"); }
 
@@ -891,7 +892,7 @@ static id<MTLTexture> texture_view(Surface* s, MTLTextureType type, uint32_t wor
     return v;
 }
 
-static const bool g_snapshot = getenv("NSMBU_SNAPSHOT") != nullptr;
+static const bool g_snapshot = env::SNAPSHOT() != nullptr;
 
 static float g_target_kx = 1.0f, g_target_ky = 1.0f;
 
@@ -1147,7 +1148,7 @@ std::vector<PipelineRecipe> g_pending_pipelines;
 std::unordered_set<uint64_t> g_known_pipelines;
 
 std::string cache_path() {
-    if (const char* e = getenv("NSMBU_SHADER_CACHE")) return e;
+    if (const char* e = env::SHADER_CACHE()) return e;
     const char* home = getenv("HOME");
     std::string dir = std::string(home ? home : ".") + "/Library/Caches/nsmbu";
     mkdir(dir.c_str(), 0755);
@@ -1340,7 +1341,7 @@ static void build_pending_pipelines(int budget, int maxInFlight) {
 
 void cache_warm_step() {
 
-    static const int maxInFlight = getenv("NSMBU_BG_COMPILES") ? atoi(getenv("NSMBU_BG_COMPILES")) : 8;
+    static const int maxInFlight = env::BG_COMPILES.integer_or(8);
     for (int n = 0; n < 16 && !g_deferred_shaders.empty() && g_compiles_in_flight < maxInFlight;) {
         Shader* s = g_deferred_shaders.back();
         g_deferred_shaders.pop_back();
@@ -1538,7 +1539,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     rprof::mark(rprof::kRecord);
     rprof::UploadKind vertexUploads(rprof::kUpVertex);
 
-    static const uint32_t kSnapshotLimit = getenv("NSMBU_VB_SNAPSHOT") ? (uint32_t)atoi(getenv("NSMBU_VB_SNAPSHOT")) : 256 * 1024;
+    static const uint32_t kSnapshotLimit = (uint32_t)env::VB_SNAPSHOT.integer_or(256 * 1024);
     for (auto& g : fs->bufferGroups) {
         uint32_t addr = regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START + g.attributeBufferIndex * 7];
         uint32_t size = regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START + g.attributeBufferIndex * 7 + 1] + 1;
@@ -1590,7 +1591,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     static uint64_t dumpFrame = ~0ull;
     static std::set<uint64_t> dumpDraws = [] {
         std::set<uint64_t> d;
-        if (const char* e = getenv("NSMBU_DUMP_DRAWS")) {
+        if (const char* e = env::DUMP_DRAWS()) {
             char* p;
             dumpFrame = strtoull(e, &p, 10);
             while (*p == ':' || *p == ',') { p++; d.insert(strtoull(p, &p, 10)); }
@@ -1601,7 +1602,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
     static uint32_t tracePS = 0;
     static uint64_t traceFrom = 0, traceTo = ~0ull;
     static bool traceInit = [] {
-        if (const char* e = getenv("NSMBU_TRACE_PS")) {
+        if (const char* e = env::TRACE_PS()) {
             char* p;
             tracePS = (uint32_t)strtoul(e, &p, 16);
             if (*p == ':') { traceFrom = strtoull(p + 1, &p, 10); traceTo = *p == '-' ? strtoull(p + 1, nullptr, 10) : traceFrom; }
@@ -1649,7 +1650,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
         }
         if (capturing()) dlog("%s", line); else LOG("%s", line);
     }
-    static uint32_t dumpPS = getenv("NSMBU_DUMP_PS") ? (uint32_t)strtoul(getenv("NSMBU_DUMP_PS"), nullptr, 16) : 0;
+    static uint32_t dumpPS = (uint32_t)env::DUMP_PS.ul_or(0, 16);
     bool psMatch = dumpPS && log_this_frame() && (regs[mmSQ_PGM_START_PS] << 8) == dumpPS;
     if (psMatch) {
         uint32_t vb = regs[mmSQ_VTX_ATTRIBUTE_BLOCK_START];

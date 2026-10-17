@@ -51,6 +51,16 @@ A profile follows `.agents/skills/perf/SKILL.md`.
 Headless scripted boots use `tools/scripted-run.sh`.
 Read `docs/automation.md` for the environment that script sets (`NSMBU_HIDDEN_WINDOWS`, `NSMBU_NO_HOST_INPUT`, `NSMBU_NO_AUDIO`, and related) and the variables you set (`NSMBU_EXIT_AT_FRAME`, dumps, presses, sticks, mod-manager dir).
 
+## Environment
+
+The runtime reads each `NSMBU_*` variable through the objects in `runtime/src/env.h`.
+The names are the `inline` objects in `runtime/src/env.h`.
+A read is `env::NO_HOST_INPUT()`.
+`env::NO_HOST_INPUT.name()` is the string `"NSMBU_NO_HOST_INPUT"` when a log or a `setenv` needs it.
+`integer_or`, `real_or`, `u64_or`, `ul_or`, `enabled`, and `present` are the typed reads.
+A clear is `env::unset(env::NO_HOST_INPUT)`.
+Read `docs/env.md` when you add a variable, rename one, or read one from the runtime.
+
 ## Guest code
 
 Each guest function is `void f_XXXXXXXX(Cpu* c)`.
